@@ -1,0 +1,31 @@
+{
+  "name": "ai-config-rater",
+  "version": "2.0.0",
+  "description": "Rate your AI config across six dimensions and visualize as a radar chart.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,magenta \"node server.js\" \"vite\"",
+    "build": "vite build",
+    "start": "node server.js",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "chart.js": "^4.4.3",
+    "express": "^4.19.2",
+    "framer-motion": "^11.11.0",
+    "react": "^18.3.1",
+    "react-chartjs-2": "^5.2.0",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.7"
+  }
+}
