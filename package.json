@@ -1,31 +1,27 @@
 {
-  "name": "ai-config-rater",
-  "version": "2.0.0",
-  "description": "Rate your AI config across six dimensions and visualize as a radar chart.",
+  "name": "sprix-ai-workspace",
+  "version": "0.1.0",
+  "private": true,
   "type": "module",
-  "main": "server.js",
+  "packageManager": "pnpm@10.32.1",
   "scripts": {
-    "dev": "concurrently -n api,web -c blue,magenta \"node server.js\" \"vite\"",
-    "build": "vite build",
-    "start": "node server.js",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "chart.js": "^4.4.3",
-    "express": "^4.19.2",
-    "framer-motion": "^11.11.0",
-    "react": "^18.3.1",
-    "react-chartjs-2": "^5.2.0",
-    "react-dom": "^18.3.1"
+    "dev": "pnpm dev:agent",
+    "dev:agent": "pnpm --filter @sprix-ai/agent dev",
+    "dev:admin": "pnpm --filter @sprix-ai/admin dev",
+    "dev:all": "pnpm --parallel --filter @sprix-ai/agent --filter @sprix-ai/admin dev",
+    "build": "pnpm --filter @sprix-ai/agent --filter @sprix-ai/admin build",
+    "preview:agent": "pnpm --filter @sprix-ai/agent preview",
+    "preview:admin": "pnpm --filter @sprix-ai/admin preview",
+    "typecheck": "pnpm --filter @sprix-ai/agent --filter @sprix-ai/admin typecheck",
+    "lint": "pnpm --filter @sprix-ai/agent --filter @sprix-ai/admin lint",
+    "test": "pnpm test:workspace && pnpm --filter @sprix-ai/agent --filter @sprix-ai/admin test",
+    "test:workspace": "node --test scripts/workspace-boundaries.test.mjs"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.0.0",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^4.3.4",
-    "concurrently": "^9.1.0",
-    "tailwindcss": "^4.0.0",
+    "@eslint/js": "^9.17.0",
+    "eslint": "^9.17.0",
+    "globals": "^15.14.0",
     "typescript": "^5.6.3",
-    "vite": "^6.0.7"
+    "typescript-eslint": "^8.19.0"
   }
 }
