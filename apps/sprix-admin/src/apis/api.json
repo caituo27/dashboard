@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../node_modules/qxun-api-generator/lib/schema.json",
+  "apis": [
+    {
+      "service": "sprix",
+      "outputDir": "./",
+      "path": "http://42.194.150.73:8084/v3/api-docs",
+      "httpPath": "import { http as globalAxios } from '../../utils/http'",
+      "baseUrl": ""
+    }
+  ]
+}

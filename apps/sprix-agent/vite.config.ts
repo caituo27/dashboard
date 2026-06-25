@@ -5,7 +5,14 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    port: 5173
+    port: 5173,
+    proxy: {
+      "/sprix-api": {
+        target: "http://42.194.150.73:8084",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/sprix-api/, "")
+      }
+    }
   },
   build: {
     outDir: "dist"

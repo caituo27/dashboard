@@ -1,10 +1,12 @@
 import type { ReactNode } from "react";
 import { Dropdown, message } from "antd";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Bot, LogOut, UserRound } from "lucide-react";
 import { useSprixStore } from "../store/sprixStore";
 import { ActionButton } from "./Primitives";
 import { userRoutes } from "../navigation";
+import { logoutConsumer } from "../services/sprixApi";
 
 function Sidebar() {
   const location = useLocation();
@@ -60,6 +62,7 @@ function UserTopBar({
   onOpenContact: () => void;
 }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const account = useSprixStore((state) => state.account);
   const logout = useSprixStore((state) => state.logout);
   return (
@@ -91,10 +94,16 @@ function UserTopBar({
                   key: "logout",
                   label: "退出登录",
                   icon: <LogOut size={15} />,
-                  onClick: () => {
-                    logout();
-                    navigate("/agent/market");
-                    message.success("已退出登录");
+                  onClick: async () => {
+                    try {
+                      await logoutConsumer();
+                      logout();
+                      await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
+                      navigate("/agent/market");
+                      message.success("已退出登录");
+                    } catch (error) {
+                      message.error(error instanceof Error ? `退出失败：${error.message}` : "退出失败");
+                    }
                   }
                 }
               ]

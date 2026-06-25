@@ -1,12 +1,33 @@
 import { useState } from "react";
 import { Button, Form, Input, InputNumber, Modal, Segmented, Select, Table, Tabs, Tooltip, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { CircleDollarSign, ClipboardList, ShieldCheck } from "lucide-react";
-import type { AdminAppeal, CompletedExecution, RunningExecution, TerminatedExecution, Withdrawal } from "../types";
+import type { AdminAppeal, CompletedExecution, Payout, RunningExecution, TerminatedExecution, Withdrawal } from "../types";
 import { useSprixStore } from "../store/sprixStore";
+import {
+  approveRemoteAppeal,
+  approveRemoteWithdrawal,
+  markRemoteWithdrawalPaid,
+  markRemoteWithdrawalPayoutFailed,
+  rejectRemoteAppeal,
+  startRemoteAppeal
+} from "../services/sprixApi";
 import { ActionButton, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface, primitiveIcons } from "../components/Primitives";
 import { currency } from "../utils/format";
+
+function warnMissingTaskApi(action: string) {
+  message.warning(`后端 Swagger 暂未提供任务${action}接口，未提交任何本地数据`);
+}
+
+function getAppealBackendId(record: AdminAppeal) {
+  return record.backendId ?? record.appealNo;
+}
+
+function getWithdrawalBackendId(record: Pick<Withdrawal | Payout, "backendId" | "withdrawalNo">) {
+  return record.backendId ?? record.withdrawalNo;
+}
 
 export function AdminTaskCenter() {
   const navigate = useNavigate();
@@ -62,17 +83,17 @@ export function AdminTaskCenter() {
                 <SecondaryButton onClick={() => navigate(`/tasks/new?edit=${task.id}`)}>编辑</SecondaryButton>
                 {task.taskStatus === "已发布" ? (
                   <>
-                    <SecondaryButton onClick={() => message.success("任务已下线")}>下线</SecondaryButton>
-                    <SecondaryButton danger onClick={() => message.success("任务已删除")}>删除</SecondaryButton>
+                    <SecondaryButton onClick={() => warnMissingTaskApi("下线")}>下线</SecondaryButton>
+                    <SecondaryButton danger onClick={() => warnMissingTaskApi("删除")}>删除</SecondaryButton>
                   </>
                 ) : (
                   <>
                     <Tooltip title={task.offlineReason === "名额已满" ? "该任务名额已满，无法重新发布。" : ""}>
-                      <Button shape="round" disabled={task.offlineReason === "名额已满"} onClick={() => message.success("任务已重新发布")}>
+                      <Button shape="round" disabled={task.offlineReason === "名额已满"} onClick={() => warnMissingTaskApi("重新发布")}>
                         重新发布
                       </Button>
                     </Tooltip>
-                    <SecondaryButton danger onClick={() => message.success("任务已删除")}>删除</SecondaryButton>
+                    <SecondaryButton danger onClick={() => warnMissingTaskApi("删除")}>删除</SecondaryButton>
                   </>
                 )}
               </div>
@@ -99,8 +120,7 @@ export function AdminTaskForm() {
               okText: "确认发布",
               cancelText: "取消",
               onOk: () => {
-                message.success("任务已发布");
-                navigate("/tasks");
+                warnMissingTaskApi("发布");
               }
             });
           }}
@@ -171,7 +191,7 @@ export function AdminTaskDetail() {
         </div>
         <div className="mt-5 grid gap-3 text-sm text-ink-soft md:grid-cols-3">
           <span>任务分类：{task.category}</span>
-          <span>任务来源名称：Sprix AI 平台</span>
+          <span>任务来源名称：{task.sourceName}</span>
           <span>任务来源类型：{task.sourceType}</span>
           <span>任务奖励：{currency(task.reward)}</span>
           <span>总名额：{task.totalSlots}</span>
@@ -285,14 +305,19 @@ function AdminExecutionRecords({
 
 export function AdminAppealCenter() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const appeals = useSprixStore((state) => state.adminAppeals);
-  const startAppeal = useSprixStore((state) => state.startAppeal);
   const [tab, setTab] = useState("全部");
   const visible = appeals.filter((appeal) => tab === "全部" || appeal.appealStatus === tab || (tab === "高风险" && appeal.priority === "高风险"));
+  const today = new Intl.DateTimeFormat("sv-SE", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
   const stats = {
     pending: appeals.filter((item) => item.appealStatus === "待处理").length,
     processing: appeals.filter((item) => item.appealStatus === "处理中").length,
-    today: appeals.filter((item) => item.submittedAt.includes("2026-06-23")).length,
+    today: appeals.filter((item) => item.submittedAt.includes(today)).length,
     done: appeals.filter((item) => ["申诉通过", "申诉不通过"].includes(item.appealStatus)).length,
     risk: appeals.filter((item) => item.priority === "高风险").length
   };
@@ -304,7 +329,7 @@ export function AdminAppealCenter() {
         <MetricCard title="处理中申诉" value={stats.processing} />
         <MetricCard title="今日新增" value={stats.today} />
         <MetricCard title="已处理" value={stats.done} />
-        <MetricCard title="平均处理时长" value="18 小时" />
+        <MetricCard title="平均处理时长" value="-" />
         <MetricCard title="高风险申诉" value={stats.risk} />
       </div>
       <Surface className="sprix-table-card p-5">
@@ -336,9 +361,14 @@ export function AdminAppealCenter() {
                   <Button type="link" onClick={() => navigate(`/appeals/${record.appealNo}`)}>查看详情</Button>
                   <Button
                     type="link"
-                    onClick={() => {
-                      startAppeal(record.appealNo);
-                      message.success("已开始处理");
+                    onClick={async () => {
+                      try {
+                        await startRemoteAppeal(getAppealBackendId(record));
+                        await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+                        message.success("已开始处理");
+                      } catch (error) {
+                        message.error(error instanceof Error ? `开始处理失败：${error.message}` : "开始处理失败");
+                      }
                     }}
                   >
                     开始处理
@@ -356,9 +386,8 @@ export function AdminAppealCenter() {
 export function AdminAppealDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const appeal = useSprixStore((state) => state.adminAppeals.find((item) => item.appealNo === id));
-  const passAppeal = useSprixStore((state) => state.passAppeal);
-  const rejectAppeal = useSprixStore((state) => state.rejectAppeal);
   if (!appeal) return <Surface className="p-8">申诉不存在</Surface>;
   return (
     <>
@@ -379,10 +408,15 @@ export function AdminAppealDetail() {
                   title: "确认申诉通过",
                   content: "确认申诉通过后，该任务将从验收未通过转为结算中，并生成结算记录。",
                   okText: "申诉通过",
-                  onOk: () => {
-                    passAppeal(appeal.appealNo);
-                    message.success("申诉已通过，任务已进入结算中");
-                    navigate("/appeals");
+                  onOk: async () => {
+                    try {
+                      await approveRemoteAppeal(getAppealBackendId(appeal));
+                      await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+                      message.success("申诉已通过，任务已进入结算中");
+                      navigate("/appeals");
+                    } catch (error) {
+                      message.error(error instanceof Error ? `申诉通过失败：${error.message}` : "申诉通过失败");
+                    }
                   }
                 })
               }
@@ -395,18 +429,23 @@ export function AdminAppealDetail() {
                   title: "确认申诉不通过",
                   content: "确认申诉不通过后，该任务将保持验收未通过状态，用户不可再次申诉。",
                   okText: "申诉不通过",
-                  onOk: () => {
-                    rejectAppeal(appeal.appealNo);
-                    message.success("已处理为申诉不通过");
-                    navigate("/appeals");
+                  onOk: async () => {
+                    try {
+                      await rejectRemoteAppeal(getAppealBackendId(appeal));
+                      await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+                      message.success("已处理为申诉不通过");
+                      navigate("/appeals");
+                    } catch (error) {
+                      message.error(error instanceof Error ? `申诉驳回失败：${error.message}` : "申诉驳回失败");
+                    }
                   }
                 })
               }
             >
               申诉不通过
             </SecondaryButton>
-            <SecondaryButton onClick={() => message.info("已标记为需补充材料")}>需要补充材料</SecondaryButton>
-            <SecondaryButton onClick={() => message.info("已转高风险处理")}>转高风险处理</SecondaryButton>
+            <SecondaryButton onClick={() => message.warning("后端 Swagger 暂未提供补充材料接口，未提交任何本地数据")}>需要补充材料</SecondaryButton>
+            <SecondaryButton onClick={() => message.warning("后端 Swagger 暂未提供高风险流转接口，未提交任何本地数据")}>转高风险处理</SecondaryButton>
           </div>
         </Surface>
       </div>
@@ -415,21 +454,48 @@ export function AdminAppealDetail() {
 }
 
 export function AdminFundCenter() {
+  const queryClient = useQueryClient();
   const settlements = useSprixStore((state) => state.settlements);
   const withdrawals = useSprixStore((state) => state.withdrawals);
   const payouts = useSprixStore((state) => state.payouts);
   const exceptions = useSprixStore((state) => state.fundExceptions);
   const flows = useSprixStore((state) => state.fundFlows);
-  const approveWithdrawal = useSprixStore((state) => state.approveWithdrawal);
-  const markPayoutSuccess = useSprixStore((state) => state.markPayoutSuccess);
+  const sumBy = <T,>(records: T[], pickAmount: (record: T) => number) => records.reduce((sum, record) => sum + pickAmount(record), 0);
   const stats = [
-    ["可提现余额总额", 68420],
-    ["结算中金额", 12300],
-    ["提现审核中金额", 8600],
-    ["待打款金额", 5200],
-    ["已提现金额", 128900],
-    ["打款失败金额", 1240]
+    ["可提现余额总额", sumBy(withdrawals, (item) => item.withdrawableBalance)],
+    ["结算中金额", sumBy(settlements.filter((item) => item.settlementStatus === "结算中"), (item) => item.netIncome)],
+    ["提现审核中金额", sumBy(withdrawals.filter((item) => item.withdrawStatus === "提现审核中"), (item) => item.applyAmount)],
+    ["待打款金额", sumBy(payouts.filter((item) => item.withdrawStatus === "待打款"), (item) => item.payoutAmount)],
+    ["已提现金额", sumBy(withdrawals.filter((item) => item.withdrawStatus === "已提现"), (item) => item.applyAmount)],
+    ["打款失败金额", sumBy(exceptions, (item) => item.exceptionAmount)]
   ];
+  const approveWithdrawal = async (record: Withdrawal) => {
+    try {
+      await approveRemoteWithdrawal(getWithdrawalBackendId(record));
+      await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+      message.success("已通过审核，进入待打款");
+    } catch (error) {
+      message.error(error instanceof Error ? `提现审核失败：${error.message}` : "提现审核失败");
+    }
+  };
+  const markPayoutPaid = async (record: Payout) => {
+    try {
+      await markRemoteWithdrawalPaid(getWithdrawalBackendId(record));
+      await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+      message.success("已标记打款完成");
+    } catch (error) {
+      message.error(error instanceof Error ? `标记打款失败：${error.message}` : "标记打款失败");
+    }
+  };
+  const markPayoutFailed = async (record: Payout) => {
+    try {
+      await markRemoteWithdrawalPayoutFailed(getWithdrawalBackendId(record));
+      await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+      message.success("已标记打款失败");
+    } catch (error) {
+      message.error(error instanceof Error ? `打款失败标记提交失败：${error.message}` : "打款失败标记提交失败");
+    }
+  };
   return (
     <>
       <PageHeader title="资金管理中心" subtitle="管理结算记录、提现审核、待打款、打款异常和资金流水。" />
@@ -469,7 +535,7 @@ export function AdminFundCenter() {
             {
               key: "withdrawals",
               label: "提现审核",
-              children: <WithdrawalTable data={withdrawals} approveWithdrawal={approveWithdrawal} />
+              children: <WithdrawalTable data={withdrawals} onApproveWithdrawal={approveWithdrawal} />
             },
             {
               key: "payouts",
@@ -493,8 +559,8 @@ export function AdminFundCenter() {
                       title: "操作",
                       render: (_, record) => (
                         <div className="flex gap-1">
-                          <Button type="link" onClick={() => markPayoutSuccess(record.withdrawalNo)}>标记已打款</Button>
-                          <Button type="link" onClick={() => message.warning("已标记打款失败")}>标记打款失败</Button>
+                          <Button type="link" onClick={() => markPayoutPaid(record)}>标记已打款</Button>
+                          <Button type="link" onClick={() => markPayoutFailed(record)}>标记打款失败</Button>
                         </div>
                       )
                     }
@@ -558,10 +624,10 @@ export function AdminFundCenter() {
 
 function WithdrawalTable({
   data,
-  approveWithdrawal
+  onApproveWithdrawal
 }: {
   data: Withdrawal[];
-  approveWithdrawal: (withdrawalNo: string) => void;
+  onApproveWithdrawal: (withdrawal: Withdrawal) => Promise<void>;
 }) {
   return (
     <Table
@@ -589,14 +655,11 @@ function WithdrawalTable({
             <div className="flex flex-wrap gap-1">
               <Button
                 type="link"
-                onClick={() => {
-                  approveWithdrawal(record.withdrawalNo);
-                  message.success("已通过审核，进入待打款");
-                }}
+                onClick={() => onApproveWithdrawal(record)}
               >
                 通过审核
               </Button>
-              <Button type="link" onClick={() => message.info("已要求更换账户")}>要求更换账户</Button>
+              <Button type="link" onClick={() => message.warning("后端 Swagger 暂未提供要求更换账户接口，未提交任何本地数据")}>要求更换账户</Button>
             </div>
           )
         }

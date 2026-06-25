@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button, Checkbox, Form, Input, InputNumber, Modal, Tabs, message } from "antd";
 import { useSprixStore } from "../store/sprixStore";
 import { ActionButton, SecondaryButton, StatusTag } from "./Primitives";
+import { applyRemoteWithdrawal, authenticateConsumer, bindRemoteWithdrawalAccount, mapRemoteWithdrawal, submitRemoteAppeal } from "../services/sprixApi";
 import { currency } from "../utils/format";
 
 type ModalState = {
@@ -36,19 +38,28 @@ export function LoginRegisterModal({
   onClose: () => void;
   afterLogin?: () => void;
 }) {
-  const login = useSprixStore((state) => state.login);
+  const queryClient = useQueryClient();
   const [agreed, setAgreed] = useState(false);
   const [counting, setCounting] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const finishLogin = () => {
+  const finishLogin = async (values?: { phone?: string; code?: string }) => {
     if (!agreed) {
       message.warning("请先阅读并同意用户协议和隐私协议");
       return;
     }
-    login();
-    message.success("登录 / 注册成功");
-    onClose();
-    afterLogin?.();
+    setSubmitting(true);
+    try {
+      await authenticateConsumer(values?.phone ?? "agent@sprix.ai", values?.code ?? "123456");
+      await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
+      message.success("登录 / 注册成功");
+      onClose();
+      afterLogin?.();
+    } catch (error) {
+      message.error(error instanceof Error ? `登录失败：${error.message}` : "登录失败");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -66,8 +77,8 @@ export function LoginRegisterModal({
                 <p className="text-center text-sm text-ink-soft">请使用微信扫码完成登录 / 注册</p>
                 <p className="text-center text-xs text-ink-soft">扫码成功后将自动进入平台</p>
                 <AgreementCheck agreed={agreed} onChange={setAgreed} />
-                <ActionButton block onClick={finishLogin}>
-                  模拟扫码成功
+                <ActionButton block loading={submitting} onClick={() => finishLogin()}>
+                  使用后端登录
                 </ActionButton>
               </div>
             )
@@ -99,7 +110,7 @@ export function LoginRegisterModal({
                   />
                 </Form.Item>
                 <AgreementCheck agreed={agreed} onChange={setAgreed} />
-                <ActionButton block htmlType="submit">
+                <ActionButton block htmlType="submit" loading={submitting}>
                   登录 / 注册
                 </ActionButton>
               </Form>
@@ -208,24 +219,43 @@ export function BindAlipayModal({
   onClose: () => void;
   afterBind?: () => void;
 }) {
-  const bindAlipay = useSprixStore((state) => state.bindAlipay);
+  const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
+  const queryClient = useQueryClient();
+  const [submitting, setSubmitting] = useState(false);
   return (
     <Modal title="设置提现账户" open={open} onCancel={onClose} footer={null}>
       <p className="mb-5 text-sm leading-7 text-ink-soft">为确保提现资金进入本人账户，请绑定与接单实人认证主体一致的支付宝账户。</p>
       <Form
         layout="vertical"
-        onFinish={(values) => {
-          bindAlipay(values.account || "xia***@alipay.com");
-          message.success("支付宝账户绑定成功，实名一致性已通过");
-          onClose();
-          afterBind?.();
+        onFinish={async (values) => {
+          const account = values.account || "xia***@alipay.com";
+          setSubmitting(true);
+          try {
+            const withdrawalAccount = await bindRemoteWithdrawalAccount(account);
+            mergeRemoteState({
+              account: {
+                alipayBound: true,
+                alipayAccountMasked: withdrawalAccount.alipayAccount ?? account,
+                alipayRealNameMatched: Boolean(withdrawalAccount.realNameMatched),
+                withdrawAccountStatus: withdrawalAccount.realNameMatched ? "可用" : "需更换"
+              }
+            });
+            await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
+            message.success("支付宝账户绑定成功，实名一致性已通过");
+            onClose();
+            afterBind?.();
+          } catch (error) {
+            message.error(error instanceof Error ? `绑定失败：${error.message}` : "绑定失败");
+          } finally {
+            setSubmitting(false);
+          }
         }}
       >
         <Form.Item label="支付宝账号" name="account" rules={[{ required: true, message: "请输入支付宝账户" }]}>
           <Input placeholder="请输入支付宝账户" />
         </Form.Item>
         <div className="mb-4 rounded-2xl bg-[#e7f7f2] px-4 py-3 text-sm text-accent">真实姓名将与接单实人认证主体一致性校验。</div>
-        <ActionButton htmlType="submit" block>
+        <ActionButton htmlType="submit" block loading={submitting}>
           授权绑定
         </ActionButton>
       </Form>
@@ -235,8 +265,11 @@ export function BindAlipayModal({
 
 export function WithdrawRequestModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const account = useSprixStore((state) => state.account);
-  const submitWithdrawal = useSprixStore((state) => state.submitWithdrawal);
+  const withdrawals = useSprixStore((state) => state.withdrawals);
+  const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
+  const queryClient = useQueryClient();
   const [amount, setAmount] = useState<number | null>(account.withdrawableAmount);
+  const [submitting, setSubmitting] = useState(false);
   return (
     <Modal title="提交提现申请" open={open} onCancel={onClose} footer={null}>
       <div className="mb-5 space-y-3 rounded-[22px] bg-[#fafafa] p-4 text-sm">
@@ -247,7 +280,7 @@ export function WithdrawRequestModal({ open, onClose }: { open: boolean; onClose
       </div>
       <Form
         layout="vertical"
-        onFinish={() => {
+        onFinish={async () => {
           const value = Number(amount ?? 0);
           if (value <= 0) {
             message.warning("提现金额必须大于 0");
@@ -257,9 +290,21 @@ export function WithdrawRequestModal({ open, onClose }: { open: boolean; onClose
             message.warning("提现金额不得大于可提现金额");
             return;
           }
-          submitWithdrawal(value);
-          message.success("提现申请已提交，预计 1-3 个工作日内到账");
-          onClose();
+          setSubmitting(true);
+          try {
+            const withdrawal = await applyRemoteWithdrawal(value);
+            mergeRemoteState({
+              withdrawals: [mapRemoteWithdrawal(withdrawal), ...withdrawals],
+              account: { withdrawableAmount: Math.max(0, account.withdrawableAmount - value) }
+            });
+            await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
+            message.success("提现申请已提交，预计 1-3 个工作日内到账");
+            onClose();
+          } catch (error) {
+            message.error(error instanceof Error ? `提现申请失败：${error.message}` : "提现申请失败");
+          } finally {
+            setSubmitting(false);
+          }
         }}
       >
         <Form.Item label="本次提现金额">
@@ -269,7 +314,7 @@ export function WithdrawRequestModal({ open, onClose }: { open: boolean; onClose
           提交后，平台将在 1-3 个工作日内完成审核与打款处理。资金将打款至你已绑定的本人支付宝账户。
         </p>
         <div className="flex gap-2">
-          <ActionButton htmlType="submit">提交提现申请</ActionButton>
+          <ActionButton htmlType="submit" loading={submitting}>提交提现申请</ActionButton>
           <SecondaryButton onClick={onClose}>取消</SecondaryButton>
         </div>
       </Form>
@@ -286,23 +331,32 @@ export function AppealModal({
   executionId: string | null;
   onClose: () => void;
 }) {
-  const submitAppeal = useSprixStore((state) => state.submitAppeal);
+  const queryClient = useQueryClient();
+  const [submitting, setSubmitting] = useState(false);
   return (
     <Modal title="提交申诉" open={open} onCancel={onClose} footer={null}>
       <p className="mb-5 text-sm leading-7 text-ink-soft">如你认为本次验收结果存在误判，可提交申诉。平台将在 1-3 个工作日内返回处理结果。</p>
       <Form
         layout="vertical"
-        onFinish={(values) => {
+        onFinish={async (values) => {
           if (!executionId) return;
-          submitAppeal(executionId, values.reason);
-          message.success("申诉已提交，平台将在 1-3 个工作日内返回处理结果");
-          onClose();
+          setSubmitting(true);
+          try {
+            await submitRemoteAppeal(executionId, values.reason);
+            await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
+            message.success("申诉已提交，平台将在 1-3 个工作日内返回处理结果");
+            onClose();
+          } catch (error) {
+            message.error(error instanceof Error ? `申诉提交失败：${error.message}` : "申诉提交失败");
+          } finally {
+            setSubmitting(false);
+          }
         }}
       >
         <Form.Item label="申诉理由" name="reason" rules={[{ required: true, message: "请输入申诉理由" }]}>
           <Input.TextArea rows={5} placeholder="请说明你认为验收存在误判的原因" />
         </Form.Item>
-        <ActionButton htmlType="submit">提交</ActionButton>
+        <ActionButton htmlType="submit" loading={submitting}>提交</ActionButton>
       </Form>
     </Modal>
   );

@@ -24,12 +24,14 @@ import {
   TaskMarketPage,
   WithdrawAccountPage
 } from "./user/UserPages";
+import { useRemoteSprixBootstrap } from "./services/useRemoteSprixBootstrap";
 
 const queryClient = new QueryClient();
 
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <RemoteSprixBridge />
       <Router>
         <Routes>
           <Route path="/" element={<Navigate to="/agent/market" replace />} />
@@ -39,6 +41,11 @@ export default function App() {
       </Router>
     </QueryClientProvider>
   );
+}
+
+function RemoteSprixBridge() {
+  useRemoteSprixBootstrap();
+  return null;
 }
 
 function UserRoutes() {

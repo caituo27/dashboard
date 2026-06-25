@@ -1,10 +1,20 @@
 import { useState } from "react";
 import { Button, Input, Modal, Progress, Segmented, Steps, message } from "antd";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Bot, ChartNoAxesColumnIncreasing, CircleDollarSign, PlugZap, Search, UsersRound } from "lucide-react";
 import type { Agent, Task } from "../types";
 import { useSprixStore } from "../store/sprixStore";
+import {
+  acceptRemoteTask,
+  completeRemoteRealPersonVerification,
+  connectRemoteAgent,
+  disconnectRemoteAgent,
+  initializeRemoteFaceVerification,
+  markRemoteCurrentAgent,
+  rerunRemoteTask,
+  signRemoteFreelancerAgreement
+} from "../services/sprixApi";
 import { ActionButton, EmptyState, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface, primitiveIcons } from "../components/Primitives";
 import { compactText, currency, scoreText } from "../utils/format";
 
@@ -27,6 +37,8 @@ type UserPageProps = {
 export function TaskMarketPage({ openLogin, openQualificationPrompt }: UserPageProps) {
   const navigate = useNavigate();
   const tasks = useSprixStore((state) => state.tasks);
+  const agents = useSprixStore((state) => state.agents);
+  const myTasks = useSprixStore((state) => state.myTasks);
   const account = useSprixStore((state) => state.account);
   const [keyword, setKeyword] = useState("");
   const publishedTasksQuery = useQuery({
@@ -78,10 +90,10 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: UserPageP
         </div>
       </div>
       <div className="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard title="已发布任务" value="18" icon={<ChartNoAxesColumnIncreasing size={19} />} />
-        <MetricCard title="活跃 Agent" value="1,284" icon={<Bot size={19} />} />
-        <MetricCard title="累计分成" value="¥2,800,000" icon={<CircleDollarSign size={19} />} />
-        <MetricCard title="今日接单" value="86" icon={<UsersRound size={19} />} />
+        <MetricCard title="已发布任务" value={publishedTasks.length} icon={<ChartNoAxesColumnIncreasing size={19} />} />
+        <MetricCard title="可用 Agent" value={agents.length} icon={<Bot size={19} />} />
+        <MetricCard title="可提现金额" value={currency(account.withdrawableAmount)} icon={<CircleDollarSign size={19} />} />
+        <MetricCard title="我的任务" value={myTasks.length} icon={<UsersRound size={19} />} />
       </div>
       <div className="sprix-grid-auto">
         {publishedTasks.map((task) => (
@@ -120,10 +132,10 @@ function TaskCard({ task, onAccept }: { task: Task; onAccept: () => void }) {
 export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageProps) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const task = useSprixStore((state) => state.tasks.find((item) => item.id === id));
   const account = useSprixStore((state) => state.account);
   const agents = useSprixStore((state) => state.agents);
-  const acceptTask = useSprixStore((state) => state.acceptTask);
   const currentAgent = agents.find((agent) => agent.role === "当前执行 Agent" && agent.status === "已连接");
 
   if (!task) return <EmptyState title="任务不存在" description="当前任务已不可访问" action={<SecondaryButton href="/agent/market">返回任务市场</SecondaryButton>} />;
@@ -151,10 +163,15 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
       content: "确认接单后，平台将使用当前执行 Agent 立即执行该任务。执行期间请保持 Agent 连接，若连接断开或切换 Agent，本次执行将终止并需要重新执行。",
       okText: "确认接单",
       cancelText: "取消",
-      onOk: () => {
-        acceptTask(task.id);
-        message.success("接单成功，任务已进入执行中");
-        navigate("/agent/my-tasks");
+      onOk: async () => {
+        try {
+          await acceptRemoteTask(task.id);
+          await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
+          message.success("接单成功，任务已进入执行中");
+          navigate("/agent/my-tasks");
+        } catch (error) {
+          message.error(error instanceof Error ? `接单失败：${error.message}` : "接单失败");
+        }
       }
     });
   };
@@ -214,22 +231,45 @@ function InfoBlock({ title, body }: { title: string; body: string }) {
 }
 
 export function AgentCenterPage({ openLogin }: UserPageProps) {
+  const queryClient = useQueryClient();
   const account = useSprixStore((state) => state.account);
   const agents = useSprixStore((state) => state.agents);
-  const connectAgent = useSprixStore((state) => state.connectAgent);
-  const disconnectAgent = useSprixStore((state) => state.disconnectAgent);
-  const setCurrentAgent = useSprixStore((state) => state.setCurrentAgent);
   const connected = agents.filter((agent) => agent.status === "已连接");
   const available = agents.filter((agent) => agent.status !== "已连接");
   const current = agents.find((agent) => agent.role === "当前执行 Agent" && agent.status === "已连接");
 
-  const connect = (agent: Agent) => {
+  const connect = async (agent: Agent) => {
     if (!account.isLoggedIn) {
       openLogin();
       return;
     }
-    connectAgent(agent.id);
-    message.success(agent.status === "已断开" ? "重新连接成功" : "连接并评测完成");
+    try {
+      await connectRemoteAgent(agent.id);
+      await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
+      message.success(agent.status === "已断开" ? "重新连接成功" : "连接并评测完成");
+    } catch (error) {
+      message.error(error instanceof Error ? `连接失败：${error.message}` : "连接失败");
+    }
+  };
+
+  const setCurrent = async (agentId: string) => {
+    try {
+      await markRemoteCurrentAgent(agentId);
+      await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
+      message.success("已设置当前执行 Agent");
+    } catch (error) {
+      message.error(error instanceof Error ? `设置失败：${error.message}` : "设置失败");
+    }
+  };
+
+  const disconnect = async (agentId: string) => {
+    try {
+      await disconnectRemoteAgent(agentId);
+      await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
+      message.success("已断开连接");
+    } catch (error) {
+      message.error(error instanceof Error ? `断开失败：${error.message}` : "断开失败");
+    }
   };
 
   return (
@@ -250,11 +290,11 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         empty="暂无已连接 Agent"
         renderActions={(agent) =>
           agent.role === "当前执行 Agent" ? (
-            <SecondaryButton onClick={() => disconnectAgent(agent.id)}>断开连接</SecondaryButton>
+            <SecondaryButton onClick={() => disconnect(agent.id)}>断开连接</SecondaryButton>
           ) : (
             <>
-              <ActionButton onClick={() => setCurrentAgent(agent.id)}>设为当前执行 Agent</ActionButton>
-              <SecondaryButton onClick={() => disconnectAgent(agent.id)}>断开连接</SecondaryButton>
+              <ActionButton onClick={() => setCurrent(agent.id)}>设为当前执行 Agent</ActionButton>
+              <SecondaryButton onClick={() => disconnect(agent.id)}>断开连接</SecondaryButton>
             </>
           )
         }
@@ -393,9 +433,9 @@ function AgentAvatar({ name }: { name: string }) {
 }
 
 export function MyTasksPage({ openLogin, openAppeal }: UserPageProps) {
+  const queryClient = useQueryClient();
   const account = useSprixStore((state) => state.account);
   const myTasks = useSprixStore((state) => state.myTasks);
-  const acceptTask = useSprixStore((state) => state.acceptTask);
   const [tab, setTab] = useState("全部");
   const visible = myTasks.filter((task) => {
     if (tab === "全部") return true;
@@ -434,9 +474,14 @@ export function MyTasksPage({ openLogin, openAppeal }: UserPageProps) {
                       {task.appealStatus === "申诉不通过" ? "申诉不通过" : "申诉"}
                     </ActionButton>
                     <SecondaryButton
-                      onClick={() => {
-                        acceptTask(task.taskId);
-                        message.success("已重新生成执行记录");
+                      onClick={async () => {
+                        try {
+                          await rerunRemoteTask(task.id);
+                          await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
+                          message.success("已重新生成执行记录");
+                        } catch (error) {
+                          message.error(error instanceof Error ? `重新执行失败：${error.message}` : "重新执行失败");
+                        }
                       }}
                     >
                       重新执行
@@ -528,11 +573,13 @@ export function EarningsPage({ openLogin, openBindAlipay, openWithdraw }: UserPa
 
 export function QualificationPage() {
   const navigate = useNavigate();
-  const completeQualification = useSprixStore((state) => state.completeQualification);
+  const queryClient = useQueryClient();
+  const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
   const account = useSprixStore((state) => state.account);
   const [checked, setChecked] = useState(false);
   const [signed, setSigned] = useState(false);
   const [step, setStep] = useState(account.qualificationStatus === "已开通" ? 2 : 0);
+  const [submitting, setSubmitting] = useState(false);
 
   return (
     <>
@@ -549,10 +596,22 @@ export function QualificationPage() {
               </Button>
               <ActionButton
                 className="ml-2 mt-4"
-                disabled={!checked}
-                onClick={() => {
-                  message.success("实人认证成功");
-                  setStep(1);
+                disabled={!checked || submitting}
+                loading={submitting}
+                onClick={async () => {
+                  setSubmitting(true);
+                  try {
+                    await initializeRemoteFaceVerification();
+                    const accountPatch = await completeRemoteRealPersonVerification();
+                    mergeRemoteState({ account: accountPatch });
+                    await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
+                    message.success("实人认证成功");
+                    setStep(1);
+                  } catch (error) {
+                    message.error(error instanceof Error ? `实人认证失败：${error.message}` : "实人认证失败");
+                  } finally {
+                    setSubmitting(false);
+                  }
                 }}
               >
                 开始实人认证
@@ -572,11 +631,21 @@ export function QualificationPage() {
               </Button>
               <ActionButton
                 className="ml-2 mt-4"
-                disabled={!signed}
-                onClick={() => {
-                  completeQualification();
-                  setStep(2);
-                  message.success("接单资格已开通");
+                disabled={!signed || submitting}
+                loading={submitting}
+                onClick={async () => {
+                  setSubmitting(true);
+                  try {
+                    const accountPatch = await signRemoteFreelancerAgreement();
+                    mergeRemoteState({ account: accountPatch });
+                    await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
+                    setStep(2);
+                    message.success("接单资格已开通");
+                  } catch (error) {
+                    message.error(error instanceof Error ? `协议签署失败：${error.message}` : "协议签署失败");
+                  } finally {
+                    setSubmitting(false);
+                  }
                 }}
               >
                 确认签署

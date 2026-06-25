@@ -145,6 +145,7 @@ export type AdminExecutionRecords = Record<
 >;
 
 export type AdminAppeal = {
+  backendId?: string;
   appealNo: string;
   taskTitle: string;
   taskCategory: string;
@@ -182,6 +183,7 @@ export type Settlement = {
 };
 
 export type Withdrawal = {
+  backendId?: string;
   withdrawalNo: string;
   userName: string;
   userPhone: string;
@@ -197,6 +199,7 @@ export type Withdrawal = {
 };
 
 export type Payout = {
+  backendId?: string;
   withdrawalNo: string;
   userName: string;
   userPhone: string;
