@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>微信公众号 OAuth OpenID 前端流程 Demo</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #171717;
+        --soft: #6f6f6f;
+        --line: #e8e4df;
+        --paper: rgba(255, 255, 255, 0.82);
+        --accent: #111111;
+        --green: #0f8f72;
+        --blue: #4867ff;
+        --rose: #f36f8f;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          "PingFang SC", "Microsoft YaHei", sans-serif;
+        background:
+          radial-gradient(circle at 12% 8%, rgba(255, 142, 169, 0.26), transparent 28%),
+          radial-gradient(circle at 82% 12%, rgba(124, 209, 255, 0.3), transparent 30%),
+          radial-gradient(circle at 54% 2%, rgba(255, 236, 134, 0.28), transparent 24%),
+          linear-gradient(180deg, #fffaf9 0%, #f8fbff 48%, #ffffff 100%);
+      }
+
+      .shell {
+        width: min(1080px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 42px 0 56px;
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 64px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 21px;
+        font-weight: 750;
+      }
+
+      .mark {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border-radius: 10px;
+        color: #fff;
+        background: #111;
+        transform: rotate(-7deg);
+      }
+
+      .badge {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 9px 14px;
+        color: var(--soft);
+        background: rgba(255, 255, 255, 0.72);
+        font-size: 13px;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 390px;
+        gap: 32px;
+        align-items: start;
+      }
+
+      h1 {
+        max-width: 760px;
+        margin: 0;
+        font-family: Georgia, "Times New Roman", "Songti SC", serif;
+        font-size: clamp(44px, 7vw, 82px);
+        font-weight: 650;
+        line-height: 0.98;
+        letter-spacing: 0;
+      }
+
+      .subtitle {
+        max-width: 680px;
+        margin: 24px 0 0;
+        color: var(--soft);
+        font-size: 18px;
+        line-height: 1.8;
+      }
+
+      .panel {
+        border: 1px solid rgba(222, 218, 211, 0.86);
+        border-radius: 8px;
+        background: var(--paper);
+        box-shadow: 0 24px 80px rgba(21, 21, 21, 0.08);
+        backdrop-filter: blur(18px);
+      }
+
+      .form {
+        padding: 22px;
+      }
+
+      label {
+        display: block;
+        margin: 0 0 8px;
+        color: #333;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px 13px;
+        color: var(--ink);
+        background: rgba(255, 255, 255, 0.9);
+        font: inherit;
+        outline: none;
+      }
+
+      input:focus,
+      select:focus,
+      textarea:focus {
+        border-color: #111;
+        box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.08);
+      }
+
+      .field + .field {
+        margin-top: 16px;
+      }
+
+      .hint {
+        margin-top: 7px;
+        color: var(--soft);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+      }
+
+      button,
+      a.button {
+        display: inline-flex;
+        min-height: 44px;
+        align-items: center;
+        justify-content: center;
+        border: 0;
+        border-radius: 999px;
+        padding: 0 18px;
+        color: #fff;
+        background: var(--accent);
+        font: inherit;
+        font-weight: 750;
+        text-decoration: none;
+        cursor: pointer;
+      }
+
+      button.secondary {
+        border: 1px solid var(--line);
+        color: var(--ink);
+        background: rgba(255, 255, 255, 0.75);
+      }
+
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 48px;
+      }
+
+      .step {
+        min-height: 180px;
+        padding: 20px;
+      }
+
+      .step b {
+        display: inline-flex;
+        width: 32px;
+        height: 32px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        color: #fff;
+        background: #111;
+      }
+
+      .step h3 {
+        margin: 18px 0 8px;
+        font-size: 18px;
+      }
+
+      .step p {
+        margin: 0;
+        color: var(--soft);
+        font-size: 14px;
+        line-height: 1.7;
+      }
+
+      .result {
+        margin-top: 28px;
+        padding: 18px;
+      }
+
+      .result h2 {
+        margin: 0 0 12px;
+        font-size: 18px;
+      }
+
+      pre {
+        overflow: auto;
+        margin: 0;
+        border-radius: 8px;
+        padding: 14px;
+        color: #f7f7f7;
+        background: #151515;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+
+      .warning {
+        border-left: 4px solid var(--rose);
+        margin-top: 18px;
+        padding: 12px 14px;
+        color: #5f2c36;
+        background: rgba(255, 239, 244, 0.82);
+        font-size: 13px;
+        line-height: 1.7;
+      }
+
+      .ok {
+        border-left-color: var(--green);
+        color: #17493f;
+        background: rgba(231, 250, 244, 0.82);
+      }
+
+      .url-preview {
+        min-height: 104px;
+        resize: vertical;
+        word-break: break-all;
+      }
+
+      @media (max-width: 860px) {
+        header,
+        .hero {
+          grid-template-columns: 1fr;
+        }
+
+        header {
+          align-items: flex-start;
+          margin-bottom: 42px;
+        }
+
+        .steps {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header>
+        <div class="brand">
+          <div class="mark">微</div>
+          <span>公众号 OAuth Demo</span>
+        </div>
+        <div class="badge">前端只拿 code，openid 必须后端换取</div>
+      </header>
+
+      <section class="hero">
+        <div>
+          <h1>拉起公众号授权，拿到微信回跳 code</h1>
+          <p class="subtitle">
+            这个单页 demo 只演示 H5 前端流程：填写公众号 AppID 和回调地址，生成微信 OAuth 地址并跳转。
+            微信回跳后，页面会解析 URL 里的 code 和 state。下一步需要后端用 code + appsecret 换 openid。
+          </p>
+
+          <div class="steps">
+            <div class="panel step">
+              <b>1</b>
+              <h3>配置网页授权域名</h3>
+              <p>在微信公众号后台配置当前页面所在域名。redirect_uri 必须落在这个域名下。</p>
+            </div>
+            <div class="panel step">
+              <b>2</b>
+              <h3>跳微信 OAuth</h3>
+              <p>前端拼接 open.weixin.qq.com 授权地址，用 snsapi_base 静默拿 code。</p>
+            </div>
+            <div class="panel step">
+              <b>3</b>
+              <h3>后端换 openid</h3>
+              <p>前端展示 code；真实项目由后端调用 access_token 接口换 openid 并绑定用户。</p>
+            </div>
+          </div>
+        </div>
+
+        <form class="panel form" id="oauthForm">
+          <div class="field">
+            <label for="appid">公众号 AppID</label>
+            <input id="appid" name="appid" placeholder="例如 wx1234567890abcdef" autocomplete="off" />
+            <div class="hint">必须是服务号/订阅号等公众号 AppID，不是微信支付商户号。</div>
+          </div>
+
+          <div class="field">
+            <label for="redirectUri">回调地址 redirect_uri</label>
+            <input id="redirectUri" name="redirectUri" autocomplete="off" />
+            <div class="hint">必须 URL encode 前的完整 HTTPS 地址。本 demo 默认填当前页面去掉 query/hash 后的地址。</div>
+          </div>
+
+          <div class="field">
+            <label for="scope">授权 scope</label>
+            <select id="scope" name="scope">
+              <option value="snsapi_base">snsapi_base：静默授权，只拿 openid 所需 code</option>
+              <option value="snsapi_userinfo">snsapi_userinfo：需要用户同意，可拿头像昵称</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="state">state</label>
+            <input id="state" name="state" autocomplete="off" />
+            <div class="hint">用于防 CSRF 和记录回跳来源。线上建议后端生成并校验。</div>
+          </div>
+
+          <div class="field">
+            <label for="oauthUrl">生成的微信授权地址</label>
+            <textarea id="oauthUrl" class="url-preview" readonly></textarea>
+          </div>
+
+          <div class="actions">
+            <button type="submit">跳转授权</button>
+            <button class="secondary" type="button" id="copyUrl">复制地址</button>
+          </div>
+
+          <div class="warning">
+            这个页面不能直接得到 openid。把 appsecret 放到 HTML/JS 里会泄露密钥，正式项目必须由后端换 openid。
+          </div>
+        </form>
+      </section>
+
+      <section class="panel result" id="resultPanel">
+        <h2>当前回调参数</h2>
+        <pre id="resultJson">{}</pre>
+        <div class="warning ok" id="statusText"></div>
+      </section>
+    </main>
+
+    <script>
+      const form = document.querySelector("#oauthForm");
+      const appidInput = document.querySelector("#appid");
+      const redirectInput = document.querySelector("#redirectUri");
+      const scopeInput = document.querySelector("#scope");
+      const stateInput = document.querySelector("#state");
+      const oauthUrlInput = document.querySelector("#oauthUrl");
+      const resultJson = document.querySelector("#resultJson");
+      const statusText = document.querySelector("#statusText");
+      const copyUrlButton = document.querySelector("#copyUrl");
+
+      const storageKey = "wechat-oauth-demo-config";
+      const cleanCurrentUrl = () => `${location.origin}${location.pathname}`;
+      const randomState = () => `sprix_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
+
+      function readQuery() {
+        const params = new URLSearchParams(location.search);
+        return {
+          code: params.get("code") || "",
+          state: params.get("state") || "",
+          appid: params.get("appid") || "",
+          error: params.get("error") || "",
+          errorDescription: params.get("error_description") || ""
+        };
+      }
+
+      function loadConfig() {
+        try {
+          return JSON.parse(localStorage.getItem(storageKey) || "{}");
+        } catch {
+          return {};
+        }
+      }
+
+      function saveConfig() {
+        localStorage.setItem(
+          storageKey,
+          JSON.stringify({
+            appid: appidInput.value.trim(),
+            redirectUri: redirectInput.value.trim(),
+            scope: scopeInput.value,
+            state: stateInput.value.trim()
+          })
+        );
+      }
+
+      function buildOAuthUrl() {
+        const appid = appidInput.value.trim();
+        const redirectUri = redirectInput.value.trim();
+        const scope = scopeInput.value;
+        const state = stateInput.value.trim();
+        if (!appid || !redirectUri) return "";
+
+        const params = new URLSearchParams({
+          appid,
+          redirect_uri: redirectUri,
+          response_type: "code",
+          scope,
+          state
+        });
+
+        return `https://open.weixin.qq.com/connect/oauth2/authorize?${params.toString()}#wechat_redirect`;
+      }
+
+      function renderOAuthUrl() {
+        oauthUrlInput.value = buildOAuthUrl();
+        saveConfig();
+      }
+
+      function renderResult() {
+        const query = readQuery();
+        resultJson.textContent = JSON.stringify(query, null, 2);
+
+        if (query.code) {
+          statusText.textContent =
+            "已经拿到 code。下一步让后端调用 https://api.weixin.qq.com/sns/oauth2/access_token 换 openid。";
+          return;
+        }
+
+        statusText.textContent = "当前 URL 里还没有 code。点击“跳转授权”后，微信会回跳到 redirect_uri 并携带 code。";
+      }
+
+      function init() {
+        const config = loadConfig();
+        appidInput.value = config.appid || "";
+        redirectInput.value = config.redirectUri || cleanCurrentUrl();
+        scopeInput.value = config.scope || "snsapi_base";
+        stateInput.value = config.state || randomState();
+        renderOAuthUrl();
+        renderResult();
+      }
+
+      form.addEventListener("input", renderOAuthUrl);
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const url = buildOAuthUrl();
+        if (!url) {
+          alert("请先填写公众号 AppID 和 redirect_uri");
+          return;
+        }
+        location.href = url;
+      });
+
+      copyUrlButton.addEventListener("click", async () => {
+        const url = buildOAuthUrl();
+        if (!url) {
+          alert("请先填写公众号 AppID 和 redirect_uri");
+          return;
+        }
+        await navigator.clipboard.writeText(url);
+        copyUrlButton.textContent = "已复制";
+        window.setTimeout(() => {
+          copyUrlButton.textContent = "复制地址";
+        }, 1200);
+      });
+
+      init();
+    </script>
+  </body>
+</html>

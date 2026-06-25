@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button, Input, Modal, Progress, Segmented, Steps, message } from "antd";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Bot, ChartNoAxesColumnIncreasing, CircleDollarSign, PlugZap, Search, UsersRound } from "lucide-react";
+import { Bot, ChartNoAxesColumnIncreasing, CircleDollarSign, Download, PlugZap, Search, UsersRound } from "lucide-react";
 import type { Agent, Task } from "../types";
 import { useSprixStore } from "../store/sprixStore";
 import {
@@ -25,6 +25,8 @@ const marketPromptExamples = [
   "读取财报和公告，整理关键风险与机会",
   "把客服记录分类，标出需要人工跟进的问题"
 ];
+
+const CLIENT_DOWNLOAD_URL = "https://cnb.cool/yztx_qxun/LocalCLIAgentRelease/-/git/raw/main/LocalCLIAgent.pkg";
 
 type UserPageProps = {
   openLogin: () => void;
@@ -274,7 +276,20 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
 
   return (
     <>
-      <PageHeader title="Agent 中心" subtitle="连接当前设备可用 Agent，设置当前执行 Agent，并查看能力画像。" />
+      <PageHeader
+        title="Agent 中心"
+        subtitle="连接当前设备可用 Agent，设置当前执行 Agent，并查看能力画像。"
+        actions={
+          <ActionButton
+            href={CLIENT_DOWNLOAD_URL}
+            icon={<Download size={16} />}
+            target="_blank"
+            rel="noreferrer"
+          >
+            下载客户端
+          </ActionButton>
+        }
+      />
       <div className="mb-5 grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
         <CurrentAgentCard agent={current} />
         <AbilityProfile agent={current} />
