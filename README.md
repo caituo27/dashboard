@@ -83,7 +83,10 @@ SprixPortal 只需要额外提供站点目录和 API 前缀：
 SPRIX_PORTAL_AGENT_WEB_ROOT=/www/wwwroot/<c端站点目录>
 SPRIX_PORTAL_ADMIN_WEB_ROOT=/www/wwwroot/<管理后台站点目录>
 SPRIX_PORTAL_API_BASE_URL=/sprix-api
+VITE_LOCAL_AGENT_CLAIM_BASE_URL=http://42.194.150.73:8084
 ```
+
+`VITE_LOCAL_AGENT_CLAIM_BASE_URL` 用于从前端 `/local-agent/claim` 跳转到后端完成设备绑定；不配置时，生产环境默认使用当前前端域名并切换到 `8084` 端口。
 
 ## 已实现页面
 

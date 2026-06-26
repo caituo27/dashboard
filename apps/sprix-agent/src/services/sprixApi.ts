@@ -23,7 +23,9 @@ import type { SprixRemoteStatePatch } from "../store/sprixStore";
 import { http } from "../utils/http";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/sprix-api";
-const LOCAL_AGENT_CLAIM_BASE_URL = import.meta.env.VITE_LOCAL_AGENT_CLAIM_BASE_URL ?? (import.meta.env.DEV ? "http://42.194.150.73:8084" : "");
+const CONFIGURED_LOCAL_AGENT_CLAIM_BASE_URL = import.meta.env.VITE_LOCAL_AGENT_CLAIM_BASE_URL ?? "";
+const DEV_LOCAL_AGENT_CLAIM_BASE_URL = "http://42.194.150.73:8084";
+const LOCAL_AGENT_CLAIM_PORT = "8084";
 const TOKEN_KEY = "sprix-auth-token";
 
 const accountApi = AccountControllerApiFactory(undefined, API_BASE_URL, http);
@@ -141,11 +143,21 @@ export async function createLocalAgentEnrollment(claimToken: string): Promise<Lo
 }
 
 export function buildLocalAgentClaimUrl(claimToken: string, enrollmentToken: string) {
-  const baseUrl = LOCAL_AGENT_CLAIM_BASE_URL.replace(/\/$/, "");
-  const url = new URL(`${baseUrl || window.location.origin}/local-agent/claim`);
+  const baseUrl = resolveLocalAgentClaimBaseUrl();
+  const url = new URL("/local-agent/claim", baseUrl || window.location.origin);
   url.searchParams.set("claimToken", claimToken);
   url.searchParams.set("enrollmentToken", enrollmentToken);
-  return baseUrl ? url.toString() : `${url.pathname}${url.search}`;
+  return url.toString();
+}
+
+function resolveLocalAgentClaimBaseUrl() {
+  const configured = CONFIGURED_LOCAL_AGENT_CLAIM_BASE_URL.trim().replace(/\/+$/, "");
+  if (configured) return configured;
+  if (import.meta.env.DEV) return DEV_LOCAL_AGENT_CLAIM_BASE_URL;
+
+  const currentUrl = new URL(window.location.origin);
+  currentUrl.port = LOCAL_AGENT_CLAIM_PORT;
+  return currentUrl.toString().replace(/\/+$/, "");
 }
 
 export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
