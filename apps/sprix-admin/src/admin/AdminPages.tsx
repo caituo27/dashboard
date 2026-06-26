@@ -117,68 +117,105 @@ export function AdminTaskCenter() {
       }
     });
   };
+  const taskColumns: ColumnsType<Task> = [
+    {
+      title: "任务",
+      dataIndex: "title",
+      width: 320,
+      render: (_, task) => (
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold text-ink">{task.title}</span>
+            <StatusTag status={task.taskStatus} />
+          </div>
+          <div className="mt-1 text-xs text-ink-soft">
+            {task.category} · {task.sourceType}
+          </div>
+        </div>
+      )
+    },
+    { title: "奖励", dataIndex: "reward", width: 110, render: currency },
+    {
+      title: "名额",
+      width: 110,
+      render: (_, task) => `${task.remainingSlots}/${task.totalSlots}`
+    },
+    { title: "执行记录", dataIndex: "executionTotal", width: 110, render: (value) => value ?? 0 },
+    { title: "发布时间", dataIndex: "publishedAt", width: 160 },
+    {
+      title: "备注",
+      dataIndex: "offlineReason",
+      width: 180,
+      render: (value) => (value ? <SoftTag tone="amber">下线原因：{value}</SoftTag> : <span className="text-ink-soft">-</span>)
+    },
+    {
+      title: "操作",
+      fixed: "right",
+      width: 230,
+      render: (_, task) => (
+        <div className="flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
+          <SecondaryButton size="small" onClick={() => navigate(`/tasks/${task.id}/edit`)}>
+            编辑
+          </SecondaryButton>
+          {task.taskStatus === "已发布" ? (
+            <>
+              <SecondaryButton size="small" onClick={() => confirmOffline(task)}>
+                下线
+              </SecondaryButton>
+              <SecondaryButton size="small" danger onClick={() => confirmDelete(task)}>
+                删除
+              </SecondaryButton>
+            </>
+          ) : (
+            <>
+              <Tooltip title={task.offlineReason === "名额已满" ? "该任务名额已满，无法重新发布。" : ""}>
+                <Button size="small" disabled={task.offlineReason === "名额已满"} onClick={() => confirmRepublish(task)}>
+                  重新发布
+                </Button>
+              </Tooltip>
+              <SecondaryButton size="small" danger onClick={() => confirmDelete(task)}>
+                删除
+              </SecondaryButton>
+            </>
+          )}
+        </div>
+      )
+    }
+  ];
 
   return (
     <>
       <PageHeader
         eyebrow="Sprix 管理后台"
-        title="发布任务，处理申诉，完成打款"
-        subtitle="后台只做三件关键事：把任务发布给 Agent，复核有争议的交付，并把通过验收的收益结算出去。"
+        title="任务管理中心"
+        subtitle="集中查看任务发布状态、执行记录、申诉数量和任务操作。"
         actions={<ActionButton href="/tasks/new">发布新任务</ActionButton>}
       />
-      <div className="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <MetricCard title="全部任务" value={tasks.filter((task) => task.taskStatus !== "已删除").length} icon={<ClipboardList size={19} />} />
         <MetricCard title="已发布任务" value={tasks.filter((task) => task.taskStatus === "已发布").length} />
         <MetricCard title="已下线任务" value={tasks.filter((task) => task.taskStatus === "已下线").length} />
         <MetricCard title="执行记录" value={executionCount} icon={primitiveIcons.clock} />
         <MetricCard title="申诉记录" value={appealCount} icon={<ShieldCheck size={19} />} />
       </div>
-      <Surface className="sprix-table-card p-5">
-        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <h3 className="text-lg font-semibold">任务列表</h3>
-          <Input.Search className="max-w-[360px]" value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="搜索任务名称或分类" />
+      <Surface className="sprix-table-card p-4">
+        <div className="sprix-toolbar">
+          <div className="sprix-toolbar-row flex-col items-start lg:flex-row lg:items-center">
+            <h3 className="sprix-section-title">任务列表</h3>
+            <Input.Search className="max-w-[360px]" value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="搜索任务名称或分类" />
+          </div>
+          <Segmented options={["全部", "已发布", "已下线"]} value={tab} onChange={(value) => setTab(String(value))} />
         </div>
-        <Segmented options={["全部", "已发布", "已下线"]} value={tab} onChange={(value) => setTab(String(value))} />
-        <div className="mt-5 space-y-3">
-          {visibleTasks.map((task) => (
-            <div
-              key={task.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => navigate(`/tasks/${task.id}`)}
-              className="flex cursor-pointer flex-col gap-4 rounded-[18px] border border-line bg-white p-4 transition hover:-translate-y-0.5 hover:shadow-soft lg:flex-row lg:items-center lg:justify-between"
-            >
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <StatusTag status={task.taskStatus} />
-                  {task.offlineReason && <SoftTag tone="amber">下线原因：{task.offlineReason}</SoftTag>}
-                </div>
-                <h4 className="mt-2 text-lg font-semibold">{task.title}</h4>
-                <p className="mt-1 text-sm text-ink-soft">
-                  {task.category} · 奖励 {currency(task.reward)} · 剩余名额 {task.remainingSlots}/{task.totalSlots} · 发布时间 {task.publishedAt}
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
-                <SecondaryButton onClick={() => navigate(`/tasks/${task.id}/edit`)}>编辑</SecondaryButton>
-                {task.taskStatus === "已发布" ? (
-                  <>
-                    <SecondaryButton onClick={() => confirmOffline(task)}>下线</SecondaryButton>
-                    <SecondaryButton danger onClick={() => confirmDelete(task)}>删除</SecondaryButton>
-                  </>
-                ) : (
-                  <>
-                    <Tooltip title={task.offlineReason === "名额已满" ? "该任务名额已满，无法重新发布。" : ""}>
-                      <Button shape="round" disabled={task.offlineReason === "名额已满"} onClick={() => confirmRepublish(task)}>
-                        重新发布
-                      </Button>
-                    </Tooltip>
-                    <SecondaryButton danger onClick={() => confirmDelete(task)}>删除</SecondaryButton>
-                  </>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+        <Table
+          rowKey="id"
+          columns={taskColumns}
+          dataSource={visibleTasks}
+          pagination={{ pageSize: 8 }}
+          scroll={{ x: 1180 }}
+          rowClassName="cursor-pointer"
+          locale={{ emptyText: "暂无任务" }}
+          onRow={(task) => ({ onClick: () => navigate(`/tasks/${task.id}`) })}
+        />
       </Surface>
     </>
   );
@@ -252,8 +289,8 @@ export function AdminTaskForm() {
 
   return (
     <>
-      <PageHeader title={isEdit ? "编辑任务" : "发布新任务"} subtitle="基础信息、任务要求与接单奖励配置将在发布后同步到 C 端任务市场。" />
-      <Surface className="p-6">
+      <PageHeader title={isEdit ? "编辑任务" : "发布新任务"} subtitle="维护任务基础信息、交付要求、验收口径和接单奖励。" />
+      <Surface className="p-4">
         <Form
           form={form}
           layout="vertical"
@@ -338,13 +375,13 @@ export function AdminTaskDetail() {
   if (!task) return <Surface className="p-8">任务不存在</Surface>;
   return (
     <>
-      <PageHeader title={task.title} subtitle="任务配置、执行用户与 Agent、结果与结算概览。" actions={<SecondaryButton href="/tasks">返回任务管理中心</SecondaryButton>} />
-      <Surface className="mb-5 p-6">
+      <PageHeader title={task.title} subtitle="查看任务配置、执行用户、Agent 记录和结算概览。" actions={<SecondaryButton href="/tasks">返回任务管理中心</SecondaryButton>} />
+      <Surface className="mb-4 p-4">
         <div className="flex flex-wrap gap-2">
           <StatusTag status={task.taskStatus} />
           {task.offlineReason && <SoftTag tone="amber">下线原因：{task.offlineReason}</SoftTag>}
         </div>
-        <div className="mt-5 grid gap-3 text-sm text-ink-soft md:grid-cols-3">
+        <div className="mt-4 grid gap-2 text-sm text-ink-soft md:grid-cols-3">
           <span>任务分类：{task.category}</span>
           <span>任务来源名称：{task.sourceName}</span>
           <span>任务来源类型：{task.sourceType}</span>
@@ -353,19 +390,26 @@ export function AdminTaskDetail() {
           <span>剩余名额：{task.remainingSlots}</span>
         </div>
       </Surface>
-      <div className="mb-5 grid gap-5 xl:grid-cols-3">
+      <div className="mb-4 grid gap-4 xl:grid-cols-3">
         <DetailBlock title="详细任务描述" body={task.description} />
         <DetailBlock title="交付标准" body={task.deliverables} />
         <DetailBlock title="验收标准" body={task.acceptanceCriteria} />
       </div>
       <AdminExecutionRecords records={records} />
-      <Surface className="mt-5 p-6">
-        <h3 className="text-lg font-semibold">结果与结算概览</h3>
-        <div className="mt-4 grid gap-4 md:grid-cols-4">
-          <MetricCard title="执行中" value={records?.running.length ?? 0} />
-          <MetricCard title="已终止" value={records?.terminated.length ?? 0} />
-          <MetricCard title="已完成" value={records?.completed.length ?? 0} />
-          <MetricCard title="申诉记录" value={records?.completed.filter((item) => item.appealStatus !== "无申诉").length ?? 0} />
+      <Surface className="mt-4 p-4">
+        <h3 className="sprix-section-title">结果与结算概览</h3>
+        <div className="mt-3 grid gap-3 md:grid-cols-4">
+          {[
+            ["执行中", records?.running.length ?? 0],
+            ["已终止", records?.terminated.length ?? 0],
+            ["已完成", records?.completed.length ?? 0],
+            ["申诉记录", records?.completed.filter((item) => item.appealStatus !== "无申诉").length ?? 0]
+          ].map(([label, value]) => (
+            <div key={label} className="sprix-inline-stat">
+              <span>{label}</span>
+              <strong>{value}</strong>
+            </div>
+          ))}
         </div>
       </Surface>
     </>
@@ -374,8 +418,8 @@ export function AdminTaskDetail() {
 
 function DetailBlock({ title, body }: { title: string; body: string }) {
   return (
-    <Surface className="p-5">
-      <h3 className="text-lg font-semibold">{title}</h3>
+    <Surface className="p-4">
+      <h3 className="sprix-section-title">{title}</h3>
       <p className="mt-3 text-sm leading-7 text-ink-soft">{body}</p>
     </Surface>
   );
@@ -451,8 +495,8 @@ function AdminExecutionRecords({
     }
   ];
   return (
-    <Surface className="sprix-table-card p-6">
-      <h3 className="text-lg font-semibold">执行用户与 Agent</h3>
+    <Surface className="sprix-table-card p-4">
+      <h3 className="sprix-section-title">执行用户与 Agent</h3>
       <p className="mt-1 text-sm text-ink-soft">查看当前任务下不同执行状态的用户与 Agent 记录。</p>
       <Tabs
         className="mt-4"
@@ -512,16 +556,16 @@ export function AdminAppealCenter() {
   };
   return (
     <>
-      <PageHeader title="申诉处理中心" subtitle="处理 C 端用户发起的验收申诉，复核结果会同步 C 端任务和资金记录。" />
-      <div className="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <PageHeader title="申诉处理中心" subtitle="复核验收争议并同步任务状态、结算状态和用户资金记录。" />
+      <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <MetricCard title="待处理申诉" value={stats.pending} />
         <MetricCard title="处理中申诉" value={stats.processing} />
         <MetricCard title="今日新增" value={stats.today} />
         <MetricCard title="已处理" value={stats.done} />
         <MetricCard title="平均处理时长" value="-" />
       </div>
-      <Surface className="sprix-table-card p-5">
-        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <Surface className="sprix-table-card p-4">
+        <div className="sprix-toolbar-row mb-3 flex-col items-start lg:flex-row lg:items-center">
           <Segmented options={["全部", "待处理", "处理中", "申诉通过", "申诉不通过"]} value={tab} onChange={(value) => setTab(String(value))} />
           <Input.Search className="max-w-[420px]" placeholder="搜索任务名称、用户手机号、Agent、申诉编号" />
         </div>
@@ -611,15 +655,15 @@ export function AdminAppealDetail() {
   return (
     <>
       <PageHeader title={appeal.appealNo} subtitle={subtitle} actions={<SecondaryButton href="/appeals">返回申诉处理中心</SecondaryButton>} />
-      <div className="grid gap-5 xl:grid-cols-[1fr_420px]">
-        <div className="space-y-5">
+      <div className="grid gap-4 xl:grid-cols-[1fr_380px]">
+        <div className="space-y-4">
           <DetailBlock title="基本信息" body={baseInfo} />
           <DetailBlock title="关联任务信息" body={taskInfo} />
           {acceptanceInfo && <DetailBlock title="验收口径" body={acceptanceInfo} />}
           <DetailBlock title="申诉信息" body={`${appeal.issueSummary}。${appeal.appealReason} ${appeal.userSupplement ?? ""}`} />
         </div>
-        <Surface className="p-5">
-          <h3 className="text-lg font-semibold">平台复核区</h3>
+        <Surface className="p-4">
+          <h3 className="sprix-section-title">平台复核区</h3>
           <Input.TextArea rows={5} className="mt-4" placeholder="填写处理说明" />
           <div className="mt-5 flex flex-wrap gap-2">
             <ActionButton
@@ -790,12 +834,12 @@ export function AdminFundCenter() {
   return (
     <>
       <PageHeader title="资金管理中心" subtitle="管理结算记录、提现审核、待打款、打款异常和资金流水。" />
-      <div className="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+      <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         {stats.map(([label, value]) => (
           <MetricCard key={label} title={String(label)} value={currency(Number(value))} icon={<CircleDollarSign size={19} />} />
         ))}
       </div>
-      <Surface className="sprix-table-card p-5">
+      <Surface className="sprix-table-card p-4">
         <Tabs
           items={[
             {
@@ -1030,7 +1074,7 @@ function BatchActionBar({
   actions: Array<{ label: string; danger?: boolean; onClick: () => Promise<void> }>;
 }) {
   return (
-    <div className="mb-3 flex flex-col gap-2 rounded-[18px] border border-line bg-[#fafafa] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+    <div className="mb-3 flex flex-col gap-2 rounded-lg border border-line bg-[#fafafa] px-3 py-2 lg:flex-row lg:items-center lg:justify-between">
       <span className="text-sm font-medium text-ink">{label}</span>
       <div className="flex flex-wrap gap-2">
         {actions.map((action) => (

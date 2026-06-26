@@ -15,11 +15,13 @@ export function PageHeader({
   eyebrow?: string;
 }) {
   return (
-    <div className="sprix-page-hero">
-      <div className="sprix-hero-kicker">{eyebrow}</div>
-      <h1 className="sprix-title sprix-hero-title">{title}</h1>
-      {subtitle && <p className="sprix-hero-subtitle">{subtitle}</p>}
-      {actions && <div className="sprix-hero-actions">{actions}</div>}
+    <div className="sprix-page-header">
+      <div className="min-w-0">
+        <div className="sprix-page-kicker">{eyebrow}</div>
+        <h1 className="sprix-page-title">{title}</h1>
+        {subtitle && <p className="sprix-page-subtitle">{subtitle}</p>}
+      </div>
+      {actions && <div className="sprix-page-actions">{actions}</div>}
     </div>
   );
 }
@@ -37,11 +39,11 @@ export function Surface({
 }
 
 export function ActionButton(props: ButtonProps) {
-  return <Button type="primary" shape="round" {...props} />;
+  return <Button type="primary" {...props} />;
 }
 
 export function SecondaryButton(props: ButtonProps) {
-  return <Button shape="round" {...props} />;
+  return <Button {...props} />;
 }
 
 export function SoftTag({ children, tone = "teal" }: { children: ReactNode; tone?: "teal" | "neutral" | "amber" | "red" }) {
@@ -82,14 +84,14 @@ export function MetricCard({
   icon?: ReactNode;
 }) {
   return (
-    <Surface tight className="p-5">
+    <Surface tight className="p-4">
       <div className="flex items-start gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-[#e7f7f2] text-accent">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#e7f7f2] text-accent">
           {icon ?? <CircleDollarSign size={19} />}
         </div>
         <div className="min-w-0">
           <p className="text-xs font-medium text-ink-soft">{title}</p>
-          <div className="sprix-title mt-1 text-4xl leading-none text-ink">{value}</div>
+          <div className="mt-1 text-2xl font-semibold leading-none text-ink">{value}</div>
           {caption && <p className="mt-1 text-xs text-ink-soft">{caption}</p>}
         </div>
       </div>

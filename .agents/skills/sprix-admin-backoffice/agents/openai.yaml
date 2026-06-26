@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sprix Admin Backoffice"
+  short_description: "Sprix admin workbench UI standards"
+  default_prompt: "Use $sprix-admin-backoffice to redesign or review sprix-admin management pages while preserving Sprix theme and business behavior."
