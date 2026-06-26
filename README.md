@@ -56,25 +56,21 @@ pnpm build
 
 ## CNB 流水线发布
 
-仓库根目录的 `.cnb.yml` 会在代码推送后构建两个前端包：
+仓库根目录的 `.cnb.yml` 会在代码推送后构建两个前端包，并通过 rsync 直接同步到服务器站点目录：
 
-- `apps/sprix-agent/dist` -> 发布仓库的 `agent/`
-- `apps/sprix-admin/dist` -> 发布仓库的 `admin/`
+- `apps/sprix-agent/dist` -> C 端站点目录
+- `apps/sprix-admin/dist` -> 管理后台站点目录
 
 需要在 CNB 仓库变量里配置：
 
 ```text
-SPRIX_PORTAL_RELEASE_REPO=https://cnb.cool/<owner>/<release-repo>
-SPRIX_PORTAL_RELEASE_BRANCH=main
-SPRIX_PORTAL_RELEASE_TOKEN=<可推送发布仓库的访问令牌>
-SPRIX_PORTAL_RELEASE_USER=<令牌用户名，可不填>
+SPRIX_PORTAL_SSH_HOST=<服务器 IP 或域名>
+SPRIX_PORTAL_SSH_USER=root
+SPRIX_PORTAL_SSH_PORT=22
+SPRIX_PORTAL_SSH_PRIVATE_KEY=<可登录服务器的 SSH 私钥>
+SPRIX_PORTAL_AGENT_WEB_ROOT=/www/wwwroot/<c端站点目录>
+SPRIX_PORTAL_ADMIN_WEB_ROOT=/www/wwwroot/<管理后台站点目录>
 SPRIX_PORTAL_API_BASE_URL=/sprix-api
-```
-
-如需先验证打包但不推送发布仓库，可临时设置：
-
-```text
-SPRIX_PORTAL_RELEASE_DRY_RUN=1
 ```
 
 ## 已实现页面
