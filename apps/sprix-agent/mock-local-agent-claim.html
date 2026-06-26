@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mock Local Agent Claim</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #f7f8fa;
+        color: #1f2937;
+      }
+
+      main {
+        width: min(520px, calc(100vw - 32px));
+        padding: 28px;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+      }
+
+      h1 {
+        margin: 0 0 10px;
+        font-size: 22px;
+      }
+
+      p {
+        margin: 0 0 20px;
+        color: #6b7280;
+        line-height: 1.6;
+      }
+
+      a {
+        display: block;
+        margin-top: 12px;
+        padding: 13px 16px;
+        border-radius: 999px;
+        text-align: center;
+        text-decoration: none;
+        font-weight: 700;
+      }
+
+      .primary {
+        background: #111827;
+        color: #fff;
+      }
+
+      .secondary {
+        border: 1px solid #d1d5db;
+        color: #111827;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Mock Local Agent Claim</h1>
+      <p>用于模拟 LocalCLIAgent 打开浏览器连接 Sprix。第一个链接是正常前端桥接流程。</p>
+      <a class="primary" href="http://localhost:5173/local-agent/claim?claimToken=mock-claim-token-001">
+        打开前端桥接页
+      </a>
+      <a class="secondary" href="http://42.194.150.73:8084/local-agent/claim?claimToken=mock-claim-token-001&enrollmentToken=mock-enrollment-token-001">
+        模拟跳后端 claim
+      </a>
+    </main>
+  </body>
+</html>

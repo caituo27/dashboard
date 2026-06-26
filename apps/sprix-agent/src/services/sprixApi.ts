@@ -13,6 +13,8 @@ import {
   type TaskEntity,
   type TaskExecution,
   type UserAccount,
+  type WechatScanSessionResponse,
+  type WechatScanStatusResponse,
   type WithdrawalAccount,
   type WithdrawalRecord
 } from "../apis/sprix";
@@ -21,6 +23,7 @@ import type { SprixRemoteStatePatch } from "../store/sprixStore";
 import { http } from "../utils/http";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/sprix-api";
+const LOCAL_AGENT_CLAIM_BASE_URL = import.meta.env.VITE_LOCAL_AGENT_CLAIM_BASE_URL ?? (import.meta.env.DEV ? "http://42.194.150.73:8084" : "");
 const TOKEN_KEY = "sprix-auth-token";
 
 const accountApi = AccountControllerApiFactory(undefined, API_BASE_URL, http);
@@ -31,6 +34,20 @@ const earningsApi = EarningsControllerApiFactory(undefined, API_BASE_URL, http);
 const myTaskApi = MyTaskControllerApiFactory(undefined, API_BASE_URL, http);
 const taskApi = TaskControllerApiFactory(undefined, API_BASE_URL, http);
 const withdrawalApi = WithdrawalControllerApiFactory(undefined, API_BASE_URL, http);
+
+export type WechatLoginSession = {
+  sessionId: string;
+  qrPayload: string;
+  expiresInSeconds: number;
+  pollIntervalMs: number;
+};
+
+export type WechatLoginStatus = {
+  sessionId: string;
+  status: string;
+  expiresInSeconds: number;
+  authenticated: boolean;
+};
 
 const tagText: Record<string, string> = {
   "software-development": "软件开发",
@@ -52,12 +69,72 @@ export async function authenticateConsumer(identity = "agent@sprix.ai", code = "
   return token;
 }
 
+export async function createWechatLoginSession(): Promise<WechatLoginSession> {
+  const response = await authApi.createWechatScanSession();
+  const session = requireValue<WechatScanSessionResponse>(response, "微信扫码登录二维码不可用");
+
+  if (!session.sessionId || !session.qrPayload) {
+    throw new Error("微信扫码登录二维码不可用");
+  }
+
+  return {
+    sessionId: session.sessionId,
+    qrPayload: session.qrPayload,
+    expiresInSeconds: session.expiresInSeconds ?? 0,
+    pollIntervalMs: Math.max(session.pollIntervalSeconds ?? 2, 1) * 1000
+  };
+}
+
+export async function readWechatLoginStatus(sessionId: string): Promise<WechatLoginStatus> {
+  const response = await authApi.wechatScanSession({ sessionId });
+  const scanStatus = requireValue<WechatScanStatusResponse>(response, "微信扫码状态不可用");
+  const token = scanStatus.token?.token;
+
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+  }
+
+  return {
+    sessionId: scanStatus.sessionId ?? sessionId,
+    status: scanStatus.status ?? "PENDING",
+    expiresInSeconds: scanStatus.expiresInSeconds ?? 0,
+    authenticated: Boolean(token)
+  };
+}
+
 export async function logoutConsumer() {
   try {
     await authApi.logout();
   } finally {
     localStorage.removeItem(TOKEN_KEY);
   }
+}
+
+export function hasStoredAuthToken() {
+  return Boolean(localStorage.getItem(TOKEN_KEY));
+}
+
+export type LocalAgentEnrollment = {
+  enrollmentToken: string;
+};
+
+export async function createLocalAgentEnrollment(claimToken: string): Promise<LocalAgentEnrollment> {
+  const response = await http.post("/api/v1/local-agent/enrollments", { claimToken });
+  const enrollment = requireValue(response as unknown as LocalAgentEnrollment | undefined, "本机 Agent 连接凭证获取失败");
+
+  if (!enrollment.enrollmentToken) {
+    throw new Error("本机 Agent 连接凭证获取失败");
+  }
+
+  return enrollment;
+}
+
+export function buildLocalAgentClaimUrl(claimToken: string, enrollmentToken: string) {
+  const baseUrl = LOCAL_AGENT_CLAIM_BASE_URL.replace(/\/$/, "");
+  const url = new URL(`${baseUrl || window.location.origin}/local-agent/claim`);
+  url.searchParams.set("claimToken", claimToken);
+  url.searchParams.set("enrollmentToken", enrollmentToken);
+  return baseUrl ? url.toString() : `${url.pathname}${url.search}`;
 }
 
 export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {

@@ -1,9 +1,18 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Button, Checkbox, Form, Input, InputNumber, Modal, Tabs, message } from "antd";
+import { Button, Checkbox, Form, Input, InputNumber, Modal, QRCode, Tabs, message } from "antd";
 import { useSprixStore } from "../store/sprixStore";
 import { ActionButton, SecondaryButton, StatusTag } from "./Primitives";
-import { applyRemoteWithdrawal, authenticateConsumer, bindRemoteWithdrawalAccount, mapRemoteWithdrawal, submitRemoteAppeal } from "../services/sprixApi";
+import {
+  applyRemoteWithdrawal,
+  authenticateConsumer,
+  bindRemoteWithdrawalAccount,
+  createWechatLoginSession,
+  mapRemoteWithdrawal,
+  readWechatLoginStatus,
+  submitRemoteAppeal,
+  type WechatLoginSession
+} from "../services/sprixApi";
 import { currency } from "../utils/format";
 
 type ModalState = {
@@ -14,6 +23,11 @@ type ModalState = {
   bindAlipay: boolean;
   withdraw: boolean;
 };
+
+const wechatQrBoxClassName = [
+  "mx-auto flex h-48 w-48 items-center justify-center rounded-[22px]",
+  "border border-line bg-white p-3 text-center text-sm text-ink-soft"
+].join(" ");
 
 export function useGlobalModalState() {
   const [modal, setModal] = useState<ModalState>({
@@ -42,6 +56,17 @@ export function LoginRegisterModal({
   const [agreed, setAgreed] = useState(false);
   const [counting, setCounting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [wechatLoading, setWechatLoading] = useState(false);
+  const [wechatSession, setWechatSession] = useState<WechatLoginSession>();
+  const [wechatStatus, setWechatStatus] = useState("WAITING");
+  const [wechatExpiresInSeconds, setWechatExpiresInSeconds] = useState(0);
+
+  const completeLogin = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
+    message.success("登录 / 注册成功");
+    onClose();
+    afterLogin?.();
+  }, [afterLogin, onClose, queryClient]);
 
   const finishLogin = async (values?: { phone?: string; code?: string }) => {
     if (!agreed) {
@@ -51,16 +76,78 @@ export function LoginRegisterModal({
     setSubmitting(true);
     try {
       await authenticateConsumer(values?.phone ?? "agent@sprix.ai", values?.code ?? "123456");
-      await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
-      message.success("登录 / 注册成功");
-      onClose();
-      afterLogin?.();
+      await completeLogin();
     } catch (error) {
       message.error(error instanceof Error ? `登录失败：${error.message}` : "登录失败");
     } finally {
       setSubmitting(false);
     }
   };
+
+  const startWechatLogin = async () => {
+    if (!agreed) {
+      message.warning("请先阅读并同意用户协议和隐私协议");
+      return;
+    }
+
+    setWechatLoading(true);
+    try {
+      const session = await createWechatLoginSession();
+      setWechatSession(session);
+      setWechatStatus("PENDING");
+      setWechatExpiresInSeconds(session.expiresInSeconds);
+    } catch (error) {
+      message.error(error instanceof Error ? `微信登录失败：${error.message}` : "微信登录失败");
+    } finally {
+      setWechatLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (open) return;
+    setWechatSession(undefined);
+    setWechatStatus("WAITING");
+    setWechatExpiresInSeconds(0);
+    setWechatLoading(false);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !wechatSession) return;
+
+    let cancelled = false;
+    let timeoutId: number | undefined;
+
+    const pollWechatStatus = async () => {
+      try {
+        const scanStatus = await readWechatLoginStatus(wechatSession.sessionId);
+        if (cancelled) return;
+
+        setWechatStatus(scanStatus.status);
+        setWechatExpiresInSeconds(scanStatus.expiresInSeconds);
+
+        if (scanStatus.authenticated) {
+          await completeLogin();
+          return;
+        }
+
+        if (isWechatSessionExpired(scanStatus.status, scanStatus.expiresInSeconds)) return;
+        timeoutId = window.setTimeout(pollWechatStatus, wechatSession.pollIntervalMs);
+      } catch (error) {
+        if (cancelled) return;
+        setWechatStatus("ERROR");
+        message.error(error instanceof Error ? `微信登录状态获取失败：${error.message}` : "微信登录状态获取失败");
+      }
+    };
+
+    timeoutId = window.setTimeout(pollWechatStatus, wechatSession.pollIntervalMs);
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) window.clearTimeout(timeoutId);
+    };
+  }, [completeLogin, open, wechatSession]);
+
+  const wechatStatusText = getWechatStatusText(wechatStatus, wechatExpiresInSeconds, Boolean(wechatSession));
 
   return (
     <Modal title="登录 / 注册" open={open} onCancel={onClose} footer={null} width={520}>
@@ -71,14 +158,22 @@ export function LoginRegisterModal({
             label: "微信扫码登录",
             children: (
               <div className="space-y-4">
-                <div className="mx-auto flex h-44 w-44 items-center justify-center rounded-[22px] border border-line bg-[#f7f7f5] text-center text-sm text-ink-soft">
-                  微信扫码区域
+                <div className={wechatQrBoxClassName}>
+                  {wechatSession ? (
+                    <QRCode type="svg" value={wechatSession.qrPayload} size={168} bordered={false} />
+                  ) : (
+                    <span>同意协议后生成二维码</span>
+                  )}
                 </div>
-                <p className="text-center text-sm text-ink-soft">请使用微信扫码完成登录 / 注册</p>
-                <p className="text-center text-xs text-ink-soft">扫码成功后将自动进入平台</p>
+                <p className="text-center text-sm text-ink-soft">{wechatStatusText}</p>
+                {wechatSession && (
+                  <p className="text-center text-xs text-ink-soft">
+                    {wechatExpiresInSeconds > 0 ? `二维码剩余 ${formatRemainingSeconds(wechatExpiresInSeconds)}` : "二维码有效期以微信页面为准"}
+                  </p>
+                )}
                 <AgreementCheck agreed={agreed} onChange={setAgreed} />
-                <ActionButton block loading={submitting} onClick={() => finishLogin()}>
-                  使用后端登录
+                <ActionButton block loading={wechatLoading} onClick={startWechatLogin}>
+                  {wechatSession ? "刷新微信登录二维码" : "生成微信登录二维码"}
                 </ActionButton>
               </div>
             )
@@ -120,6 +215,28 @@ export function LoginRegisterModal({
       />
     </Modal>
   );
+}
+
+function isWechatSessionExpired(status: string, expiresInSeconds: number) {
+  const normalizedStatus = status.toUpperCase();
+  return expiresInSeconds <= 0 || normalizedStatus === "EXPIRED" || normalizedStatus === "CANCELLED" || normalizedStatus === "FAILED";
+}
+
+function getWechatStatusText(status: string, expiresInSeconds: number, hasSession: boolean) {
+  if (!hasSession) return "同意协议后生成微信登录二维码";
+  if (status === "ERROR") return "扫码状态获取失败，请刷新二维码";
+  if (isWechatSessionExpired(status, expiresInSeconds)) return "二维码已过期，请刷新后重试";
+
+  const normalizedStatus = status.toUpperCase();
+  if (normalizedStatus === "SCANNED") return "已扫码，请在微信中确认登录";
+  if (normalizedStatus === "CONFIRMED") return "登录确认中";
+  return "请使用微信扫码，确认后会自动进入平台";
+}
+
+function formatRemainingSeconds(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
 }
 
 function AgreementCheck({ agreed, onChange }: { agreed: boolean; onChange: (value: boolean) => void }) {

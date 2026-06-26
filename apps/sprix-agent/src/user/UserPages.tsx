@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { Button, Input, Modal, Progress, Segmented, Steps, message } from "antd";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { Button, Modal, Progress, Segmented, Steps, message } from "antd";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Bot, ChartNoAxesColumnIncreasing, CircleDollarSign, Download, PlugZap, Search, UsersRound } from "lucide-react";
+import { Bot, BrainCircuit, ChartNoAxesColumnIncreasing, CircleDollarSign, Download, PlugZap, Radar, Sparkles, UsersRound } from "lucide-react";
 import type { Agent, Task } from "../types";
 import { useSprixStore } from "../store/sprixStore";
 import {
@@ -17,14 +17,18 @@ import {
 } from "../services/sprixApi";
 import { ActionButton, EmptyState, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface, primitiveIcons } from "../components/Primitives";
 import { compactText, currency, scoreText } from "../utils/format";
-
-const marketPromptExamples = [
-  "整理 500 条官网线索，补全联系人、邮箱和城市",
-  "让 Agent 跑完竞品调研，输出可复核的表格",
-  "批量筛选候选人，按岗位匹配度排序",
-  "读取财报和公告，整理关键风险与机会",
-  "把客服记录分类，标出需要人工跟进的问题"
-];
+import {
+  buildLocalAgentAssessment,
+  buildRecommendedTasks,
+  getDemoAutoAcceptResult,
+  localAgentOptions,
+  readLocalAgentAssessment,
+  saveLocalAgentAssessment,
+  type LocalAgentAssessment,
+  type LocalAgentId,
+  type LocalAgentOption,
+  type RecommendedTask
+} from "./cSideExperience";
 
 const CLIENT_DOWNLOAD_URL = "https://cnb.cool/yztx_qxun/LocalCLIAgentRelease/-/git/raw/main/LocalCLIAgent.pkg";
 
@@ -39,24 +43,24 @@ type UserPageProps = {
 export function TaskMarketPage({ openLogin, openQualificationPrompt }: UserPageProps) {
   const navigate = useNavigate();
   const tasks = useSprixStore((state) => state.tasks);
-  const agents = useSprixStore((state) => state.agents);
   const myTasks = useSprixStore((state) => state.myTasks);
   const account = useSprixStore((state) => state.account);
-  const [keyword, setKeyword] = useState("");
-  const publishedTasksQuery = useQuery({
-    queryKey: ["publishedTasks", tasks, keyword],
-    queryFn: async () =>
-      tasks.filter((task) => {
-        if (task.taskStatus !== "已发布") return false;
-        const haystack = `${task.title}${task.category}${task.sourceName}${task.recommendedReason}`;
-        return haystack.includes(keyword.trim());
-      })
-  });
-  const publishedTasks = publishedTasksQuery.data ?? [];
+  const [connectOpen, setConnectOpen] = useState(false);
+  const [autoAcceptOpen, setAutoAcceptOpen] = useState(false);
+  const [selectedAgentId, setSelectedAgentId] = useState<LocalAgentId>("codex");
+  const [assessment, setAssessment] = useState<LocalAgentAssessment | null>(() => readLocalAgentAssessment());
+  const [assessing, setAssessing] = useState(false);
+  const recommendedTasks = useMemo(() => buildRecommendedTasks(tasks), [tasks]);
+  const activeAssessment = account.isLoggedIn ? assessment : null;
 
   const handleAccept = (task: Task) => {
     if (!account.isLoggedIn) {
       openLogin();
+      return;
+    }
+    if (!activeAssessment) {
+      message.warning("请先连接本地 Agent 并完成评测");
+      setConnectOpen(true);
       return;
     }
     if (account.qualificationStatus !== "已开通") {
@@ -66,51 +70,198 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: UserPageP
     navigate(`/agent/task/${task.id}`);
   };
 
+  const handleOpenConnect = () => {
+    if (!account.isLoggedIn) {
+      openLogin();
+      return;
+    }
+    setConnectOpen(true);
+  };
+
+  const handleAssessAgent = (agentId: LocalAgentId) => {
+    setSelectedAgentId(agentId);
+    setAssessing(true);
+    window.setTimeout(() => {
+      const nextAssessment = buildLocalAgentAssessment(agentId);
+      setAssessment(nextAssessment);
+      saveLocalAgentAssessment(nextAssessment);
+      setAssessing(false);
+      setConnectOpen(false);
+      message.success("本地 Agent 已连接，画像评测完成");
+    }, 720);
+  };
+
+  const handleOpenAutoAccept = () => {
+    if (!account.isLoggedIn) {
+      openLogin();
+      return;
+    }
+    if (!activeAssessment) {
+      message.info("先连接本地 Agent 后再查看自动接单演示");
+      setConnectOpen(true);
+      return;
+    }
+    setAutoAcceptOpen(true);
+  };
+
   return (
     <>
       <PageHeader
-        eyebrow="Agent 任务平台"
-        title="让 Agent 接任务，自动交付结果"
-        subtitle="像发布外包一样发布任务，系统匹配可用 Agent，接单、执行、验收和结算都在这里完成。"
+        eyebrow="Sprix C 端首页"
+        title="连接本地 Agent，让它先替你看任务"
+        subtitle="登录后连接当前电脑里的 AI Agent，平台用一个画像问题完成快速评测，再把更适合你的任务排到前面。"
         actions={
-          <Input
-            prefix={<Search size={16} />}
-            value={keyword}
-            onChange={(event) => setKeyword(event.target.value)}
-            placeholder="搜索任务名称、分类、发布方或能力标签"
-            className="w-[min(460px,86vw)] rounded-full"
-          />
+          <>
+            <ActionButton icon={<PlugZap size={16} />} onClick={handleOpenConnect}>
+              {activeAssessment ? `已连接 ${activeAssessment.agentName}` : account.isLoggedIn ? "连接本地 Agent" : "登录后连接 Agent"}
+            </ActionButton>
+            <SecondaryButton icon={<Sparkles size={16} />} onClick={handleOpenAutoAccept}>
+              自动接单演示
+            </SecondaryButton>
+          </>
         }
       />
-      <div className="sprix-prompt-ribbon" aria-label="任务示例">
-        <div className="sprix-prompt-track">
-          {[...marketPromptExamples, ...marketPromptExamples].map((example, index) => (
-            <div className="sprix-prompt-chip" key={`${example}-${index}`}>
-              {example}
-            </div>
-          ))}
-        </div>
-      </div>
       <div className="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard title="已发布任务" value={publishedTasks.length} icon={<ChartNoAxesColumnIncreasing size={19} />} />
-        <MetricCard title="可用 Agent" value={agents.length} icon={<Bot size={19} />} />
-        <MetricCard title="可提现金额" value={currency(account.withdrawableAmount)} icon={<CircleDollarSign size={19} />} />
+        <MetricCard title="推荐任务" value={recommendedTasks.length} icon={<ChartNoAxesColumnIncreasing size={19} />} />
+        <MetricCard title="本地 Agent" value={localAgentOptions.length} icon={<Bot size={19} />} />
+        <MetricCard title="画像评分" value={activeAssessment ? `${activeAssessment.score}/100` : "-"} icon={<BrainCircuit size={19} />} />
         <MetricCard title="我的任务" value={myTasks.length} icon={<UsersRound size={19} />} />
       </div>
+      <div className="sprix-home-workbench mb-5">
+        <Surface className="p-6">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <SoftTag>已检测到</SoftTag>
+              <h2 className="mt-3 text-2xl font-semibold text-ink">本机可连接 Agent</h2>
+            </div>
+            <SecondaryButton icon={<Radar size={16} />} onClick={handleOpenConnect}>
+              重新检测
+            </SecondaryButton>
+          </div>
+          <div className="space-y-3">
+            {localAgentOptions.map((agent) => (
+              <LocalAgentCard
+                key={agent.id}
+                agent={agent}
+                selected={selectedAgentId === agent.id}
+                connected={activeAssessment?.agentId === agent.id}
+                onConnect={() => {
+                  setSelectedAgentId(agent.id);
+                  handleOpenConnect();
+                }}
+              />
+            ))}
+          </div>
+        </Surface>
+        <Surface className="sprix-assessment-panel p-6">
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <div>
+              <SoftTag tone={activeAssessment ? "teal" : "amber"}>{activeAssessment ? "评测完成" : "等待评测"}</SoftTag>
+              <h2 className="mt-3 text-2xl font-semibold text-ink">Agent 对你的职业画像</h2>
+            </div>
+            <div className="sprix-score-orb">{activeAssessment?.score ?? "--"}</div>
+          </div>
+          {activeAssessment ? (
+            <>
+              <p className="text-sm font-semibold text-ink-soft">评测问题：{activeAssessment.question}</p>
+              <h3 className="mt-3 text-3xl font-semibold text-ink">{activeAssessment.profileTitle}</h3>
+              <p className="mt-3 text-sm leading-7 text-ink-soft">{activeAssessment.profileSummary}</p>
+              <div className="mt-5 space-y-4">
+                {activeAssessment.dimensions.map((item) => (
+                  <div key={item.label}>
+                    <div className="mb-1 flex justify-between text-sm">
+                      <span className="text-ink-soft">{item.label}</span>
+                      <span className="font-semibold text-ink">{item.value}</span>
+                    </div>
+                    <Progress percent={item.value} showInfo={false} strokeColor="#111111" />
+                  </div>
+                ))}
+              </div>
+              <p className="mt-5 rounded-[18px] bg-[#fafafa] p-4 text-sm leading-7 text-ink-soft">{activeAssessment.recommendedDirection}</p>
+            </>
+          ) : (
+            <div className="sprix-empty-assessment">
+              <BrainCircuit size={32} />
+              <h3>连接后生成 76 分画像</h3>
+              <p>本版先用一个问题快速跑通演示链路，后续可替换成真实 Agent 评测。</p>
+              <ActionButton icon={<PlugZap size={16} />} onClick={handleOpenConnect}>
+                连接并评测
+              </ActionButton>
+            </div>
+          )}
+        </Surface>
+      </div>
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <SoftTag>为你推荐</SoftTag>
+          <h2 className="mt-3 text-3xl font-semibold text-ink">按画像匹配度排序的任务</h2>
+          <p className="mt-2 text-sm leading-7 text-ink-soft">每个任务先展示 Token 预测，人工接单保留；自动接单当前仅展示扫描动画和结果。</p>
+        </div>
+        <ActionButton icon={<Sparkles size={16} />} onClick={handleOpenAutoAccept}>
+          自动接单演示
+        </ActionButton>
+      </div>
       <div className="sprix-grid-auto">
-        {publishedTasks.map((task) => (
+        {recommendedTasks.map((task) => (
           <TaskCard key={task.id} task={task} onAccept={() => handleAccept(task)} />
         ))}
       </div>
+      {recommendedTasks.length === 0 && <EmptyState title="暂无可推荐任务" description="当前还没有已发布任务，稍后再来查看新的 Agent 任务。" />}
+      <LocalAgentConnectModal
+        open={connectOpen}
+        selectedAgentId={selectedAgentId}
+        assessment={activeAssessment}
+        assessing={assessing}
+        onClose={() => setConnectOpen(false)}
+        onSelect={setSelectedAgentId}
+        onAssess={handleAssessAgent}
+      />
+      <AutoAcceptDemoModal open={autoAcceptOpen} tasks={recommendedTasks} onClose={() => setAutoAcceptOpen(false)} />
     </>
   );
 }
 
-function TaskCard({ task, onAccept }: { task: Task; onAccept: () => void }) {
+function LocalAgentCard({
+  agent,
+  selected,
+  connected,
+  onConnect
+}: {
+  agent: LocalAgentOption;
+  selected: boolean;
+  connected: boolean;
+  onConnect: () => void;
+}) {
   return (
-    <Surface className="flex min-h-[304px] flex-col p-5">
+    <div className={`sprix-agent-option ${selected ? "is-selected" : ""}`}>
+      <div className="flex min-w-0 flex-1 gap-3">
+        <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-pill text-sm font-semibold text-white">{agent.name.slice(0, 1)}</div>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-lg font-semibold text-ink">{agent.name}</h3>
+            <SoftTag tone={connected ? "teal" : "neutral"}>{connected ? "已连接" : agent.status}</SoftTag>
+          </div>
+          <p className="mt-1 text-sm leading-6 text-ink-soft">{agent.summary}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {agent.tags.map((tag) => (
+              <SoftTag key={tag} tone="neutral">{tag}</SoftTag>
+            ))}
+          </div>
+        </div>
+      </div>
+      <SecondaryButton onClick={onConnect}>{connected ? "查看" : "连接"}</SecondaryButton>
+    </div>
+  );
+}
+
+function TaskCard({ task, onAccept }: { task: RecommendedTask; onAccept: () => void }) {
+  return (
+    <Surface className="flex min-h-[326px] flex-col p-5">
       <div className="mb-4 flex items-center justify-between gap-2">
-        <SoftTag>{task.category}</SoftTag>
+        <div className="flex flex-wrap gap-2">
+          <SoftTag>{task.rankLabel}</SoftTag>
+          <SoftTag tone="neutral">{task.category}</SoftTag>
+        </div>
         <span className="text-xs font-semibold text-accent">适配度 {task.agentMatchScore}%</span>
       </div>
       <Link to={`/agent/task/${task.id}`} className="text-xl font-semibold leading-7 text-ink no-underline hover:text-accent">
@@ -118,6 +269,7 @@ function TaskCard({ task, onAccept }: { task: Task; onAccept: () => void }) {
       </Link>
       <p className="mt-3 flex-1 text-sm leading-7 text-ink-soft">{compactText(task.cardSummary, 86)}</p>
       <div className="mt-4 grid gap-2 text-sm text-ink-soft">
+        <span className="sprix-token-badge">Token 预测：{task.tokenEstimate}</span>
         <span>奖励：<b className="text-ink">{currency(task.reward)}</b></span>
         <span>剩余名额：{task.remainingSlots}/{task.totalSlots}</span>
         <span>来源：{task.sourceName}</span>
@@ -131,6 +283,93 @@ function TaskCard({ task, onAccept }: { task: Task; onAccept: () => void }) {
   );
 }
 
+function LocalAgentConnectModal({
+  open,
+  selectedAgentId,
+  assessment,
+  assessing,
+  onClose,
+  onSelect,
+  onAssess
+}: {
+  open: boolean;
+  selectedAgentId: LocalAgentId;
+  assessment: LocalAgentAssessment | null;
+  assessing: boolean;
+  onClose: () => void;
+  onSelect: (agentId: LocalAgentId) => void;
+  onAssess: (agentId: LocalAgentId) => void;
+}) {
+  const current = localAgentOptions.find((agent) => agent.id === selectedAgentId) ?? localAgentOptions[0];
+  const step = assessing ? 1 : assessment?.agentId === selectedAgentId ? 2 : 0;
+
+  return (
+    <Modal title="连接本地 Agent" open={open} onCancel={onClose} footer={null} width={760}>
+      <Steps className="mb-6" current={step} items={["检测本机 Agent", "运行画像评测", "推荐任务"].map((title) => ({ title }))} />
+      <div className="grid gap-3 md:grid-cols-3">
+        {localAgentOptions.map((agent) => (
+          <button
+            key={agent.id}
+            type="button"
+            className={`sprix-agent-pick ${selectedAgentId === agent.id ? "is-selected" : ""}`}
+            onClick={() => onSelect(agent.id)}
+          >
+            <span>{agent.name}</span>
+            <small>{agent.vendor}</small>
+          </button>
+        ))}
+      </div>
+      <div className="mt-5 rounded-[18px] bg-[#fafafa] p-4">
+        <p className="text-sm font-semibold text-ink">评测问题</p>
+        <p className="mt-2 text-lg text-ink">我在你眼里的职业画像是什么？</p>
+        <p className="mt-3 text-sm leading-7 text-ink-soft">
+          将使用 {current.name} 生成一次演示画像，再根据画像把任务按匹配度排序。当前版本不提供下载入口。
+        </p>
+      </div>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <ActionButton loading={assessing} icon={<PlugZap size={16} />} onClick={() => onAssess(selectedAgentId)}>
+          {assessing ? `正在连接 ${current.name}` : `连接并评测 ${current.name}`}
+        </ActionButton>
+        <SecondaryButton onClick={onClose}>稍后再说</SecondaryButton>
+      </div>
+    </Modal>
+  );
+}
+
+function AutoAcceptDemoModal({ open, tasks, onClose }: { open: boolean; tasks: RecommendedTask[]; onClose: () => void }) {
+  const result = getDemoAutoAcceptResult(tasks);
+
+  return (
+    <Modal title="自动接单演示" open={open} onCancel={onClose} footer={null} width={640}>
+      <div className="sprix-auto-accept-flow">
+        <div>
+          <Sparkles size={18} />
+          <span>扫描推荐任务</span>
+        </div>
+        <div>
+          <Radar size={18} />
+          <span>匹配率阈值 {result.threshold}%</span>
+        </div>
+        <div>
+          <CircleDollarSign size={18} />
+          <span>本版不实际接单</span>
+        </div>
+      </div>
+      <div className="mt-5 rounded-[18px] bg-[#fafafa] p-5">
+        <div className="mb-2 flex justify-between text-sm">
+          <span className="text-ink-soft">超过阈值任务</span>
+          <b className="text-ink">{result.eligibleCount} 个</b>
+        </div>
+        <Progress percent={Math.min(100, result.eligibleCount * 25)} showInfo={false} strokeColor="#111111" />
+        <p className="mt-4 text-sm leading-7 text-ink-soft">{result.message}</p>
+      </div>
+      <div className="mt-5 flex justify-end">
+        <ActionButton onClick={onClose}>知道了</ActionButton>
+      </div>
+    </Modal>
+  );
+}
+
 export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageProps) {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -139,6 +378,9 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
   const account = useSprixStore((state) => state.account);
   const agents = useSprixStore((state) => state.agents);
   const currentAgent = agents.find((agent) => agent.role === "当前执行 Agent" && agent.status === "已连接");
+  const storedLocalAssessment = useMemo(() => readLocalAgentAssessment(), []);
+  const localAssessment = account.isLoggedIn ? storedLocalAssessment : null;
+  const executionAgentName = currentAgent?.name ?? localAssessment?.agentName;
 
   if (!task) return <EmptyState title="任务不存在" description="当前任务已不可访问" action={<SecondaryButton href="/agent/market">返回任务市场</SecondaryButton>} />;
 
@@ -147,9 +389,9 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
       openLogin();
       return;
     }
-    if (!currentAgent) {
-      message.warning("请先连接并设置当前执行 Agent");
-      navigate("/agent/center");
+    if (!executionAgentName) {
+      message.warning("请先连接本地 Agent");
+      navigate("/agent/market");
       return;
     }
     if (account.qualificationStatus !== "已开通") {
@@ -209,8 +451,8 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
           <Surface className="p-5">
             <h3 className="text-lg font-semibold">接单确认</h3>
             <div className="mt-4 space-y-3 text-sm text-ink-soft">
-              <p>当前执行 Agent：<b className="text-ink">{currentAgent?.name ?? "未设置"}</b></p>
-              <p>当前连接状态：{currentAgent ? "已连接" : "未连接"}</p>
+              <p>当前执行 Agent：<b className="text-ink">{executionAgentName ?? "未设置"}</b></p>
+              <p>当前连接状态：{currentAgent ? "后端已连接" : localAssessment ? "本地已连接" : "未连接"}</p>
               <p>接单后将立即进入执行中。</p>
             </div>
             <ActionButton className="mt-5 w-full" onClick={handleAccept}>

@@ -24,6 +24,18 @@ import type { RequestArgs } from './base';
 // @ts-ignore
 import { BASE_PATH, COLLECTION_FORMATS, BaseAPI, RequiredError, operationServerMap } from './base';
 
+export interface AcceptanceUploadRequest {
+    'localTaskId'?: string;
+    'agentId'?: string;
+    'sessionId'?: string;
+    'acceptance'?: { [key: string]: any; };
+    'acceptanceArtifactId'?: string;
+}
+export interface AcceptanceUploadResponse {
+    'acceptanceId'?: string;
+    'mappedBusinessStatus'?: string;
+    'receivedAt'?: string;
+}
 export interface AgentProfileResponse {
     'id'?: string;
     'createdAt'?: string;
@@ -156,6 +168,18 @@ export interface ApiResponseUserAccount {
     'message'?: string;
     'data'?: UserAccount;
 }
+export interface ApiResponseWechatScanSessionResponse {
+    'success'?: boolean;
+    'code'?: string;
+    'message'?: string;
+    'data'?: WechatScanSessionResponse;
+}
+export interface ApiResponseWechatScanStatusResponse {
+    'success'?: boolean;
+    'code'?: string;
+    'message'?: string;
+    'data'?: WechatScanStatusResponse;
+}
 export interface ApiResponseWithdrawalAccount {
     'success'?: boolean;
     'code'?: string;
@@ -199,6 +223,15 @@ export enum AppealRecordStatusEnum {
 export interface ApplyWithdrawalRequest {
     'amount': number;
 }
+export interface ArtifactUploadResponse {
+    'artifactId'?: string;
+    'fileId'?: string;
+    'name'?: string;
+    'role'?: string;
+    'sizeBytes'?: number;
+    'sha256'?: string;
+    'receivedAt'?: string;
+}
 export interface AuthTokenResponse {
     'userId'?: string;
     'nickname'?: string;
@@ -214,6 +247,35 @@ export enum AuthTokenResponseRoleEnum {
 export interface BindWithdrawalAccountRequest {
     'alipayAccount': string;
     'verifiedName': string;
+}
+export interface BootstrapDeviceRequest {
+    'installId'?: string;
+    'deviceName'?: string;
+    'hostname'?: string;
+    'platform'?: string;
+    'osVersion'?: string;
+    'agentVersion'?: string;
+    'workspaceRoot'?: string;
+    'capabilities'?: Array<string>;
+}
+export interface CommandEnvelope {
+    'id'?: string;
+    'type'?: string;
+    'timestamp'?: string;
+    'payload'?: { [key: string]: any; };
+}
+export interface EventEnvelope {
+    'id'?: string;
+    'type'?: string;
+    'timestamp'?: string;
+    'payload'?: { [key: string]: any; };
+}
+export interface EventsBatchRequest {
+    'events'?: Array<EventEnvelope>;
+}
+export interface EventsBatchResponse {
+    'acceptedIds'?: Array<string>;
+    'rejected'?: Array<RejectedEvent>;
 }
 export interface FaceVerificationSession {
     'certifyId'?: string;
@@ -244,9 +306,131 @@ export interface FundsOverview {
     'paidAmount'?: number;
     'payoutFailedAmount'?: number;
 }
+export interface GatewayResponseAcceptanceUploadResponse {
+    'requestId'?: string;
+    'code'?: string;
+    'message'?: string;
+    'data'?: AcceptanceUploadResponse;
+}
+export interface GatewayResponseArtifactUploadResponse {
+    'requestId'?: string;
+    'code'?: string;
+    'message'?: string;
+    'data'?: ArtifactUploadResponse;
+}
+export interface GatewayResponseEventsBatchResponse {
+    'requestId'?: string;
+    'code'?: string;
+    'message'?: string;
+    'data'?: EventsBatchResponse;
+}
+export interface GatewayResponseHeartbeatResponse {
+    'requestId'?: string;
+    'code'?: string;
+    'message'?: string;
+    'data'?: HeartbeatResponse;
+}
+export interface GatewayResponseLogsUploadResponse {
+    'requestId'?: string;
+    'code'?: string;
+    'message'?: string;
+    'data'?: LogsUploadResponse;
+}
+export interface GatewayResponsePairDeviceResponse {
+    'requestId'?: string;
+    'code'?: string;
+    'message'?: string;
+    'data'?: PairDeviceResponse;
+}
+export interface GatewayResponsePendingCommandsResponse {
+    'requestId'?: string;
+    'code'?: string;
+    'message'?: string;
+    'data'?: PendingCommandsResponse;
+}
+export interface GatewayResponseRefreshTokenResponse {
+    'requestId'?: string;
+    'code'?: string;
+    'message'?: string;
+    'data'?: RefreshTokenResponse;
+}
+export interface GatewayResponseUnbindResponse {
+    'requestId'?: string;
+    'code'?: string;
+    'message'?: string;
+    'data'?: UnbindResponse;
+}
+export interface HeartbeatRequest {
+    'status'?: string;
+    'currentAgentId'?: string;
+    'runningTaskIds'?: Array<string>;
+    'queuedEventCount'?: number;
+    'agentVersion'?: string;
+    'localTime'?: string;
+    'runningExecutionIds'?: Array<string>;
+    'runningExecutionCount'?: number;
+}
+export interface HeartbeatResponse {
+    'serverTime'?: string;
+    'pendingCommandCount'?: number;
+    'minHeartbeatIntervalSeconds'?: number;
+    'websocketRequired'?: boolean;
+}
+export interface LogsUploadRequest {
+    'localTaskId'?: string;
+    'stdout'?: string;
+    'stderr'?: string;
+    'stdoutTruncated'?: boolean;
+    'stderrTruncated'?: boolean;
+    'exitCode'?: number;
+    'finalMessage'?: string;
+    'inputTokens'?: number;
+    'outputTokens'?: number;
+}
+export interface LogsUploadResponse {
+    'logId'?: string;
+    'receivedAt'?: string;
+}
 export interface MockLoginRequest {
     'email'?: string;
     'code': string;
+}
+export interface PairDeviceRequest {
+    'pairingCode'?: string;
+    'installId'?: string;
+    'deviceName'?: string;
+    'hostname'?: string;
+    'platform'?: string;
+    'osVersion'?: string;
+    'agentVersion'?: string;
+    'workspaceRoot'?: string;
+    'capabilities'?: Array<string>;
+}
+export interface PairDeviceResponse {
+    'deviceId'?: string;
+    'deviceSecret'?: string;
+    'agentAccessToken'?: string;
+    'accessTokenExpiresAt'?: string;
+    'websocketUrl'?: string;
+    'serverTime'?: string;
+    'connectionStatus'?: string;
+}
+export interface PendingCommandsResponse {
+    'commands'?: Array<CommandEnvelope>;
+    'nextCursor'?: string;
+}
+export interface RefreshTokenRequest {
+    'deviceSecret'?: string;
+    'agentVersion'?: string;
+}
+export interface RefreshTokenResponse {
+    'agentAccessToken'?: string;
+    'accessTokenExpiresAt'?: string;
+}
+export interface RejectedEvent {
+    'id'?: string;
+    'code'?: string;
+    'message'?: string;
 }
 export interface SettlementRecord {
     'id'?: string;
@@ -341,6 +525,14 @@ export enum TaskExecutionSettlementStatusEnum {
     Exception = 'EXCEPTION'
 }
 
+export interface UnbindRequest {
+    'reason'?: string;
+}
+export interface UnbindResponse {
+    'deviceId'?: string;
+    'status'?: string;
+    'unboundAt'?: string;
+}
 export interface UserAccount {
     'id'?: string;
     'createdAt'?: string;
@@ -348,6 +540,8 @@ export interface UserAccount {
     'nickname'?: string;
     'email'?: string;
     'phone'?: string;
+    'wechatOpenId'?: string;
+    'wechatUnionId'?: string;
     'role'?: UserAccountRoleEnum;
     'qualificationStatus'?: UserAccountQualificationStatusEnum;
     'realPersonVerified'?: boolean;
@@ -367,6 +561,21 @@ export enum UserAccountQualificationStatusEnum {
     Frozen = 'FROZEN'
 }
 
+export interface WechatScanConfirmRequest {
+    'code': string;
+}
+export interface WechatScanSessionResponse {
+    'sessionId'?: string;
+    'qrPayload'?: string;
+    'expiresInSeconds'?: number;
+    'pollIntervalSeconds'?: number;
+}
+export interface WechatScanStatusResponse {
+    'sessionId'?: string;
+    'status'?: string;
+    'expiresInSeconds'?: number;
+    'token'?: AuthTokenResponse;
+}
 export interface WithdrawalAccount {
     'id'?: string;
     'createdAt'?: string;
@@ -402,6 +611,9 @@ export enum WithdrawalRecordStatusEnum {
     NeedAccountChange = 'NEED_ACCOUNT_CHANGE'
 }
 
+export interface WithdrawalReviewRequest {
+    'reason'?: string;
+}
 
 /**
  * AccountControllerApi - axios parameter creator
@@ -1109,6 +1321,42 @@ export const AdminFundsControllerApiAxiosParamCreator = function (configuration?
         /**
          * 
          * @param {string} withdrawalId 
+         * @param {WithdrawalReviewRequest} [withdrawalReviewRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        markPayoutExceptionHandled: async (withdrawalId: string, withdrawalReviewRequest?: WithdrawalReviewRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'withdrawalId' is not null or undefined
+            assertParamExists('markPayoutExceptionHandled', 'withdrawalId', withdrawalId)
+            const localVarPath = `/api/v1/admin/funds/withdrawals/{withdrawalId}/exception-handled`
+                .replace('{withdrawalId}', encodeURIComponent(String(withdrawalId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(withdrawalReviewRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} withdrawalId 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -1237,10 +1485,11 @@ export const AdminFundsControllerApiAxiosParamCreator = function (configuration?
         /**
          * 
          * @param {string} withdrawalId 
+         * @param {WithdrawalReviewRequest} [withdrawalReviewRequest] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        rejectWithdrawal: async (withdrawalId: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+        rejectWithdrawal: async (withdrawalId: string, withdrawalReviewRequest?: WithdrawalReviewRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'withdrawalId' is not null or undefined
             assertParamExists('rejectWithdrawal', 'withdrawalId', withdrawalId)
             const localVarPath = `/api/v1/admin/funds/withdrawals/{withdrawalId}/reject`
@@ -1256,11 +1505,49 @@ export const AdminFundsControllerApiAxiosParamCreator = function (configuration?
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
 
+            localVarHeaderParameter['Content-Type'] = 'application/json';
             localVarHeaderParameter['Accept'] = '*/*';
 
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(withdrawalReviewRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} withdrawalId 
+         * @param {WithdrawalReviewRequest} [withdrawalReviewRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        returnWithdrawalForReview: async (withdrawalId: string, withdrawalReviewRequest?: WithdrawalReviewRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'withdrawalId' is not null or undefined
+            assertParamExists('returnWithdrawalForReview', 'withdrawalId', withdrawalId)
+            const localVarPath = `/api/v1/admin/funds/withdrawals/{withdrawalId}/return-review`
+                .replace('{withdrawalId}', encodeURIComponent(String(withdrawalId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(withdrawalReviewRequest, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -1360,6 +1647,19 @@ export const AdminFundsControllerApiFp = function(configuration?: Configuration)
         /**
          * 
          * @param {string} withdrawalId 
+         * @param {WithdrawalReviewRequest} [withdrawalReviewRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async markPayoutExceptionHandled(withdrawalId: string, withdrawalReviewRequest?: WithdrawalReviewRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseWithdrawalRecord>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.markPayoutExceptionHandled(withdrawalId, withdrawalReviewRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AdminFundsControllerApi.markPayoutExceptionHandled']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} withdrawalId 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -1407,13 +1707,27 @@ export const AdminFundsControllerApiFp = function(configuration?: Configuration)
         /**
          * 
          * @param {string} withdrawalId 
+         * @param {WithdrawalReviewRequest} [withdrawalReviewRequest] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async rejectWithdrawal(withdrawalId: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseWithdrawalRecord>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.rejectWithdrawal(withdrawalId, options);
+        async rejectWithdrawal(withdrawalId: string, withdrawalReviewRequest?: WithdrawalReviewRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseWithdrawalRecord>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.rejectWithdrawal(withdrawalId, withdrawalReviewRequest, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AdminFundsControllerApi.rejectWithdrawal']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} withdrawalId 
+         * @param {WithdrawalReviewRequest} [withdrawalReviewRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async returnWithdrawalForReview(withdrawalId: string, withdrawalReviewRequest?: WithdrawalReviewRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseWithdrawalRecord>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.returnWithdrawalForReview(withdrawalId, withdrawalReviewRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AdminFundsControllerApi.returnWithdrawalForReview']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -1466,6 +1780,15 @@ export const AdminFundsControllerApiFactory = function (configuration?: Configur
         },
         /**
          * 
+         * @param {AdminFundsControllerApiMarkPayoutExceptionHandledRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        markPayoutExceptionHandled(requestParameters: AdminFundsControllerApiMarkPayoutExceptionHandledRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseWithdrawalRecord> {
+            return localVarFp.markPayoutExceptionHandled(requestParameters.withdrawalId, requestParameters.withdrawalReviewRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @param {AdminFundsControllerApiMarkWithdrawalPaidRequest} requestParameters Request parameters.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -1506,7 +1829,16 @@ export const AdminFundsControllerApiFactory = function (configuration?: Configur
          * @throws {RequiredError}
          */
         rejectWithdrawal(requestParameters: AdminFundsControllerApiRejectWithdrawalRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseWithdrawalRecord> {
-            return localVarFp.rejectWithdrawal(requestParameters.withdrawalId, options).then((request) => request(axios, basePath));
+            return localVarFp.rejectWithdrawal(requestParameters.withdrawalId, requestParameters.withdrawalReviewRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AdminFundsControllerApiReturnWithdrawalForReviewRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        returnWithdrawalForReview(requestParameters: AdminFundsControllerApiReturnWithdrawalForReviewRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseWithdrawalRecord> {
+            return localVarFp.returnWithdrawalForReview(requestParameters.withdrawalId, requestParameters.withdrawalReviewRequest, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -1535,6 +1867,15 @@ export interface AdminFundsControllerApiApproveWithdrawalRequest {
 }
 
 /**
+ * Request parameters for markPayoutExceptionHandled operation in AdminFundsControllerApi.
+ */
+export interface AdminFundsControllerApiMarkPayoutExceptionHandledRequest {
+    readonly withdrawalId: string
+
+    readonly withdrawalReviewRequest?: WithdrawalReviewRequest
+}
+
+/**
  * Request parameters for markWithdrawalPaid operation in AdminFundsControllerApi.
  */
 export interface AdminFundsControllerApiMarkWithdrawalPaidRequest {
@@ -1560,6 +1901,17 @@ export interface AdminFundsControllerApiPostSettlementRequest {
  */
 export interface AdminFundsControllerApiRejectWithdrawalRequest {
     readonly withdrawalId: string
+
+    readonly withdrawalReviewRequest?: WithdrawalReviewRequest
+}
+
+/**
+ * Request parameters for returnWithdrawalForReview operation in AdminFundsControllerApi.
+ */
+export interface AdminFundsControllerApiReturnWithdrawalForReviewRequest {
+    readonly withdrawalId: string
+
+    readonly withdrawalReviewRequest?: WithdrawalReviewRequest
 }
 
 /**
@@ -1583,6 +1935,16 @@ export class AdminFundsControllerApi extends BaseAPI {
      */
     public flows(options?: AxiosRequestConfig) {
         return AdminFundsControllerApiFp(this.configuration).flows(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AdminFundsControllerApiMarkPayoutExceptionHandledRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public markPayoutExceptionHandled(requestParameters: AdminFundsControllerApiMarkPayoutExceptionHandledRequest, options?: AxiosRequestConfig) {
+        return AdminFundsControllerApiFp(this.configuration).markPayoutExceptionHandled(requestParameters.withdrawalId, requestParameters.withdrawalReviewRequest, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -1631,7 +1993,17 @@ export class AdminFundsControllerApi extends BaseAPI {
      * @throws {RequiredError}
      */
     public rejectWithdrawal(requestParameters: AdminFundsControllerApiRejectWithdrawalRequest, options?: AxiosRequestConfig) {
-        return AdminFundsControllerApiFp(this.configuration).rejectWithdrawal(requestParameters.withdrawalId, options).then((request) => request(this.axios, this.basePath));
+        return AdminFundsControllerApiFp(this.configuration).rejectWithdrawal(requestParameters.withdrawalId, requestParameters.withdrawalReviewRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AdminFundsControllerApiReturnWithdrawalForReviewRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public returnWithdrawalForReview(requestParameters: AdminFundsControllerApiReturnWithdrawalForReviewRequest, options?: AxiosRequestConfig) {
+        return AdminFundsControllerApiFp(this.configuration).returnWithdrawalForReview(requestParameters.withdrawalId, requestParameters.withdrawalReviewRequest, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -2120,6 +2492,1029 @@ export class AgentControllerApi extends BaseAPI {
 
 
 /**
+ * AgentGatewayControllerApi - axios parameter creator
+ */
+export const AgentGatewayControllerApiAxiosParamCreator = function (configuration?: Configuration) {
+    return {
+        /**
+         * 
+         * @param {BootstrapDeviceRequest} bootstrapDeviceRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        bootstrap: async (bootstrapDeviceRequest: BootstrapDeviceRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'bootstrapDeviceRequest' is not null or undefined
+            assertParamExists('bootstrap', 'bootstrapDeviceRequest', bootstrapDeviceRequest)
+            const localVarPath = `/agent-gateway/v1/devices/bootstrap`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(bootstrapDeviceRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} fileId 
+         * @param {string} executionId 
+         * @param {string} xSprixDeviceId 
+         * @param {string} authorization 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        downloadFile: async (fileId: string, executionId: string, xSprixDeviceId: string, authorization: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'fileId' is not null or undefined
+            assertParamExists('downloadFile', 'fileId', fileId)
+            // verify required parameter 'executionId' is not null or undefined
+            assertParamExists('downloadFile', 'executionId', executionId)
+            // verify required parameter 'xSprixDeviceId' is not null or undefined
+            assertParamExists('downloadFile', 'xSprixDeviceId', xSprixDeviceId)
+            // verify required parameter 'authorization' is not null or undefined
+            assertParamExists('downloadFile', 'authorization', authorization)
+            const localVarPath = `/agent-gateway/v1/files/{fileId}/download`
+                .replace('{fileId}', encodeURIComponent(String(fileId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (executionId !== undefined) {
+                localVarQueryParameter['executionId'] = executionId;
+            }
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            if (xSprixDeviceId != null) {
+                localVarHeaderParameter['X-Sprix-Device-Id'] = String(xSprixDeviceId);
+            }
+            if (authorization != null) {
+                localVarHeaderParameter['Authorization'] = String(authorization);
+            }
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} xSprixDeviceId 
+         * @param {string} authorization 
+         * @param {EventsBatchRequest} eventsBatchRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        eventsBatch: async (xSprixDeviceId: string, authorization: string, eventsBatchRequest: EventsBatchRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'xSprixDeviceId' is not null or undefined
+            assertParamExists('eventsBatch', 'xSprixDeviceId', xSprixDeviceId)
+            // verify required parameter 'authorization' is not null or undefined
+            assertParamExists('eventsBatch', 'authorization', authorization)
+            // verify required parameter 'eventsBatchRequest' is not null or undefined
+            assertParamExists('eventsBatch', 'eventsBatchRequest', eventsBatchRequest)
+            const localVarPath = `/agent-gateway/v1/events/batch`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            if (xSprixDeviceId != null) {
+                localVarHeaderParameter['X-Sprix-Device-Id'] = String(xSprixDeviceId);
+            }
+            if (authorization != null) {
+                localVarHeaderParameter['Authorization'] = String(authorization);
+            }
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(eventsBatchRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} deviceId 
+         * @param {string} authorization 
+         * @param {HeartbeatRequest} heartbeatRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        heartbeat: async (deviceId: string, authorization: string, heartbeatRequest: HeartbeatRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'deviceId' is not null or undefined
+            assertParamExists('heartbeat', 'deviceId', deviceId)
+            // verify required parameter 'authorization' is not null or undefined
+            assertParamExists('heartbeat', 'authorization', authorization)
+            // verify required parameter 'heartbeatRequest' is not null or undefined
+            assertParamExists('heartbeat', 'heartbeatRequest', heartbeatRequest)
+            const localVarPath = `/agent-gateway/v1/devices/{deviceId}/heartbeat`
+                .replace('{deviceId}', encodeURIComponent(String(deviceId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            if (authorization != null) {
+                localVarHeaderParameter['Authorization'] = String(authorization);
+            }
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(heartbeatRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {PairDeviceRequest} pairDeviceRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        pair: async (pairDeviceRequest: PairDeviceRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'pairDeviceRequest' is not null or undefined
+            assertParamExists('pair', 'pairDeviceRequest', pairDeviceRequest)
+            const localVarPath = `/agent-gateway/v1/devices/pair`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(pairDeviceRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} deviceId 
+         * @param {string} authorization 
+         * @param {number} [limit] 
+         * @param {string} [after] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        pendingCommands: async (deviceId: string, authorization: string, limit?: number, after?: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'deviceId' is not null or undefined
+            assertParamExists('pendingCommands', 'deviceId', deviceId)
+            // verify required parameter 'authorization' is not null or undefined
+            assertParamExists('pendingCommands', 'authorization', authorization)
+            const localVarPath = `/agent-gateway/v1/devices/{deviceId}/commands/pending`
+                .replace('{deviceId}', encodeURIComponent(String(deviceId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (limit !== undefined) {
+                localVarQueryParameter['limit'] = limit;
+            }
+
+            if (after !== undefined) {
+                localVarQueryParameter['after'] = after;
+            }
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            if (authorization != null) {
+                localVarHeaderParameter['Authorization'] = String(authorization);
+            }
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} deviceId 
+         * @param {RefreshTokenRequest} refreshTokenRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        refreshToken: async (deviceId: string, refreshTokenRequest: RefreshTokenRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'deviceId' is not null or undefined
+            assertParamExists('refreshToken', 'deviceId', deviceId)
+            // verify required parameter 'refreshTokenRequest' is not null or undefined
+            assertParamExists('refreshToken', 'refreshTokenRequest', refreshTokenRequest)
+            const localVarPath = `/agent-gateway/v1/devices/{deviceId}/token/refresh`
+                .replace('{deviceId}', encodeURIComponent(String(deviceId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(refreshTokenRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} deviceId 
+         * @param {string} authorization 
+         * @param {UnbindRequest} unbindRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        unbind: async (deviceId: string, authorization: string, unbindRequest: UnbindRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'deviceId' is not null or undefined
+            assertParamExists('unbind', 'deviceId', deviceId)
+            // verify required parameter 'authorization' is not null or undefined
+            assertParamExists('unbind', 'authorization', authorization)
+            // verify required parameter 'unbindRequest' is not null or undefined
+            assertParamExists('unbind', 'unbindRequest', unbindRequest)
+            const localVarPath = `/agent-gateway/v1/devices/{deviceId}/unbind`
+                .replace('{deviceId}', encodeURIComponent(String(deviceId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            if (authorization != null) {
+                localVarHeaderParameter['Authorization'] = String(authorization);
+            }
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(unbindRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} executionId 
+         * @param {string} xSprixDeviceId 
+         * @param {string} authorization 
+         * @param {AcceptanceUploadRequest} acceptanceUploadRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        uploadAcceptance: async (executionId: string, xSprixDeviceId: string, authorization: string, acceptanceUploadRequest: AcceptanceUploadRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'executionId' is not null or undefined
+            assertParamExists('uploadAcceptance', 'executionId', executionId)
+            // verify required parameter 'xSprixDeviceId' is not null or undefined
+            assertParamExists('uploadAcceptance', 'xSprixDeviceId', xSprixDeviceId)
+            // verify required parameter 'authorization' is not null or undefined
+            assertParamExists('uploadAcceptance', 'authorization', authorization)
+            // verify required parameter 'acceptanceUploadRequest' is not null or undefined
+            assertParamExists('uploadAcceptance', 'acceptanceUploadRequest', acceptanceUploadRequest)
+            const localVarPath = `/agent-gateway/v1/executions/{executionId}/acceptance`
+                .replace('{executionId}', encodeURIComponent(String(executionId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            if (xSprixDeviceId != null) {
+                localVarHeaderParameter['X-Sprix-Device-Id'] = String(xSprixDeviceId);
+            }
+            if (authorization != null) {
+                localVarHeaderParameter['Authorization'] = String(authorization);
+            }
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(acceptanceUploadRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} executionId 
+         * @param {string} xSprixDeviceId 
+         * @param {string} authorization 
+         * @param {string} metadata 
+         * @param {File} file 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        uploadArtifact: async (executionId: string, xSprixDeviceId: string, authorization: string, metadata: string, file: File, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'executionId' is not null or undefined
+            assertParamExists('uploadArtifact', 'executionId', executionId)
+            // verify required parameter 'xSprixDeviceId' is not null or undefined
+            assertParamExists('uploadArtifact', 'xSprixDeviceId', xSprixDeviceId)
+            // verify required parameter 'authorization' is not null or undefined
+            assertParamExists('uploadArtifact', 'authorization', authorization)
+            // verify required parameter 'metadata' is not null or undefined
+            assertParamExists('uploadArtifact', 'metadata', metadata)
+            // verify required parameter 'file' is not null or undefined
+            assertParamExists('uploadArtifact', 'file', file)
+            const localVarPath = `/agent-gateway/v1/executions/{executionId}/artifacts`
+                .replace('{executionId}', encodeURIComponent(String(executionId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+            const localVarFormParams = new ((configuration && configuration.formDataCtor) || FormData)();
+
+
+            if (metadata !== undefined) { 
+                localVarFormParams.append('metadata', metadata as any);
+            }
+
+            if (file !== undefined) { 
+                localVarFormParams.append('file', file as any);
+            }
+            localVarHeaderParameter['Content-Type'] = 'multipart/form-data';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            if (xSprixDeviceId != null) {
+                localVarHeaderParameter['X-Sprix-Device-Id'] = String(xSprixDeviceId);
+            }
+            if (authorization != null) {
+                localVarHeaderParameter['Authorization'] = String(authorization);
+            }
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = localVarFormParams;
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} executionId 
+         * @param {string} xSprixDeviceId 
+         * @param {string} authorization 
+         * @param {LogsUploadRequest} logsUploadRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        uploadLogs: async (executionId: string, xSprixDeviceId: string, authorization: string, logsUploadRequest: LogsUploadRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'executionId' is not null or undefined
+            assertParamExists('uploadLogs', 'executionId', executionId)
+            // verify required parameter 'xSprixDeviceId' is not null or undefined
+            assertParamExists('uploadLogs', 'xSprixDeviceId', xSprixDeviceId)
+            // verify required parameter 'authorization' is not null or undefined
+            assertParamExists('uploadLogs', 'authorization', authorization)
+            // verify required parameter 'logsUploadRequest' is not null or undefined
+            assertParamExists('uploadLogs', 'logsUploadRequest', logsUploadRequest)
+            const localVarPath = `/agent-gateway/v1/executions/{executionId}/logs`
+                .replace('{executionId}', encodeURIComponent(String(executionId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            if (xSprixDeviceId != null) {
+                localVarHeaderParameter['X-Sprix-Device-Id'] = String(xSprixDeviceId);
+            }
+            if (authorization != null) {
+                localVarHeaderParameter['Authorization'] = String(authorization);
+            }
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(logsUploadRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+    }
+};
+
+/**
+ * AgentGatewayControllerApi - functional programming interface
+ */
+export const AgentGatewayControllerApiFp = function(configuration?: Configuration) {
+    const localVarAxiosParamCreator = AgentGatewayControllerApiAxiosParamCreator(configuration)
+    return {
+        /**
+         * 
+         * @param {BootstrapDeviceRequest} bootstrapDeviceRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async bootstrap(bootstrapDeviceRequest: BootstrapDeviceRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GatewayResponsePairDeviceResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.bootstrap(bootstrapDeviceRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AgentGatewayControllerApi.bootstrap']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} fileId 
+         * @param {string} executionId 
+         * @param {string} xSprixDeviceId 
+         * @param {string} authorization 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async downloadFile(fileId: string, executionId: string, xSprixDeviceId: string, authorization: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<object>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.downloadFile(fileId, executionId, xSprixDeviceId, authorization, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AgentGatewayControllerApi.downloadFile']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} xSprixDeviceId 
+         * @param {string} authorization 
+         * @param {EventsBatchRequest} eventsBatchRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async eventsBatch(xSprixDeviceId: string, authorization: string, eventsBatchRequest: EventsBatchRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GatewayResponseEventsBatchResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.eventsBatch(xSprixDeviceId, authorization, eventsBatchRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AgentGatewayControllerApi.eventsBatch']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} deviceId 
+         * @param {string} authorization 
+         * @param {HeartbeatRequest} heartbeatRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async heartbeat(deviceId: string, authorization: string, heartbeatRequest: HeartbeatRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GatewayResponseHeartbeatResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.heartbeat(deviceId, authorization, heartbeatRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AgentGatewayControllerApi.heartbeat']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {PairDeviceRequest} pairDeviceRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async pair(pairDeviceRequest: PairDeviceRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GatewayResponsePairDeviceResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.pair(pairDeviceRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AgentGatewayControllerApi.pair']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} deviceId 
+         * @param {string} authorization 
+         * @param {number} [limit] 
+         * @param {string} [after] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async pendingCommands(deviceId: string, authorization: string, limit?: number, after?: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GatewayResponsePendingCommandsResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.pendingCommands(deviceId, authorization, limit, after, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AgentGatewayControllerApi.pendingCommands']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} deviceId 
+         * @param {RefreshTokenRequest} refreshTokenRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async refreshToken(deviceId: string, refreshTokenRequest: RefreshTokenRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GatewayResponseRefreshTokenResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.refreshToken(deviceId, refreshTokenRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AgentGatewayControllerApi.refreshToken']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} deviceId 
+         * @param {string} authorization 
+         * @param {UnbindRequest} unbindRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async unbind(deviceId: string, authorization: string, unbindRequest: UnbindRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GatewayResponseUnbindResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.unbind(deviceId, authorization, unbindRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AgentGatewayControllerApi.unbind']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} executionId 
+         * @param {string} xSprixDeviceId 
+         * @param {string} authorization 
+         * @param {AcceptanceUploadRequest} acceptanceUploadRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async uploadAcceptance(executionId: string, xSprixDeviceId: string, authorization: string, acceptanceUploadRequest: AcceptanceUploadRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GatewayResponseAcceptanceUploadResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.uploadAcceptance(executionId, xSprixDeviceId, authorization, acceptanceUploadRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AgentGatewayControllerApi.uploadAcceptance']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} executionId 
+         * @param {string} xSprixDeviceId 
+         * @param {string} authorization 
+         * @param {string} metadata 
+         * @param {File} file 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async uploadArtifact(executionId: string, xSprixDeviceId: string, authorization: string, metadata: string, file: File, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GatewayResponseArtifactUploadResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.uploadArtifact(executionId, xSprixDeviceId, authorization, metadata, file, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AgentGatewayControllerApi.uploadArtifact']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} executionId 
+         * @param {string} xSprixDeviceId 
+         * @param {string} authorization 
+         * @param {LogsUploadRequest} logsUploadRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async uploadLogs(executionId: string, xSprixDeviceId: string, authorization: string, logsUploadRequest: LogsUploadRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GatewayResponseLogsUploadResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.uploadLogs(executionId, xSprixDeviceId, authorization, logsUploadRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AgentGatewayControllerApi.uploadLogs']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+    }
+};
+
+/**
+ * AgentGatewayControllerApi - factory interface
+ */
+export const AgentGatewayControllerApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
+    const localVarFp = AgentGatewayControllerApiFp(configuration)
+    return {
+        /**
+         * 
+         * @param {AgentGatewayControllerApiBootstrapRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        bootstrap(requestParameters: AgentGatewayControllerApiBootstrapRequest, options?: AxiosRequestConfig): AxiosPromise<GatewayResponsePairDeviceResponse> {
+            return localVarFp.bootstrap(requestParameters.bootstrapDeviceRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AgentGatewayControllerApiDownloadFileRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        downloadFile(requestParameters: AgentGatewayControllerApiDownloadFileRequest, options?: AxiosRequestConfig): AxiosPromise<object> {
+            return localVarFp.downloadFile(requestParameters.fileId, requestParameters.executionId, requestParameters.xSprixDeviceId, requestParameters.authorization, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AgentGatewayControllerApiEventsBatchRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        eventsBatch(requestParameters: AgentGatewayControllerApiEventsBatchRequest, options?: AxiosRequestConfig): AxiosPromise<GatewayResponseEventsBatchResponse> {
+            return localVarFp.eventsBatch(requestParameters.xSprixDeviceId, requestParameters.authorization, requestParameters.eventsBatchRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AgentGatewayControllerApiHeartbeatRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        heartbeat(requestParameters: AgentGatewayControllerApiHeartbeatRequest, options?: AxiosRequestConfig): AxiosPromise<GatewayResponseHeartbeatResponse> {
+            return localVarFp.heartbeat(requestParameters.deviceId, requestParameters.authorization, requestParameters.heartbeatRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AgentGatewayControllerApiPairRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        pair(requestParameters: AgentGatewayControllerApiPairRequest, options?: AxiosRequestConfig): AxiosPromise<GatewayResponsePairDeviceResponse> {
+            return localVarFp.pair(requestParameters.pairDeviceRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AgentGatewayControllerApiPendingCommandsRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        pendingCommands(requestParameters: AgentGatewayControllerApiPendingCommandsRequest, options?: AxiosRequestConfig): AxiosPromise<GatewayResponsePendingCommandsResponse> {
+            return localVarFp.pendingCommands(requestParameters.deviceId, requestParameters.authorization, requestParameters.limit, requestParameters.after, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AgentGatewayControllerApiRefreshTokenRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        refreshToken(requestParameters: AgentGatewayControllerApiRefreshTokenRequest, options?: AxiosRequestConfig): AxiosPromise<GatewayResponseRefreshTokenResponse> {
+            return localVarFp.refreshToken(requestParameters.deviceId, requestParameters.refreshTokenRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AgentGatewayControllerApiUnbindRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        unbind(requestParameters: AgentGatewayControllerApiUnbindRequest, options?: AxiosRequestConfig): AxiosPromise<GatewayResponseUnbindResponse> {
+            return localVarFp.unbind(requestParameters.deviceId, requestParameters.authorization, requestParameters.unbindRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AgentGatewayControllerApiUploadAcceptanceRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        uploadAcceptance(requestParameters: AgentGatewayControllerApiUploadAcceptanceRequest, options?: AxiosRequestConfig): AxiosPromise<GatewayResponseAcceptanceUploadResponse> {
+            return localVarFp.uploadAcceptance(requestParameters.executionId, requestParameters.xSprixDeviceId, requestParameters.authorization, requestParameters.acceptanceUploadRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AgentGatewayControllerApiUploadArtifactRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        uploadArtifact(requestParameters: AgentGatewayControllerApiUploadArtifactRequest, options?: AxiosRequestConfig): AxiosPromise<GatewayResponseArtifactUploadResponse> {
+            return localVarFp.uploadArtifact(requestParameters.executionId, requestParameters.xSprixDeviceId, requestParameters.authorization, requestParameters.metadata, requestParameters.file, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AgentGatewayControllerApiUploadLogsRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        uploadLogs(requestParameters: AgentGatewayControllerApiUploadLogsRequest, options?: AxiosRequestConfig): AxiosPromise<GatewayResponseLogsUploadResponse> {
+            return localVarFp.uploadLogs(requestParameters.executionId, requestParameters.xSprixDeviceId, requestParameters.authorization, requestParameters.logsUploadRequest, options).then((request) => request(axios, basePath));
+        },
+    };
+};
+
+/**
+ * Request parameters for bootstrap operation in AgentGatewayControllerApi.
+ */
+export interface AgentGatewayControllerApiBootstrapRequest {
+    readonly bootstrapDeviceRequest: BootstrapDeviceRequest
+}
+
+/**
+ * Request parameters for downloadFile operation in AgentGatewayControllerApi.
+ */
+export interface AgentGatewayControllerApiDownloadFileRequest {
+    readonly fileId: string
+
+    readonly executionId: string
+
+    readonly xSprixDeviceId: string
+
+    readonly authorization: string
+}
+
+/**
+ * Request parameters for eventsBatch operation in AgentGatewayControllerApi.
+ */
+export interface AgentGatewayControllerApiEventsBatchRequest {
+    readonly xSprixDeviceId: string
+
+    readonly authorization: string
+
+    readonly eventsBatchRequest: EventsBatchRequest
+}
+
+/**
+ * Request parameters for heartbeat operation in AgentGatewayControllerApi.
+ */
+export interface AgentGatewayControllerApiHeartbeatRequest {
+    readonly deviceId: string
+
+    readonly authorization: string
+
+    readonly heartbeatRequest: HeartbeatRequest
+}
+
+/**
+ * Request parameters for pair operation in AgentGatewayControllerApi.
+ */
+export interface AgentGatewayControllerApiPairRequest {
+    readonly pairDeviceRequest: PairDeviceRequest
+}
+
+/**
+ * Request parameters for pendingCommands operation in AgentGatewayControllerApi.
+ */
+export interface AgentGatewayControllerApiPendingCommandsRequest {
+    readonly deviceId: string
+
+    readonly authorization: string
+
+    readonly limit?: number
+
+    readonly after?: string
+}
+
+/**
+ * Request parameters for refreshToken operation in AgentGatewayControllerApi.
+ */
+export interface AgentGatewayControllerApiRefreshTokenRequest {
+    readonly deviceId: string
+
+    readonly refreshTokenRequest: RefreshTokenRequest
+}
+
+/**
+ * Request parameters for unbind operation in AgentGatewayControllerApi.
+ */
+export interface AgentGatewayControllerApiUnbindRequest {
+    readonly deviceId: string
+
+    readonly authorization: string
+
+    readonly unbindRequest: UnbindRequest
+}
+
+/**
+ * Request parameters for uploadAcceptance operation in AgentGatewayControllerApi.
+ */
+export interface AgentGatewayControllerApiUploadAcceptanceRequest {
+    readonly executionId: string
+
+    readonly xSprixDeviceId: string
+
+    readonly authorization: string
+
+    readonly acceptanceUploadRequest: AcceptanceUploadRequest
+}
+
+/**
+ * Request parameters for uploadArtifact operation in AgentGatewayControllerApi.
+ */
+export interface AgentGatewayControllerApiUploadArtifactRequest {
+    readonly executionId: string
+
+    readonly xSprixDeviceId: string
+
+    readonly authorization: string
+
+    readonly metadata: string
+
+    readonly file: File
+}
+
+/**
+ * Request parameters for uploadLogs operation in AgentGatewayControllerApi.
+ */
+export interface AgentGatewayControllerApiUploadLogsRequest {
+    readonly executionId: string
+
+    readonly xSprixDeviceId: string
+
+    readonly authorization: string
+
+    readonly logsUploadRequest: LogsUploadRequest
+}
+
+/**
+ * AgentGatewayControllerApi - object-oriented interface
+ */
+export class AgentGatewayControllerApi extends BaseAPI {
+    /**
+     * 
+     * @param {AgentGatewayControllerApiBootstrapRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public bootstrap(requestParameters: AgentGatewayControllerApiBootstrapRequest, options?: AxiosRequestConfig) {
+        return AgentGatewayControllerApiFp(this.configuration).bootstrap(requestParameters.bootstrapDeviceRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AgentGatewayControllerApiDownloadFileRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public downloadFile(requestParameters: AgentGatewayControllerApiDownloadFileRequest, options?: AxiosRequestConfig) {
+        return AgentGatewayControllerApiFp(this.configuration).downloadFile(requestParameters.fileId, requestParameters.executionId, requestParameters.xSprixDeviceId, requestParameters.authorization, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AgentGatewayControllerApiEventsBatchRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public eventsBatch(requestParameters: AgentGatewayControllerApiEventsBatchRequest, options?: AxiosRequestConfig) {
+        return AgentGatewayControllerApiFp(this.configuration).eventsBatch(requestParameters.xSprixDeviceId, requestParameters.authorization, requestParameters.eventsBatchRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AgentGatewayControllerApiHeartbeatRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public heartbeat(requestParameters: AgentGatewayControllerApiHeartbeatRequest, options?: AxiosRequestConfig) {
+        return AgentGatewayControllerApiFp(this.configuration).heartbeat(requestParameters.deviceId, requestParameters.authorization, requestParameters.heartbeatRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AgentGatewayControllerApiPairRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public pair(requestParameters: AgentGatewayControllerApiPairRequest, options?: AxiosRequestConfig) {
+        return AgentGatewayControllerApiFp(this.configuration).pair(requestParameters.pairDeviceRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AgentGatewayControllerApiPendingCommandsRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public pendingCommands(requestParameters: AgentGatewayControllerApiPendingCommandsRequest, options?: AxiosRequestConfig) {
+        return AgentGatewayControllerApiFp(this.configuration).pendingCommands(requestParameters.deviceId, requestParameters.authorization, requestParameters.limit, requestParameters.after, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AgentGatewayControllerApiRefreshTokenRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public refreshToken(requestParameters: AgentGatewayControllerApiRefreshTokenRequest, options?: AxiosRequestConfig) {
+        return AgentGatewayControllerApiFp(this.configuration).refreshToken(requestParameters.deviceId, requestParameters.refreshTokenRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AgentGatewayControllerApiUnbindRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public unbind(requestParameters: AgentGatewayControllerApiUnbindRequest, options?: AxiosRequestConfig) {
+        return AgentGatewayControllerApiFp(this.configuration).unbind(requestParameters.deviceId, requestParameters.authorization, requestParameters.unbindRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AgentGatewayControllerApiUploadAcceptanceRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public uploadAcceptance(requestParameters: AgentGatewayControllerApiUploadAcceptanceRequest, options?: AxiosRequestConfig) {
+        return AgentGatewayControllerApiFp(this.configuration).uploadAcceptance(requestParameters.executionId, requestParameters.xSprixDeviceId, requestParameters.authorization, requestParameters.acceptanceUploadRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AgentGatewayControllerApiUploadArtifactRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public uploadArtifact(requestParameters: AgentGatewayControllerApiUploadArtifactRequest, options?: AxiosRequestConfig) {
+        return AgentGatewayControllerApiFp(this.configuration).uploadArtifact(requestParameters.executionId, requestParameters.xSprixDeviceId, requestParameters.authorization, requestParameters.metadata, requestParameters.file, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AgentGatewayControllerApiUploadLogsRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public uploadLogs(requestParameters: AgentGatewayControllerApiUploadLogsRequest, options?: AxiosRequestConfig) {
+        return AgentGatewayControllerApiFp(this.configuration).uploadLogs(requestParameters.executionId, requestParameters.xSprixDeviceId, requestParameters.authorization, requestParameters.logsUploadRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+}
+
+
+
+/**
  * AppealControllerApi - axios parameter creator
  */
 export const AppealControllerApiAxiosParamCreator = function (configuration?: Configuration) {
@@ -2229,6 +3624,73 @@ export class AppealControllerApi extends BaseAPI {
  */
 export const AuthControllerApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
+        /**
+         * 
+         * @param {string} sessionId 
+         * @param {WechatScanConfirmRequest} wechatScanConfirmRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        confirmWechatScanSession: async (sessionId: string, wechatScanConfirmRequest: WechatScanConfirmRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'sessionId' is not null or undefined
+            assertParamExists('confirmWechatScanSession', 'sessionId', sessionId)
+            // verify required parameter 'wechatScanConfirmRequest' is not null or undefined
+            assertParamExists('confirmWechatScanSession', 'wechatScanConfirmRequest', wechatScanConfirmRequest)
+            const localVarPath = `/api/v1/auth/wechat/scan-sessions/{sessionId}/confirm`
+                .replace('{sessionId}', encodeURIComponent(String(sessionId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(wechatScanConfirmRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createWechatScanSession: async (options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/v1/auth/wechat/scan-sessions`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
         /**
          * 
          * @param {*} [options] Override http request option.
@@ -2355,6 +3817,39 @@ export const AuthControllerApiAxiosParamCreator = function (configuration?: Conf
                 options: localVarRequestOptions,
             };
         },
+        /**
+         * 
+         * @param {string} sessionId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        wechatScanSession: async (sessionId: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'sessionId' is not null or undefined
+            assertParamExists('wechatScanSession', 'sessionId', sessionId)
+            const localVarPath = `/api/v1/auth/wechat/scan-sessions/{sessionId}`
+                .replace('{sessionId}', encodeURIComponent(String(sessionId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
     }
 };
 
@@ -2364,6 +3859,30 @@ export const AuthControllerApiAxiosParamCreator = function (configuration?: Conf
 export const AuthControllerApiFp = function(configuration?: Configuration) {
     const localVarAxiosParamCreator = AuthControllerApiAxiosParamCreator(configuration)
     return {
+        /**
+         * 
+         * @param {string} sessionId 
+         * @param {WechatScanConfirmRequest} wechatScanConfirmRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async confirmWechatScanSession(sessionId: string, wechatScanConfirmRequest: WechatScanConfirmRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseWechatScanStatusResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.confirmWechatScanSession(sessionId, wechatScanConfirmRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AuthControllerApi.confirmWechatScanSession']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async createWechatScanSession(options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseWechatScanSessionResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.createWechatScanSession(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AuthControllerApi.createWechatScanSession']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
         /**
          * 
          * @param {*} [options] Override http request option.
@@ -2410,6 +3929,18 @@ export const AuthControllerApiFp = function(configuration?: Configuration) {
             const localVarOperationServerBasePath = operationServerMap['AuthControllerApi.mockLogin']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
+        /**
+         * 
+         * @param {string} sessionId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async wechatScanSession(sessionId: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseWechatScanStatusResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.wechatScanSession(sessionId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AuthControllerApi.wechatScanSession']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
     }
 };
 
@@ -2419,6 +3950,23 @@ export const AuthControllerApiFp = function(configuration?: Configuration) {
 export const AuthControllerApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
     const localVarFp = AuthControllerApiFp(configuration)
     return {
+        /**
+         * 
+         * @param {AuthControllerApiConfirmWechatScanSessionRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        confirmWechatScanSession(requestParameters: AuthControllerApiConfirmWechatScanSessionRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseWechatScanStatusResponse> {
+            return localVarFp.confirmWechatScanSession(requestParameters.sessionId, requestParameters.wechatScanConfirmRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createWechatScanSession(options?: AxiosRequestConfig): AxiosPromise<ApiResponseWechatScanSessionResponse> {
+            return localVarFp.createWechatScanSession(options).then((request) => request(axios, basePath));
+        },
         /**
          * 
          * @param {*} [options] Override http request option.
@@ -2453,8 +4001,26 @@ export const AuthControllerApiFactory = function (configuration?: Configuration,
         mockLogin(requestParameters: AuthControllerApiMockLoginRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseAuthTokenResponse> {
             return localVarFp.mockLogin(requestParameters.mockLoginRequest, options).then((request) => request(axios, basePath));
         },
+        /**
+         * 
+         * @param {AuthControllerApiWechatScanSessionRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        wechatScanSession(requestParameters: AuthControllerApiWechatScanSessionRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseWechatScanStatusResponse> {
+            return localVarFp.wechatScanSession(requestParameters.sessionId, options).then((request) => request(axios, basePath));
+        },
     };
 };
+
+/**
+ * Request parameters for confirmWechatScanSession operation in AuthControllerApi.
+ */
+export interface AuthControllerApiConfirmWechatScanSessionRequest {
+    readonly sessionId: string
+
+    readonly wechatScanConfirmRequest: WechatScanConfirmRequest
+}
 
 /**
  * Request parameters for mockAdminLogin operation in AuthControllerApi.
@@ -2471,9 +4037,35 @@ export interface AuthControllerApiMockLoginRequest {
 }
 
 /**
+ * Request parameters for wechatScanSession operation in AuthControllerApi.
+ */
+export interface AuthControllerApiWechatScanSessionRequest {
+    readonly sessionId: string
+}
+
+/**
  * AuthControllerApi - object-oriented interface
  */
 export class AuthControllerApi extends BaseAPI {
+    /**
+     * 
+     * @param {AuthControllerApiConfirmWechatScanSessionRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public confirmWechatScanSession(requestParameters: AuthControllerApiConfirmWechatScanSessionRequest, options?: AxiosRequestConfig) {
+        return AuthControllerApiFp(this.configuration).confirmWechatScanSession(requestParameters.sessionId, requestParameters.wechatScanConfirmRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public createWechatScanSession(options?: AxiosRequestConfig) {
+        return AuthControllerApiFp(this.configuration).createWechatScanSession(options).then((request) => request(this.axios, this.basePath));
+    }
+
     /**
      * 
      * @param {*} [options] Override http request option.
@@ -2510,6 +4102,16 @@ export class AuthControllerApi extends BaseAPI {
      */
     public mockLogin(requestParameters: AuthControllerApiMockLoginRequest, options?: AxiosRequestConfig) {
         return AuthControllerApiFp(this.configuration).mockLogin(requestParameters.mockLoginRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AuthControllerApiWechatScanSessionRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public wechatScanSession(requestParameters: AuthControllerApiWechatScanSessionRequest, options?: AxiosRequestConfig) {
+        return AuthControllerApiFp(this.configuration).wechatScanSession(requestParameters.sessionId, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

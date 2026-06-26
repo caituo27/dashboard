@@ -24,6 +24,7 @@ import {
   TaskMarketPage,
   WithdrawAccountPage
 } from "./user/UserPages";
+import { LocalAgentClaimPage } from "./user/LocalAgentClaimPage";
 import { useRemoteSprixBootstrap } from "./services/useRemoteSprixBootstrap";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ export default function App() {
       <Router>
         <Routes>
           <Route path="/" element={<Navigate to="/agent/market" replace />} />
+          <Route path="/local-agent/claim" element={<LocalAgentClaimPage />} />
           <Route path="/agent/*" element={<UserRoutes />} />
           <Route path="*" element={<Navigate to="/agent/market" replace />} />
         </Routes>
