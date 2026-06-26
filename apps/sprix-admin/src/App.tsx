@@ -23,6 +23,7 @@ function AdminRoutes() {
   const title = useMemo(() => {
     if (location.pathname.includes("/appeals")) return "申诉处理中心";
     if (location.pathname.includes("/funds")) return "资金管理中心";
+    if (location.pathname.match(/^\/tasks\/[^/]+\/edit$/)) return "编辑任务";
     if (location.pathname.includes("/tasks/new")) return "发布新任务";
     if (location.pathname.includes("/tasks/")) return "任务详情";
     return "任务管理中心";
@@ -34,6 +35,7 @@ function AdminRoutes() {
         <Route index element={<Navigate to="tasks" replace />} />
         <Route path="tasks" element={<AdminTaskCenter />} />
         <Route path="tasks/new" element={<AdminTaskForm />} />
+        <Route path="tasks/:id/edit" element={<AdminTaskForm />} />
         <Route path="tasks/:id" element={<AdminTaskDetail />} />
         <Route path="appeals" element={<AdminAppealCenter />} />
         <Route path="appeals/:id" element={<AdminAppealDetail />} />

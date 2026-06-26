@@ -3,7 +3,7 @@ import type { Key } from "react";
 import { Button, Form, Input, InputNumber, Modal, Segmented, Select, Table, Tabs, Tooltip, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { CircleDollarSign, ClipboardList, ShieldCheck } from "lucide-react";
 import type { AdminAppeal, CompletedExecution, FundException, Payout, RunningExecution, Task, TerminatedExecution, Withdrawal } from "../types";
 import {
@@ -160,7 +160,7 @@ export function AdminTaskCenter() {
                 </p>
               </div>
               <div className="flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
-                <SecondaryButton onClick={() => navigate(`/tasks/new?edit=${task.id}`)}>编辑</SecondaryButton>
+                <SecondaryButton onClick={() => navigate(`/tasks/${task.id}/edit`)}>编辑</SecondaryButton>
                 {task.taskStatus === "已发布" ? (
                   <>
                     <SecondaryButton onClick={() => confirmOffline(task)}>下线</SecondaryButton>
@@ -187,10 +187,9 @@ export function AdminTaskCenter() {
 
 export function AdminTaskForm() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const { id: editTaskId } = useParams();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<UpsertAdminTaskPayload>();
-  const editTaskId = searchParams.get("edit");
   const editTaskQuery = useQuery({
     queryKey: ["sprix-admin", "task-detail", editTaskId],
     queryFn: () => readRemoteTaskDetail(editTaskId as string),
