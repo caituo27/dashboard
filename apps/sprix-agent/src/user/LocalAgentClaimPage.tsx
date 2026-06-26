@@ -16,8 +16,18 @@ export function LocalAgentClaimPage() {
   const enrollmentStartedRef = useRef(false);
 
   const redirectToBackendClaim = (nextEnrollmentToken: string) => {
+    const claimUrl = buildLocalAgentClaimUrl(claimToken, nextEnrollmentToken);
+    const targetUrl = new URL(claimUrl, window.location.origin);
+    const currentUrl = new URL(window.location.href);
+
+    if (targetUrl.origin === currentUrl.origin && targetUrl.pathname === currentUrl.pathname && targetUrl.search === currentUrl.search) {
+      setErrorMessage("后端连接地址未生效，请检查 Local Agent claim 路由是否已转发到后端。");
+      setStatus("failed");
+      return;
+    }
+
     setStatus("redirecting");
-    window.location.replace(buildLocalAgentClaimUrl(claimToken, nextEnrollmentToken));
+    window.location.replace(targetUrl.toString());
   };
 
   const startEnrollment = async () => {
