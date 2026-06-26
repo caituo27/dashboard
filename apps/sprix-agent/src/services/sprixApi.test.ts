@@ -1,11 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { authApiMock } = vi.hoisted(() => ({
+const { authApiMock, httpPostMock } = vi.hoisted(() => ({
   authApiMock: {
     createWechatScanSession: vi.fn(),
     wechatScanSession: vi.fn(),
     mockLogin: vi.fn(),
     logout: vi.fn()
+  },
+  httpPostMock: vi.fn()
+}));
+
+vi.mock("../utils/http", () => ({
+  http: {
+    post: httpPostMock
   }
 }));
 
@@ -20,7 +27,7 @@ vi.mock("../apis/sprix", () => ({
   WithdrawalControllerApiFactory: vi.fn(() => ({}))
 }));
 
-import { createWechatLoginSession, readWechatLoginStatus } from "./sprixApi";
+import { authenticateConsumer, createWechatLoginSession, readWechatLoginStatus, sendSmsCode } from "./sprixApi";
 
 describe("Sprix API WeChat login adapter", () => {
   beforeEach(() => {
@@ -70,5 +77,34 @@ describe("Sprix API WeChat login adapter", () => {
     });
 
     await expect(createWechatLoginSession()).rejects.toThrow("微信扫码登录二维码不可用");
+  });
+
+  it("sends SMS code requests to the real backend endpoint", async () => {
+    httpPostMock.mockResolvedValue({
+      mobile: "13800008624",
+      expiresInSeconds: 300,
+      resendIntervalSeconds: 60
+    });
+
+    await expect(sendSmsCode("13800008624")).resolves.toEqual({
+      mobile: "13800008624",
+      expiresInSeconds: 300,
+      resendIntervalSeconds: 60
+    });
+    expect(httpPostMock).toHaveBeenCalledWith("/api/v1/auth/sms-codes", { mobile: "13800008624" });
+  });
+
+  it("logs in with the SMS login endpoint and stores the returned token", async () => {
+    httpPostMock.mockResolvedValue({
+      token: "sms-token-1",
+      nickname: "手机用户"
+    });
+
+    await expect(authenticateConsumer("13800008624", "123456")).resolves.toBe("sms-token-1");
+    expect(httpPostMock).toHaveBeenCalledWith("/api/v1/auth/sms-login", {
+      mobile: "13800008624",
+      code: "123456"
+    });
+    expect(localStorage.getItem("sprix-auth-token")).toBe("sms-token-1");
   });
 });

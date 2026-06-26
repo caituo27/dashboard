@@ -10,6 +10,7 @@ import {
   createWechatLoginSession,
   mapRemoteWithdrawal,
   readWechatLoginStatus,
+  sendSmsCode,
   submitRemoteAppeal,
   type WechatLoginSession
 } from "../services/sprixApi";
@@ -53,8 +54,10 @@ export function LoginRegisterModal({
   afterLogin?: () => void;
 }) {
   const queryClient = useQueryClient();
+  const [phoneForm] = Form.useForm<{ phone: string; code: string }>();
   const [agreed, setAgreed] = useState(false);
-  const [counting, setCounting] = useState(false);
+  const [smsSending, setSmsSending] = useState(false);
+  const [smsCountdown, setSmsCountdown] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [wechatLoading, setWechatLoading] = useState(false);
   const [wechatSession, setWechatSession] = useState<WechatLoginSession>();
@@ -73,9 +76,13 @@ export function LoginRegisterModal({
       message.warning("请先阅读并同意用户协议和隐私协议");
       return;
     }
+    if (!values?.phone || !values.code) {
+      message.warning("请输入手机号和验证码");
+      return;
+    }
     setSubmitting(true);
     try {
-      await authenticateConsumer(values?.phone ?? "agent@sprix.ai", values?.code ?? "123456");
+      await authenticateConsumer(values.phone, values.code);
       await completeLogin();
     } catch (error) {
       message.error(error instanceof Error ? `登录失败：${error.message}` : "登录失败");
@@ -103,13 +110,36 @@ export function LoginRegisterModal({
     }
   };
 
+  const requestSmsCode = async () => {
+    try {
+      const { phone } = await phoneForm.validateFields(["phone"]);
+      setSmsSending(true);
+      const result = await sendSmsCode(phone);
+      setSmsCountdown(Math.max(result.resendIntervalSeconds ?? 60, 1));
+      message.success("验证码已发送");
+    } catch (error) {
+      if (error && typeof error === "object" && "errorFields" in error) return;
+      message.error(error instanceof Error ? `验证码发送失败：${error.message}` : "验证码发送失败");
+    } finally {
+      setSmsSending(false);
+    }
+  };
+
   useEffect(() => {
     if (open) return;
     setWechatSession(undefined);
     setWechatStatus("WAITING");
     setWechatExpiresInSeconds(0);
     setWechatLoading(false);
+    setSmsSending(false);
+    setSmsCountdown(0);
   }, [open]);
+
+  useEffect(() => {
+    if (!open || smsCountdown <= 0) return;
+    const timeoutId = window.setTimeout(() => setSmsCountdown((value) => Math.max(value - 1, 0)), 1000);
+    return () => window.clearTimeout(timeoutId);
+  }, [open, smsCountdown]);
 
   useEffect(() => {
     if (!open || !wechatSession) return;
@@ -182,7 +212,7 @@ export function LoginRegisterModal({
             key: "phone",
             label: "手机验证码登录 / 注册",
             children: (
-              <Form layout="vertical" onFinish={finishLogin} className="pt-2">
+              <Form form={phoneForm} layout="vertical" onFinish={finishLogin} className="pt-2">
                 <Form.Item label="手机号" name="phone" rules={[{ required: true, message: "请输入手机号" }]}>
                   <Input placeholder="请输入手机号" />
                 </Form.Item>
@@ -192,14 +222,11 @@ export function LoginRegisterModal({
                     suffix={
                       <Button
                         type="link"
-                        disabled={counting}
-                        onClick={() => {
-                          setCounting(true);
-                          message.success("验证码已发送");
-                          window.setTimeout(() => setCounting(false), 1800);
-                        }}
+                        loading={smsSending}
+                        disabled={smsCountdown > 0}
+                        onClick={requestSmsCode}
                       >
-                        {counting ? "已发送" : "获取验证码"}
+                        {smsCountdown > 0 ? `${smsCountdown}s 后重发` : "获取验证码"}
                       </Button>
                     }
                   />

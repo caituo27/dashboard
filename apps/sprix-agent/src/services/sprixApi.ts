@@ -49,6 +49,12 @@ export type WechatLoginStatus = {
   authenticated: boolean;
 };
 
+export type SmsCodeResponse = {
+  mobile: string;
+  expiresInSeconds: number;
+  resendIntervalSeconds: number;
+};
+
 const tagText: Record<string, string> = {
   "software-development": "软件开发",
   "web-generation": "网页生成",
@@ -62,8 +68,13 @@ const tagText: Record<string, string> = {
   "data-processing": "数据处理"
 };
 
-export async function authenticateConsumer(identity = "agent@sprix.ai", code = "123456") {
-  const response = await authApi.mockLogin({ mockLoginRequest: { email: identity, code } });
+export async function sendSmsCode(mobile: string): Promise<SmsCodeResponse> {
+  const response = await http.post<unknown, SmsCodeResponse>("/api/v1/auth/sms-codes", { mobile });
+  return requireValue<SmsCodeResponse>(response, "验证码发送失败");
+}
+
+export async function authenticateConsumer(mobile: string, code: string) {
+  const response = await http.post<unknown, AuthTokenResponse>("/api/v1/auth/sms-login", { mobile, code });
   const token = requireValue<AuthTokenResponse>(response, "登录失败").token;
   localStorage.setItem(TOKEN_KEY, token ?? "");
   return token;

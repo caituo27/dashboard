@@ -12,6 +12,7 @@ const { serviceMocks } = vi.hoisted(() => ({
     createWechatLoginSession: vi.fn(),
     mapRemoteWithdrawal: vi.fn(),
     readWechatLoginStatus: vi.fn(),
+    sendSmsCode: vi.fn(),
     submitRemoteAppeal: vi.fn()
   }
 }));
@@ -78,6 +79,38 @@ describe("LoginRegisterModal", () => {
 
     await waitFor(() => expect(serviceMocks.createWechatLoginSession).toHaveBeenCalledTimes(1));
     expect(screen.getByText("请使用微信扫码，确认后会自动进入平台")).toBeInTheDocument();
+  });
+
+  it("requests a real SMS code from the backend when the user clicks get code", async () => {
+    serviceMocks.sendSmsCode.mockResolvedValue({
+      mobile: "13800008624",
+      expiresInSeconds: 300,
+      resendIntervalSeconds: 60
+    });
+
+    renderLoginModal();
+
+    fireEvent.click(screen.getByRole("tab", { name: "手机验证码登录 / 注册" }));
+    fireEvent.change(screen.getByPlaceholderText("请输入手机号"), { target: { value: "13800008624" } });
+    fireEvent.click(screen.getByRole("button", { name: "获取验证码" }));
+
+    await waitFor(() => expect(serviceMocks.sendSmsCode).toHaveBeenCalledWith("13800008624"));
+    expect(screen.getByRole("button", { name: "60s 后重发" })).toBeDisabled();
+  });
+
+  it("logs in with the phone and SMS code submitted by the user", async () => {
+    serviceMocks.authenticateConsumer.mockResolvedValue("sms-token-1");
+
+    renderLoginModal();
+
+    fireEvent.click(screen.getByRole("tab", { name: "手机验证码登录 / 注册" }));
+    const agreementChecks = screen.getAllByLabelText("我已阅读并同意《用户协议》和《隐私协议》");
+    fireEvent.click(agreementChecks[agreementChecks.length - 1]);
+    fireEvent.change(screen.getByPlaceholderText("请输入手机号"), { target: { value: "13800008624" } });
+    fireEvent.change(screen.getByPlaceholderText("请输入验证码"), { target: { value: "123456" } });
+    fireEvent.click(screen.getByRole("button", { name: "登录 / 注册" }));
+
+    await waitFor(() => expect(serviceMocks.authenticateConsumer).toHaveBeenCalledWith("13800008624", "123456"));
   });
 });
 

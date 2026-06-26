@@ -11,13 +11,15 @@
   - `createWechatLoginSession()` 创建扫码会话并获取 `qrPayload`。
   - `readWechatLoginStatus(sessionId)` 轮询扫码状态。
   - 后端返回 token 后写入 `sprix-auth-token`，并刷新 `sprix-agent` 查询缓存。
-- 手机验证码登录当前仍复用 `authenticateConsumer()` 的后端 mock login。
+- 手机验证码登录已接真实后端：
+  - `sendSmsCode(mobile)` 调用 `POST /api/v1/auth/sms-codes`。
+  - `authenticateConsumer(mobile, code)` 调用 `POST /api/v1/auth/sms-login`。
+  - 后端返回 token 后写入 `sprix-auth-token`，并刷新 `sprix-agent` 查询缓存。
 - 绑定提现账户、提现、申诉调用 `../services/sprixApi` 中的真实 service adapter。
 
 ## Demo / 占位
 
 - PC 页面不调用 `confirmWechatScanSession`，因为扫码确认应由微信侧或移动端拿到 code 后完成。
-- 手机验证码“获取验证码”仍是前端提示和短倒计时，没有真实短信发送接口。
 - 协议正文是简版展示文案，不是完整法务协议。
 
 ## 主要交互
@@ -30,5 +32,4 @@
 ## 后续人工动作
 
 - 和后端/微信侧确认扫码状态字符串全集，并把状态文案补齐为枚举映射。
-- 接入真实短信验证码接口后，替换当前 mock login。
 - 法务提供正式协议后，更新 `AgreementModal` 文案和入口。
