@@ -44,7 +44,7 @@ function AdminRoutes() {
   return (
     <AdminShell title={title}>
       <Routes>
-        <Route index element={<Navigate to="tasks" replace />} />
+        <Route index element={<Navigate to="/tasks" replace />} />
         <Route path="tasks" element={<AdminTaskCenter />} />
         <Route path="tasks/new" element={<AdminTaskForm />} />
         <Route path="tasks/:id/edit" element={<AdminTaskForm />} />
@@ -52,7 +52,7 @@ function AdminRoutes() {
         <Route path="appeals" element={<AdminAppealCenter />} />
         <Route path="appeals/:id" element={<AdminAppealDetail />} />
         <Route path="funds/*" element={<AdminFundCenter />} />
-        <Route path="*" element={<Navigate to="tasks" replace />} />
+        <Route path="*" element={<Navigate to="/tasks" replace />} />
       </Routes>
     </AdminShell>
   );

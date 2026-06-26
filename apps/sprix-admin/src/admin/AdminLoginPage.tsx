@@ -12,11 +12,21 @@ export function hasAdminToken() {
   return Boolean(localStorage.getItem("sprix-admin-auth-token"));
 }
 
+function getSafeAdminRedirect(value: string | null) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return "/tasks";
+  }
+  if (value === "/login" || value.startsWith("/login?") || value.startsWith("/api/") || value.startsWith("/sprix-api/")) {
+    return "/tasks";
+  }
+  return value;
+}
+
 export function AdminLoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [submitting, setSubmitting] = useState(false);
-  const redirect = searchParams.get("redirect") || "/tasks";
+  const redirect = getSafeAdminRedirect(searchParams.get("redirect"));
 
   if (hasAdminToken()) {
     return <Navigate to={redirect} replace />;
