@@ -211,6 +211,7 @@ export type Payout = {
 };
 
 export type FundException = {
+  backendId?: string;
   exceptionNo: string;
   withdrawalNo: string;
   userName: string;

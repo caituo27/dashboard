@@ -106,12 +106,24 @@ export async function approveRemoteWithdrawal(withdrawalId: string) {
   return adminFundsApi.approveWithdrawal({ withdrawalId });
 }
 
+export async function rejectRemoteWithdrawal(withdrawalId: string, reason: string) {
+  return http.post<WithdrawalRecord>(`/api/v1/admin/funds/withdrawals/${encodeURIComponent(withdrawalId)}/reject`, { reason });
+}
+
 export async function markRemoteWithdrawalPaid(withdrawalId: string) {
   return adminFundsApi.markWithdrawalPaid({ withdrawalId });
 }
 
 export async function markRemoteWithdrawalPayoutFailed(withdrawalId: string) {
   return adminFundsApi.markWithdrawalPayoutFailed({ withdrawalId });
+}
+
+export async function returnRemoteWithdrawalForReview(withdrawalId: string, reason: string) {
+  return http.post<WithdrawalRecord>(`/api/v1/admin/funds/withdrawals/${encodeURIComponent(withdrawalId)}/return-review`, { reason });
+}
+
+export async function markRemotePayoutExceptionHandled(withdrawalId: string, reason: string) {
+  return http.post<WithdrawalRecord>(`/api/v1/admin/funds/withdrawals/${encodeURIComponent(withdrawalId)}/exception-handled`, { reason });
 }
 
 function requireValue<T>(value: T | undefined, fallbackMessage: string): T {
@@ -277,8 +289,9 @@ function mapPayouts(withdrawals: Withdrawal[]): Payout[] {
 
 function mapFundExceptions(withdrawals: Withdrawal[]): FundException[] {
   return withdrawals
-    .filter((item) => item.withdrawStatus === "打款失败")
+    .filter((item) => item.withdrawStatus === "打款失败" || item.withdrawStatus === "需更换账户")
     .map((item) => ({
+      backendId: item.backendId,
       exceptionNo: `EX-${item.withdrawalNo}`,
       withdrawalNo: item.withdrawalNo,
       userName: item.userName,
@@ -286,7 +299,7 @@ function mapFundExceptions(withdrawals: Withdrawal[]): FundException[] {
       alipayAccount: item.alipayAccount,
       exceptionType: "打款失败",
       exceptionAmount: item.applyAmount,
-      currentStatus: item.withdrawStatus,
+      currentStatus: item.withdrawStatus === "需更换账户" ? "已处理" : item.withdrawStatus,
       occurredAt: item.appliedAt
     }));
 }
@@ -335,7 +348,7 @@ function mapWithdrawStatus(status?: string): WithdrawStatus {
   if (status === "PAID") return "已提现";
   if (status === "PAYOUT_FAILED") return "打款失败";
   if (status === "REJECTED") return "已驳回";
-  if (status === "ACCOUNT_CHANGE_REQUIRED") return "需更换账户";
+  if (status === "NEED_ACCOUNT_CHANGE" || status === "ACCOUNT_CHANGE_REQUIRED") return "需更换账户";
   return "提现审核中";
 }
 

@@ -313,7 +313,7 @@ function mapWithdrawStatus(status?: string): Withdrawal["withdrawStatus"] {
   if (status === "PAID") return "已提现";
   if (status === "PAYOUT_FAILED") return "打款失败";
   if (status === "REJECTED") return "已驳回";
-  if (status === "ACCOUNT_CHANGE_REQUIRED") return "需更换账户";
+  if (status === "NEED_ACCOUNT_CHANGE" || status === "ACCOUNT_CHANGE_REQUIRED") return "需更换账户";
   return "提现审核中";
 }
 

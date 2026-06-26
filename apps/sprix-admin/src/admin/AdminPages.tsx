@@ -4,14 +4,17 @@ import type { ColumnsType } from "antd/es/table";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { CircleDollarSign, ClipboardList, ShieldCheck } from "lucide-react";
-import type { AdminAppeal, CompletedExecution, Payout, RunningExecution, TerminatedExecution, Withdrawal } from "../types";
+import type { AdminAppeal, CompletedExecution, FundException, Payout, RunningExecution, TerminatedExecution, Withdrawal } from "../types";
 import { useSprixStore } from "../store/sprixStore";
 import {
   approveRemoteAppeal,
   approveRemoteWithdrawal,
+  markRemotePayoutExceptionHandled,
   markRemoteWithdrawalPaid,
   markRemoteWithdrawalPayoutFailed,
   rejectRemoteAppeal,
+  rejectRemoteWithdrawal,
+  returnRemoteWithdrawalForReview,
   startRemoteAppeal
 } from "../services/sprixApi";
 import { ActionButton, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface, primitiveIcons } from "../components/Primitives";
@@ -26,6 +29,10 @@ function getAppealBackendId(record: AdminAppeal) {
 }
 
 function getWithdrawalBackendId(record: Pick<Withdrawal | Payout, "backendId" | "withdrawalNo">) {
+  return record.backendId ?? record.withdrawalNo;
+}
+
+function getFundExceptionBackendId(record: Pick<FundException, "backendId" | "withdrawalNo">) {
   return record.backendId ?? record.withdrawalNo;
 }
 
@@ -478,6 +485,15 @@ export function AdminFundCenter() {
       message.error(error instanceof Error ? `提现审核失败：${error.message}` : "提现审核失败");
     }
   };
+  const rejectWithdrawal = async (record: Withdrawal) => {
+    try {
+      await rejectRemoteWithdrawal(getWithdrawalBackendId(record), "后台审核不通过");
+      await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+      message.success("已驳回提现申请");
+    } catch (error) {
+      message.error(error instanceof Error ? `提现驳回失败：${error.message}` : "提现驳回失败");
+    }
+  };
   const markPayoutPaid = async (record: Payout) => {
     try {
       await markRemoteWithdrawalPaid(getWithdrawalBackendId(record));
@@ -487,6 +503,15 @@ export function AdminFundCenter() {
       message.error(error instanceof Error ? `标记打款失败：${error.message}` : "标记打款失败");
     }
   };
+  const returnPayoutForReview = async (record: Payout) => {
+    try {
+      await returnRemoteWithdrawalForReview(getWithdrawalBackendId(record), "待打款退回重新审核");
+      await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+      message.success("已退回提现审核");
+    } catch (error) {
+      message.error(error instanceof Error ? `退回审核失败：${error.message}` : "退回审核失败");
+    }
+  };
   const markPayoutFailed = async (record: Payout) => {
     try {
       await markRemoteWithdrawalPayoutFailed(getWithdrawalBackendId(record));
@@ -494,6 +519,15 @@ export function AdminFundCenter() {
       message.success("已标记打款失败");
     } catch (error) {
       message.error(error instanceof Error ? `打款失败标记提交失败：${error.message}` : "打款失败标记提交失败");
+    }
+  };
+  const markExceptionHandled = async (record: FundException) => {
+    try {
+      await markRemotePayoutExceptionHandled(getFundExceptionBackendId(record), "异常已处理，用户需更换收款账户");
+      await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+      message.success("异常已标记处理");
+    } catch (error) {
+      message.error(error instanceof Error ? `异常处理失败：${error.message}` : "异常处理失败");
     }
   };
   return (
@@ -535,7 +569,7 @@ export function AdminFundCenter() {
             {
               key: "withdrawals",
               label: "提现审核",
-              children: <WithdrawalTable data={withdrawals} onApproveWithdrawal={approveWithdrawal} />
+              children: <WithdrawalTable data={withdrawals} onApproveWithdrawal={approveWithdrawal} onRejectWithdrawal={rejectWithdrawal} />
             },
             {
               key: "payouts",
@@ -560,6 +594,7 @@ export function AdminFundCenter() {
                       render: (_, record) => (
                         <div className="flex gap-1">
                           <Button type="link" onClick={() => markPayoutPaid(record)}>标记已打款</Button>
+                          <Button type="link" onClick={() => returnPayoutForReview(record)}>退回审核</Button>
                           <Button type="link" onClick={() => markPayoutFailed(record)}>标记打款失败</Button>
                         </div>
                       )
@@ -586,7 +621,14 @@ export function AdminFundCenter() {
                     { title: "异常金额", dataIndex: "exceptionAmount", render: currency },
                     { title: "当前状态", dataIndex: "currentStatus" },
                     { title: "发生时间", dataIndex: "occurredAt" },
-                    { title: "操作", render: () => <Button type="link">重新审核</Button> }
+                    {
+                      title: "操作",
+                      render: (_, record) => (
+                        <Button type="link" disabled={record.currentStatus === "已处理"} onClick={() => markExceptionHandled(record)}>
+                          标记已处理
+                        </Button>
+                      )
+                    }
                   ]}
                 />
               )
@@ -624,10 +666,12 @@ export function AdminFundCenter() {
 
 function WithdrawalTable({
   data,
-  onApproveWithdrawal
+  onApproveWithdrawal,
+  onRejectWithdrawal
 }: {
   data: Withdrawal[];
   onApproveWithdrawal: (withdrawal: Withdrawal) => Promise<void>;
+  onRejectWithdrawal: (withdrawal: Withdrawal) => Promise<void>;
 }) {
   return (
     <Table
@@ -659,7 +703,7 @@ function WithdrawalTable({
               >
                 通过审核
               </Button>
-              <Button type="link" onClick={() => message.warning("后端 Swagger 暂未提供要求更换账户接口，未提交任何本地数据")}>要求更换账户</Button>
+              <Button type="link" danger onClick={() => onRejectWithdrawal(record)}>驳回审核</Button>
             </div>
           )
         }
