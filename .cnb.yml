@@ -1,0 +1,148 @@
+$:
+  push:
+    - docker:
+        image: node:22-alpine
+      stages:
+        - name: Build SprixPortal frontend bundles
+          script: |
+            set -eu
+
+            apk add --no-cache ca-certificates git zip
+            corepack enable
+            corepack prepare pnpm@10.32.1 --activate
+
+            export VITE_API_BASE_URL="${SPRIX_PORTAL_API_BASE_URL:-/sprix-api}"
+
+            pnpm install --frozen-lockfile
+            pnpm --filter @sprix-ai/agent build
+            pnpm --filter @sprix-ai/admin build
+
+            release_dir="target/cnb-release"
+            package_name="SprixPortal-${CNB_COMMIT:-unknown}"
+
+            rm -rf "$release_dir"
+            mkdir -p "$release_dir/agent" "$release_dir/admin"
+
+            cp -R apps/sprix-agent/dist/. "$release_dir/agent/"
+            cp -R apps/sprix-admin/dist/. "$release_dir/admin/"
+
+            (
+              cd "$release_dir"
+              zip -qr "${package_name}.zip" agent admin
+              sha256sum "${package_name}.zip" > "${package_name}.zip.sha256"
+              cp "${package_name}.zip" SprixPortal-latest.zip
+              sha256sum SprixPortal-latest.zip > SprixPortal-latest.zip.sha256
+            )
+
+            cat > "$release_dir/latest.json" <<EOF
+            {
+              "name": "SprixPortal",
+              "commit": "${CNB_COMMIT:-unknown}",
+              "branch": "${CNB_BRANCH:-unknown}",
+              "apiBaseUrl": "${VITE_API_BASE_URL}",
+              "agentPath": "agent/",
+              "adminPath": "admin/",
+              "archiveFileName": "SprixPortal-latest.zip",
+              "createdBy": "CNB"
+            }
+            EOF
+
+            cat > "$release_dir/README.md" <<EOF
+            # SprixPortal Build Artifacts
+
+            Built from commit \`${CNB_COMMIT:-unknown}\` on branch \`${CNB_BRANCH:-unknown}\`.
+
+            ## Static bundles
+
+            - \`agent/\`: C 端 Agent 任务平台
+            - \`admin/\`: 管理后台
+
+            ## Deploy note
+
+            Copy \`agent/\` to the C 端站点根目录, and copy \`admin/\` to the管理后台站点根目录.
+            The bundle was built with \`VITE_API_BASE_URL=${VITE_API_BASE_URL}\`.
+            EOF
+
+        - name: Mirror build artifacts to release repository
+          script: |
+            set -eu
+
+            release_dir="$(pwd)/target/cnb-release"
+            release_repo="${SPRIX_PORTAL_RELEASE_REPO:-}"
+            release_branch="${SPRIX_PORTAL_RELEASE_BRANCH:-main}"
+
+            if [ -z "$release_repo" ]; then
+              echo "ERROR: missing release repository. Set SPRIX_PORTAL_RELEASE_REPO in CNB variables." >&2
+              exit 1
+            fi
+
+            for path in \
+              "$release_dir/agent" \
+              "$release_dir/admin" \
+              "$release_dir/SprixPortal-latest.zip" \
+              "$release_dir/SprixPortal-latest.zip.sha256" \
+              "$release_dir/latest.json" \
+              "$release_dir/README.md"; do
+              if [ ! -e "$path" ]; then
+                echo "ERROR: missing build artifact: $path" >&2
+                exit 1
+              fi
+            done
+
+            if [ "${SPRIX_PORTAL_RELEASE_DRY_RUN:-}" = "1" ]; then
+              echo "Dry run: SprixPortal build artifacts are ready."
+              exit 0
+            fi
+
+            token="${SPRIX_PORTAL_RELEASE_TOKEN:-${CNB_TOKEN:-}}"
+            token_user="${SPRIX_PORTAL_RELEASE_USER:-${CNB_TOKEN_USER_NAME:-cnb}}"
+            if [ -z "$token" ]; then
+              echo "ERROR: missing release token. Set SPRIX_PORTAL_RELEASE_TOKEN if CNB_TOKEN cannot push to the release repository." >&2
+              exit 1
+            fi
+
+            apk add --no-cache ca-certificates git
+
+            workdir="$(mktemp -d)"
+            askpass="$workdir/git-askpass.sh"
+            cat > "$askpass" <<'EOF'
+            #!/bin/sh
+            case "$1" in
+              *Username*) printf '%s\n' "$CNB_GIT_USER" ;;
+              *Password*) printf '%s\n' "$CNB_GIT_PASSWORD" ;;
+              *) printf '\n' ;;
+            esac
+            EOF
+            chmod 700 "$askpass"
+
+            export GIT_ASKPASS="$askpass"
+            export GIT_TERMINAL_PROMPT=0
+            export CNB_GIT_USER="$token_user"
+            export CNB_GIT_PASSWORD="$token"
+
+            repo_dir="$workdir/SprixPortalRelease"
+            git clone "$release_repo" "$repo_dir"
+
+            cd "$repo_dir"
+            git checkout "$release_branch" 2>/dev/null || git checkout -b "$release_branch"
+
+            rm -rf agent admin
+            mkdir -p agent admin
+            cp -R "$release_dir/agent/." agent/
+            cp -R "$release_dir/admin/." admin/
+            cp "$release_dir/SprixPortal-latest.zip" SprixPortal-latest.zip
+            cp "$release_dir/SprixPortal-latest.zip.sha256" SprixPortal-latest.zip.sha256
+            cp "$release_dir/latest.json" latest.json
+            cp "$release_dir/README.md" README.md
+
+            git config user.name "${CNB_COMMITTER_NAME:-cnb-release-bot}"
+            git config user.email "${CNB_COMMITTER_EMAIL:-cnb-release-bot@cnb.cool}"
+            git add README.md latest.json SprixPortal-latest.zip SprixPortal-latest.zip.sha256 agent admin
+
+            if git diff --cached --quiet; then
+              echo "Release repository already contains this SprixPortal build."
+              exit 0
+            fi
+
+            git commit -m "Publish SprixPortal ${CNB_COMMIT:-unknown}"
+            git push origin "HEAD:${release_branch}"

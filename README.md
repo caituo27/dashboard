@@ -54,6 +54,29 @@ pnpm typecheck
 pnpm build
 ```
 
+## CNB 流水线发布
+
+仓库根目录的 `.cnb.yml` 会在代码推送后构建两个前端包：
+
+- `apps/sprix-agent/dist` -> 发布仓库的 `agent/`
+- `apps/sprix-admin/dist` -> 发布仓库的 `admin/`
+
+需要在 CNB 仓库变量里配置：
+
+```text
+SPRIX_PORTAL_RELEASE_REPO=https://cnb.cool/<owner>/<release-repo>
+SPRIX_PORTAL_RELEASE_BRANCH=main
+SPRIX_PORTAL_RELEASE_TOKEN=<可推送发布仓库的访问令牌>
+SPRIX_PORTAL_RELEASE_USER=<令牌用户名，可不填>
+SPRIX_PORTAL_API_BASE_URL=/sprix-api
+```
+
+如需先验证打包但不推送发布仓库，可临时设置：
+
+```text
+SPRIX_PORTAL_RELEASE_DRY_RUN=1
+```
+
 ## 已实现页面
 
 C 端用户站点：
