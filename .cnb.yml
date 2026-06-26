@@ -1,6 +1,8 @@
 $:
   push:
-    - docker:
+    - imports:
+        - https://cnb.cool/yztx_qxun/QXunSecurityCenter/-/blob/main/env.prod.yml
+      docker:
         image: node:22
         volumes:
           - /root/.pnpm-store:copy-on-write

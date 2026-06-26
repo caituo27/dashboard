@@ -61,7 +61,14 @@ pnpm build
 - `apps/sprix-agent/dist` -> C 端站点目录
 - `apps/sprix-admin/dist` -> 管理后台站点目录
 
-需要在 CNB 仓库变量里配置：
+流水线通过 `imports` 从私仓配置读取部署变量：
+
+```yaml
+imports:
+  - https://cnb.cool/yztx_qxun/QXunSecurityCenter/-/blob/main/env.prod.yml
+```
+
+需要在该私仓配置文件里提供：
 
 ```text
 SPRIX_PORTAL_SSH_HOST=<服务器 IP 或域名>
