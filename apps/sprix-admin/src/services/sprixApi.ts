@@ -116,14 +116,7 @@ export async function authenticateAdmin(identity = "admin@sprix.ai", code = "123
   return token;
 }
 
-async function ensureAdminAuthenticated() {
-  if (!localStorage.getItem(TOKEN_KEY)) {
-    await authenticateAdmin();
-  }
-}
-
 export async function readRemoteTaskCenterSnapshot(): Promise<AdminTaskCenterSnapshot> {
-  await ensureAdminAuthenticated();
   const [tasksResponse, appealsResponse] = await Promise.all([adminTaskApi.tasks(), adminAppealApi.appeals()]);
   const taskDetails = await Promise.all(listValue<TaskEntity>(tasksResponse).map((task) => readRemoteTaskDetail(requireValue(task.id, "任务缺少 id"))));
   const tasks = taskDetails.map((detail) => detail.task);
@@ -135,7 +128,6 @@ export async function readRemoteTaskCenterSnapshot(): Promise<AdminTaskCenterSna
 }
 
 export async function readRemoteTaskDetail(taskId: string): Promise<AdminTaskDetailView> {
-  await ensureAdminAuthenticated();
   const detail = await http.get<unknown, RemoteAdminTaskDetail>(`/api/v1/admin/tasks/${encodeURIComponent(taskId)}`);
   const task = mapTask(requireObject(detail.task, "task"));
   return {
@@ -145,7 +137,6 @@ export async function readRemoteTaskDetail(taskId: string): Promise<AdminTaskDet
 }
 
 export async function readRemoteAppeals(): Promise<AdminAppeal[]> {
-  await ensureAdminAuthenticated();
   const appealsResponse = await adminAppealApi.appeals();
   return Promise.all(
     listValue<AppealRecord>(appealsResponse).map((appeal) =>
@@ -155,7 +146,6 @@ export async function readRemoteAppeals(): Promise<AdminAppeal[]> {
 }
 
 export async function readRemoteFunds(): Promise<AdminFundsSnapshot> {
-  await ensureAdminAuthenticated();
   const [tasksResponse, settlementsResponse, withdrawalsResponse, flowsResponse] = await Promise.all([
     adminTaskApi.tasks(),
     adminFundsApi.settlements(),

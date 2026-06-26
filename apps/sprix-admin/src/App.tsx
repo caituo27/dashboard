@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Navigate, Route, BrowserRouter as Router, Routes, useLocation } from "react-router-dom";
+import type { ReactNode } from "react";
+import { AdminLoginPage, hasAdminToken } from "./admin/AdminLoginPage";
 import { AdminAppealCenter, AdminAppealDetail, AdminFundCenter, AdminTaskCenter, AdminTaskDetail, AdminTaskForm } from "./admin/AdminPages";
 import { AdminShell } from "./components/Layout";
 
@@ -11,11 +13,21 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <Router>
         <Routes>
-          <Route path="/*" element={<AdminRoutes />} />
+          <Route path="/login" element={<AdminLoginPage />} />
+          <Route path="/*" element={<RequireAdminAuth><AdminRoutes /></RequireAdminAuth>} />
         </Routes>
       </Router>
     </QueryClientProvider>
   );
+}
+
+function RequireAdminAuth({ children }: { children: ReactNode }) {
+  const location = useLocation();
+  if (!hasAdminToken()) {
+    const redirect = `${location.pathname}${location.search}${location.hash}`;
+    return <Navigate to={`/login?redirect=${encodeURIComponent(redirect)}`} replace />;
+  }
+  return children;
 }
 
 function AdminRoutes() {

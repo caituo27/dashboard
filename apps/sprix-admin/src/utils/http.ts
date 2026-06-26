@@ -19,9 +19,17 @@ const ERROR_MESSAGES: Record<number, string> = {
 
 type ApiEnvelope<T = unknown> = {
   success?: boolean;
+  code?: string;
   message?: string;
   data?: T;
 };
+
+function redirectToLogin() {
+  localStorage.removeItem("sprix-admin-auth-token");
+  if (window.location.pathname === "/login") return;
+  const redirect = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  window.location.assign(`/login?redirect=${encodeURIComponent(redirect)}`);
+}
 
 export const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL,
@@ -40,7 +48,12 @@ http.interceptors.response.use(
     const body = response.data as ApiEnvelope;
     if (body && typeof body === "object" && "success" in body) {
       if (body.success === false) {
-        throw new Error(body.message ?? "请求失败");
+        const message = body.message ?? "请求失败";
+        window.dispatchEvent(new CustomEvent("sprix-api-error", { detail: { code: body.code, message } }));
+        if (body.code === "UNAUTHENTICATED") {
+          redirectToLogin();
+        }
+        throw new Error(message);
       }
       return body.data as AxiosResponse;
     }
@@ -54,7 +67,7 @@ http.interceptors.response.use(
     window.dispatchEvent(new CustomEvent("sprix-api-error", { detail: { status, message } }));
 
     if (status === 401) {
-      localStorage.removeItem("sprix-admin-auth-token");
+      redirectToLogin();
     }
 
     return Promise.reject(new Error(message));
