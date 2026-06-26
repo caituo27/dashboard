@@ -64,7 +64,6 @@ export function AdminTaskCenter() {
     return <Surface className="p-8">任务数据加载失败：{messageText}</Surface>;
   }
   const tasks = taskCenterQuery.data?.tasks ?? [];
-  const executions = taskCenterQuery.data?.adminExecutionRecords ?? {};
   const appealCount = taskCenterQuery.data?.appealCount ?? 0;
   const visibleTasks = tasks.filter((task) => {
     if (task.taskStatus === "已删除") return false;
@@ -73,7 +72,7 @@ export function AdminTaskCenter() {
     if (!query) return true;
     return `${task.title}${task.category}${task.sourceType}`.includes(query);
   });
-  const executionCount = Object.values(executions).reduce((sum, item) => sum + item.running.length + item.terminated.length + item.completed.length, 0);
+  const executionCount = tasks.reduce((sum, task) => sum + (task.executionTotal ?? 0), 0);
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
 
   const confirmOffline = (task: Task) => {

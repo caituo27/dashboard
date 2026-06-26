@@ -83,6 +83,10 @@ export type Task = {
   submittedFiles: string[];
   resultFiles: string[];
   acceptanceResult: string;
+  executionTotal?: number;
+  runningExecutionCount?: number;
+  completedExecutionCount?: number;
+  terminatedExecutionCount?: number;
 };
 
 export type MyTask = {

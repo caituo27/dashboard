@@ -72,6 +72,14 @@ type RemoteAdminTaskDetail = {
   executions: RemoteAdminExecutionRow[];
 };
 
+type RemoteAdminTaskSummary = {
+  task: TaskEntity;
+  executionTotal?: number;
+  runningExecutionCount?: number;
+  completedExecutionCount?: number;
+  terminatedExecutionCount?: number;
+};
+
 type RemoteAdminExecutionRow = {
   executionId?: string;
   executionIndex?: number;
@@ -117,12 +125,14 @@ export async function authenticateAdmin(identity = "admin@sprix.ai", code = "123
 }
 
 export async function readRemoteTaskCenterSnapshot(): Promise<AdminTaskCenterSnapshot> {
-  const [tasksResponse, appealsResponse] = await Promise.all([adminTaskApi.tasks(), adminAppealApi.appeals()]);
-  const taskDetails = await Promise.all(listValue<TaskEntity>(tasksResponse).map((task) => readRemoteTaskDetail(requireValue(task.id, "任务缺少 id"))));
-  const tasks = taskDetails.map((detail) => detail.task);
+  const [taskSummaries, appealsResponse] = await Promise.all([
+    http.get<unknown, RemoteAdminTaskSummary[]>("/api/v1/admin/tasks/summaries"),
+    adminAppealApi.appeals()
+  ]);
+  const tasks = listValue<RemoteAdminTaskSummary>(taskSummaries).map(mapTaskSummary);
   return {
     tasks,
-    adminExecutionRecords: Object.fromEntries(taskDetails.map((detail) => [detail.task.id, detail.records])) as AdminExecutionRecords,
+    adminExecutionRecords: {},
     appealCount: listValue<AppealRecord>(appealsResponse).length
   };
 }
@@ -283,6 +293,16 @@ function mapTask(task: TaskEntity): Task {
     submittedFiles: [],
     resultFiles: [],
     acceptanceResult: "平台将根据真实执行结果返回验收状态。"
+  };
+}
+
+function mapTaskSummary(summary: RemoteAdminTaskSummary): Task {
+  return {
+    ...mapTask(requireObject(summary.task, "task")),
+    executionTotal: numberValue(summary.executionTotal),
+    runningExecutionCount: numberValue(summary.runningExecutionCount),
+    completedExecutionCount: numberValue(summary.completedExecutionCount),
+    terminatedExecutionCount: numberValue(summary.terminatedExecutionCount)
   };
 }
 
@@ -526,7 +546,7 @@ function readString(source: unknown, key: string) {
 }
 
 function requireObject<T extends object>(value: T | null | undefined, field: string): T {
-  if (!value) throw new Error(`申诉详情接口缺少 ${field}`);
+  if (!value) throw new Error(`接口缺少 ${field}`);
   return value;
 }
 
@@ -542,6 +562,10 @@ function requireNumber(value: number | null | undefined, field: string) {
     throw new Error(`申诉详情接口缺少 ${field}`);
   }
   return value;
+}
+
+function numberValue(value: number | null | undefined) {
+  return typeof value === "number" && !Number.isNaN(value) ? value : 0;
 }
 
 function compactId(value: string | undefined, fallback: string) {

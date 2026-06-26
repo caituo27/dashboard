@@ -1,8 +1,6 @@
 import type { ReactNode } from "react";
-import { message } from "antd";
 import { Link, useLocation } from "react-router-dom";
 import { Bot, Menu } from "lucide-react";
-import { SecondaryButton } from "./Primitives";
 import { adminRoutes } from "../navigation";
 
 function Sidebar() {
@@ -73,11 +71,6 @@ export function AdminShell({ title, children }: { title: string; children: React
         <div className="sprix-container">
           <AdminTopBar title={title} />
           {children}
-          <div className="mt-6 flex justify-end">
-            <SecondaryButton onClick={() => message.info("后台已作为独立 app 运行，当前页面不提供 C 端跳转")}>
-              独立后台已启用
-            </SecondaryButton>
-          </div>
         </div>
       </main>
     </div>
