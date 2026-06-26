@@ -106,6 +106,8 @@ export type MyTask = {
 };
 
 export type RunningExecution = {
+  executionId?: string;
+  executionIndex?: number;
   userName: string;
   phone: string;
   agentName: string;
@@ -116,6 +118,8 @@ export type RunningExecution = {
 };
 
 export type TerminatedExecution = {
+  executionId?: string;
+  executionIndex?: number;
   userName: string;
   phone: string;
   agentName: string;
@@ -125,6 +129,8 @@ export type TerminatedExecution = {
 };
 
 export type CompletedExecution = {
+  executionId?: string;
+  executionIndex?: number;
   userName: string;
   phone: string;
   agentName: string;
@@ -158,12 +164,16 @@ export type AdminAppeal = {
   priority: "普通" | "加急" | "高风险";
   submittedAt: string;
   handler: string;
-  expectedProcessTime: string;
-  originalScore: string;
-  originalRejectReason: string;
+  expectedProcessTime?: string;
+  originalScore?: string;
+  originalRejectReason?: string;
   userSupplement?: string;
   resultDescription?: string;
   linkedMyTaskId?: string;
+  executionId?: string;
+  executionIndex?: number;
+  deliverables?: string;
+  acceptanceCriteria?: string;
   processLogs: string[];
 };
 
@@ -196,6 +206,9 @@ export type Withdrawal = {
   appliedAt: string;
   withdrawStatus: WithdrawStatus;
   reviewer: string;
+  reviewReason?: string;
+  payoutFailureReason?: string;
+  exceptionRemark?: string;
 };
 
 export type Payout = {

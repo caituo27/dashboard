@@ -3,14 +3,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Navigate, Route, BrowserRouter as Router, Routes, useLocation } from "react-router-dom";
 import { AdminAppealCenter, AdminAppealDetail, AdminFundCenter, AdminTaskCenter, AdminTaskDetail, AdminTaskForm } from "./admin/AdminPages";
 import { AdminShell } from "./components/Layout";
-import { useRemoteSprixBootstrap } from "./services/useRemoteSprixBootstrap";
 
 const queryClient = new QueryClient();
 
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <RemoteSprixBridge />
       <Router>
         <Routes>
           <Route path="/*" element={<AdminRoutes />} />
@@ -18,11 +16,6 @@ export default function App() {
       </Router>
     </QueryClientProvider>
   );
-}
-
-function RemoteSprixBridge() {
-  useRemoteSprixBootstrap();
-  return null;
 }
 
 function AdminRoutes() {

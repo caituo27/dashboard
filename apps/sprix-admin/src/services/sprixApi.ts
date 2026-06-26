@@ -8,7 +8,6 @@ import {
   type FundFlow as ApiFundFlow,
   type SettlementRecord,
   type TaskEntity,
-  type TaskExecution,
   type WithdrawalRecord
 } from "../apis/sprix";
 import type {
@@ -28,7 +27,6 @@ import type {
   Withdrawal,
   WithdrawStatus
 } from "../types";
-import type { SprixRemoteStatePatch } from "../store/sprixStore";
 import { http } from "../utils/http";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/sprix-api";
@@ -39,6 +37,78 @@ const adminFundsApi = AdminFundsControllerApiFactory(undefined, API_BASE_URL, ht
 const adminTaskApi = AdminTaskControllerApiFactory(undefined, API_BASE_URL, http);
 const authApi = AuthControllerApiFactory(undefined, API_BASE_URL, http);
 
+export type UpsertAdminTaskPayload = {
+  title: string;
+  category: string;
+  sourceType: string;
+  description: string;
+  deliverables: string;
+  acceptanceCriteria: string;
+  reward: number;
+  totalSlots: number;
+};
+
+export type AdminTaskCenterSnapshot = {
+  tasks: Task[];
+  adminExecutionRecords: AdminExecutionRecords;
+  appealCount: number;
+};
+
+export type AdminTaskDetailView = {
+  task: Task;
+  records: AdminExecutionRecords[string];
+};
+
+export type AdminFundsSnapshot = {
+  settlements: Settlement[];
+  withdrawals: Withdrawal[];
+  payouts: Payout[];
+  fundExceptions: FundException[];
+  fundFlows: FundFlow[];
+};
+
+type RemoteAdminTaskDetail = {
+  task: TaskEntity;
+  executions: RemoteAdminExecutionRow[];
+};
+
+type RemoteAdminExecutionRow = {
+  executionId?: string;
+  executionIndex?: number;
+  userName?: string;
+  userPhone?: string;
+  agentName?: string;
+  agentScore?: number | null;
+  executionStatus?: string;
+  currentNode?: string;
+  progress?: string;
+  terminationReason?: string;
+  appealStatus?: string;
+  settlementStatus?: string;
+  startedAt?: string;
+  updatedAt?: string;
+  completedAt?: string;
+};
+
+type RemoteAdminAppealDetail = {
+  appeal: AppealRecord;
+  executionId: string;
+  executionIndex: number;
+  taskTitle: string;
+  taskCategory: string;
+  taskReward: string;
+  deliverables: string;
+  acceptanceCriteria: string;
+  userName: string;
+  userPhone: string;
+  agentName: string;
+  agentScore?: number | null;
+  executionStatus?: string;
+  currentNode?: string;
+  progress?: string;
+  settlementStatus?: string;
+};
+
 export async function authenticateAdmin(identity = "admin@sprix.ai", code = "123456") {
   const response = await authApi.mockAdminLogin({ mockLoginRequest: { email: identity, code } });
   const token = requireValue<AuthTokenResponse>(response, "后台登录失败").token;
@@ -46,47 +116,62 @@ export async function authenticateAdmin(identity = "admin@sprix.ai", code = "123
   return token;
 }
 
-export async function readAdminSnapshot(): Promise<SprixRemoteStatePatch> {
+async function ensureAdminAuthenticated() {
   if (!localStorage.getItem(TOKEN_KEY)) {
     await authenticateAdmin();
   }
+}
 
-  const [tasksResponse, appealsResponse, settlementsResponse, withdrawalsResponse, flowsResponse] = await Promise.all([
+export async function readRemoteTaskCenterSnapshot(): Promise<AdminTaskCenterSnapshot> {
+  await ensureAdminAuthenticated();
+  const [tasksResponse, appealsResponse] = await Promise.all([adminTaskApi.tasks(), adminAppealApi.appeals()]);
+  const taskDetails = await Promise.all(listValue<TaskEntity>(tasksResponse).map((task) => readRemoteTaskDetail(requireValue(task.id, "任务缺少 id"))));
+  const tasks = taskDetails.map((detail) => detail.task);
+  return {
+    tasks,
+    adminExecutionRecords: Object.fromEntries(taskDetails.map((detail) => [detail.task.id, detail.records])) as AdminExecutionRecords,
+    appealCount: listValue<AppealRecord>(appealsResponse).length
+  };
+}
+
+export async function readRemoteTaskDetail(taskId: string): Promise<AdminTaskDetailView> {
+  await ensureAdminAuthenticated();
+  const detail = await http.get<unknown, RemoteAdminTaskDetail>(`/api/v1/admin/tasks/${encodeURIComponent(taskId)}`);
+  const task = mapTask(requireObject(detail.task, "task"));
+  return {
+    task,
+    records: mapAdminExecutionRows(listValue<RemoteAdminExecutionRow>(detail.executions))
+  };
+}
+
+export async function readRemoteAppeals(): Promise<AdminAppeal[]> {
+  await ensureAdminAuthenticated();
+  const appealsResponse = await adminAppealApi.appeals();
+  return Promise.all(
+    listValue<AppealRecord>(appealsResponse).map((appeal) =>
+      readRemoteAppealDetail(requireValue(appeal.id, "申诉记录缺少 id"))
+    )
+  );
+}
+
+export async function readRemoteFunds(): Promise<AdminFundsSnapshot> {
+  await ensureAdminAuthenticated();
+  const [tasksResponse, settlementsResponse, withdrawalsResponse, flowsResponse] = await Promise.all([
     adminTaskApi.tasks(),
-    adminAppealApi.appeals(),
     adminFundsApi.settlements(),
     adminFundsApi.withdrawals(),
     adminFundsApi.flows()
   ]);
-
   const tasks = listValue<TaskEntity>(tasksResponse).map(mapTask);
   const taskById = new Map(tasks.map((task) => [task.id, task]));
-  const executionLists = await Promise.all(
-    tasks.map(async (task) => {
-      const response = await adminTaskApi.executions({ taskId: task.id });
-      return [task.id, listValue<TaskExecution>(response)] as const;
-    })
-  );
-  const adminExecutionRecords = Object.fromEntries(executionLists.map(([taskId, records]) => [taskId, mapExecutionRecords(records, taskById)])) as AdminExecutionRecords;
   const settlements = listValue<SettlementRecord>(settlementsResponse).map((item) => mapSettlement(item, taskById));
   const withdrawals = listValue<WithdrawalRecord>(withdrawalsResponse).map(mapWithdrawal);
-  const fundFlows = listValue<ApiFundFlow>(flowsResponse).map((item) => mapFundFlow(item, taskById));
-
   return {
-    tasks,
-    adminExecutionRecords,
-    adminAppeals: listValue<AppealRecord>(appealsResponse).map((item) => mapAppeal(item, taskById)),
     settlements,
     withdrawals,
     payouts: mapPayouts(withdrawals),
     fundExceptions: mapFundExceptions(withdrawals),
-    fundFlows,
-    account: {
-      isLoggedIn: true,
-      nickname: "Platform Operator",
-      email: "ops@sprix.ai",
-      qualificationStatus: "已开通"
-    }
+    fundFlows: listValue<ApiFundFlow>(flowsResponse).map((item) => mapFundFlow(item, taskById))
   };
 }
 
@@ -102,6 +187,31 @@ export async function rejectRemoteAppeal(appealId: string) {
   return adminAppealApi.reject({ appealId });
 }
 
+export async function readRemoteAppealDetail(appealId: string): Promise<AdminAppeal> {
+  const detail = await http.get<unknown, RemoteAdminAppealDetail>(`/api/v1/admin/appeals/${encodeURIComponent(appealId)}`);
+  return mapAppealDetail(detail);
+}
+
+export async function createRemoteTask(payload: UpsertAdminTaskPayload) {
+  return http.post<unknown, TaskEntity>("/api/v1/admin/tasks", payload);
+}
+
+export async function updateRemoteTask(taskId: string, payload: UpsertAdminTaskPayload) {
+  return http.put<unknown, TaskEntity>(`/api/v1/admin/tasks/${encodeURIComponent(taskId)}`, payload);
+}
+
+export async function offlineRemoteTask(taskId: string, reason = "下线") {
+  return http.post<unknown, TaskEntity>(`/api/v1/admin/tasks/${encodeURIComponent(taskId)}/offline`, { reason });
+}
+
+export async function republishRemoteTask(taskId: string) {
+  return http.post<unknown, TaskEntity>(`/api/v1/admin/tasks/${encodeURIComponent(taskId)}/republish`);
+}
+
+export async function deleteRemoteTask(taskId: string, reason = "删除任务") {
+  return http.delete<unknown, TaskEntity>(`/api/v1/admin/tasks/${encodeURIComponent(taskId)}`, { data: { reason } });
+}
+
 export async function approveRemoteWithdrawal(withdrawalId: string) {
   return adminFundsApi.approveWithdrawal({ withdrawalId });
 }
@@ -110,12 +220,33 @@ export async function rejectRemoteWithdrawal(withdrawalId: string, reason: strin
   return http.post<WithdrawalRecord>(`/api/v1/admin/funds/withdrawals/${encodeURIComponent(withdrawalId)}/reject`, { reason });
 }
 
+export async function approveRemoteWithdrawals(withdrawalIds: string[]) {
+  return http.post<unknown, WithdrawalRecord[]>("/api/v1/admin/funds/withdrawals/bulk-approve", { withdrawalIds });
+}
+
+export async function rejectRemoteWithdrawals(withdrawalIds: string[], reason: string) {
+  return http.post<unknown, WithdrawalRecord[]>("/api/v1/admin/funds/withdrawals/bulk-reject", { withdrawalIds, reason });
+}
+
 export async function markRemoteWithdrawalPaid(withdrawalId: string) {
   return adminFundsApi.markWithdrawalPaid({ withdrawalId });
 }
 
+export async function markRemoteWithdrawalsPaid(withdrawalIds: string[]) {
+  return http.post<unknown, WithdrawalRecord[]>("/api/v1/admin/funds/withdrawals/bulk-paid", { withdrawalIds });
+}
+
 export async function markRemoteWithdrawalPayoutFailed(withdrawalId: string) {
   return adminFundsApi.markWithdrawalPayoutFailed({ withdrawalId });
+}
+
+export async function markRemoteWithdrawalsPayoutFailed(withdrawalIds: string[], reason: string) {
+  return http.post<unknown, WithdrawalRecord[]>("/api/v1/admin/funds/withdrawals/bulk-payout-failed", { withdrawalIds, reason });
+}
+
+export async function exportRemotePendingPayouts() {
+  const records = await http.get<unknown, WithdrawalRecord[]>("/api/v1/admin/funds/withdrawals/pending-payout-export");
+  return records.map(mapWithdrawal);
 }
 
 export async function returnRemoteWithdrawalForReview(withdrawalId: string, reason: string) {
@@ -152,7 +283,7 @@ function mapTask(task: TaskEntity): Task {
     remainingSlots: task.remainingSlots ?? 0,
     publishedAt: formatDateTime(task.publishedAt ?? task.createdAt),
     taskStatus: mapTaskStatus(task.status),
-    offlineReason: task.offlineReason === "FULL" ? "名额已满" : task.offlineReason ? "手动下线" : "",
+    offlineReason: task.offlineReason === "FULL" || task.offlineReason === "SLOT_FULL" ? "名额已满" : task.offlineReason ? "手动下线" : "",
     agentMatchScore: 92,
     recommendedTaskType: task.category ?? "通用任务",
     suggestedTeam: "Codex Agent + DataFlow Agent",
@@ -165,44 +296,47 @@ function mapTask(task: TaskEntity): Task {
   };
 }
 
-function mapExecutionRecords(records: TaskExecution[], taskById: Map<string, Task>): AdminExecutionRecords[string] {
+function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionRecords[string] {
   const running: RunningExecution[] = [];
   const terminated: TerminatedExecution[] = [];
   const completed: CompletedExecution[] = [];
 
-  for (const record of records) {
-    const task = taskById.get(record.taskId ?? "");
-    const userName = compactId(record.userId, "用户");
-    const agentName = compactId(record.agentId, "Agent");
-    if (record.status === "TERMINATED") {
+  for (const row of rows) {
+    if (row.executionStatus === "TERMINATED") {
       terminated.push({
-        userName,
-        phone: "-",
-        agentName,
-        terminationReason: record.terminationReason ?? "执行终止",
-        terminatedNode: mapCurrentNode(record.currentNode),
-        terminatedAt: formatDateTime(record.completedAt ?? record.updatedAt)
+        executionId: row.executionId,
+        executionIndex: row.executionIndex,
+        userName: row.userName ?? "-",
+        phone: row.userPhone ?? "-",
+        agentName: row.agentName ?? "-",
+        terminationReason: row.terminationReason ?? "执行终止",
+        terminatedNode: mapCurrentNode(row.currentNode),
+        terminatedAt: formatDateTime(row.completedAt ?? row.updatedAt)
       });
-    } else if (record.status === "RUNNING") {
+    } else if (row.executionStatus === "RUNNING") {
       running.push({
-        userName,
-        phone: "-",
-        agentName,
-        agentScore: "-",
-        currentNode: mapCurrentNode(record.currentNode),
-        progress: record.progress ?? "0%",
-        startedAt: formatDateTime(record.startedAt ?? record.createdAt)
+        executionId: row.executionId,
+        executionIndex: row.executionIndex,
+        userName: row.userName ?? "-",
+        phone: row.userPhone ?? "-",
+        agentName: row.agentName ?? "-",
+        agentScore: row.agentScore == null ? "-" : `${row.agentScore}/100`,
+        currentNode: mapCurrentNode(row.currentNode),
+        progress: row.progress ?? "0%",
+        startedAt: formatDateTime(row.startedAt)
       });
     } else {
       completed.push({
-        userName,
-        phone: "-",
-        agentName,
-        acceptanceStatus: record.status === "ACCEPTANCE_FAILED" ? "验收未通过" : "验收通过",
-        score: record.status === "ACCEPTANCE_FAILED" ? "72/100" : "91/100",
-        appealStatus: mapAppealStatus(record.appealStatus),
-        settlementStatus: mapSettlementStatus(record.settlementStatus),
-        completedAt: formatDateTime(record.completedAt ?? record.updatedAt ?? task?.publishedAt)
+        executionId: row.executionId,
+        executionIndex: row.executionIndex,
+        userName: row.userName ?? "-",
+        phone: row.userPhone ?? "-",
+        agentName: row.agentName ?? "-",
+        acceptanceStatus: row.executionStatus === "ACCEPTANCE_FAILED" ? "验收未通过" : "验收通过",
+        score: row.executionStatus === "ACCEPTANCE_FAILED" ? "72/100" : "91/100",
+        appealStatus: mapAppealStatus(row.appealStatus),
+        settlementStatus: mapSettlementStatus(row.settlementStatus),
+        completedAt: formatDateTime(row.completedAt ?? row.updatedAt)
       });
     }
   }
@@ -210,28 +344,33 @@ function mapExecutionRecords(records: TaskExecution[], taskById: Map<string, Tas
   return { running, terminated, completed };
 }
 
-function mapAppeal(appeal: AppealRecord, taskById: Map<string, Task>): AdminAppeal {
-  const task = taskById.get(appeal.taskId ?? "");
+function mapAppealDetail(detail: RemoteAdminAppealDetail): AdminAppeal {
+  const appeal = requireObject(detail.appeal, "appeal");
+  const appealId = requireText(appeal.id, "appeal.id");
+  const appealNo = requireText(appeal.appealNo, "appeal.appealNo");
+  const reason = requireText(appeal.reason, "appeal.reason");
   return {
-    backendId: appeal.id,
-    appealNo: appeal.appealNo ?? appeal.id ?? "",
-    taskTitle: task?.title ?? compactId(appeal.taskId, "任务"),
-    taskCategory: task?.category ?? "未分类",
-    userName: compactId(appeal.userId, "用户"),
-    userPhone: "-",
-    agentName: compactId(appeal.agentId, "Agent"),
-    issueSummary: (appeal.reason ?? "用户提交申诉").slice(0, 32),
-    appealReason: appeal.reason ?? "用户提交申诉",
+    backendId: appealId,
+    appealNo,
+    taskTitle: requireText(detail.taskTitle, "taskTitle"),
+    taskCategory: requireText(detail.taskCategory, "taskCategory"),
+    userName: requireText(detail.userName, "userName"),
+    userPhone: requireText(detail.userPhone, "userPhone"),
+    agentName: requireText(detail.agentName, "agentName"),
+    issueSummary: reason.slice(0, 32),
+    appealReason: reason,
     appealStatus: mapAppealStatus(appeal.status),
     priority: appeal.priority === "HIGH" ? "高风险" : appeal.priority === "URGENT" ? "加急" : "普通",
     submittedAt: formatDateTime(appeal.submittedAt ?? appeal.createdAt),
-    handler: appeal.handler ?? "-",
-    expectedProcessTime: "1-3 个工作日",
-    originalScore: "72/100",
-    originalRejectReason: "平台验收未通过",
+    handler: appeal.handler ?? "",
+    originalScore: detail.agentScore == null ? undefined : `${detail.agentScore}/100`,
     resultDescription: appeal.resultDescription,
-    linkedMyTaskId: appeal.executionId,
-    processLogs: [appeal.resultDescription ?? "后端申诉记录已同步"]
+    linkedMyTaskId: requireText(detail.executionId, "executionId"),
+    executionId: requireText(detail.executionId, "executionId"),
+    executionIndex: requireNumber(detail.executionIndex, "executionIndex"),
+    deliverables: requireText(detail.deliverables, "deliverables"),
+    acceptanceCriteria: requireText(detail.acceptanceCriteria, "acceptanceCriteria"),
+    processLogs: appeal.resultDescription ? [appeal.resultDescription] : []
   };
 }
 
@@ -267,7 +406,10 @@ function mapWithdrawal(withdrawal: WithdrawalRecord): Withdrawal {
     estimatedArrivalTime: withdrawal.estimatedArrivalTime ?? "1-3 个工作日",
     appliedAt: formatDateTime(withdrawal.appliedAt ?? withdrawal.createdAt),
     withdrawStatus: mapWithdrawStatus(withdrawal.status),
-    reviewer: withdrawal.reviewer ?? "-"
+    reviewer: withdrawal.reviewer ?? "-",
+    reviewReason: readString(withdrawal, "reviewReason"),
+    payoutFailureReason: readString(withdrawal, "payoutFailureReason"),
+    exceptionRemark: readString(withdrawal, "exceptionRemark")
   };
 }
 
@@ -363,6 +505,7 @@ function mapCurrentNode(node?: string) {
     PLATFORM_ACCEPTANCE: "平台验收",
     SETTLEMENT: "报酬入账",
     GENERATING: "生成结果",
+    GENERATING_RESULT: "生成结果",
     QUALITY_CHECK: "质量检查"
   };
   return node ? nodes[node] ?? node : "执行中";
@@ -371,11 +514,44 @@ function mapCurrentNode(node?: string) {
 function mapFlowType(type?: string) {
   const types: Record<string, string> = {
     TASK_SETTLEMENT_INCOME: "任务结算入账",
+    SETTLEMENT_POSTED: "任务结算入账",
+    APPEAL_APPROVED_SETTLEMENT: "申诉通过结算入账",
     WITHDRAWAL_REVIEWING: "提现申请处理中",
     WITHDRAWAL_PAID: "提现打款完成",
-    WITHDRAWAL_FAILED: "提现打款失败"
+    WITHDRAWAL_FAILED: "提现打款失败",
+    WITHDRAWAL_APPROVED: "提现审核通过",
+    WITHDRAWAL_REJECTED: "提现驳回退回",
+    WITHDRAWAL_PAYOUT_FAILED: "打款失败退回",
+    WITHDRAWAL_EXCEPTION_HANDLED: "异常处理"
   };
   return type ? types[type] ?? type : "-";
+}
+
+function readString(source: unknown, key: string) {
+  if (source && typeof source === "object" && key in source) {
+    const value = (source as Record<string, unknown>)[key];
+    if (typeof value === "string" && value) return value;
+  }
+  return undefined;
+}
+
+function requireObject<T extends object>(value: T | null | undefined, field: string): T {
+  if (!value) throw new Error(`申诉详情接口缺少 ${field}`);
+  return value;
+}
+
+function requireText(value: string | null | undefined, field: string) {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error(`申诉详情接口缺少 ${field}`);
+  }
+  return value;
+}
+
+function requireNumber(value: number | null | undefined, field: string) {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    throw new Error(`申诉详情接口缺少 ${field}`);
+  }
+  return value;
 }
 
 function compactId(value: string | undefined, fallback: string) {
