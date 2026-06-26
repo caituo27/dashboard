@@ -11,14 +11,14 @@ $:
           script: |
             set -eu
 
-            test -n "${SPRIX_PORTAL_SSH_HOST:-}"
-            test -n "${SPRIX_PORTAL_SSH_USER:-}"
-            test -n "${SPRIX_PORTAL_SSH_PORT:-}"
-            test -n "${SPRIX_PORTAL_SSH_PRIVATE_KEY:-}"
+            test -n "${PROD_PORTAL_NGINX_IP:-}"
+            test -n "${PROD_USERNAME:-}"
+            test -n "${PROD_SSH_PORT:-}"
+            test -n "${PROD_SSH_PRIVATE_KEY:-}"
             test -n "${SPRIX_PORTAL_AGENT_WEB_ROOT:-}"
             test -n "${SPRIX_PORTAL_ADMIN_WEB_ROOT:-}"
 
-            echo "部署目标服务器: ${SPRIX_PORTAL_SSH_HOST}"
+            echo "部署目标服务器: ${PROD_PORTAL_NGINX_IP}"
             echo "C 端目录: ${SPRIX_PORTAL_AGENT_WEB_ROOT}"
             echo "管理后台目录: ${SPRIX_PORTAL_ADMIN_WEB_ROOT}"
 
@@ -50,11 +50,11 @@ $:
         - name: 部署 C 端到服务器
           image: tencentcom/rsync
           settings:
-            user: $SPRIX_PORTAL_SSH_USER
-            port: $SPRIX_PORTAL_SSH_PORT
-            key: $SPRIX_PORTAL_SSH_PRIVATE_KEY
+            user: $PROD_USERNAME
+            port: $PROD_SSH_PORT
+            key: $PROD_SSH_PRIVATE_KEY
             hosts:
-              - $SPRIX_PORTAL_SSH_HOST
+              - $PROD_PORTAL_NGINX_IP
             source: ./target/cnb-deploy/agent/
             target: $SPRIX_PORTAL_AGENT_WEB_ROOT/
             ssh_args: >-
@@ -64,11 +64,11 @@ $:
         - name: 部署管理后台到服务器
           image: tencentcom/rsync
           settings:
-            user: $SPRIX_PORTAL_SSH_USER
-            port: $SPRIX_PORTAL_SSH_PORT
-            key: $SPRIX_PORTAL_SSH_PRIVATE_KEY
+            user: $PROD_USERNAME
+            port: $PROD_SSH_PORT
+            key: $PROD_SSH_PRIVATE_KEY
             hosts:
-              - $SPRIX_PORTAL_SSH_HOST
+              - $PROD_PORTAL_NGINX_IP
             source: ./target/cnb-deploy/admin/
             target: $SPRIX_PORTAL_ADMIN_WEB_ROOT/
             ssh_args: >-

@@ -68,13 +68,18 @@ imports:
   - https://cnb.cool/yztx_qxun/QXunSecurityCenter/-/blob/main/env.prod.yml
 ```
 
-需要在该私仓配置文件里提供：
+复用该私仓里已有的服务器 SSH 变量：
 
 ```text
-SPRIX_PORTAL_SSH_HOST=<服务器 IP 或域名>
-SPRIX_PORTAL_SSH_USER=root
-SPRIX_PORTAL_SSH_PORT=22
-SPRIX_PORTAL_SSH_PRIVATE_KEY=<可登录服务器的 SSH 私钥>
+PROD_PORTAL_NGINX_IP=<服务器 IP 或域名>
+PROD_USERNAME=<SSH 用户>
+PROD_SSH_PORT=<SSH 端口>
+PROD_SSH_PRIVATE_KEY=<SSH 私钥>
+```
+
+SprixPortal 只需要额外提供站点目录和 API 前缀：
+
+```text
 SPRIX_PORTAL_AGENT_WEB_ROOT=/www/wwwroot/<c端站点目录>
 SPRIX_PORTAL_ADMIN_WEB_ROOT=/www/wwwroot/<管理后台站点目录>
 SPRIX_PORTAL_API_BASE_URL=/sprix-api
