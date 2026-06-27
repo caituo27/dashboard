@@ -11,7 +11,7 @@ export type UserAdmissionState =
     };
 
 export function getCurrentExecutionAgent(agents: Agent[]) {
-  return agents.find((agent) => agent.role === "当前执行 Agent" && agent.status === "已连接");
+  return agents.find((agent) => agent.role === "当前执行 Agent");
 }
 
 export function canVisitAgentCenterBeforeAdmission(pathname: string) {
@@ -22,7 +22,7 @@ export function getUserAdmissionState(account: Pick<Account, "isLoggedIn">, agen
   if (!account.isLoggedIn) {
     return {
       allowed: false,
-      reason: "请先登录"
+      reason: "请先登录并设置当前执行 Agent"
     };
   }
 
@@ -30,7 +30,7 @@ export function getUserAdmissionState(account: Pick<Account, "isLoggedIn">, agen
   if (!currentAgent) {
     return {
       allowed: false,
-      reason: "请先连接并设置当前执行 Agent"
+      reason: "请先设置当前执行 Agent"
     };
   }
 

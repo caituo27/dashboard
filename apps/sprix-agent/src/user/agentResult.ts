@@ -68,14 +68,6 @@ export function getCurrentAgentScoreMetric(agent?: Agent) {
   return scoreText(agent?.score);
 }
 
-export function getAgentConnectSuccessMessage(agent: Pick<Agent, "status">) {
-  return agent.status === "已断开" ? "重新连接成功，能力画像和评分以后端返回为准" : "连接成功，能力画像和评分以后端返回为准";
-}
-
-export function getAgentConnectActionLabel(agent: Pick<Agent, "status">) {
-  return agent.status === "已断开" ? "重新连接" : "连接 Agent";
-}
-
 export function getAgentProfileEditAction(): AgentProfileEditAction {
   return {
     label: "编辑职业画像（待接口）",
