@@ -6,7 +6,6 @@ import {
   EarningsControllerApiFactory,
   MyTaskControllerApiFactory,
   TaskControllerApiFactory,
-  WithdrawalControllerApiFactory,
   type AgentProfileResponse,
   type AppealRecord,
   type AuthTokenResponse,
@@ -61,7 +60,6 @@ const authApi = AuthControllerApiFactory(undefined, API_BASE_URL, http);
 const earningsApi = EarningsControllerApiFactory(undefined, API_BASE_URL, http);
 const myTaskApi = MyTaskControllerApiFactory(undefined, API_BASE_URL, http);
 const taskApi = TaskControllerApiFactory(undefined, API_BASE_URL, http);
-const withdrawalApi = WithdrawalControllerApiFactory(undefined, API_BASE_URL, http);
 
 export type WechatLoginSession = {
   sessionId: string;
@@ -463,11 +461,6 @@ export async function readRemoteAlipayBindStatus(sessionId: string): Promise<Ali
     withdrawalAccount: status.withdrawalAccount,
     completed: normalizedStatus === "COMPLETED" && Boolean(status.withdrawalAccount)
   };
-}
-
-export async function applyRemoteWithdrawal(amount: number): Promise<WithdrawalRecord> {
-  const response = await withdrawalApi.apply({ applyWithdrawalRequest: { amount } });
-  return requireValue<WithdrawalRecord>(response, "提现申请提交失败");
 }
 
 export async function initializeRemoteFaceVerification(): Promise<FaceVerificationSession> {

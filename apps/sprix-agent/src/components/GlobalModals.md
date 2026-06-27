@@ -2,7 +2,7 @@
 
 ## 组件职责
 
-- 管理 Agent 端全局弹窗：登录注册、协议、联系信息、账户信息、绑定提现账户、提现、申诉。
+- 管理 Agent 端全局弹窗：登录注册、协议、联系信息、账户信息、绑定收款支付宝、申诉。
 - `LoginRegisterModal` 负责登录入口，包含微信扫码登录和手机验证码登录 tab。
 
 ## 真实数据
@@ -15,7 +15,7 @@
   - `sendSmsCode(mobile)` 调用 `POST /api/v1/auth/sms-codes`。
   - `authenticateConsumer(mobile, code)` 调用 `POST /api/v1/auth/sms-login`。
   - 后端返回 token 后写入 `sprix-auth-token`，并刷新 `sprix-agent` 查询缓存。
-- 绑定提现账户、提现、申诉调用 `../services/sprixApi` 中的真实 service adapter。
+- 绑定收款支付宝、申诉调用 `../services/sprixApi` 中的真实 service adapter。
 
 ## 暂未完整接入
 

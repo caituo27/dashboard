@@ -9,7 +9,6 @@ import {
   BindAlipayModal,
   ContactModal,
   LoginRegisterModal,
-  WithdrawRequestModal,
   useGlobalModalState
 } from "./components/GlobalModals";
 import { UserShell } from "./components/Layout";
@@ -22,8 +21,7 @@ import {
   QualificationPage,
   QualificationPromptModal,
   TaskDetailPage,
-  TaskMarketPage,
-  WithdrawAccountPage
+  TaskMarketPage
 } from "./user/UserPages";
 import { LocalAgentClaimPage } from "./user/LocalAgentClaimPage";
 import { useRemoteSprixBootstrap } from "./services/useRemoteSprixBootstrap";
@@ -62,9 +60,8 @@ function ConsumerAppRoutes() {
   const title = useMemo(() => {
     if (location.pathname.includes("/agent/center")) return "Agent 中心";
     if (location.pathname.includes("/agent/my-tasks")) return "我的任务";
-    if (location.pathname.includes("/agent/earnings")) return "报酬结算";
+    if (location.pathname.includes("/agent/earnings")) return "提现记录";
     if (location.pathname.includes("/agent/qualification")) return "接单资格";
-    if (location.pathname.includes("/agent/withdraw-account")) return "绑定收款方式";
     if (location.pathname.includes("/agent/task/")) return "任务详情";
     return "任务市场";
   }, [location.pathname]);
@@ -100,7 +97,6 @@ function ConsumerAppRoutes() {
   const userPageProps = {
     openLogin,
     openBindAlipay,
-    openWithdraw: () => open("withdraw"),
     openQualificationPrompt: (taskId?: string) => {
       setQualificationTaskId(taskId);
       setQualificationOpen(true);
@@ -161,7 +157,6 @@ function ConsumerAppRoutes() {
           setAfterBind(undefined);
         }}
       />
-      <WithdrawRequestModal open={modal.withdraw} onClose={() => close("withdraw")} />
       <AppealModal
         open={Boolean((modal as Record<string, boolean>).appeal)}
         executionId={appealExecutionId}
@@ -203,7 +198,6 @@ function AdmissionGate({ children }: { children: ReactNode }) {
 function UserRoutes(props: {
   openLogin: () => void;
   openBindAlipay: (afterBind?: () => void) => void;
-  openWithdraw: () => void;
   openQualificationPrompt: (taskId?: string) => void;
   openAppeal: (executionId: string) => void;
 }) {
@@ -216,8 +210,7 @@ function UserRoutes(props: {
       <Route path="my-tasks" element={<MyTasksPage {...props} />} />
       <Route path="my-tasks/:id" element={<MyTaskDetailPage />} />
       <Route path="earnings" element={<EarningsPage {...props} />} />
-      <Route path="qualification" element={<QualificationPage />} />
-      <Route path="withdraw-account" element={<WithdrawAccountPage {...props} />} />
+      <Route path="qualification" element={<QualificationPage {...props} />} />
       <Route path="*" element={<Navigate to="market" replace />} />
     </Routes>
   );

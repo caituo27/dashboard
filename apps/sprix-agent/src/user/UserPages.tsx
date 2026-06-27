@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Modal, Progress, Segmented, Steps, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { Bot, BrainCircuit, Download, PlugZap, Sparkles, UsersRound } from "lucide-react";
+import { Bot, BrainCircuit, Download, PlugZap, UsersRound } from "lucide-react";
 import type { Agent, AgentEvaluation, MyTask, Task } from "../types";
 import { useSprixStore } from "../store/sprixStore";
 import {
@@ -22,11 +22,10 @@ import { compactText, currency, scoreText } from "../utils/format";
 import { isGlobalAuthError } from "../utils/http";
 import { getCurrentExecutionAgent, getUserAdmissionState } from "./admission";
 import { getAgentAbilityResult, getAgentAdmissionSummary, getAgentTagLabels, hasPendingAgentEvaluation } from "./agentResult";
-import { getEarningsOverview, getWithdrawalAccountAction, getWithdrawalAccountCard, getWithdrawalEntryAction, getWithdrawalHistoryState, getWithdrawalProgressRefreshAction } from "./earningsView";
+import { getPayoutAccountText, getPayoutPageSubtitle, getPayoutRecordState } from "./earningsView";
 import { getExecutionArtifactsState, getExecutionBackendPendingSections, getExecutionOverview, getExecutionRequirementText, getExecutionReviewState } from "./executionDetailView";
 import { getFaceVerificationStartState, getQualificationRecordRows } from "./qualificationView";
 import { getRecommendationPendingState } from "./recommendationView";
-import { getSmartAcceptPendingActions, getSmartAcceptUnavailableRows } from "./smartAcceptView";
 import { getEstimatedTokenField } from "./tokenEstimateView";
 import { getMyTaskActions, getMyTaskMetaItems, getQualificationSuccessAction } from "./userFlowRules";
 
@@ -44,7 +43,6 @@ const evaluationDimensionLabels: Record<string, string> = {
 type UserPageProps = {
   openLogin: () => void;
   openBindAlipay: (afterBind?: () => void) => void;
-  openWithdraw: () => void;
   openQualificationPrompt: (taskId?: string) => void;
   openAppeal: (executionId: string) => void;
 };
@@ -150,7 +148,6 @@ export function TaskMarketPage(_props: Partial<UserPageProps> = {}) {
   const myTasks = useSprixStore((state) => state.myTasks);
   const agents = useSprixStore((state) => state.agents);
   const currentAgent = getCurrentExecutionAgent(agents);
-  const [smartAcceptOpen, setSmartAcceptOpen] = useState(false);
   const availableTasks = useMemo(() => tasks.filter((task) => task.taskStatus === "已发布"), [tasks]);
   const recommendationState = getRecommendationPendingState();
 
@@ -169,11 +166,6 @@ export function TaskMarketPage(_props: Partial<UserPageProps> = {}) {
         eyebrow="任务市场"
         title="可接取任务"
         subtitle="浏览当前可接取的任务，选择适合你的 Agent 执行的工作，并持续跟踪执行进度与收益。"
-        actions={
-          <ActionButton icon={<Sparkles size={16} />} onClick={() => setSmartAcceptOpen(true)}>
-            智能接单
-          </ActionButton>
-        }
       />
       <div className="mb-5 grid gap-4 md:grid-cols-3">
         <MetricCard title="已发布任务" value={availableTasks.length || "-"} />
@@ -202,7 +194,6 @@ export function TaskMarketPage(_props: Partial<UserPageProps> = {}) {
         ))}
       </div>
       {availableTasks.length === 0 && <EmptyState title="暂无可接取任务" description="当前暂时没有新的任务，稍后再来查看适合 Agent 执行的工作。" />}
-      <SmartAcceptUnavailableModal open={smartAcceptOpen} currentAgent={currentAgent} onClose={() => setSmartAcceptOpen(false)} />
     </>
   );
 }
@@ -230,42 +221,6 @@ function TaskCard({ task, onAccept }: { task: Task; onAccept: () => void }) {
         <SecondaryButton href={`/agent/task/${task.id}`}>查看详情</SecondaryButton>
       </div>
     </Surface>
-  );
-}
-
-function SmartAcceptUnavailableModal({ open, currentAgent, onClose }: { open: boolean; currentAgent?: Agent; onClose: () => void }) {
-  const rows = getSmartAcceptUnavailableRows(currentAgent);
-  const actions = getSmartAcceptPendingActions();
-  const icons = [<Bot key="agent" size={18} />, <Sparkles key="threshold" size={18} />, <PlugZap key="status" size={18} />];
-  return (
-    <Modal title="智能接单" open={open} onCancel={onClose} footer={null} width={640}>
-      <div className="sprix-auto-accept-flow">
-        {rows.map((row, index) => (
-          <div key={row.label}>
-            {icons[index]}
-            <span>{row.label}</span>
-          </div>
-        ))}
-      </div>
-      <div className="mt-5 rounded-[18px] bg-[#fafafa] p-5">
-        <p className="text-sm leading-7 text-ink-soft">
-          智能接单需要后端提供开关状态、阈值配置、命中任务和自动接单结果。接口接入前，前端不写入本地开关状态，也不会自动接取任务。
-        </p>
-      </div>
-      <div className="mt-4 grid gap-2">
-        {actions.map((action) => (
-          <div key={action.label} className="flex flex-col gap-2 rounded-2xl border border-line bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-sm text-ink-soft">{action.reason}</span>
-            <SecondaryButton size="small" disabled={action.disabled}>
-              {action.label}
-            </SecondaryButton>
-          </div>
-        ))}
-      </div>
-      <div className="mt-5 flex justify-end">
-        <ActionButton onClick={onClose}>关闭</ActionButton>
-      </div>
-    </Modal>
   );
 }
 
@@ -952,26 +907,50 @@ export function MyTaskDetailPage() {
   const artifacts = getExecutionArtifactsState(base);
   const pendingSections = getExecutionBackendPendingSections();
   return (
-    <>
-      <PageHeader title={task.title} subtitle={`${task.status} · ${task.agentName} · ${currency(task.reward)}`} actions={<SecondaryButton href="/agent/my-tasks">返回我的任务</SecondaryButton>} />
-      <div className="mb-5 grid gap-4 md:grid-cols-3">
+    <div className="sprix-task-detail-page">
+      <div className="sprix-detail-toolbar">
+        <SecondaryButton href="/agent/my-tasks">返回我的任务</SecondaryButton>
+      </div>
+      <Surface className="sprix-execution-hero p-6">
+        <div className="min-w-0">
+          <div className="mb-3 flex flex-wrap gap-2">
+            <StatusTag status={task.status} />
+            {task.appealStatus && <StatusTag status={task.appealStatus} />}
+            <SoftTag>{task.currentNode}</SoftTag>
+          </div>
+          <h1 className="text-3xl font-semibold leading-tight text-ink">{task.title}</h1>
+          <p className="mt-3 text-sm leading-7 text-ink-soft">
+            {task.category} · {task.agentName} · {task.startedAt} · {currency(task.reward)}
+          </p>
+        </div>
+        <div className="sprix-execution-hero-progress">
+          <span>执行进度</span>
+          <strong>{task.progress || "-"}</strong>
+        </div>
+      </Surface>
+      <div className="sprix-execution-summary-grid">
         {overview.map((item) => (
-          <MetricCard key={item.label} title={item.label} value={item.value} />
+          <ExecutionInfoTile key={item.label} label={item.label} value={item.value} />
         ))}
       </div>
-      <Surface className="mb-5 p-6">
-        <div className="flex flex-wrap gap-2">
-          <StatusTag status={task.status} />
-          <SoftTag>{task.currentNode}</SoftTag>
-          <SoftTag>{task.progress}</SoftTag>
+      <Surface className="sprix-execution-progress-card p-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-ink">执行流转</h2>
+            <p className="mt-1 text-sm text-ink-soft">平台按节点推进执行、质检、验收和入账。</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <SoftTag>{task.currentNode}</SoftTag>
+            <SoftTag tone="neutral">{task.progress}</SoftTag>
+          </div>
         </div>
         <Steps
-          className="mt-6"
+          className="sprix-execution-steps mt-5"
           current={task.status === "执行中" ? 2 : 5}
           items={["已接单", "解析任务", "生成结果", "质量检查", "平台验收", "报酬入账"].map((title) => ({ title }))}
         />
       </Surface>
-      <div className="grid gap-5 xl:grid-cols-3">
+      <div className="sprix-execution-content-grid">
         <Surface className="p-6">
           <h3 className="text-lg font-semibold text-ink">交付与验收</h3>
           {review.kind === "content" ? (
@@ -1010,7 +989,16 @@ export function MyTaskDetailPage() {
           </Surface>
         ))}
       </div>
-    </>
+    </div>
+  );
+}
+
+function ExecutionInfoTile({ label, value }: { label: string; value: string }) {
+  return (
+    <Surface tight className="sprix-execution-info-tile p-4">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </Surface>
   );
 }
 
@@ -1023,99 +1011,47 @@ function InlineEmpty({ title, description }: { title: string; description: strin
   );
 }
 
-export function EarningsPage({ openLogin, openBindAlipay, openWithdraw }: UserPageProps) {
+export function EarningsPage({ openLogin, openBindAlipay }: UserPageProps) {
   const account = useSprixStore((state) => state.account);
-  const withdrawals = useSprixStore((state) => state.withdrawals);
-  const settlements = useSprixStore((state) => state.settlements);
+  const payouts = useSprixStore((state) => state.payouts);
   if (!account.isLoggedIn) {
-    return <EmptyState title="登录后查看报酬结算" description="登录后可查看结算记录、可提现金额与提现申请状态。" action={<ActionButton onClick={openLogin}>登录 / 注册</ActionButton>} />;
+    return <EmptyState title="登录后查看提现记录" description="登录后可查看提现记录、到账状态和预计到账时间。" action={<ActionButton onClick={openLogin}>登录 / 注册</ActionButton>} />;
   }
-  const handleWithdraw = () => {
-    const action = getWithdrawalEntryAction(account);
-    if (action.kind === "blocked") {
-      message.warning(action.message);
-      return;
-    }
-    if (action.kind === "bind-account") {
-      message.warning(action.message);
-      openBindAlipay(openWithdraw);
-      return;
-    }
-    openWithdraw();
-  };
-  const overview = getEarningsOverview(account, settlements, withdrawals);
-  const withdrawalAccount = getWithdrawalAccountCard(account);
-  const withdrawalHistory = getWithdrawalHistoryState(withdrawals);
-  const progressRefresh = getWithdrawalProgressRefreshAction();
+  const payoutState = getPayoutRecordState(payouts);
   return (
     <>
-      <PageHeader title="报酬结算" subtitle="查看结算记录、可提现金额、提现申请和预计到账时间。" actions={<ActionButton onClick={handleWithdraw}>提现</ActionButton>} />
-      <div className="mb-5 grid gap-4 md:grid-cols-3">
-        <MetricCard title="可提现金额" value={overview.withdrawable} />
-        <MetricCard title="结算中" value={overview.settling} caption="结算明细接口接入后同步刷新" />
-        <MetricCard title="提现申请" value={overview.withdrawalCount} caption="历史记录接口待接入" />
-      </div>
-      <div className="mb-5 grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">
-        <Surface className="p-5">
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <StatusTag status={withdrawalAccount.status} />
-            {account.alipayBound && <SoftTag>实名一致性：{account.alipayRealNameMatched ? "已通过" : "待确认"}</SoftTag>}
-          </div>
-          <h3 className="text-lg font-semibold">提现账户</h3>
-          <p className="mt-3 text-sm text-ink-soft">{withdrawalAccount.accountText}</p>
-          <ActionButton className="mt-5" onClick={() => openBindAlipay()}>
-            {withdrawalAccount.actionLabel}
-          </ActionButton>
-        </Surface>
-        <Surface className="p-5">
-          <h3 className="text-lg font-semibold">结算明细</h3>
-          {settlements.length > 0 ? (
-            <div className="mt-4 space-y-3">
-              {settlements.slice(0, 5).map((item) => (
-                <div key={item.settlementNo} className="grid gap-2 rounded-[18px] border border-line bg-white p-4 text-sm lg:grid-cols-5">
-                  <b>{item.settlementNo}</b>
-                  <span>{item.taskTitle}</span>
-                  <span>{currency(item.netIncome)}</span>
-                  <StatusTag status={item.settlementStatus} />
-                  <span>{item.createdAt}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-4 rounded-2xl bg-[#fafafa] p-4 text-sm leading-7 text-ink-soft">
-              C 端结算明细查询接口待接入，当前仅展示可提现金额和本次提现申请返回记录。
-            </p>
-          )}
-        </Surface>
-      </div>
-      <Surface className="mb-5 p-5">
+      <PageHeader title="提现记录" subtitle={getPayoutPageSubtitle()} />
+      <Surface className="mb-5 p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-lg font-semibold">提现申请记录</h3>
-          <SecondaryButton disabled={progressRefresh.disabled}>{progressRefresh.label}</SecondaryButton>
+          <div>
+            <SoftTag>自动打款</SoftTag>
+            <h3 className="mt-3 text-xl font-semibold text-ink">提现记录</h3>
+            <p className="mt-2 text-sm text-ink-soft">{getPayoutAccountText(account)}</p>
+          </div>
+          <SecondaryButton onClick={() => openBindAlipay()}>绑定支付宝</SecondaryButton>
         </div>
-        <p className="mb-4 rounded-2xl bg-[#fafafa] p-4 text-sm leading-7 text-ink-soft">{progressRefresh.description}</p>
-        {withdrawalHistory.kind === "records" ? (
+        {payoutState.kind === "records" ? (
           <div className="space-y-3">
-            {withdrawals.slice(0, 5).map((item) => (
+            {payouts.slice(0, 8).map((item) => (
               <div key={item.withdrawalNo} className="grid gap-2 rounded-[18px] border border-line bg-white p-4 text-sm lg:grid-cols-6">
                 <b>{item.withdrawalNo}</b>
-                <span>{currency(item.applyAmount)}</span>
+                <span>{currency(item.payoutAmount)}</span>
                 <span>{item.alipayAccount}</span>
                 <StatusTag status={item.withdrawStatus} />
-                <span>{item.appliedAt}</span>
+                <span>{item.approvedAt}</span>
                 <span>预计 {item.estimatedArrivalTime}</span>
               </div>
             ))}
           </div>
         ) : (
-          <p className="rounded-2xl bg-[#fafafa] p-4 text-sm leading-7 text-ink-soft">{withdrawalHistory.description}</p>
+          <InlineEmpty title={payoutState.title} description={payoutState.description} />
         )}
       </Surface>
     </>
   );
 }
 
-export function QualificationPage() {
+export function QualificationPage({ openBindAlipay }: UserPageProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -1130,7 +1066,7 @@ export function QualificationPage() {
 
   return (
     <>
-      <PageHeader title="开通接单资格" subtitle="完成实人认证和服务协议签署后，即可接取平台任务。提现前需另行绑定本人支付宝账户。" />
+      <PageHeader title="开通接单资格" subtitle="完成实人认证和服务协议签署后，即可接取平台任务。可提前绑定本人支付宝用于平台自动打款。" />
       <Surface className="mb-5 p-6">
         <Steps current={step} items={["实人认证", "签署服务协议", "开通成功"].map((title) => ({ title }))} />
         <div className="mt-8 rounded-[22px] bg-[#fafafa] p-5">
@@ -1175,7 +1111,7 @@ export function QualificationPage() {
               <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-ink-soft">
                 <li>用户以自由职业者身份接取平台任务</li>
                 <li>用户确认任务交付、验收、结算、申诉等平台规则</li>
-                <li>用户确认提现账户需与实人认证主体一致</li>
+                <li>用户确认收款支付宝需与实人认证主体一致</li>
               </ul>
               <Button className="mt-4" onClick={() => setSigned((value) => !value)}>
                 {signed ? "已确认签署" : "确认阅读并同意协议"}
@@ -1206,11 +1142,11 @@ export function QualificationPage() {
           {step === 2 && (
             <>
               <h3 className="text-lg font-semibold">接单资格已开通</h3>
-              <p className="mt-2 text-sm leading-7 text-ink-soft">你已完成实人认证和服务协议签署，可以接取平台任务。提现前需绑定与认证主体一致的本人支付宝账户。</p>
+              <p className="mt-2 text-sm leading-7 text-ink-soft">你已完成实人认证和服务协议签署，可以接取平台任务。可提前绑定与认证主体一致的本人支付宝账户用于自动打款。</p>
               <div className="mt-5 flex flex-wrap gap-2">
                 <ActionButton onClick={() => navigate(successAction.path)}>{successAction.label}</ActionButton>
                 {successAction.path !== "/agent/market" && <SecondaryButton href="/agent/market">去任务市场</SecondaryButton>}
-                <SecondaryButton href="/agent/withdraw-account">提前设置提现账户</SecondaryButton>
+                <SecondaryButton onClick={() => openBindAlipay()}>绑定收款支付宝</SecondaryButton>
               </div>
             </>
           )}
@@ -1227,30 +1163,6 @@ export function QualificationPage() {
             </div>
           ))}
         </div>
-      </Surface>
-    </>
-  );
-}
-
-export function WithdrawAccountPage({ openBindAlipay }: UserPageProps) {
-  const account = useSprixStore((state) => state.account);
-  const withdrawalAccount = getWithdrawalAccountCard(account);
-  const withdrawalAction = getWithdrawalAccountAction(account);
-  return (
-    <>
-      <PageHeader title="绑定收款方式" subtitle="绑定与接单实人认证主体一致的支付宝账户。" />
-      <Surface className="p-6">
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <StatusTag status={withdrawalAccount.status} />
-          {account.alipayBound && <SoftTag>实名一致性：{account.alipayRealNameMatched ? "已通过" : "待确认"}</SoftTag>}
-        </div>
-        <p className="text-sm text-ink-soft">{withdrawalAccount.accountText}</p>
-        {withdrawalAction.kind === "security-pending" && (
-          <p className="mt-4 rounded-2xl bg-[#fafafa] p-4 text-sm leading-7 text-ink-soft">{withdrawalAction.description}</p>
-        )}
-        <ActionButton className="mt-5" disabled={withdrawalAction.kind !== "bind"} onClick={() => withdrawalAction.kind === "bind" && openBindAlipay()}>
-          {withdrawalAction.label}
-        </ActionButton>
       </Surface>
     </>
   );

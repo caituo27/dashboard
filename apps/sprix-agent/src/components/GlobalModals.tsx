@@ -5,12 +5,10 @@ import { useSprixStore } from "../store/sprixStore";
 import { ActionButton, SecondaryButton, StatusTag } from "./Primitives";
 import { submitRemoteAppeal } from "../services/sprixApi";
 import { getAccountEditActions, getAccountProfileRows } from "../user/accountView";
-import { getWithdrawalAccountAction } from "../user/earningsView";
 import { showRequestError } from "./requestErrors";
 
 export { BindAlipayModal } from "./BindAlipayModal";
 export { LoginRegisterModal } from "./LoginRegisterModal";
-export { WithdrawRequestModal } from "./WithdrawRequestModal";
 
 type ModalState = {
   login: boolean;
@@ -18,7 +16,6 @@ type ModalState = {
   agreements: boolean;
   contact: boolean;
   bindAlipay: boolean;
-  withdraw: boolean;
 };
 
 export function useGlobalModalState() {
@@ -27,12 +24,11 @@ export function useGlobalModalState() {
     account: false,
     agreements: false,
     contact: false,
-    bindAlipay: false,
-    withdraw: false
+    bindAlipay: false
   });
   const open = (key: keyof ModalState) => setModal((prev) => ({ ...prev, [key]: true }));
   const close = (key: keyof ModalState) => setModal((prev) => ({ ...prev, [key]: false }));
-  const closeAll = () => setModal({ login: false, account: false, agreements: false, contact: false, bindAlipay: false, withdraw: false });
+  const closeAll = () => setModal({ login: false, account: false, agreements: false, contact: false, bindAlipay: false });
   return { modal, open, close, closeAll };
 }
 
@@ -54,7 +50,7 @@ export function AgreementModal({ open, onClose }: { open: boolean; onClose: () =
         </section>
         <section>
           <h3 className="font-semibold text-ink">《自由职业者服务框架协议》</h3>
-          <p>用户以自由职业者身份接取任务，确认交付、验收、结算、申诉和提现规则。</p>
+          <p>用户以自由职业者身份接取任务，确认交付、验收、结算、申诉和自动打款规则。</p>
         </section>
       </div>
     </Modal>
@@ -69,7 +65,7 @@ export function ContactModal({ open, onClose }: { open: boolean; onClose: () => 
           <h3 className="font-semibold text-ink">客服联系信息待配置</h3>
           <p className="mt-1">客服渠道、服务时间和问题分类待运营配置或后端接口返回后展示。</p>
         </section>
-        <p>如遇接单资格、任务执行、申诉或提现相关问题，可联系客服协助处理。</p>
+        <p>如遇接单资格、任务执行、申诉或收款相关问题，可联系客服协助处理。</p>
       </div>
     </Modal>
   );
@@ -87,7 +83,6 @@ export function AccountModal({
   const account = useSprixStore((state) => state.account);
   const profileRows = getAccountProfileRows(account);
   const editActions = getAccountEditActions();
-  const withdrawalAction = getWithdrawalAccountAction(account);
   return (
     <Modal title="账户信息" open={open} onCancel={onClose} footer={<ActionButton onClick={onClose}>关闭</ActionButton>}>
       <div className="grid gap-3 text-sm">
@@ -95,13 +90,13 @@ export function AccountModal({
           <InfoRow key={row.label} label={row.label} value={row.label === "接单资格" ? <StatusTag status={row.value} /> : row.value} />
         ))}
         <InfoRow
-          label="提现账户"
+          label="收款支付宝"
           value={
             account.alipayBound ? (
-              <span>{account.alipayAccountMasked} · {withdrawalAction.label}</span>
+              <span>{account.alipayAccountMasked || "已绑定"}</span>
             ) : (
               <SecondaryButton size="small" onClick={onBindAlipay}>
-                {withdrawalAction.label}
+                绑定支付宝
               </SecondaryButton>
             )
           }

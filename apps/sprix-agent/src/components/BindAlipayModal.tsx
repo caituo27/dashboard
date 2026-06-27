@@ -8,7 +8,6 @@ import {
   type AlipayBindSession
 } from "../services/sprixApi";
 import { useSprixStore } from "../store/sprixStore";
-import { getWithdrawalAccountBindMessage } from "../user/withdrawalAccountView";
 import { ActionButton, SecondaryButton } from "./Primitives";
 import { formatRemainingSeconds, QrPayloadBox } from "./QrSession";
 import { showRequestError } from "./requestErrors";
@@ -51,7 +50,7 @@ export function BindAlipayModal({ open, onClose, afterBind }: BindAlipayModalPro
         if (bindStatus.completed && bindStatus.withdrawalAccount) {
           mergeRemoteState({ account: mapWithdrawalAccountState(bindStatus.withdrawalAccount) });
           await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
-          message.success(getWithdrawalAccountBindMessage(bindStatus.withdrawalAccount));
+          message.success("收款支付宝绑定成功");
           onClose();
           afterBind?.();
           return;
@@ -76,7 +75,7 @@ export function BindAlipayModal({ open, onClose, afterBind }: BindAlipayModalPro
 
   return (
     <Modal
-      title="设置提现账户"
+      title="绑定收款支付宝"
       open={open}
       onCancel={onClose}
       footer={null}
@@ -84,7 +83,7 @@ export function BindAlipayModal({ open, onClose, afterBind }: BindAlipayModalPro
       style={{ top: 32 }}
       styles={{ body: { maxHeight: "calc(100vh - 128px)", overflowY: "auto" } }}
     >
-      <p className="mb-5 text-sm leading-7 text-ink-soft">为确保提现资金进入本人账户，请绑定与接单实人认证主体一致的支付宝账户。</p>
+      <p className="mb-5 text-sm leading-7 text-ink-soft">为确保平台自动打款进入本人账户，请绑定与接单实人认证主体一致的支付宝账户。</p>
       <Form
         form={form}
         layout="vertical"
