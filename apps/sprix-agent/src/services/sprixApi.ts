@@ -258,7 +258,7 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
   const tasks = listValue<TaskEntity>(tasksResponse).map(mapTask);
   const token = localStorage.getItem(TOKEN_KEY);
 
-  if (!token) return { tasks };
+  if (!token) return { tasks, account: { isLoggedIn: false } };
 
   const accountResponse = await accountApi.current();
   const [agentsResponse, myTasksResponse, withdrawableResponse, withdrawalAccountResponse] = await Promise.all([
