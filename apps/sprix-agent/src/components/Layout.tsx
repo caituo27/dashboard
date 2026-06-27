@@ -108,14 +108,13 @@ function UserMenu({
                   onClick: async () => {
                     try {
                       await logoutConsumer();
+                    } catch (error) {
+                      if (isGlobalAuthError(error)) return;
+                    } finally {
                       logout();
-                      await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
+                      queryClient.removeQueries({ queryKey: ["sprix-agent"] });
                       navigate("/");
                       message.success("已退出登录");
-                    } catch (error) {
-                      if (!isGlobalAuthError(error)) {
-                        message.error(error instanceof Error ? `退出失败：${error.message}` : "退出失败");
-                      }
                     }
                   }
                 }

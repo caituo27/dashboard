@@ -6,15 +6,17 @@ import {
   createAlipayLoginSession,
   createWechatLoginSession,
   readAlipayLoginStatus,
+  readAgentSnapshot,
   readWechatLoginStatus,
   sendSmsCode,
   type AlipayLoginSession,
   type WechatLoginSession
 } from "../services/sprixApi";
-import { ActionButton, SecondaryButton } from "./Primitives";
+import { ActionButton } from "./Primitives";
 import { QrPayloadBox } from "./QrSession";
-import { AgreementCheck, getAlipayStatusText, getWechatStatusText, isSessionExpired, SessionExpiryText } from "./LoginRegisterModalParts";
+import { AgreementCheck, getAlipayStatusText, getWechatStatusText, isSessionExpired } from "./LoginRegisterModalParts";
 import { showRequestError } from "./requestErrors";
+import { useSprixStore } from "../store/sprixStore";
 
 type LoginRegisterModalProps = { readonly open: boolean; readonly onClose: () => void; readonly afterLogin?: () => void };
 
@@ -34,13 +36,23 @@ export function LoginRegisterModal({ open, onClose, afterLogin }: LoginRegisterM
   const [wechatSession, setWechatSession] = useState<WechatLoginSession>();
   const [wechatStatus, setWechatStatus] = useState("WAITING");
   const [wechatExpiresInSeconds, setWechatExpiresInSeconds] = useState(0);
+  const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
 
   const completeLogin = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
+    const remoteState = await readAgentSnapshot();
+    if (remoteState.account?.isLoggedIn !== true) {
+      throw new Error("登录未完成，请重新登录");
+    }
+    mergeRemoteState(remoteState);
+    queryClient.setQueryData(["sprix-agent", "snapshot"], remoteState);
     message.success("登录 / 注册成功");
     onClose();
-    afterLogin?.();
-  }, [afterLogin, onClose, queryClient]);
+    try {
+      afterLogin?.();
+    } catch {
+      // Login has already succeeded; follow-up navigation should not be reported as an auth failure.
+    }
+  }, [afterLogin, mergeRemoteState, onClose, queryClient]);
 
   const finishLogin = async (values?: { phone?: string; code?: string }) => {
     if (!agreed) {
@@ -152,6 +164,12 @@ export function LoginRegisterModal({ open, onClose, afterLogin }: LoginRegisterM
           await completeLogin();
           return;
         }
+        if (loginStatus.expiresInSeconds <= 0 || loginStatus.status.toUpperCase() === "EXPIRED") {
+          timeoutId = window.setTimeout(() => {
+            if (!cancelled) void startAlipayLogin();
+          }, 300);
+          return;
+        }
         if (isSessionExpired(loginStatus.status, loginStatus.expiresInSeconds)) return;
         timeoutId = window.setTimeout(pollAlipayStatus, alipaySession.pollIntervalMs);
       } catch (error) {
@@ -181,6 +199,12 @@ export function LoginRegisterModal({ open, onClose, afterLogin }: LoginRegisterM
         setWechatExpiresInSeconds(scanStatus.expiresInSeconds);
         if (scanStatus.authenticated) {
           await completeLogin();
+          return;
+        }
+        if (scanStatus.expiresInSeconds <= 0 || scanStatus.status.toUpperCase() === "EXPIRED") {
+          timeoutId = window.setTimeout(() => {
+            if (!cancelled) void startWechatLogin();
+          }, 300);
           return;
         }
         if (isSessionExpired(scanStatus.status, scanStatus.expiresInSeconds)) return;
@@ -213,21 +237,9 @@ export function LoginRegisterModal({ open, onClose, afterLogin }: LoginRegisterM
             key: "alipay",
             label: "支付宝扫码登录",
             children: (
-              <div className="space-y-8 pt-3">
-                <QrPayloadBox value={alipaySession?.qrPayload} placeholder={alipayLoading ? "二维码生成中" : "二维码加载失败，请重试"} />
-                <p className="text-center text-sm text-ink-soft">{alipayStatusText}</p>
-                {alipaySession && <SessionExpiryText expiresInSeconds={alipayExpiresInSeconds} fallback="二维码已过期" />}
-                <div className="sprix-login-action-stack pt-2">
-                  <AgreementCheck agreed={agreed} onChange={setAgreed} />
-                  <ActionButton block loading={alipayLoading} onClick={startAlipayLogin}>
-                    {alipaySession ? "刷新支付宝登录二维码" : "重新生成支付宝登录二维码"}
-                  </ActionButton>
-                  {alipaySession && (
-                    <SecondaryButton block href={alipaySession.qrPayload} target="_blank">
-                      无法扫码时打开授权页
-                    </SecondaryButton>
-                  )}
-                </div>
+              <div className="grid justify-items-center gap-5 pb-4 pt-8">
+                <QrPayloadBox value={alipaySession?.qrPayload} placeholder={alipayLoading ? "二维码生成中" : "二维码加载失败"} />
+                <p className="m-0 text-center text-sm leading-6 text-ink-soft">{alipayStatusText}</p>
               </div>
             )
           },
@@ -235,16 +247,9 @@ export function LoginRegisterModal({ open, onClose, afterLogin }: LoginRegisterM
             key: "wechat",
             label: "微信扫码登录",
             children: (
-              <div className="space-y-8 pt-3">
-                <QrPayloadBox value={wechatSession?.qrPayload} placeholder={wechatLoading ? "二维码生成中" : "二维码加载失败，请重试"} />
-                <p className="text-center text-sm text-ink-soft">{wechatStatusText}</p>
-                {wechatSession && <SessionExpiryText expiresInSeconds={wechatExpiresInSeconds} fallback="二维码有效期以微信页面为准" />}
-                <div className="sprix-login-action-stack pt-2">
-                  <AgreementCheck agreed={agreed} onChange={setAgreed} />
-                  <ActionButton block loading={wechatLoading} onClick={startWechatLogin}>
-                    {wechatSession ? "刷新微信登录二维码" : "重新生成微信登录二维码"}
-                  </ActionButton>
-                </div>
+              <div className="grid justify-items-center gap-5 pb-4 pt-8">
+                <QrPayloadBox value={wechatSession?.qrPayload} placeholder={wechatLoading ? "二维码生成中" : "二维码加载失败"} />
+                <p className="m-0 text-center text-sm leading-6 text-ink-soft">{wechatStatusText}</p>
               </div>
             )
           },

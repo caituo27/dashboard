@@ -87,7 +87,7 @@ function ConsumerAppRoutes() {
       setAppealExecutionId(null);
       closeAll();
       open("login");
-      navigate("/", { replace: true, state: { admissionReason: "登录已过期，请重新登录" } });
+      navigate("/", { replace: true, state: { admissionReason: "登录已过期，请重新登录", openLogin: true } });
     };
 
     window.addEventListener("sprix-auth-required", handleAuthRequired);
@@ -182,6 +182,7 @@ function AdmissionGate({ children }: { children: ReactNode }) {
   const location = useLocation();
   const account = useSprixStore((state) => state.account);
   const agents = useSprixStore((state) => state.agents);
+
   const admission = getUserAdmissionState(account, agents);
 
   if (account.isLoggedIn && canVisitAgentCenterBeforeAdmission(location.pathname)) {
@@ -208,7 +209,7 @@ function UserRoutes(props: {
       <Route path="task/:id" element={<TaskDetailPage {...props} />} />
       <Route path="center" element={<AgentCenterPage {...props} />} />
       <Route path="my-tasks" element={<MyTasksPage {...props} />} />
-      <Route path="my-tasks/:id" element={<MyTaskDetailPage />} />
+      <Route path="my-tasks/:id" element={<MyTaskDetailPage {...props} />} />
       <Route path="earnings" element={<EarningsPage {...props} />} />
       <Route path="qualification" element={<QualificationPage {...props} />} />
       <Route path="*" element={<Navigate to="market" replace />} />

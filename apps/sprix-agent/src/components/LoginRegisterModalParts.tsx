@@ -1,13 +1,4 @@
 import { Checkbox } from "antd";
-import { formatRemainingSeconds } from "./QrSession";
-
-export function SessionExpiryText({ expiresInSeconds, fallback }: { readonly expiresInSeconds: number; readonly fallback: string }) {
-  return (
-    <p className="text-center text-xs text-ink-soft">
-      {expiresInSeconds > 0 ? `二维码剩余 ${formatRemainingSeconds(expiresInSeconds)}` : fallback}
-    </p>
-  );
-}
 
 export function AgreementCheck({ agreed, onChange }: { readonly agreed: boolean; readonly onChange: (value: boolean) => void }) {
   return (
@@ -23,17 +14,17 @@ export function isSessionExpired(status: string, expiresInSeconds: number) {
 }
 
 export function getAlipayStatusText(status: string, expiresInSeconds: number, hasSession: boolean) {
-  if (!hasSession) return "同意协议后生成支付宝登录二维码";
+  if (!hasSession) return "正在生成支付宝登录二维码";
   if (status === "ERROR") return "扫码状态获取失败，请刷新二维码";
-  if (isSessionExpired(status, expiresInSeconds)) return "二维码已过期，请刷新后重试";
+  if (isSessionExpired(status, expiresInSeconds)) return "二维码已更新，请重新扫码";
   if (status.toUpperCase() === "CONFIRMED") return "登录确认中";
   return "请使用支付宝扫码授权，确认后会自动进入平台";
 }
 
 export function getWechatStatusText(status: string, expiresInSeconds: number, hasSession: boolean) {
-  if (!hasSession) return "同意协议后生成微信登录二维码";
+  if (!hasSession) return "正在生成微信登录二维码";
   if (status === "ERROR") return "扫码状态获取失败，请刷新二维码";
-  if (isSessionExpired(status, expiresInSeconds)) return "二维码已过期，请刷新后重试";
+  if (isSessionExpired(status, expiresInSeconds)) return "二维码已更新，请重新扫码";
   const normalizedStatus = status.toUpperCase();
   if (normalizedStatus === "SCANNED") return "已扫码，请在微信中确认登录";
   if (normalizedStatus === "CONFIRMED") return "登录确认中";

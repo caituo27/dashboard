@@ -4,12 +4,12 @@ import { readAgentSnapshot } from "./sprixApi";
 import { useSprixStore } from "../store/sprixStore";
 
 export function useRemoteSprixBootstrap() {
-  const isLoggedIn = useSprixStore((state) => state.account.isLoggedIn);
   const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
   const snapshotQuery = useQuery({
-    queryKey: ["sprix-agent", "snapshot", isLoggedIn],
+    queryKey: ["sprix-agent", "snapshot"],
     queryFn: readAgentSnapshot,
     retry: 1,
+    staleTime: 10_000,
     refetchOnWindowFocus: false
   });
 

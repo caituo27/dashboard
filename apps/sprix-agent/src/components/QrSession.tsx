@@ -1,7 +1,7 @@
 import { QRCode } from "antd";
 
 export const qrBoxClassName = [
-  "mx-auto flex h-48 w-48 items-center justify-center rounded-[22px]",
+  "flex h-48 w-48 items-center justify-center rounded-[22px]",
   "border border-line bg-white p-3 text-center text-sm text-ink-soft"
 ].join(" ");
 
@@ -12,8 +12,8 @@ type QrPayloadBoxProps = {
 
 export function QrPayloadBox({ value, placeholder }: QrPayloadBoxProps) {
   return (
-    <div className={qrBoxClassName}>
-      {value ? <QRCode type="svg" value={value} size={168} bordered={false} /> : <span>{placeholder}</span>}
+    <div className="mx-auto w-fit">
+      <div className={qrBoxClassName}>{value ? <QRCode type="svg" value={value} size={168} bordered={false} /> : <span>{placeholder}</span>}</div>
     </div>
   );
 }

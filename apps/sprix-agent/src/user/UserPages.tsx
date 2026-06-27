@@ -80,10 +80,34 @@ function getAgentEvaluationActionLabel(agent: Agent) {
   return agent.evaluation ? agentEvaluationActionLabels[agent.evaluation.status] : "开始评测";
 }
 
+function useRerunTask() {
+  const queryClient = useQueryClient();
+
+  return useCallback(
+    (executionId: string) => {
+      Modal.confirm({
+        title: "确认重新执行",
+        content: "重新执行会基于当前执行 Agent 创建新的执行记录，原执行记录会保留。",
+        okText: "确认重新执行",
+        cancelText: "取消",
+        onOk: async () => {
+          try {
+            await rerunRemoteTask(executionId);
+            await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
+            message.success("已重新生成执行记录");
+          } catch (error) {
+            showRequestError(error, "重新执行失败", "重新执行失败：");
+          }
+        }
+      });
+    },
+    [queryClient]
+  );
+}
+
 export function LandingPage({ openLogin }: UserPageProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const queryClient = useQueryClient();
   const account = useSprixStore((state) => state.account);
   const agents = useSprixStore((state) => state.agents);
   const admission = getUserAdmissionState(account, agents);
@@ -96,11 +120,12 @@ export function LandingPage({ openLogin }: UserPageProps) {
 
   useEffect(() => {
     if (!admissionReason) return;
+    if (shouldOpenLogin && admissionReason === "请先登录") return;
     const reasonKey = `${location.key}:${admissionReason}`;
     if (handledAdmissionReasonKey.current === reasonKey) return;
     handledAdmissionReasonKey.current = reasonKey;
     message.warning(admissionReason);
-  }, [admissionReason, location.key]);
+  }, [admissionReason, location.key, shouldOpenLogin]);
 
   useEffect(() => {
     if (!shouldOpenLogin || account.isLoggedIn || handledAdmissionLoginKey.current === location.key) return;
@@ -113,14 +138,6 @@ export function LandingPage({ openLogin }: UserPageProps) {
     autoEnteredAgentCenterRef.current = true;
     navigate("/agent/center");
   }, [admission.allowed, navigate]);
-
-  useEffect(() => {
-    if (!account.isLoggedIn || admission.allowed) return;
-    const poll = window.setInterval(() => {
-      void queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
-    }, 3_000);
-    return () => window.clearInterval(poll);
-  }, [account.isLoggedIn, admission.allowed, queryClient]);
 
   return (
     <main className="sprix-landing">
@@ -873,37 +890,15 @@ function AgentList({
 }
 
 export function MyTasksPage({ openLogin, openAppeal }: UserPageProps) {
-  const queryClient = useQueryClient();
   const account = useSprixStore((state) => state.account);
   const myTasks = useSprixStore((state) => state.myTasks);
   const [tab, setTab] = useState("全部");
+  const rerunTask = useRerunTask();
   const visible = myTasks.filter((task) => {
     if (tab === "全部") return true;
     if (tab === "已完成") return ["验收未通过", "结算中", "已结算"].includes(task.status);
     return task.status === tab;
   });
-
-  const rerunTask = (executionId: string) => {
-    Modal.confirm({
-      title: "确认重新执行",
-      content: "重新执行会基于当前执行 Agent 创建新的执行记录，原执行记录会保留。",
-      okText: "确认重新执行",
-      cancelText: "取消",
-      onOk: async () => {
-        try {
-          await rerunRemoteTask(executionId);
-          await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
-          message.success("已重新生成执行记录");
-        } catch (error) {
-          if (!(error instanceof Error) && !isGlobalAuthError(error)) {
-            showRequestError(error, "重新执行失败", "重新执行失败：");
-            return;
-          }
-          showRequestError(error, "重新执行失败", "重新执行失败：");
-        }
-      }
-    });
-  };
 
   if (!account.isLoggedIn) {
     return <EmptyState title="登录后查看我的任务" description="登录后可查看执行记录、验收结果、申诉状态和重新执行入口。" action={<ActionButton onClick={openLogin}>登录 / 注册</ActionButton>} />;
@@ -955,15 +950,27 @@ function MyTaskRow({ task, onAppeal, onRerun }: { task: MyTask; onAppeal: (execu
   );
 }
 
-export function MyTaskDetailPage() {
+export function MyTaskDetailPage({ openAppeal }: Pick<UserPageProps, "openAppeal">) {
   const { id } = useParams();
   const task = useSprixStore((state) => state.myTasks.find((item) => item.id === id));
   const base = useSprixStore((state) => state.tasks.find((item) => item.id === task?.taskId));
+  const rerunTask = useRerunTask();
   if (!task || !base) return <EmptyState title="执行记录不存在" description="该任务记录暂不可访问" action={<SecondaryButton href="/agent/my-tasks">返回我的任务</SecondaryButton>} />;
   const requirementText = getExecutionRequirementText(base);
   const review = getExecutionReviewState(task, base);
   const artifacts = getExecutionArtifactsState(base);
   const pendingSections = getExecutionBackendPendingSections();
+  const actions = getMyTaskActions(task);
+  const taskActions = (
+    <div className="flex flex-wrap gap-2">
+      {actions.appealLabel && (
+        <ActionButton disabled={!actions.appealEnabled} onClick={() => actions.appealEnabled && openAppeal(task.id)}>
+          {actions.appealLabel}
+        </ActionButton>
+      )}
+      {actions.rerun && <SecondaryButton onClick={() => rerunTask(task.id)}>重新执行</SecondaryButton>}
+    </div>
+  );
   return (
     <div className="sprix-task-detail-page">
       <div className="sprix-detail-toolbar">
@@ -992,9 +999,10 @@ export function MyTaskDetailPage() {
             <h2 className="text-lg font-semibold text-ink">执行流转</h2>
             <p className="mt-1 text-sm text-ink-soft">平台按节点推进执行、质检、验收和入账。</p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <SoftTag>{task.currentNode}</SoftTag>
             <SoftTag tone="neutral">{task.progress}</SoftTag>
+            {(actions.appealLabel || actions.rerun) && taskActions}
           </div>
         </div>
         <Steps

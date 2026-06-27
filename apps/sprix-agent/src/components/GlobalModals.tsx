@@ -141,7 +141,7 @@ export function AppealModal({
   const [submitting, setSubmitting] = useState(false);
   return (
     <Modal title="提交申诉" open={open} onCancel={onClose} footer={null}>
-      <p className="mb-5 text-sm leading-7 text-ink-soft">如你认为本次验收结果存在误判，可提交申诉。平台将按后端返回的申诉状态和处理时限更新进度。</p>
+      <p className="mb-5 text-sm leading-7 text-ink-soft">如你认为本次验收结果存在误判，可提交申诉。平台将在 1-3 个工作日内返回处理结果。</p>
       <Form
         layout="vertical"
         onFinish={async (values) => {
@@ -150,7 +150,7 @@ export function AppealModal({
           try {
             await submitRemoteAppeal(executionId, values.reason);
             await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
-            message.success("申诉已提交，处理进度以后端返回状态为准");
+            message.success("申诉已提交，平台将在 1-3 个工作日内返回处理结果");
             onClose();
           } catch (error) {
             showRequestError(error, "申诉提交失败", "申诉提交失败：");

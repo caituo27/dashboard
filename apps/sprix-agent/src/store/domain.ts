@@ -1,9 +1,14 @@
 import type { SprixState } from "../types";
 
+function hasInitialAuthToken() {
+  if (typeof localStorage === "undefined") return false;
+  return Boolean(localStorage.getItem("sprix-auth-token"));
+}
+
 export function createInitialSprixState(): SprixState {
   return {
     account: {
-      isLoggedIn: false,
+      isLoggedIn: hasInitialAuthToken(),
       nickname: "",
       email: "",
       maskedPhone: "",
@@ -36,6 +41,10 @@ export function logOut(state: SprixState): SprixState {
   const empty = createInitialSprixState();
   return {
     ...empty,
+    account: {
+      ...empty.account,
+      isLoggedIn: false
+    },
     tasks: state.tasks
   };
 }

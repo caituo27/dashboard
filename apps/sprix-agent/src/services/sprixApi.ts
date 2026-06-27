@@ -702,8 +702,7 @@ function mapMyTaskStatus(status?: string): MyTaskStatus {
 
 function mapAppealStatus(status?: string): AppealStatus {
   if (status === "NOT_APPEALED") return "未申诉";
-  if (status === "PENDING") return "待处理";
-  if (status === "PROCESSING") return "处理中";
+  if (status === "PENDING" || status === "PROCESSING" || status === "NEED_SUPPLEMENT") return "申诉处理中";
   if (status === "APPROVED") return "申诉通过";
   if (status === "REJECTED") return "申诉不通过";
   if (status === "NONE") return "无申诉";
