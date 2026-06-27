@@ -10,6 +10,7 @@ import {
   type AgentProfileResponse,
   type AppealRecord,
   type AuthTokenResponse,
+  type FaceVerificationSession,
   type TaskEntity,
   type TaskExecution,
   type UserAccount,
@@ -25,7 +26,7 @@ import { http } from "../utils/http";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/sprix-api";
 const CONFIGURED_LOCAL_AGENT_CLAIM_BASE_URL = import.meta.env.VITE_LOCAL_AGENT_CLAIM_BASE_URL ?? "";
 const DEV_LOCAL_AGENT_CLAIM_BASE_URL = "http://42.194.150.73:8084";
-const LOCAL_AGENT_CLAIM_PORT = "8084";
+const DEFAULT_LOCAL_AGENT_CLAIM_BASE_URL = "http://42.194.150.73:8084";
 const TOKEN_KEY = "sprix-auth-token";
 
 const accountApi = AccountControllerApiFactory(undefined, API_BASE_URL, http);
@@ -151,13 +152,15 @@ export function buildLocalAgentClaimUrl(claimToken: string, enrollmentToken: str
 }
 
 function resolveLocalAgentClaimBaseUrl() {
-  const configured = CONFIGURED_LOCAL_AGENT_CLAIM_BASE_URL.trim().replace(/\/+$/, "");
-  if (configured) return configured;
-  if (import.meta.env.DEV) return DEV_LOCAL_AGENT_CLAIM_BASE_URL;
+  return resolveLocalAgentClaimBaseUrlForRuntime(CONFIGURED_LOCAL_AGENT_CLAIM_BASE_URL, import.meta.env.DEV, window.location.origin);
+}
 
-  const currentUrl = new URL(window.location.origin);
-  currentUrl.port = LOCAL_AGENT_CLAIM_PORT;
-  return currentUrl.toString().replace(/\/+$/, "");
+export function resolveLocalAgentClaimBaseUrlForRuntime(configuredBaseUrl: string, isDev: boolean, currentOrigin: string) {
+  const configured = configuredBaseUrl.trim().replace(/\/+$/, "");
+  if (configured) return configured;
+  if (isDev) return DEV_LOCAL_AGENT_CLAIM_BASE_URL;
+
+  return DEFAULT_LOCAL_AGENT_CLAIM_BASE_URL || currentOrigin.replace(/\/+$/, "");
 }
 
 export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
@@ -223,11 +226,11 @@ export async function submitRemoteAppeal(executionId: string, reason: string): P
   return requireValue<AppealRecord>(response, "申诉提交失败");
 }
 
-export async function bindRemoteWithdrawalAccount(account: string): Promise<WithdrawalAccount> {
+export async function bindRemoteWithdrawalAccount(account: string, verifiedName: string): Promise<WithdrawalAccount> {
   const response = await accountApi.bindWithdrawalAccount({
     bindWithdrawalAccountRequest: {
       alipayAccount: account,
-      verifiedName: "Xiaoxiao"
+      verifiedName
     }
   });
   return requireValue<WithdrawalAccount>(response, "绑定收款账户失败");
@@ -238,13 +241,9 @@ export async function applyRemoteWithdrawal(amount: number): Promise<WithdrawalR
   return requireValue<WithdrawalRecord>(response, "提现申请提交失败");
 }
 
-export async function initializeRemoteFaceVerification() {
-  return accountApi.initializeFaceVerification();
-}
-
-export async function completeRemoteRealPersonVerification(): Promise<Partial<SprixState["account"]>> {
-  const response = await accountApi.completeRealPersonVerification();
-  return mapAccount(requireValue<UserAccount>(response, "实人认证失败"));
+export async function initializeRemoteFaceVerification(): Promise<FaceVerificationSession> {
+  const response = await accountApi.initializeFaceVerification();
+  return requireValue<FaceVerificationSession>(response, "实人认证初始化失败");
 }
 
 export async function signRemoteFreelancerAgreement(): Promise<Partial<SprixState["account"]>> {
@@ -258,12 +257,12 @@ export function mapRemoteWithdrawal(record: WithdrawalRecord): Withdrawal {
     withdrawalNo: record.withdrawalNo ?? record.id ?? "",
     userName: compactId(record.userId, "用户"),
     userPhone: "",
-    verifiedName: "已实名用户",
+    verifiedName: "-",
     alipayAccount: record.alipayAccount ?? "-",
     realNameMatchStatus: record.realNameMatchStatus === "PASSED" ? "已通过" : "未通过",
     withdrawableBalance: record.amount ?? 0,
     applyAmount: record.amount ?? 0,
-    estimatedArrivalTime: record.estimatedArrivalTime ?? "1-3 个工作日",
+    estimatedArrivalTime: record.estimatedArrivalTime ?? "-",
     appliedAt: formatDateTime(record.appliedAt ?? record.createdAt),
     withdrawStatus: mapWithdrawStatus(record.status),
     reviewer: record.reviewer ?? "-"
@@ -281,7 +280,7 @@ function listValue<T>(value: T[] | undefined): T[] {
 
 function mapAccount(account: UserAccount): Partial<SprixState["account"]> {
   return {
-    nickname: account.nickname ?? "Xiaoxiao",
+    nickname: account.nickname ?? "",
     email: account.email ?? "",
     phone: account.phone ?? "",
     maskedPhone: maskPhone(account.phone),
@@ -297,29 +296,29 @@ function mapTask(task: TaskEntity): Task {
   const description = task.description ?? "";
   return {
     id: task.id ?? "",
-    title: task.title ?? "未命名任务",
-    category: task.category ?? "未分类",
-    sourceName: task.sourceName ?? "Sprix AI Platform",
+    title: task.title ?? "",
+    category: task.category ?? "",
+    sourceName: task.sourceName ?? "",
     sourceType: mapSourceType(task.sourceType),
     description,
     cardSummary: description.slice(0, 86),
-    deliverables: task.deliverables ?? "按任务要求提交结构化交付物。",
-    acceptanceCriteria: task.acceptanceCriteria ?? "平台按任务验收标准进行复核。",
+    deliverables: task.deliverables ?? "",
+    acceptanceCriteria: task.acceptanceCriteria ?? "",
     reward: task.reward ?? 0,
     totalSlots: task.totalSlots ?? 0,
     remainingSlots: task.remainingSlots ?? 0,
     publishedAt: formatDateTime(task.publishedAt ?? task.createdAt),
     taskStatus: mapTaskStatus(task.status),
-    offlineReason: task.offlineReason === "FULL" ? "名额已满" : task.offlineReason ? "手动下线" : "",
-    agentMatchScore: 92,
-    recommendedTaskType: task.category ?? "通用任务",
-    suggestedTeam: "Codex Agent + DataFlow Agent",
-    matchAnalysis: "后端任务已同步，当前 Agent 将按任务描述、交付标准与验收标准执行。",
-    riskPrompt: "请保留来源、证据和异常说明，便于平台复核。",
-    recommendedReason: "任务来自真实后端，交付边界清晰。",
+    offlineReason: mapOfflineReason(task.offlineReason),
+    agentMatchScore: 0,
+    recommendedTaskType: task.category ?? "",
+    suggestedTeam: "",
+    matchAnalysis: "",
+    riskPrompt: "",
+    recommendedReason: "",
     submittedFiles: [],
     resultFiles: [],
-    acceptanceResult: "平台将根据真实执行结果返回验收状态。"
+    acceptanceResult: ""
   };
 }
 
@@ -329,22 +328,13 @@ function mapAgent(agent: AgentProfileResponse): Agent {
   const score = agent.score ?? null;
   return {
     id: agent.id ?? "",
-    name: agent.name ?? "Unnamed Agent",
+    name: agent.name ?? "",
     status,
     role: agent.currentExecution ? "当前执行 Agent" : status === "已连接" ? "已连接 Agent" : status === "已断开" ? "曾连接 Agent" : "待连接",
     score,
-    lastEvaluatedAt: formatDateTime(agent.lastEvaluatedAt) || "未有记录",
-    summary: tags.length ? tags.join("、") : "等待能力评测",
-    tags,
-    profile:
-      typeof score === "number"
-        ? {
-            requirement: clamp(score - 4),
-            stability: clamp(score - 2),
-            delivery: clamp(score),
-            quality: clamp(score - 1)
-          }
-        : undefined
+    lastEvaluatedAt: formatDateTime(agent.lastEvaluatedAt),
+    summary: tags.join("、"),
+    tags
   };
 }
 
@@ -354,17 +344,17 @@ function mapMyTask(record: TaskExecution, taskById: Map<string, Task>, agentById
   return {
     id: record.id ?? "",
     taskId: record.taskId ?? "",
-    title: task?.title ?? "未命名任务",
-    category: task?.category ?? "未分类",
+    title: task?.title ?? "",
+    category: task?.category ?? "",
     reward: task?.reward ?? 0,
     status: mapMyTaskStatus(record.status),
     agentId: record.agentId ?? "",
-    agentName: agent?.name ?? "Agent",
+    agentName: agent?.name ?? "",
     startedAt: formatDateTime(record.startedAt ?? record.createdAt),
     completedAt: formatDateTime(record.completedAt),
     currentNode: mapCurrentNode(record.currentNode),
-    progress: record.progress ?? "0%",
-    score: record.status === "ACCEPTANCE_FAILED" ? "72/100" : undefined,
+    progress: record.progress ?? "",
+    score: undefined,
     appealStatus: mapAppealStatus(record.appealStatus),
     settlementStatus: mapSettlementStatus(record.settlementStatus),
     rejectReason: record.status === "ACCEPTANCE_FAILED" ? "后端验收结果未通过，可发起申诉。" : undefined
@@ -426,7 +416,12 @@ function mapQualificationStatus(status?: string): SprixState["account"]["qualifi
 function mapSourceType(type?: string) {
   if (type === "PLATFORM") return "平台任务";
   if (type === "ENTERPRISE") return "企业协作";
-  return type ?? "平台任务";
+  return type ?? "";
+}
+
+function mapOfflineReason(reason?: string) {
+  if (reason === "FULL" || reason === "SLOT_FULL") return "名额已满";
+  return reason ?? "";
 }
 
 function mapCurrentNode(node?: string) {
@@ -471,8 +466,4 @@ function maskPhone(phone?: string) {
 function compactId(value: string | undefined, fallback: string) {
   if (!value) return fallback;
   return `${fallback}-${value.slice(-4)}`;
-}
-
-function clamp(value: number) {
-  return Math.max(0, Math.min(100, value));
 }

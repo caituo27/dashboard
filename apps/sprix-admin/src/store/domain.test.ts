@@ -34,12 +34,12 @@ describe("Sprix local state shell", () => {
           publishedAt: "2026-06-25 00:00",
           taskStatus: "已发布",
           offlineReason: "",
-          agentMatchScore: 92,
+          agentMatchScore: 0,
           recommendedTaskType: "数据处理",
-          suggestedTeam: "Codex Agent",
-          matchAnalysis: "真实接口映射",
+          suggestedTeam: "",
+          matchAnalysis: "",
           riskPrompt: "保留来源",
-          recommendedReason: "来自后端",
+          recommendedReason: "",
           submittedFiles: [],
           resultFiles: [],
           acceptanceResult: "待验收"
@@ -60,8 +60,8 @@ describe("Sprix local state shell", () => {
           priority: "普通",
           submittedAt: "2026-06-25 00:00",
           handler: "-",
-          expectedProcessTime: "1-3 个工作日",
-          originalScore: "72/100",
+          expectedProcessTime: "后端返回时限",
+          originalScore: "-",
           originalRejectReason: "未通过",
           processLogs: []
         }

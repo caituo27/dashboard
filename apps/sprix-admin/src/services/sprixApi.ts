@@ -13,6 +13,7 @@ import {
 import type {
   AdminAppeal,
   AdminExecutionRecords,
+  AdminOperationLog,
   AppealStatus,
   CompletedExecution,
   FundException,
@@ -57,6 +58,7 @@ export type AdminTaskCenterSnapshot = {
 export type AdminTaskDetailView = {
   task: Task;
   records: AdminExecutionRecords[string];
+  operationLogs: AdminOperationLog[];
 };
 
 export type AdminFundsSnapshot = {
@@ -70,6 +72,16 @@ export type AdminFundsSnapshot = {
 type RemoteAdminTaskDetail = {
   task: TaskEntity;
   executions: RemoteAdminExecutionRow[];
+  operationLogs?: RemoteAuditLog[];
+};
+
+type RemoteAuditLog = {
+  id?: string;
+  action?: string;
+  beforeStatus?: string;
+  afterStatus?: string;
+  reason?: string;
+  createdAt?: string;
 };
 
 type RemoteAdminTaskSummary = {
@@ -117,7 +129,7 @@ type RemoteAdminAppealDetail = {
   settlementStatus?: string;
 };
 
-export async function authenticateAdmin(identity = "admin@sprix.ai", code = "123456") {
+export async function authenticateAdmin(identity: string, code: string) {
   const response = await authApi.mockAdminLogin({ mockLoginRequest: { email: identity, code } });
   const token = requireValue<AuthTokenResponse>(response, "后台登录失败").token;
   localStorage.setItem(TOKEN_KEY, token ?? "");
@@ -142,7 +154,8 @@ export async function readRemoteTaskDetail(taskId: string): Promise<AdminTaskDet
   const task = mapTask(requireObject(detail.task, "task"));
   return {
     task,
-    records: mapAdminExecutionRows(listValue<RemoteAdminExecutionRow>(detail.executions))
+    records: mapAdminExecutionRows(listValue<RemoteAdminExecutionRow>(detail.executions)),
+    operationLogs: listValue<RemoteAuditLog>(detail.operationLogs).map(mapOperationLog)
   };
 }
 
@@ -192,69 +205,28 @@ export async function readRemoteAppealDetail(appealId: string): Promise<AdminApp
   return mapAppealDetail(detail);
 }
 
-export async function createRemoteTask(payload: UpsertAdminTaskPayload) {
-  return http.post<unknown, TaskEntity>("/api/v1/admin/tasks", payload);
-}
-
-export async function updateRemoteTask(taskId: string, payload: UpsertAdminTaskPayload) {
-  return http.put<unknown, TaskEntity>(`/api/v1/admin/tasks/${encodeURIComponent(taskId)}`, payload);
-}
-
-export async function offlineRemoteTask(taskId: string, reason = "下线") {
-  return http.post<unknown, TaskEntity>(`/api/v1/admin/tasks/${encodeURIComponent(taskId)}/offline`, { reason });
-}
-
-export async function republishRemoteTask(taskId: string) {
-  return http.post<unknown, TaskEntity>(`/api/v1/admin/tasks/${encodeURIComponent(taskId)}/republish`);
-}
-
-export async function deleteRemoteTask(taskId: string, reason = "删除任务") {
-  return http.delete<unknown, TaskEntity>(`/api/v1/admin/tasks/${encodeURIComponent(taskId)}`, { data: { reason } });
-}
-
 export async function approveRemoteWithdrawal(withdrawalId: string) {
   return adminFundsApi.approveWithdrawal({ withdrawalId });
 }
 
 export async function rejectRemoteWithdrawal(withdrawalId: string, reason: string) {
-  return http.post<WithdrawalRecord>(`/api/v1/admin/funds/withdrawals/${encodeURIComponent(withdrawalId)}/reject`, { reason });
-}
-
-export async function approveRemoteWithdrawals(withdrawalIds: string[]) {
-  return http.post<unknown, WithdrawalRecord[]>("/api/v1/admin/funds/withdrawals/bulk-approve", { withdrawalIds });
-}
-
-export async function rejectRemoteWithdrawals(withdrawalIds: string[], reason: string) {
-  return http.post<unknown, WithdrawalRecord[]>("/api/v1/admin/funds/withdrawals/bulk-reject", { withdrawalIds, reason });
+  return adminFundsApi.rejectWithdrawal({ withdrawalId, withdrawalReviewRequest: { reason } });
 }
 
 export async function markRemoteWithdrawalPaid(withdrawalId: string) {
   return adminFundsApi.markWithdrawalPaid({ withdrawalId });
 }
 
-export async function markRemoteWithdrawalsPaid(withdrawalIds: string[]) {
-  return http.post<unknown, WithdrawalRecord[]>("/api/v1/admin/funds/withdrawals/bulk-paid", { withdrawalIds });
-}
-
 export async function markRemoteWithdrawalPayoutFailed(withdrawalId: string) {
   return adminFundsApi.markWithdrawalPayoutFailed({ withdrawalId });
 }
 
-export async function markRemoteWithdrawalsPayoutFailed(withdrawalIds: string[], reason: string) {
-  return http.post<unknown, WithdrawalRecord[]>("/api/v1/admin/funds/withdrawals/bulk-payout-failed", { withdrawalIds, reason });
-}
-
-export async function exportRemotePendingPayouts() {
-  const records = await http.get<unknown, WithdrawalRecord[]>("/api/v1/admin/funds/withdrawals/pending-payout-export");
-  return records.map(mapWithdrawal);
-}
-
 export async function returnRemoteWithdrawalForReview(withdrawalId: string, reason: string) {
-  return http.post<WithdrawalRecord>(`/api/v1/admin/funds/withdrawals/${encodeURIComponent(withdrawalId)}/return-review`, { reason });
+  return adminFundsApi.returnWithdrawalForReview({ withdrawalId, withdrawalReviewRequest: { reason } });
 }
 
 export async function markRemotePayoutExceptionHandled(withdrawalId: string, reason: string) {
-  return http.post<WithdrawalRecord>(`/api/v1/admin/funds/withdrawals/${encodeURIComponent(withdrawalId)}/exception-handled`, { reason });
+  return adminFundsApi.markPayoutExceptionHandled({ withdrawalId, withdrawalReviewRequest: { reason } });
 }
 
 function requireValue<T>(value: T | undefined, fallbackMessage: string): T {
@@ -270,29 +242,29 @@ function mapTask(task: TaskEntity): Task {
   const description = task.description ?? "";
   return {
     id: task.id ?? "",
-    title: task.title ?? "未命名任务",
-    category: task.category ?? "未分类",
-    sourceName: task.sourceName ?? "Sprix AI Platform",
+    title: task.title ?? "",
+    category: task.category ?? "",
+    sourceName: task.sourceName ?? "",
     sourceType: mapSourceType(task.sourceType),
     description,
     cardSummary: description.slice(0, 86),
-    deliverables: task.deliverables ?? "按任务要求提交结构化交付物。",
-    acceptanceCriteria: task.acceptanceCriteria ?? "平台按任务验收标准进行复核。",
+    deliverables: task.deliverables ?? "",
+    acceptanceCriteria: task.acceptanceCriteria ?? "",
     reward: task.reward ?? 0,
     totalSlots: task.totalSlots ?? 0,
     remainingSlots: task.remainingSlots ?? 0,
     publishedAt: formatDateTime(task.publishedAt ?? task.createdAt),
     taskStatus: mapTaskStatus(task.status),
-    offlineReason: task.offlineReason === "FULL" || task.offlineReason === "SLOT_FULL" ? "名额已满" : task.offlineReason ? "手动下线" : "",
-    agentMatchScore: 92,
-    recommendedTaskType: task.category ?? "通用任务",
-    suggestedTeam: "Codex Agent + DataFlow Agent",
-    matchAnalysis: "后端任务已同步，当前 Agent 将按任务描述、交付标准与验收标准执行。",
-    riskPrompt: "请保留来源、证据和异常说明，便于平台复核。",
-    recommendedReason: "任务来自真实后端，交付边界清晰。",
+    offlineReason: mapOfflineReason(task.offlineReason),
+    agentMatchScore: 0,
+    recommendedTaskType: task.category ?? "",
+    suggestedTeam: "",
+    matchAnalysis: "",
+    riskPrompt: "",
+    recommendedReason: "",
     submittedFiles: [],
     resultFiles: [],
-    acceptanceResult: "平台将根据真实执行结果返回验收状态。"
+    acceptanceResult: ""
   };
 }
 
@@ -319,7 +291,7 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
         userName: row.userName ?? "-",
         phone: row.userPhone ?? "-",
         agentName: row.agentName ?? "-",
-        terminationReason: row.terminationReason ?? "执行终止",
+        terminationReason: row.terminationReason ?? "-",
         terminatedNode: mapCurrentNode(row.currentNode),
         terminatedAt: formatDateTime(row.completedAt ?? row.updatedAt)
       });
@@ -332,7 +304,7 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
         agentName: row.agentName ?? "-",
         agentScore: row.agentScore == null ? "-" : `${row.agentScore}/100`,
         currentNode: mapCurrentNode(row.currentNode),
-        progress: row.progress ?? "0%",
+        progress: row.progress ?? "-",
         startedAt: formatDateTime(row.startedAt)
       });
     } else {
@@ -343,7 +315,7 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
         phone: row.userPhone ?? "-",
         agentName: row.agentName ?? "-",
         acceptanceStatus: row.executionStatus === "ACCEPTANCE_FAILED" ? "验收未通过" : "验收通过",
-        score: row.executionStatus === "ACCEPTANCE_FAILED" ? "72/100" : "91/100",
+        score: row.agentScore == null ? "-" : `${row.agentScore}/100`,
         appealStatus: mapAppealStatus(row.appealStatus),
         settlementStatus: mapSettlementStatus(row.settlementStatus),
         completedAt: formatDateTime(row.completedAt ?? row.updatedAt)
@@ -352,6 +324,17 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
   }
 
   return { running, terminated, completed };
+}
+
+function mapOperationLog(log: RemoteAuditLog): AdminOperationLog {
+  return {
+    id: log.id ?? `${log.action ?? "LOG"}-${log.createdAt ?? ""}`,
+    action: log.action ?? "-",
+    beforeStatus: log.beforeStatus ?? "-",
+    afterStatus: log.afterStatus ?? "-",
+    reason: log.reason ?? "-",
+    occurredAt: formatDateTime(log.createdAt)
+  };
 }
 
 function mapAppealDetail(detail: RemoteAdminAppealDetail): AdminAppeal {
@@ -408,12 +391,12 @@ function mapWithdrawal(withdrawal: WithdrawalRecord): Withdrawal {
     withdrawalNo: withdrawal.withdrawalNo ?? withdrawal.id ?? "",
     userName: compactId(withdrawal.userId, "用户"),
     userPhone: "-",
-    verifiedName: "已实名用户",
+    verifiedName: "-",
     alipayAccount: withdrawal.alipayAccount ?? "-",
     realNameMatchStatus: withdrawal.realNameMatchStatus === "PASSED" ? "已通过" : "未通过",
     withdrawableBalance: withdrawal.amount ?? 0,
     applyAmount: withdrawal.amount ?? 0,
-    estimatedArrivalTime: withdrawal.estimatedArrivalTime ?? "1-3 个工作日",
+    estimatedArrivalTime: withdrawal.estimatedArrivalTime ?? "-",
     appliedAt: formatDateTime(withdrawal.appliedAt ?? withdrawal.createdAt),
     withdrawStatus: mapWithdrawStatus(withdrawal.status),
     reviewer: withdrawal.reviewer ?? "-",
@@ -507,7 +490,12 @@ function mapWithdrawStatus(status?: string): WithdrawStatus {
 function mapSourceType(type?: string) {
   if (type === "PLATFORM") return "平台任务";
   if (type === "ENTERPRISE") return "企业协作";
-  return type ?? "平台任务";
+  return type ?? "";
+}
+
+function mapOfflineReason(reason?: string) {
+  if (reason === "FULL" || reason === "SLOT_FULL") return "名额已满";
+  return reason ?? "";
 }
 
 function mapCurrentNode(node?: string) {

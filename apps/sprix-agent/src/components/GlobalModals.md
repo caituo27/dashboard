@@ -17,7 +17,7 @@
   - 后端返回 token 后写入 `sprix-auth-token`，并刷新 `sprix-agent` 查询缓存。
 - 绑定提现账户、提现、申诉调用 `../services/sprixApi` 中的真实 service adapter。
 
-## Demo / 占位
+## 暂未完整接入
 
 - PC 页面不调用 `confirmWechatScanSession`，因为扫码确认应由微信侧或移动端拿到 code 后完成。
 - 协议正文是简版展示文案，不是完整法务协议。

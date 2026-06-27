@@ -99,7 +99,7 @@ function UserTopBar({
                       await logoutConsumer();
                       logout();
                       await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
-                      navigate("/agent/market");
+                      navigate("/");
                       message.success("已退出登录");
                     } catch (error) {
                       message.error(error instanceof Error ? `退出失败：${error.message}` : "退出失败");

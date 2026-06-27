@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { LoginRegisterModal } from "./GlobalModals";
+import { AgreementModal, AppealModal, ContactModal, LoginRegisterModal } from "./GlobalModals";
 
 const { serviceMocks } = vi.hoisted(() => ({
   serviceMocks: {
@@ -114,7 +114,38 @@ describe("LoginRegisterModal", () => {
   });
 });
 
+describe("AgreementModal", () => {
+  it("marks the displayed agreement copy as pending the formal legal text", () => {
+    render(<AgreementModal open onClose={vi.fn()} />);
+
+    expect(screen.getByText("正式协议全文待接入")).toBeInTheDocument();
+    expect(screen.getByText("当前仅展示产品流程摘要，正式用户协议、隐私协议和自由职业者服务框架协议全文待法务/后端配置后接入。")).toBeInTheDocument();
+  });
+});
+
+describe("ContactModal", () => {
+  it("marks customer service contact information as pending configuration", () => {
+    render(<ContactModal open onClose={vi.fn()} />);
+
+    expect(screen.getByText("客服联系信息待配置")).toBeInTheDocument();
+    expect(screen.queryByText("400-800-1024")).not.toBeInTheDocument();
+  });
+});
+
+describe("AppealModal", () => {
+  it("does not promise a fixed appeal processing SLA without backend data", () => {
+    renderWithQueryClient(<AppealModal open executionId="execution-1" onClose={vi.fn()} />);
+
+    expect(screen.queryByText(/1-3 个工作日/)).not.toBeInTheDocument();
+    expect(screen.getByText(/平台将按后端返回的申诉状态和处理时限更新进度/)).toBeInTheDocument();
+  });
+});
+
 function renderLoginModal() {
+  return renderWithQueryClient(<LoginRegisterModal open onClose={vi.fn()} />);
+}
+
+function renderWithQueryClient(children: React.ReactElement) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -124,7 +155,7 @@ function renderLoginModal() {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <LoginRegisterModal open onClose={vi.fn()} />
+      {children}
     </QueryClientProvider>
   );
 }

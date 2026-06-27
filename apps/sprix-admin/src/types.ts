@@ -1,5 +1,5 @@
 export type TaskStatus = "已发布" | "已下线" | "已删除";
-export type OfflineReason = "手动下线" | "名额已满" | "";
+export type OfflineReason = string;
 export type AgentStatus = "可连接" | "已连接" | "已断开";
 export type AgentRole = "当前执行 Agent" | "已连接 Agent" | "曾连接 Agent" | "待连接";
 export type MyTaskStatus = "执行中" | "已终止" | "验收未通过" | "结算中" | "已结算";
@@ -153,6 +153,15 @@ export type AdminExecutionRecords = Record<
     completed: CompletedExecution[];
   }
 >;
+
+export type AdminOperationLog = {
+  id: string;
+  action: string;
+  beforeStatus: string;
+  afterStatus: string;
+  reason: string;
+  occurredAt: string;
+};
 
 export type AdminAppeal = {
   backendId?: string;

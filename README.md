@@ -1,6 +1,6 @@
 # Sprix AI Workspace
 
-Sprix AI 是一个前端本地状态驱动的 Web 端 Agent 任务执行与管理平台 Demo。项目使用 pnpm workspace 管理两个独立 Vite app：
+Sprix AI 是一个接真实后端接口的 Web 端 Agent 任务执行与管理平台。项目使用 pnpm workspace 管理两个独立 Vite app：
 
 - `apps/sprix-agent`：C 端 Agent 任务平台。
 - `apps/sprix-admin`：管理后台平台，独立于 C 端 app 运行。
@@ -86,13 +86,15 @@ SPRIX_PORTAL_API_BASE_URL=/sprix-api
 VITE_LOCAL_AGENT_CLAIM_BASE_URL=http://42.194.150.73:8084
 ```
 
-`VITE_LOCAL_AGENT_CLAIM_BASE_URL` 用于从前端 `/local-agent/claim` 跳转到后端完成设备绑定；不配置时，生产环境默认使用当前前端域名并切换到 `8084` 端口。
+`VITE_LOCAL_AGENT_CLAIM_BASE_URL` 用于从前端 `/local-agent/claim` 跳转到后端完成设备绑定；不配置时，生产环境默认跳转到 `http://42.194.150.73:8084`，避免回到 8081 前端 SPA。
 
 ## 已实现页面
 
 C 端用户站点：
 
-- 任务市场 `/`
+- 入口页 `/`
+- Local Agent 绑定桥接页 `/local-agent/claim`
+- 任务市场 `/agent/market`
 - 任务详情 `/agent/task/:id`
 - Agent 中心 `/agent/center`
 - 我的任务 `/agent/my-tasks`
@@ -103,18 +105,27 @@ C 端用户站点：
 
 管理后台：
 
-- 任务管理中心 `/`
+- 任务管理中心 `/tasks`
 - 发布任务 `/tasks/new`
 - 任务详情 `/tasks/:id`
+- 编辑任务 `/tasks/:id/edit`
 - 申诉处理中心 `/appeals`
 - 申诉详情 `/appeals/:id`
 - 资金管理中心 `/funds`
 
-## 数据与后端替换点
+## 数据与后端接口口径
 
-当前所有业务数据由各 app 内的 `src/data/mock.ts` 和 `src/store/domain.ts` 本地模拟，并通过 Zustand persist 保存关键状态。接入真实后端时，优先替换：
+当前业务数据通过各 app 的 `src/services/sprixApi.ts` service adapter 接入真实后端，并通过 TanStack Query 刷新远端快照；前端不再维护 `src/data/mock.ts` 本地业务数据源，也不通过本地状态模拟写操作成功。
 
-- `src/data/mock.ts` 的初始数据来源
-- `src/store/domain.ts` 中的状态变更为 API mutation
-- C 端任务、Agent、申诉、提现流程的 query/mutation
-- 管理后台任务、申诉、资金列表与操作接口
+后端尚未提供的能力，前端保持空状态、禁用动作或“待接口接入”提示，不写 mock 数据：
+
+- 智能接单状态机、阈值、命中任务和自动接单结果。
+- 推荐/匹配能力和预计 Token 字段。
+- C 端/后台 execution 完整详情、日志、交付文件、验收报告和结算明细。
+- 后台任务发布、编辑、下线、重新发布、删除等写接口。
+- 正式管理员登录接口，目前后台登录页已标记 `/api/v1/auth/mock-admin-login` 待替换。
+
+详见：
+
+- `docs/产品交互功能差异清单.md`
+- `docs/产品交互功能实现进度.md`

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button, Checkbox, Form, Input, InputNumber, Modal, QRCode, Tabs, message } from "antd";
 import { useSprixStore } from "../store/sprixStore";
+import { getWithdrawalAccountBindMessage, getWithdrawalRealNameMatchText } from "../user/withdrawalAccountView";
 import { ActionButton, SecondaryButton, StatusTag } from "./Primitives";
 import {
   applyRemoteWithdrawal,
@@ -15,6 +16,8 @@ import {
   type WechatLoginSession
 } from "../services/sprixApi";
 import { currency } from "../utils/format";
+import { getAccountEditActions, getAccountProfileRows } from "../user/accountView";
+import { getWithdrawalAccountAction } from "../user/earningsView";
 
 type ModalState = {
   login: boolean;
@@ -278,6 +281,10 @@ export function AgreementModal({ open, onClose }: { open: boolean; onClose: () =
   return (
     <Modal title="相关协议" open={open} onCancel={onClose} footer={<ActionButton onClick={onClose}>我知道了</ActionButton>}>
       <div className="space-y-4 text-sm leading-7 text-ink-soft">
+        <section className="rounded-2xl bg-[#fff7e8] px-4 py-3">
+          <h3 className="font-semibold text-ink">正式协议全文待接入</h3>
+          <p>当前仅展示产品流程摘要，正式用户协议、隐私协议和自由职业者服务框架协议全文待法务/后端配置后接入。</p>
+        </section>
         <section>
           <h3 className="font-semibold text-ink">《用户协议》</h3>
           <p>用户应遵守平台任务规则，按页面提示完成接单、交付、申诉和账户管理。</p>
@@ -299,12 +306,10 @@ export function ContactModal({ open, onClose }: { open: boolean; onClose: () => 
   return (
     <Modal title="联系我们" open={open} onCancel={onClose} footer={<ActionButton onClick={onClose}>我知道了</ActionButton>}>
       <div className="space-y-3 text-sm text-ink-soft">
-        <p>
-          <span className="font-semibold text-ink">客服电话：</span>400-800-1024
-        </p>
-        <p>
-          <span className="font-semibold text-ink">服务时间：</span>工作日 10:00 - 19:00
-        </p>
+        <section className="rounded-2xl bg-[#fafafa] px-4 py-3">
+          <h3 className="font-semibold text-ink">客服联系信息待配置</h3>
+          <p className="mt-1">客服渠道、服务时间和问题分类待运营配置或后端接口返回后展示。</p>
+        </section>
         <p>如遇接单资格、任务执行、申诉或提现相关问题，可联系客服协助处理。</p>
       </div>
     </Modal>
@@ -321,25 +326,40 @@ export function AccountModal({
   onBindAlipay: () => void;
 }) {
   const account = useSprixStore((state) => state.account);
+  const profileRows = getAccountProfileRows(account);
+  const editActions = getAccountEditActions();
+  const withdrawalAction = getWithdrawalAccountAction(account);
   return (
     <Modal title="账户信息" open={open} onCancel={onClose} footer={<ActionButton onClick={onClose}>关闭</ActionButton>}>
       <div className="grid gap-3 text-sm">
-        <InfoRow label="昵称" value={account.nickname} />
-        <InfoRow label="邮箱" value={account.email} />
-        <InfoRow label="绑定手机号" value={account.maskedPhone} />
-        <InfoRow label="接单资格" value={<StatusTag status={account.qualificationStatus} />} />
+        {profileRows.map((row) => (
+          <InfoRow key={row.label} label={row.label} value={row.label === "接单资格" ? <StatusTag status={row.value} /> : row.value} />
+        ))}
         <InfoRow
           label="提现账户"
           value={
             account.alipayBound ? (
-              <span>{account.alipayAccountMasked} · 已通过</span>
+              <span>{account.alipayAccountMasked} · {withdrawalAction.label}</span>
             ) : (
               <SecondaryButton size="small" onClick={onBindAlipay}>
-                绑定
+                {withdrawalAction.label}
               </SecondaryButton>
             )
           }
         />
+        <div className="mt-2 grid gap-2 rounded-2xl bg-[#fafafa] p-3">
+          {editActions.map((action) => (
+            <div key={action.label} className="flex flex-col gap-2 rounded-2xl border border-line bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="font-medium text-ink">{action.label}</div>
+                <div className="mt-1 text-xs text-ink-soft">{action.reason}</div>
+              </div>
+              <SecondaryButton size="small" disabled={action.disabled}>
+                待接口接入
+              </SecondaryButton>
+            </div>
+          ))}
+        </div>
       </div>
     </Modal>
   );
@@ -372,10 +392,11 @@ export function BindAlipayModal({
       <Form
         layout="vertical"
         onFinish={async (values) => {
-          const account = values.account || "xia***@alipay.com";
+          const account = values.account || "";
+          const verifiedName = values.verifiedName || "";
           setSubmitting(true);
           try {
-            const withdrawalAccount = await bindRemoteWithdrawalAccount(account);
+            const withdrawalAccount = await bindRemoteWithdrawalAccount(account, verifiedName);
             mergeRemoteState({
               account: {
                 alipayBound: true,
@@ -385,7 +406,7 @@ export function BindAlipayModal({
               }
             });
             await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
-            message.success("支付宝账户绑定成功，实名一致性已通过");
+            message.success(getWithdrawalAccountBindMessage(withdrawalAccount));
             onClose();
             afterBind?.();
           } catch (error) {
@@ -397,6 +418,9 @@ export function BindAlipayModal({
       >
         <Form.Item label="支付宝账号" name="account" rules={[{ required: true, message: "请输入支付宝账户" }]}>
           <Input placeholder="请输入支付宝账户" />
+        </Form.Item>
+        <Form.Item label="认证姓名" name="verifiedName" rules={[{ required: true, message: "请输入实人认证姓名" }]}>
+          <Input placeholder="请输入与实人认证一致的姓名" />
         </Form.Item>
         <div className="mb-4 rounded-2xl bg-[#e7f7f2] px-4 py-3 text-sm text-accent">真实姓名将与接单实人认证主体一致性校验。</div>
         <ActionButton htmlType="submit" block loading={submitting}>
@@ -418,9 +442,9 @@ export function WithdrawRequestModal({ open, onClose }: { open: boolean; onClose
     <Modal title="提交提现申请" open={open} onCancel={onClose} footer={null}>
       <div className="mb-5 space-y-3 rounded-[22px] bg-[#fafafa] p-4 text-sm">
         <InfoRow label="可提现金额" value={currency(account.withdrawableAmount)} />
-        <InfoRow label="收款账户" value={`支付宝账户 ${account.alipayAccountMasked || "xia***@alipay.com"}`} />
-        <InfoRow label="实名一致性" value="已通过" />
-        <InfoRow label="预计到账时间" value="1-3 个工作日" />
+        <InfoRow label="收款账户" value={account.alipayAccountMasked ? `支付宝账户 ${account.alipayAccountMasked}` : "未绑定"} />
+        <InfoRow label="实名一致性" value={getWithdrawalRealNameMatchText(account)} />
+        <InfoRow label="预计到账时间" value="提交后以后端返回为准" />
       </div>
       <Form
         layout="vertical"
@@ -442,7 +466,7 @@ export function WithdrawRequestModal({ open, onClose }: { open: boolean; onClose
               account: { withdrawableAmount: Math.max(0, account.withdrawableAmount - value) }
             });
             await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
-            message.success("提现申请已提交，预计 1-3 个工作日内到账");
+            message.success("提现申请已提交，预计到账时间以后端返回为准");
             onClose();
           } catch (error) {
             message.error(error instanceof Error ? `提现申请失败：${error.message}` : "提现申请失败");
@@ -455,7 +479,7 @@ export function WithdrawRequestModal({ open, onClose }: { open: boolean; onClose
           <InputNumber value={amount} min={1} max={account.withdrawableAmount} onChange={setAmount} className="w-full" />
         </Form.Item>
         <p className="mb-5 text-sm leading-7 text-ink-soft">
-          提交后，平台将在 1-3 个工作日内完成审核与打款处理。资金将打款至你已绑定的本人支付宝账户。
+          提交后，平台会按后端返回的审核与打款进度更新状态。资金将打款至你已绑定的本人支付宝账户。
         </p>
         <div className="flex gap-2">
           <ActionButton htmlType="submit" loading={submitting}>提交提现申请</ActionButton>
@@ -479,7 +503,7 @@ export function AppealModal({
   const [submitting, setSubmitting] = useState(false);
   return (
     <Modal title="提交申诉" open={open} onCancel={onClose} footer={null}>
-      <p className="mb-5 text-sm leading-7 text-ink-soft">如你认为本次验收结果存在误判，可提交申诉。平台将在 1-3 个工作日内返回处理结果。</p>
+      <p className="mb-5 text-sm leading-7 text-ink-soft">如你认为本次验收结果存在误判，可提交申诉。平台将按后端返回的申诉状态和处理时限更新进度。</p>
       <Form
         layout="vertical"
         onFinish={async (values) => {
@@ -488,7 +512,7 @@ export function AppealModal({
           try {
             await submitRemoteAppeal(executionId, values.reason);
             await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
-            message.success("申诉已提交，平台将在 1-3 个工作日内返回处理结果");
+            message.success("申诉已提交，处理进度以后端返回状态为准");
             onClose();
           } catch (error) {
             message.error(error instanceof Error ? `申诉提交失败：${error.message}` : "申诉提交失败");

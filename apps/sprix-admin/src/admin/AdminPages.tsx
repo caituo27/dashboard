@@ -5,36 +5,36 @@ import type { ColumnsType } from "antd/es/table";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { CircleDollarSign, ClipboardList, ShieldCheck } from "lucide-react";
-import type { AdminAppeal, CompletedExecution, FundException, Payout, RunningExecution, Task, TerminatedExecution, Withdrawal } from "../types";
+import type { AdminAppeal, AdminOperationLog, CompletedExecution, FundException, Payout, RunningExecution, Task, TerminatedExecution, Withdrawal } from "../types";
 import {
   approveRemoteAppeal,
   approveRemoteWithdrawal,
-  approveRemoteWithdrawals,
-  createRemoteTask,
-  deleteRemoteTask,
-  exportRemotePendingPayouts,
   markRemotePayoutExceptionHandled,
   markRemoteWithdrawalPaid,
   markRemoteWithdrawalPayoutFailed,
-  markRemoteWithdrawalsPaid,
-  markRemoteWithdrawalsPayoutFailed,
-  offlineRemoteTask,
   readRemoteAppeals,
   readRemoteAppealDetail,
   readRemoteFunds,
   readRemoteTaskCenterSnapshot,
   readRemoteTaskDetail,
-  rejectRemoteWithdrawals,
-  republishRemoteTask,
   rejectRemoteAppeal,
   rejectRemoteWithdrawal,
   returnRemoteWithdrawalForReview,
   startRemoteAppeal,
-  updateRemoteTask,
   type UpsertAdminTaskPayload
 } from "../services/sprixApi";
 import { ActionButton, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface, primitiveIcons } from "../components/Primitives";
 import { currency } from "../utils/format";
+import { getAdminExecutionRecordActions, type AdminExecutionRecordAction } from "./adminExecutionView";
+import {
+  getAdminPayoutBatchActions,
+  getAdminPayoutExportAction,
+  getAdminSettlementDetailAction,
+  getAdminWithdrawalBatchActions,
+  type AdminPendingFundAction
+} from "./adminFundView";
+import { getAdminTaskWriteAction, type AdminTaskWriteAction } from "./adminTaskActions";
+import { getAdminEstimatedTokenField } from "./tokenEstimateView";
 
 function getAppealBackendId(record: AdminAppeal) {
   return record.backendId ?? record.appealNo;
@@ -50,7 +50,6 @@ function getFundExceptionBackendId(record: Pick<FundException, "backendId" | "wi
 
 export function AdminTaskCenter() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const taskCenterQuery = useQuery({
     queryKey: ["sprix-admin", "task-center"],
     queryFn: readRemoteTaskCenterSnapshot,
@@ -73,50 +72,6 @@ export function AdminTaskCenter() {
     return `${task.title}${task.category}${task.sourceType}`.includes(query);
   });
   const executionCount = tasks.reduce((sum, task) => sum + (task.executionTotal ?? 0), 0);
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-
-  const confirmOffline = (task: Task) => {
-    Modal.confirm({
-      title: "下线任务",
-      content: "下线后，该任务将不再展示在任务市场，已接单和正在执行中的记录不受影响。",
-      okText: "确认下线",
-      cancelText: "取消",
-      onOk: async () => {
-        await offlineRemoteTask(task.id, "下线");
-        await refresh();
-        message.success("任务已下线");
-      }
-    });
-  };
-
-  const confirmRepublish = (task: Task) => {
-    Modal.confirm({
-      title: "重新发布任务",
-      content: "确认重新发布后，该任务将在任务市场重新展示。",
-      okText: "确认发布",
-      cancelText: "取消",
-      onOk: async () => {
-        await republishRemoteTask(task.id);
-        await refresh();
-        message.success("任务已重新发布");
-      }
-    });
-  };
-
-  const confirmDelete = (task: Task) => {
-    Modal.confirm({
-      title: "删除任务",
-      content: "删除后，该任务将不再展示在任务列表默认视图中，历史执行、申诉和资金记录会继续保留。",
-      okText: "确认删除",
-      cancelText: "取消",
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        await deleteRemoteTask(task.id, "后台删除任务");
-        await refresh();
-        message.success("任务已删除");
-      }
-    });
-  };
   const taskColumns: ColumnsType<Task> = [
     {
       title: "任务",
@@ -154,28 +109,16 @@ export function AdminTaskCenter() {
       width: 230,
       render: (_, task) => (
         <div className="flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
-          <SecondaryButton size="small" onClick={() => navigate(`/tasks/${task.id}/edit`)}>
-            编辑
-          </SecondaryButton>
+          <PendingTaskWriteButton action={getAdminTaskWriteAction("edit")} />
           {task.taskStatus === "已发布" ? (
             <>
-              <SecondaryButton size="small" onClick={() => confirmOffline(task)}>
-                下线
-              </SecondaryButton>
-              <SecondaryButton size="small" danger onClick={() => confirmDelete(task)}>
-                删除
-              </SecondaryButton>
+              <PendingTaskWriteButton action={getAdminTaskWriteAction("offline")} />
+              <PendingTaskWriteButton action={getAdminTaskWriteAction("delete")} />
             </>
           ) : (
             <>
-              <Tooltip title={task.offlineReason === "名额已满" ? "该任务名额已满，无法重新发布。" : ""}>
-                <Button size="small" disabled={task.offlineReason === "名额已满"} onClick={() => confirmRepublish(task)}>
-                  重新发布
-                </Button>
-              </Tooltip>
-              <SecondaryButton size="small" danger onClick={() => confirmDelete(task)}>
-                删除
-              </SecondaryButton>
+              <PendingTaskWriteButton action={getAdminTaskWriteAction("republish")} />
+              <PendingTaskWriteButton action={getAdminTaskWriteAction("delete")} />
             </>
           )}
         </div>
@@ -189,7 +132,7 @@ export function AdminTaskCenter() {
         eyebrow="Sprix 管理后台"
         title="任务管理中心"
         subtitle="集中查看任务发布状态、执行记录、申诉数量和任务操作。"
-        actions={<ActionButton href="/tasks/new">发布新任务</ActionButton>}
+        actions={<PendingTaskWriteButton action={getAdminTaskWriteAction("publish")} primary />}
       />
       <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <MetricCard title="全部任务" value={tasks.filter((task) => task.taskStatus !== "已删除").length} icon={<ClipboardList size={19} />} />
@@ -221,10 +164,20 @@ export function AdminTaskCenter() {
   );
 }
 
+function PendingTaskWriteButton({ action, primary = false }: { action: AdminTaskWriteAction; primary?: boolean }) {
+  const ButtonComponent = primary ? ActionButton : SecondaryButton;
+  return (
+    <Tooltip title={action.reason}>
+      <ButtonComponent size={primary ? undefined : "small"} danger={action.danger} disabled={action.disabled}>
+        {action.label}
+      </ButtonComponent>
+    </Tooltip>
+  );
+}
+
 export function AdminTaskForm() {
   const navigate = useNavigate();
   const { id: editTaskId } = useParams();
-  const queryClient = useQueryClient();
   const [form] = Form.useForm<UpsertAdminTaskPayload>();
   const editTaskQuery = useQuery({
     queryKey: ["sprix-admin", "task-detail", editTaskId],
@@ -234,6 +187,7 @@ export function AdminTaskForm() {
   });
   const editTask = editTaskQuery.data?.task;
   const isEdit = Boolean(editTaskId);
+  const estimatedToken = getAdminEstimatedTokenField();
 
   const initialValues: Partial<UpsertAdminTaskPayload> | undefined = editTask
     ? {
@@ -246,7 +200,7 @@ export function AdminTaskForm() {
         reward: editTask.reward,
         totalSlots: editTask.totalSlots
       }
-    : { sourceType: "平台任务" };
+    : undefined;
 
   useEffect(() => {
     if (!editTask) return;
@@ -262,23 +216,7 @@ export function AdminTaskForm() {
     });
   }, [editTask, form]);
 
-  const submitTask = async (values: UpsertAdminTaskPayload) => {
-    const payload = {
-      ...values,
-      sourceType: values.sourceType === "平台任务" ? "PLATFORM" : values.sourceType || "PLATFORM",
-      reward: Number(values.reward),
-      totalSlots: Number(values.totalSlots)
-    };
-    if (isEdit && editTaskId) {
-      await updateRemoteTask(editTaskId, payload);
-      message.success("任务已更新");
-    } else {
-      await createRemoteTask(payload);
-      message.success("任务发布成功");
-    }
-    await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-    navigate("/tasks");
-  };
+  const writeAction = getAdminTaskWriteAction(isEdit ? "edit" : "publish");
 
   if (editTaskId && editTaskQuery.isLoading) return <Surface className="p-8">任务详情加载中</Surface>;
   if (editTaskQuery.isError) {
@@ -295,15 +233,7 @@ export function AdminTaskForm() {
           form={form}
           layout="vertical"
           initialValues={initialValues}
-          onFinish={(values) => {
-            Modal.confirm({
-              title: isEdit ? "确认保存修改" : "确认发布任务",
-              content: isEdit ? "保存后，C 端会同步展示最新任务信息。" : "确认发布后，该任务将在任务市场展示，用户可查看任务详情并接单。",
-              okText: isEdit ? "确认保存" : "确认发布",
-              cancelText: "取消",
-              onOk: () => submitTask(values as UpsertAdminTaskPayload)
-            });
-          }}
+          onFinish={() => message.warning(writeAction.reason)}
         >
           <div className="grid gap-4 lg:grid-cols-3">
             <Form.Item label="任务名称" name="title" rules={[{ required: true, message: "请输入任务名称" }]}>
@@ -335,8 +265,15 @@ export function AdminTaskForm() {
               <InputNumber min={1} className="w-full" />
             </Form.Item>
           </div>
+          <div className="mb-4 rounded-2xl bg-[#fafafa] p-4 text-sm leading-7 text-ink-soft">
+            <b className="mr-2 text-ink">{estimatedToken.label}：</b>
+            <span>{estimatedToken.value}</span>
+            <p className="mt-1">{estimatedToken.helper}</p>
+          </div>
           <div className="flex gap-2">
-            <ActionButton htmlType="submit">{isEdit ? "保存修改" : "发布任务"}</ActionButton>
+            <Tooltip title={writeAction.reason}>
+              <ActionButton htmlType="submit" disabled={writeAction.disabled}>{writeAction.label}</ActionButton>
+            </Tooltip>
             <SecondaryButton
               onClick={() =>
                 Modal.confirm({
@@ -372,6 +309,7 @@ export function AdminTaskDetail() {
   }
   const task = taskDetailQuery.data?.task;
   const records = taskDetailQuery.data?.records;
+  const operationLogs = taskDetailQuery.data?.operationLogs ?? [];
   if (!task) return <Surface className="p-8">任务不存在</Surface>;
   return (
     <>
@@ -396,6 +334,7 @@ export function AdminTaskDetail() {
         <DetailBlock title="验收标准" body={task.acceptanceCriteria} />
       </div>
       <AdminExecutionRecords records={records} />
+      <AdminOperationLogs logs={operationLogs} />
       <Surface className="mt-4 p-4">
         <h3 className="sprix-section-title">结果与结算概览</h3>
         <div className="mt-3 grid gap-3 md:grid-cols-4">
@@ -413,6 +352,30 @@ export function AdminTaskDetail() {
         </div>
       </Surface>
     </>
+  );
+}
+
+function AdminOperationLogs({ logs }: { logs: AdminOperationLog[] }) {
+  return (
+    <Surface className="sprix-table-card mt-4 p-4">
+      <h3 className="sprix-section-title">操作记录</h3>
+      <p className="mt-1 text-sm text-ink-soft">展示后端返回的任务创建、编辑、上下线、删除等操作追溯记录。</p>
+      <Table
+        className="mt-4"
+        rowKey="id"
+        dataSource={logs}
+        pagination={false}
+        locale={{ emptyText: "暂无操作记录" }}
+        scroll={{ x: 860 }}
+        columns={[
+          { title: "操作", dataIndex: "action" },
+          { title: "变更前", dataIndex: "beforeStatus" },
+          { title: "变更后", dataIndex: "afterStatus" },
+          { title: "原因/备注", dataIndex: "reason" },
+          { title: "时间", dataIndex: "occurredAt" }
+        ]}
+      />
+    </Surface>
   );
 }
 
@@ -458,7 +421,7 @@ function AdminExecutionRecords({
     { title: "当前节点", dataIndex: "currentNode" },
     { title: "当前进度", dataIndex: "progress" },
     { title: "开始时间", dataIndex: "startedAt" },
-    { title: "操作", render: () => <Button type="link">查看执行详情</Button> }
+    { title: "操作", render: () => <PendingAdminActionButtons actions={getAdminExecutionRecordActions("running")} /> }
   ];
   const terminatedColumns: ColumnsType<TerminatedExecution> = [
     { title: "第几次执行", dataIndex: "executionIndex", render: (value) => (value ? `第 ${value} 次` : "-") },
@@ -469,7 +432,7 @@ function AdminExecutionRecords({
     { title: "终止原因", dataIndex: "terminationReason" },
     { title: "终止节点", dataIndex: "terminatedNode" },
     { title: "终止时间", dataIndex: "terminatedAt" },
-    { title: "操作", render: () => <Button type="link">查看执行记录</Button> }
+    { title: "操作", render: () => <PendingAdminActionButtons actions={getAdminExecutionRecordActions("terminated")} /> }
   ];
   const completedColumns: ColumnsType<CompletedExecution> = [
     { title: "第几次执行", dataIndex: "executionIndex", render: (value) => (value ? `第 ${value} 次` : "-") },
@@ -484,14 +447,7 @@ function AdminExecutionRecords({
     { title: "完成时间", dataIndex: "completedAt" },
     {
       title: "操作",
-      render: (_, record) => (
-        <div className="flex flex-wrap gap-1">
-          <Button type="link">查看结果</Button>
-          <Button type="link">查看验收详情</Button>
-          {record.appealStatus !== "无申诉" && <Button type="link">查看申诉</Button>}
-          {["结算中", "已入账"].includes(record.settlementStatus) && <Button type="link">查看结算</Button>}
-        </div>
-      )
+      render: (_, record) => <PendingAdminActionButtons actions={getAdminExecutionRecordActions("completed", record)} />
     }
   ];
   return (
@@ -524,6 +480,20 @@ function AdminExecutionRecords({
         ]}
       />
     </Surface>
+  );
+}
+
+function PendingAdminActionButtons({ actions }: { actions: AdminExecutionRecordAction[] }) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {actions.map((action) => (
+        <Tooltip key={action.label} title={action.reason}>
+          <Button type="link" disabled>
+            {action.label}
+          </Button>
+        </Tooltip>
+      ))}
+    </div>
   );
 }
 
@@ -759,18 +729,6 @@ export function AdminFundCenter() {
       message.error(error instanceof Error ? `提现驳回失败：${error.message}` : "提现驳回失败");
     }
   };
-  const approveWithdrawalBatch = async (records: Withdrawal[]) => {
-    await approveRemoteWithdrawals(records.map(getWithdrawalBackendId));
-    await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-    message.success("已批量通过提现审核");
-  };
-  const rejectWithdrawalBatch = async (records: Withdrawal[]) => {
-    const reason = await promptReason("批量驳回提现", "请填写驳回原因");
-    if (!reason) return;
-    await rejectRemoteWithdrawals(records.map(getWithdrawalBackendId), reason);
-    await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-    message.success("已批量驳回提现申请");
-  };
   const markPayoutPaid = async (record: Payout) => {
     try {
       await markRemoteWithdrawalPaid(getWithdrawalBackendId(record));
@@ -797,30 +755,6 @@ export function AdminFundCenter() {
     } catch (error) {
       message.error(error instanceof Error ? `打款失败标记提交失败：${error.message}` : "打款失败标记提交失败");
     }
-  };
-  const exportPayouts = async () => {
-    const records = await exportRemotePendingPayouts();
-    const lines = ["提现单号,用户,支付宝账户,打款金额,预计到账时间", ...records.map((item) => [item.withdrawalNo, item.userName, item.alipayAccount, item.applyAmount, item.estimatedArrivalTime].join(","))];
-    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "sprix-pending-payouts.csv";
-    link.click();
-    URL.revokeObjectURL(url);
-    message.success("打款清单已生成");
-  };
-  const markPayoutsPaid = async (records: Payout[]) => {
-    await markRemoteWithdrawalsPaid(records.map(getWithdrawalBackendId));
-    await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-    message.success("已批量标记为已打款");
-  };
-  const markPayoutsFailed = async (records: Payout[]) => {
-    const reason = await promptReason("批量标记打款失败", "请填写打款失败原因");
-    if (!reason) return;
-    await markRemoteWithdrawalsPayoutFailed(records.map(getWithdrawalBackendId), reason);
-    await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-    message.success("已批量标记为打款失败");
   };
   const markExceptionHandled = async (record: FundException) => {
     try {
@@ -862,7 +796,7 @@ export function AdminFundCenter() {
                     { title: "结算状态", dataIndex: "settlementStatus", render: (value) => <StatusTag status={value} /> },
                     { title: "生成时间", dataIndex: "createdAt" },
                     { title: "入账时间", dataIndex: "paidAt" },
-                    { title: "操作", render: () => <Button type="link">查看详情</Button> }
+                    { title: "操作", render: () => <PendingFundActionButton action={getAdminSettlementDetailAction()} /> }
                   ]}
                 />
               )
@@ -870,12 +804,12 @@ export function AdminFundCenter() {
             {
               key: "withdrawals",
               label: "提现审核",
-              children: <WithdrawalTable data={withdrawals} onApproveWithdrawal={approveWithdrawal} onRejectWithdrawal={rejectWithdrawal} onApproveBatch={approveWithdrawalBatch} onRejectBatch={rejectWithdrawalBatch} />
+              children: <WithdrawalTable data={withdrawals} onApproveWithdrawal={approveWithdrawal} onRejectWithdrawal={rejectWithdrawal} />
             },
             {
               key: "payouts",
               label: "待打款",
-              children: <PendingPayoutTable data={payouts} onMarkPaid={markPayoutPaid} onReturnReview={returnPayoutForReview} onMarkFailed={markPayoutFailed} onExport={exportPayouts} onBulkPaid={markPayoutsPaid} onBulkFailed={markPayoutsFailed} />
+              children: <PendingPayoutTable data={payouts} onMarkPaid={markPayoutPaid} onReturnReview={returnPayoutForReview} onMarkFailed={markPayoutFailed} />
             },
             {
               key: "exceptions",
@@ -938,31 +872,34 @@ export function AdminFundCenter() {
   );
 }
 
+function PendingFundActionButton({ action }: { action: AdminPendingFundAction }) {
+  return (
+    <Tooltip title={action.reason}>
+      <Button type="link" disabled>
+        {action.label}
+      </Button>
+    </Tooltip>
+  );
+}
+
 function WithdrawalTable({
   data,
   onApproveWithdrawal,
-  onRejectWithdrawal,
-  onApproveBatch,
-  onRejectBatch
+  onRejectWithdrawal
 }: {
   data: Withdrawal[];
   onApproveWithdrawal: (withdrawal: Withdrawal) => Promise<void>;
   onRejectWithdrawal: (withdrawal: Withdrawal) => Promise<void>;
-  onApproveBatch: (withdrawals: Withdrawal[]) => Promise<void>;
-  onRejectBatch: (withdrawals: Withdrawal[]) => Promise<void>;
 }) {
   const [selectedKeys, setSelectedKeys] = useState<Key[]>([]);
   const selectedRecords = data.filter((item) => selectedKeys.includes(item.withdrawalNo));
-  const clear = () => setSelectedKeys([]);
+  const batchActions = getAdminWithdrawalBatchActions();
   return (
     <>
       {selectedRecords.length > 0 && (
         <BatchActionBar
           label={`已选择 ${selectedRecords.length} 条提现申请`}
-          actions={[
-            { label: "批量通过审核", onClick: async () => { await onApproveBatch(selectedRecords); clear(); } },
-            { label: "批量驳回提现", danger: true, onClick: async () => { await onRejectBatch(selectedRecords); clear(); } }
-          ]}
+          actions={batchActions}
         />
       )}
       <Table
@@ -1005,34 +942,27 @@ function PendingPayoutTable({
   data,
   onMarkPaid,
   onReturnReview,
-  onMarkFailed,
-  onExport,
-  onBulkPaid,
-  onBulkFailed
+  onMarkFailed
 }: {
   data: Payout[];
   onMarkPaid: (payout: Payout) => Promise<void>;
   onReturnReview: (payout: Payout) => Promise<void>;
   onMarkFailed: (payout: Payout) => Promise<void>;
-  onExport: () => Promise<void>;
-  onBulkPaid: (payouts: Payout[]) => Promise<void>;
-  onBulkFailed: (payouts: Payout[]) => Promise<void>;
 }) {
   const [selectedKeys, setSelectedKeys] = useState<Key[]>([]);
   const selectedRecords = data.filter((item) => selectedKeys.includes(item.withdrawalNo));
-  const clear = () => setSelectedKeys([]);
+  const exportAction = getAdminPayoutExportAction();
+  const batchActions = getAdminPayoutBatchActions();
   return (
     <>
-      <div className="mb-3 flex justify-end">
-        <SecondaryButton onClick={onExport}>导出打款清单</SecondaryButton>
+      <div className="mb-3 flex flex-col items-end gap-2">
+        <SecondaryButton disabled={exportAction.disabled}>{exportAction.label}</SecondaryButton>
+        <span className="text-xs text-ink-soft">{exportAction.reason}</span>
       </div>
       {selectedRecords.length > 0 && (
         <BatchActionBar
           label={`已选择 ${selectedRecords.length} 条待打款记录`}
-          actions={[
-            { label: "批量标记已打款", onClick: async () => { await onBulkPaid(selectedRecords); clear(); } },
-            { label: "批量标记打款失败", danger: true, onClick: async () => { await onBulkFailed(selectedRecords); clear(); } }
-          ]}
+          actions={batchActions}
         />
       )}
       <Table
@@ -1071,38 +1001,20 @@ function BatchActionBar({
   actions
 }: {
   label: string;
-  actions: Array<{ label: string; danger?: boolean; onClick: () => Promise<void> }>;
+  actions: Array<{ label: string; danger?: boolean; disabled?: boolean; reason?: string; onClick?: () => Promise<void> }>;
 }) {
   return (
     <div className="mb-3 flex flex-col gap-2 rounded-lg border border-line bg-[#fafafa] px-3 py-2 lg:flex-row lg:items-center lg:justify-between">
       <span className="text-sm font-medium text-ink">{label}</span>
       <div className="flex flex-wrap gap-2">
         {actions.map((action) => (
-          <Button key={action.label} danger={action.danger} onClick={action.onClick}>
-            {action.label}
-          </Button>
+          <Tooltip key={action.label} title={action.reason}>
+            <Button danger={action.danger} disabled={action.disabled} onClick={action.onClick}>
+              {action.label}
+            </Button>
+          </Tooltip>
         ))}
       </div>
     </div>
   );
-}
-
-function promptReason(title: string, placeholder: string) {
-  return new Promise<string>((resolve) => {
-    let value = "";
-    Modal.confirm({
-      title,
-      content: <Input.TextArea rows={4} placeholder={placeholder} onChange={(event) => { value = event.target.value; }} />,
-      okText: "确认",
-      cancelText: "取消",
-      onOk: () => {
-        if (!value.trim()) {
-          message.warning(placeholder);
-          return Promise.reject();
-        }
-        resolve(value.trim());
-      },
-      onCancel: () => resolve("")
-    });
-  });
 }

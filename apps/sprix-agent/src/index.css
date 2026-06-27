@@ -156,6 +156,16 @@ select {
   margin: 0 auto;
 }
 
+.sprix-landing {
+  min-height: 100vh;
+  padding: 30px 32px 52px;
+}
+
+.sprix-landing-inner {
+  width: min(1160px, 100%);
+  margin: 0 auto;
+}
+
 .sprix-topbar {
   min-height: 66px;
   display: flex;

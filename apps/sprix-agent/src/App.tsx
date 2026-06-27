@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Navigate, Route, BrowserRouter as Router, Routes, useLocation } from "react-router-dom";
 import { message } from "antd";
@@ -16,6 +16,7 @@ import { UserShell } from "./components/Layout";
 import {
   AgentCenterPage,
   EarningsPage,
+  LandingPage,
   MyTaskDetailPage,
   MyTasksPage,
   QualificationPage,
@@ -26,6 +27,8 @@ import {
 } from "./user/UserPages";
 import { LocalAgentClaimPage } from "./user/LocalAgentClaimPage";
 import { useRemoteSprixBootstrap } from "./services/useRemoteSprixBootstrap";
+import { useSprixStore } from "./store/sprixStore";
+import { canVisitAgentCenterBeforeAdmission, getUserAdmissionState } from "./user/admission";
 
 const queryClient = new QueryClient();
 
@@ -34,12 +37,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <RemoteSprixBridge />
       <Router>
-        <Routes>
-          <Route path="/" element={<Navigate to="/agent/market" replace />} />
-          <Route path="/local-agent/claim" element={<LocalAgentClaimPage />} />
-          <Route path="/agent/*" element={<UserRoutes />} />
-          <Route path="*" element={<Navigate to="/agent/market" replace />} />
-        </Routes>
+        <ConsumerAppRoutes />
       </Router>
     </QueryClientProvider>
   );
@@ -50,7 +48,7 @@ function RemoteSprixBridge() {
   return null;
 }
 
-function UserRoutes() {
+function ConsumerAppRoutes() {
   const location = useLocation();
   const { modal, open, close } = useGlobalModalState();
   const [afterLogin, setAfterLogin] = useState<(() => void) | undefined>();
@@ -94,24 +92,27 @@ function UserRoutes() {
   };
 
   return (
-    <UserShell
-      title={title}
-      onOpenLogin={() => openLogin()}
-      onOpenAccount={() => open("account")}
-      onOpenAgreements={() => open("agreements")}
-      onOpenContact={() => open("contact")}
-    >
+    <>
       <Routes>
-        <Route index element={<Navigate to="market" replace />} />
-        <Route path="market" element={<TaskMarketPage {...userPageProps} />} />
-        <Route path="task/:id" element={<TaskDetailPage {...userPageProps} />} />
-        <Route path="center" element={<AgentCenterPage {...userPageProps} />} />
-        <Route path="my-tasks" element={<MyTasksPage {...userPageProps} />} />
-        <Route path="my-tasks/:id" element={<MyTaskDetailPage />} />
-        <Route path="earnings" element={<EarningsPage {...userPageProps} />} />
-        <Route path="qualification" element={<QualificationPage />} />
-        <Route path="withdraw-account" element={<WithdrawAccountPage {...userPageProps} />} />
-        <Route path="*" element={<Navigate to="market" replace />} />
+        <Route path="/" element={<LandingPage {...userPageProps} />} />
+        <Route path="/local-agent/claim" element={<LocalAgentClaimPage />} />
+        <Route
+          path="/agent/*"
+          element={
+            <AdmissionGate>
+              <UserShell
+                title={title}
+                onOpenLogin={() => openLogin()}
+                onOpenAccount={() => open("account")}
+                onOpenAgreements={() => open("agreements")}
+                onOpenContact={() => open("contact")}
+              >
+                <UserRoutes {...userPageProps} />
+              </UserShell>
+            </AdmissionGate>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
       <LoginRegisterModal
@@ -158,6 +159,46 @@ function UserRoutes() {
           setQualificationOpen(false);
         }}
       />
-    </UserShell>
+    </>
+  );
+}
+
+function AdmissionGate({ children }: { children: ReactNode }) {
+  const location = useLocation();
+  const account = useSprixStore((state) => state.account);
+  const agents = useSprixStore((state) => state.agents);
+  const admission = getUserAdmissionState(account, agents);
+
+  if (account.isLoggedIn && canVisitAgentCenterBeforeAdmission(location.pathname)) {
+    return <>{children}</>;
+  }
+
+  if (!admission.allowed) {
+    return <Navigate to="/" replace state={{ admissionReason: admission.reason, from: location.pathname }} />;
+  }
+
+  return <>{children}</>;
+}
+
+function UserRoutes(props: {
+  openLogin: () => void;
+  openBindAlipay: (afterBind?: () => void) => void;
+  openWithdraw: () => void;
+  openQualificationPrompt: (taskId?: string) => void;
+  openAppeal: (executionId: string) => void;
+}) {
+  return (
+    <Routes>
+      <Route index element={<Navigate to="market" replace />} />
+      <Route path="market" element={<TaskMarketPage {...props} />} />
+      <Route path="task/:id" element={<TaskDetailPage {...props} />} />
+      <Route path="center" element={<AgentCenterPage {...props} />} />
+      <Route path="my-tasks" element={<MyTasksPage {...props} />} />
+      <Route path="my-tasks/:id" element={<MyTaskDetailPage />} />
+      <Route path="earnings" element={<EarningsPage {...props} />} />
+      <Route path="qualification" element={<QualificationPage />} />
+      <Route path="withdraw-account" element={<WithdrawAccountPage {...props} />} />
+      <Route path="*" element={<Navigate to="market" replace />} />
+    </Routes>
   );
 }
