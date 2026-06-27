@@ -102,4 +102,29 @@ describe("LandingPage local Agent connection", () => {
     await waitFor(() => expect(navigateMock).toHaveBeenCalledWith("/agent/center"));
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["sprix-agent"] });
   });
+
+  it("automatically enters Agent Center when the current Agent is already connected", async () => {
+    useSprixStore.setState({
+      account: {
+        ...createInitialSprixState().account,
+        isLoggedIn: true
+      },
+      agents: [
+        {
+          id: "agent-1",
+          name: "MacBook Local Agent",
+          status: "已连接",
+          role: "当前执行 Agent",
+          score: 92,
+          lastEvaluatedAt: "2026-06-27 13:10",
+          summary: "ready",
+          tags: ["local"]
+        }
+      ]
+    });
+
+    renderLanding();
+
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith("/agent/center"));
+  });
 });

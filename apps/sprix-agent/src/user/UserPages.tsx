@@ -55,6 +55,7 @@ export function LandingPage({ openLogin }: UserPageProps) {
   const admissionReason = admissionState?.admissionReason;
   const shouldOpenLogin = Boolean(admissionState?.openLogin);
   const handledAdmissionLoginKey = useRef<string>();
+  const autoEnteredAgentCenterRef = useRef(false);
   const [checkingLocalAgent, setCheckingLocalAgent] = useState(false);
 
   useEffect(() => {
@@ -66,6 +67,12 @@ export function LandingPage({ openLogin }: UserPageProps) {
     handledAdmissionLoginKey.current = location.key;
     openLogin();
   }, [account.isLoggedIn, location.key, openLogin, shouldOpenLogin]);
+
+  useEffect(() => {
+    if (!admission.allowed || autoEnteredAgentCenterRef.current) return;
+    autoEnteredAgentCenterRef.current = true;
+    navigate("/agent/center");
+  }, [admission.allowed, navigate]);
 
   const connectedAgents = agents.filter((agent) => agent.status === "已连接");
   const currentAgent = admission.allowed ? admission.currentAgent : undefined;
