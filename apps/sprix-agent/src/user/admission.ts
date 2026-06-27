@@ -14,6 +14,10 @@ export function getCurrentExecutionAgent(agents: Agent[]) {
   return agents.find((agent) => agent.role === "当前执行 Agent");
 }
 
+export function getConnectedAgent(agents: Agent[]) {
+  return agents.find((agent) => agent.status === "已连接");
+}
+
 export function canVisitAgentCenterBeforeAdmission(pathname: string) {
   return pathname.replace(/\/+$/, "") === "/agent/center";
 }
@@ -22,20 +26,21 @@ export function getUserAdmissionState(account: Pick<Account, "isLoggedIn">, agen
   if (!account.isLoggedIn) {
     return {
       allowed: false,
-      reason: "请先登录并设置当前执行 Agent"
+      reason: "请先登录"
     };
   }
 
-  const currentAgent = getCurrentExecutionAgent(agents);
-  if (!currentAgent) {
+  const connectedCurrentAgent = agents.find((agent) => agent.role === "当前执行 Agent" && agent.status === "已连接");
+  const connectedAgent = connectedCurrentAgent ?? getConnectedAgent(agents);
+  if (!connectedAgent) {
     return {
       allowed: false,
-      reason: "请先设置当前执行 Agent"
+      reason: "请先安装并启动本地 Agent"
     };
   }
 
   return {
     allowed: true,
-    currentAgent
+    currentAgent: connectedAgent
   };
 }
