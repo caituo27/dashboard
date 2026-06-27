@@ -531,6 +531,22 @@ select {
   font-weight: 700;
 }
 
+.sprix-login-action-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.sprix-login-action-stack .ant-checkbox-wrapper {
+  align-items: flex-start;
+  margin: 0 !important;
+  line-height: 1.65;
+}
+
+.sprix-login-action-stack .ant-checkbox-label {
+  line-height: 1.65;
+}
+
 .sprix-table-card .ant-table {
   background: transparent;
 }

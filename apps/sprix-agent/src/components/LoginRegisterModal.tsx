@@ -25,6 +25,7 @@ export function LoginRegisterModal({ open, onClose, afterLogin }: LoginRegisterM
   const [smsSending, setSmsSending] = useState(false);
   const [smsCountdown, setSmsCountdown] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [activeLoginTab, setActiveLoginTab] = useState("alipay");
   const [alipayLoading, setAlipayLoading] = useState(false);
   const [alipaySession, setAlipaySession] = useState<AlipayLoginSession>();
   const [alipayStatus, setAlipayStatus] = useState("WAITING");
@@ -62,11 +63,6 @@ export function LoginRegisterModal({ open, onClose, afterLogin }: LoginRegisterM
   };
 
   const startAlipayLogin = async () => {
-    if (!agreed) {
-      message.warning("请先阅读并同意用户协议和隐私协议");
-      return;
-    }
-
     setAlipayLoading(true);
     try {
       const session = await createAlipayLoginSession();
@@ -81,11 +77,6 @@ export function LoginRegisterModal({ open, onClose, afterLogin }: LoginRegisterM
   };
 
   const startWechatLogin = async () => {
-    if (!agreed) {
-      message.warning("请先阅读并同意用户协议和隐私协议");
-      return;
-    }
-
     setWechatLoading(true);
     try {
       const session = await createWechatLoginSession();
@@ -116,6 +107,7 @@ export function LoginRegisterModal({ open, onClose, afterLogin }: LoginRegisterM
 
   useEffect(() => {
     if (open) return;
+    setActiveLoginTab("alipay");
     setAlipaySession(undefined);
     setAlipayStatus("WAITING");
     setAlipayExpiresInSeconds(0);
@@ -127,6 +119,17 @@ export function LoginRegisterModal({ open, onClose, afterLogin }: LoginRegisterM
     setSmsSending(false);
     setSmsCountdown(0);
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (activeLoginTab === "alipay" && !alipaySession && !alipayLoading) {
+      void startAlipayLogin();
+      return;
+    }
+    if (activeLoginTab === "wechat" && !wechatSession && !wechatLoading) {
+      void startWechatLogin();
+    }
+  }, [activeLoginTab, open]);
 
   useEffect(() => {
     if (!open || smsCountdown <= 0) return;
@@ -202,25 +205,29 @@ export function LoginRegisterModal({ open, onClose, afterLogin }: LoginRegisterM
   return (
     <Modal title="登录 / 注册" open={open} onCancel={onClose} footer={null} width={520}>
       <Tabs
+        activeKey={activeLoginTab}
+        onChange={setActiveLoginTab}
         tabBarGutter={16}
         items={[
           {
             key: "alipay",
             label: "支付宝扫码登录",
             children: (
-              <div className="space-y-6 pt-2">
-                <QrPayloadBox value={alipaySession?.qrPayload} placeholder="同意协议后生成二维码" />
+              <div className="space-y-8 pt-3">
+                <QrPayloadBox value={alipaySession?.qrPayload} placeholder={alipayLoading ? "二维码生成中" : "二维码加载失败，请重试"} />
                 <p className="text-center text-sm text-ink-soft">{alipayStatusText}</p>
                 {alipaySession && <SessionExpiryText expiresInSeconds={alipayExpiresInSeconds} fallback="二维码已过期" />}
-                <AgreementCheck agreed={agreed} onChange={setAgreed} />
-                <ActionButton block loading={alipayLoading} onClick={startAlipayLogin}>
-                  {alipaySession ? "刷新支付宝登录二维码" : "生成支付宝登录二维码"}
-                </ActionButton>
-                {alipaySession && (
-                  <SecondaryButton block href={alipaySession.qrPayload} target="_blank">
-                    无法扫码时打开授权页
-                  </SecondaryButton>
-                )}
+                <div className="sprix-login-action-stack pt-2">
+                  <AgreementCheck agreed={agreed} onChange={setAgreed} />
+                  <ActionButton block loading={alipayLoading} onClick={startAlipayLogin}>
+                    {alipaySession ? "刷新支付宝登录二维码" : "重新生成支付宝登录二维码"}
+                  </ActionButton>
+                  {alipaySession && (
+                    <SecondaryButton block href={alipaySession.qrPayload} target="_blank">
+                      无法扫码时打开授权页
+                    </SecondaryButton>
+                  )}
+                </div>
               </div>
             )
           },
@@ -228,14 +235,16 @@ export function LoginRegisterModal({ open, onClose, afterLogin }: LoginRegisterM
             key: "wechat",
             label: "微信扫码登录",
             children: (
-              <div className="space-y-6 pt-2">
-                <QrPayloadBox value={wechatSession?.qrPayload} placeholder="同意协议后生成二维码" />
+              <div className="space-y-8 pt-3">
+                <QrPayloadBox value={wechatSession?.qrPayload} placeholder={wechatLoading ? "二维码生成中" : "二维码加载失败，请重试"} />
                 <p className="text-center text-sm text-ink-soft">{wechatStatusText}</p>
                 {wechatSession && <SessionExpiryText expiresInSeconds={wechatExpiresInSeconds} fallback="二维码有效期以微信页面为准" />}
-                <AgreementCheck agreed={agreed} onChange={setAgreed} />
-                <ActionButton block loading={wechatLoading} onClick={startWechatLogin}>
-                  {wechatSession ? "刷新微信登录二维码" : "生成微信登录二维码"}
-                </ActionButton>
+                <div className="sprix-login-action-stack pt-2">
+                  <AgreementCheck agreed={agreed} onChange={setAgreed} />
+                  <ActionButton block loading={wechatLoading} onClick={startWechatLogin}>
+                    {wechatSession ? "刷新微信登录二维码" : "重新生成微信登录二维码"}
+                  </ActionButton>
+                </div>
               </div>
             )
           },
@@ -257,10 +266,12 @@ export function LoginRegisterModal({ open, onClose, afterLogin }: LoginRegisterM
                     }
                   />
                 </Form.Item>
-                <AgreementCheck agreed={agreed} onChange={setAgreed} />
-                <ActionButton block htmlType="submit" loading={submitting}>
-                  登录 / 注册
-                </ActionButton>
+                <div className="sprix-login-action-stack pt-2">
+                  <AgreementCheck agreed={agreed} onChange={setAgreed} />
+                  <ActionButton block htmlType="submit" loading={submitting}>
+                    登录 / 注册
+                  </ActionButton>
+                </div>
               </Form>
             )
           }
