@@ -23,7 +23,7 @@ describe("getUserAdmissionState", () => {
   it("blocks formal pages when the user has not logged in", () => {
     expect(getUserAdmissionState(loggedOutAccount, [agent({})])).toEqual({
       allowed: false,
-      reason: "请先登录并连接本地 Agent"
+      reason: "请先登录"
     });
   });
 

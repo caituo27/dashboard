@@ -22,7 +22,7 @@ export function getUserAdmissionState(account: Pick<Account, "isLoggedIn">, agen
   if (!account.isLoggedIn) {
     return {
       allowed: false,
-      reason: "请先登录并连接本地 Agent"
+      reason: "请先登录"
     };
   }
 

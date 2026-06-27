@@ -30,7 +30,8 @@ vi.mock("../utils/http", () => ({
   http: {
     get: httpGetMock,
     post: httpPostMock
-  }
+  },
+  isGlobalAuthError: (error: unknown) => Boolean(error && typeof error === "object" && (error as { globalAuth?: unknown }).globalAuth === true)
 }));
 
 vi.mock("../apis/sprix", () => ({
@@ -216,6 +217,23 @@ describe("Sprix API WeChat login adapter", () => {
       nickname: "用户",
       alipayBound: false
     });
+  });
+
+  it("restores login state from the account endpoint when agent snapshot requests fail", async () => {
+    localStorage.setItem("sprix-auth-token", "token-1");
+    taskApiMock.market.mockResolvedValue([]);
+    accountApiMock.current.mockResolvedValue({ nickname: "用户", phone: "13800008624" });
+    agentApiMock.list1.mockRejectedValue(new Error("agents unavailable"));
+    myTaskApiMock.list.mockResolvedValue([]);
+    earningsApiMock.withdrawable.mockResolvedValue(0);
+
+    const snapshot = await readAgentSnapshot();
+
+    expect(snapshot.account).toMatchObject({
+      isLoggedIn: true,
+      nickname: "用户"
+    });
+    expect(snapshot.agents).toEqual([]);
   });
 
   it("does not invent a withdrawal arrival time when the backend omits it", () => {

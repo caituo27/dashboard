@@ -21,7 +21,7 @@ import {
 } from "../apis/sprix";
 import type { Agent, AppealStatus, MyTask, MyTaskStatus, SettlementStatus, SprixState, Task, TaskStatus, Withdrawal } from "../types";
 import type { SprixRemoteStatePatch } from "../store/sprixStore";
-import { http } from "../utils/http";
+import { http, isGlobalAuthError } from "../utils/http";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/sprix-api";
 const CONFIGURED_LOCAL_AGENT_CLAIM_BASE_URL = import.meta.env.VITE_LOCAL_AGENT_CLAIM_BASE_URL ?? "";
@@ -193,18 +193,18 @@ export function resolveLocalAgentClaimBaseUrlForRuntime(configuredBaseUrl: strin
 }
 
 export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
-  const tasksResponse = await taskApi.market();
+  const tasksResponse = await optionalSnapshotRequest(() => taskApi.market(), []);
   const tasks = listValue<TaskEntity>(tasksResponse).map(mapTask);
   const token = localStorage.getItem(TOKEN_KEY);
 
   if (!token) return { tasks };
 
-  const [accountResponse, agentsResponse, myTasksResponse, withdrawableResponse, withdrawalAccountResponse] = await Promise.all([
-    accountApi.current(),
-    agentApi.list1(),
-    myTaskApi.list(),
-    earningsApi.withdrawable(),
-    readWithdrawalAccountSafely()
+  const accountResponse = await accountApi.current();
+  const [agentsResponse, myTasksResponse, withdrawableResponse, withdrawalAccountResponse] = await Promise.all([
+    optionalSnapshotRequest(() => agentApi.list1(), []),
+    optionalSnapshotRequest(() => myTaskApi.list(), []),
+    optionalSnapshotRequest<number | undefined>(() => earningsApi.withdrawable(), undefined),
+    optionalSnapshotRequest<WithdrawalAccount | null>(() => http.get<unknown, WithdrawalAccount | null>("/api/v1/account/withdrawal-account"), null)
   ]);
 
   const account = accountResponse;
@@ -227,11 +227,12 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
   };
 }
 
-async function readWithdrawalAccountSafely() {
+async function optionalSnapshotRequest<T>(request: () => Promise<T>, fallback: T): Promise<T> {
   try {
-    return await http.get<unknown, WithdrawalAccount | null>("/api/v1/account/withdrawal-account");
-  } catch {
-    return null;
+    return await request();
+  } catch (error) {
+    if (isGlobalAuthError(error)) throw error;
+    return fallback;
   }
 }
 
