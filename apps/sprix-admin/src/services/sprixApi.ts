@@ -2,9 +2,12 @@ import {
   AdminAppealControllerApiFactory,
   AdminFundsControllerApiFactory,
   AdminTaskControllerApiFactory,
+  AuthControllerApiFactory,
+  type AcceptanceReviewRow,
   type AppealRecord,
   type AuthTokenResponse,
   type FundFlow as ApiFundFlow,
+  type AdminTaskDetail,
   type SettlementRecord,
   type TaskEntity,
   type WithdrawalRecord
@@ -36,6 +39,7 @@ const TOKEN_KEY = "sprix-admin-auth-token";
 const adminAppealApi = AdminAppealControllerApiFactory(undefined, API_BASE_URL, http);
 const adminFundsApi = AdminFundsControllerApiFactory(undefined, API_BASE_URL, http);
 const adminTaskApi = AdminTaskControllerApiFactory(undefined, API_BASE_URL, http);
+const authApi = AuthControllerApiFactory(undefined, API_BASE_URL, http);
 
 export type UpsertAdminTaskPayload = {
   title: string;
@@ -151,7 +155,7 @@ type RemoteAdminAppealDetail = {
 };
 
 export async function authenticateAdmin(account: string, password: string) {
-  const response = await http.post<unknown, AuthTokenResponse>("/api/v1/auth/admin-login", { account, password });
+  const response = await authApi.adminLogin({ adminLoginRequest: { account, password } });
   const token = requireValue<AuthTokenResponse>(response, "后台登录失败").token;
   localStorage.setItem(TOKEN_KEY, token ?? "");
   return token;
@@ -181,7 +185,7 @@ export async function readRemoteTaskCenterSnapshot(): Promise<AdminTaskCenterSna
 }
 
 export async function readRemoteTaskDetail(taskId: string): Promise<AdminTaskDetailView> {
-  const detail = await http.get<unknown, RemoteAdminTaskDetail>(`/api/v1/admin/tasks/${encodeURIComponent(taskId)}`);
+  const detail = requireValue<AdminTaskDetail>(await adminTaskApi.detail({ taskId }), "任务详情不可用") as RemoteAdminTaskDetail;
   const task = mapTask(requireObject(detail.task, "task"));
   return {
     task,
@@ -191,27 +195,27 @@ export async function readRemoteTaskDetail(taskId: string): Promise<AdminTaskDet
 }
 
 export async function createRemoteAdminTask(payload: UpsertAdminTaskPayload): Promise<Task> {
-  const task = await http.post<unknown, TaskEntity>("/api/v1/admin/tasks", payload);
+  const task = await adminTaskApi.create({ upsertTaskRequest: payload });
   return mapTask(requireValue(task, "任务发布失败"));
 }
 
 export async function updateRemoteAdminTask(taskId: string, payload: UpsertAdminTaskPayload): Promise<Task> {
-  const task = await http.put<unknown, TaskEntity>(`/api/v1/admin/tasks/${encodeURIComponent(taskId)}`, payload);
+  const task = await adminTaskApi.update({ taskId, upsertTaskRequest: payload });
   return mapTask(requireValue(task, "任务保存失败"));
 }
 
 export async function offlineRemoteAdminTask(taskId: string, reason: string): Promise<Task> {
-  const task = await http.post<unknown, TaskEntity>(`/api/v1/admin/tasks/${encodeURIComponent(taskId)}/offline`, { reason });
+  const task = await adminTaskApi.offline({ taskId, taskStateRequest: { reason } });
   return mapTask(requireValue(task, "任务下线失败"));
 }
 
 export async function republishRemoteAdminTask(taskId: string): Promise<Task> {
-  const task = await http.post<unknown, TaskEntity>(`/api/v1/admin/tasks/${encodeURIComponent(taskId)}/republish`);
+  const task = await adminTaskApi.republish({ taskId });
   return mapTask(requireValue(task, "任务重新发布失败"));
 }
 
 export async function deleteRemoteAdminTask(taskId: string, reason: string): Promise<Task> {
-  const task = await http.delete<unknown, TaskEntity>(`/api/v1/admin/tasks/${encodeURIComponent(taskId)}`, { data: { reason } });
+  const task = await adminTaskApi._delete({ taskId, taskStateRequest: { reason } });
   return mapTask(requireValue(task, "任务删除失败"));
 }
 
@@ -278,12 +282,12 @@ export async function markRemoteWithdrawalPaid(withdrawalId: string) {
 }
 
 export async function payRemoteWithdrawal(withdrawalId: string): Promise<WithdrawalRecord> {
-  const response = await http.post<unknown, WithdrawalRecord>(`/api/v1/admin/funds/withdrawals/${encodeURIComponent(withdrawalId)}/payout`, {});
+  const response = await adminFundsApi.payWithdrawal({ withdrawalId });
   return requireValue<WithdrawalRecord>(response, "支付宝打款失败");
 }
 
 export async function queryRemoteWithdrawalPayout(withdrawalId: string): Promise<WithdrawalRecord> {
-  const response = await http.post<unknown, WithdrawalRecord>(`/api/v1/admin/funds/withdrawals/${encodeURIComponent(withdrawalId)}/payout-query`, {});
+  const response = await adminFundsApi.queryWithdrawalPayout({ withdrawalId });
   return requireValue<WithdrawalRecord>(response, "支付宝打款查询失败");
 }
 
@@ -300,16 +304,16 @@ export async function markRemotePayoutExceptionHandled(withdrawalId: string, rea
 }
 
 export async function readRemoteAcceptanceReviews(): Promise<ReviewingExecution[]> {
-  const response = await http.get<unknown, RemoteAcceptanceReviewRow[]>("/api/v1/admin/tasks/acceptance-reviews");
-  return listValue<RemoteAcceptanceReviewRow>(response).map(mapAcceptanceReview);
+  const response = await adminTaskApi.acceptanceReviews();
+  return listValue<AcceptanceReviewRow>(response).map((item) => mapAcceptanceReview(item as RemoteAcceptanceReviewRow));
 }
 
 export async function approveRemoteAcceptanceReview(executionId: string) {
-  return http.post<unknown, unknown>(`/api/v1/admin/tasks/executions/${encodeURIComponent(executionId)}/acceptance/approve`, {});
+  return adminTaskApi.approveAcceptanceReview({ executionId });
 }
 
 export async function rejectRemoteAcceptanceReview(executionId: string, reason: string) {
-  return http.post<unknown, unknown>(`/api/v1/admin/tasks/executions/${encodeURIComponent(executionId)}/acceptance/reject`, { reason });
+  return adminTaskApi.rejectAcceptanceReview({ executionId, acceptanceReviewRequest: { reason } });
 }
 
 function requireValue<T>(value: T | undefined, fallbackMessage: string): T {

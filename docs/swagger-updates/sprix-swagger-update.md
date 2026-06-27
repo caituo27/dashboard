@@ -7,8 +7,7 @@
 - Swagger UI: http://42.194.150.73:8084/swagger-ui/index.html
 - Swagger JSON: http://42.194.150.73:8084/v3/api-docs
 - 生成范围: `apps/sprix-agent/src/apis/sprix`, `apps/sprix-admin/src/apis/sprix`
-- 是否有生成 diff: 有，新增微信扫码登录、Agent Gateway 设备/执行上报、部分后台提现复核接口。
-- 2026-06-27 本地后端新增支付宝登录、支付宝绑定和支付宝打款接口；当前前端先通过 service adapter 手写 HTTP 调用，待后端 Swagger 重新发布后再生成客户端。
+- 是否有生成 diff: 有，本次新增支付宝登录/绑定、后台登录、Agent 评测、验收审核、支付宝打款/查询、我的任务详情等接口与 DTO。
 
 ## 接口变化
 
@@ -19,21 +18,35 @@
     - `POST /api/v1/auth/wechat/scan-sessions/{sessionId}/confirm`
   - Agent Gateway：设备 bootstrap/pair/heartbeat/token refresh/unbind、待执行命令、事件批量上报、执行日志/产物/验收上传、文件下载。
   - 管理端资金：提现异常处理与退回复核接口。
-  - DTO：`WechatScanSessionResponse`、`WechatScanStatusResponse`、`WechatScanConfirmRequest`、
-    Agent Gateway 请求/响应 DTO、`WithdrawalReviewRequest`。
-  - 本地后端新增但当前生成客户端尚未覆盖：
+  - 用户端支付宝扫码登录、支付宝绑定、收款账户查询接口：
     - `POST /api/v1/auth/alipay/login-sessions`
     - `GET /api/v1/auth/alipay/login-sessions/{sessionId}`
+    - `POST /api/v1/auth/alipay/login-sessions/{sessionId}/confirm`
     - `GET /api/v1/auth/alipay/login-callback`
+    - `GET /api/v1/account/withdrawal-account`
     - `POST /api/v1/account/alipay-bind-sessions`
     - `GET /api/v1/account/alipay-bind-sessions/{sessionId}`
     - `GET /api/v1/account/alipay-bind-callback`
+  - Agent 评测接口：
+    - `POST /api/v1/agents/{agentId}/evaluate`
+    - `GET /api/v1/agents/{agentId}/evaluations/{evaluationId}`
+    - `GET /api/v1/agents/{agentId}/evaluations/latest`
+  - 管理端登录、验收审核、支付宝打款接口：
+    - `POST /api/v1/auth/admin-login`
+    - `GET /api/v1/admin/tasks/acceptance-reviews`
+    - `POST /api/v1/admin/tasks/executions/{executionId}/acceptance/approve`
+    - `POST /api/v1/admin/tasks/executions/{executionId}/acceptance/reject`
     - `POST /api/v1/admin/funds/withdrawals/{withdrawalId}/payout`
     - `POST /api/v1/admin/funds/withdrawals/{withdrawalId}/payout-query`
+  - 我的任务详情接口：
+    - `GET /api/v1/my-tasks/{executionId}`
+  - DTO：`WechatScanSessionResponse`、`WechatScanStatusResponse`、`WechatScanConfirmRequest`、
+    Agent Gateway 请求/响应 DTO、`WithdrawalReviewRequest`。
 - Removed:
   - 无。
 - Changed:
   - `UserAccount` 新增 `wechatOpenId`、`wechatUnionId` 字段。
+  - `GET /api/v1/my-tasks` 返回更详细的 `MyTaskExecutionDetail` 列表，新增任务、Agent、交付、验收快照字段。
 
 ## 需要更新的前端交互
 
@@ -51,6 +64,7 @@
 - Service:
   - `apps/sprix-agent/src/services/sprixApi.ts`
   - `apps/sprix-admin/src/services/sprixApi.ts`
+  - 本次已将支付宝登录/绑定、收款账户查询、Agent 评测、后台登录、任务管理写操作、验收审核、支付宝打款/查询从手写 HTTP 切换为生成客户端调用。
 - Login:
   - `apps/sprix-agent/src/components/GlobalModals.tsx` 接入真实微信扫码登录：创建扫码会话、展示二维码、轮询状态、token 落入 `sprix-auth-token`。
   - `apps/sprix-agent/src/components/LoginRegisterModal.tsx` 接入支付宝扫码登录，并保留微信扫码和手机号验证码登录。
@@ -59,7 +73,7 @@
 - Mock server: 当前项目没有独立 mock server；原 app 内 mock 数据文件与本地业务状态机已移除，接口失败时只展示错误提示。
 - 页面 / 组件:
   - `apps/sprix-agent/src/App.tsx` 启动同步任务市场、账户、Agent、我的任务。
-  - `apps/sprix-agent/src/components/GlobalModals.tsx` 接入真实登录、绑定收款、提现和申诉。
+  - `apps/sprix-agent/src/components/GlobalModals.tsx` 接入真实登录、绑定收款支付宝和申诉。
   - `apps/sprix-agent/src/user/UserPages.tsx` 接入真实 Agent 连接、设当前、断开、接单和重新执行。
   - `apps/sprix-admin/src/App.tsx` 启动同步后台任务、执行记录、申诉、资金记录。
   - `apps/sprix-admin/src/admin/AdminPages.tsx` 接入真实申诉处理、提现审核、支付宝单笔打款、打款结果查询、打款成功和打款失败接口。
@@ -71,7 +85,6 @@
 - Swagger 暂未提供管理端任务发布、编辑、下线、删除、重新发布接口；这些入口现在只提示后端未提供，不再模拟成功。
 - Swagger 暂未提供申诉补充材料、高风险流转、要求更换提现账户接口；这些入口现在只提示后端未提供，不再模拟成功。
 - Swagger 已提供微信扫码确认接口，但 PC H5 当前只负责创建会话和轮询；真正“扫码确认”应由微信侧/移动端拿到 code 后调用，不在 PC 页面里伪造。
-- 支付宝登录、支付宝绑定和支付宝打款接口当前尚未重新生成到客户端；前端 service 层暂用手写 HTTP，后续需要用最新 Swagger 替换。
 - 真实支付宝打款仍依赖后端 `sprix.integrations.alipay.payout-enabled=true`、Open Platform appId、私钥、公钥、回调地址和支付宝出款产品开通状态；默认配置不直接出款。
 - Agent Gateway 接口已生成但未接入 H5 交互，需要和客户端协议联调后再封装 service adapter。
 - 后端当前未对 `localhost` 返回 CORS 头，本地开发默认通过 Vite proxy `/sprix-api` 转发；生产环境通过 `VITE_API_BASE_URL` 指定真实网关。
@@ -92,3 +105,8 @@
 - `pnpm test`: 通过。
 - `pnpm build`: 通过，agent/admin 均存在 Vite chunk size 警告。
 - Playwright + 本机 Chrome 视觉 QA：支付宝登录弹窗桌面/移动端、管理后台待打款页桌面/移动端通过；截图输出在 `output/playwright/`。
+- 2026-06-27 `/usr/bin/git pull --rebase cnb main`: 通过，远端已是最新。
+- 2026-06-27 `npx qxun-api-generator` in `apps/sprix-agent/src/apis`: 通过。
+- 2026-06-27 `npx qxun-api-generator` in `apps/sprix-admin/src/apis`: 通过。
+- 2026-06-27 `npm run typecheck` in `apps/sprix-agent`: 通过。
+- 2026-06-27 `npm run typecheck` in `apps/sprix-admin`: 通过。

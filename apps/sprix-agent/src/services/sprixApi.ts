@@ -7,6 +7,11 @@ import {
   MyTaskControllerApiFactory,
   TaskControllerApiFactory,
   type AgentProfileResponse,
+  type AgentEvaluationDetailResponse,
+  type AlipayBindSessionResponse,
+  type AlipayBindSessionStatusResponse,
+  type AlipayLoginSessionResponse,
+  type AlipayLoginStatusResponse,
   type AppealRecord,
   type AuthTokenResponse,
   type FaceVerificationSession,
@@ -108,34 +113,6 @@ export type AlipayBindStatus = {
   expiresInSeconds: number;
   withdrawalAccount?: WithdrawalAccount | null;
   completed: boolean;
-};
-
-type RemoteAlipayBindSession = {
-  sessionId?: string;
-  qrPayload?: string;
-  expiresInSeconds?: number;
-  pollIntervalSeconds?: number;
-};
-
-type RemoteAlipayLoginSession = {
-  sessionId?: string;
-  qrPayload?: string;
-  expiresInSeconds?: number;
-  pollIntervalSeconds?: number;
-};
-
-type RemoteAlipayLoginStatus = {
-  sessionId?: string;
-  status?: string;
-  expiresInSeconds?: number;
-  token?: AuthTokenResponse | null;
-};
-
-type RemoteAlipayBindStatus = {
-  sessionId?: string;
-  status?: string;
-  expiresInSeconds?: number;
-  withdrawalAccount?: WithdrawalAccount | null;
 };
 
 type RemoteAgentProfileResponse = AgentProfileResponse & {
@@ -250,8 +227,8 @@ export async function readWechatLoginStatus(sessionId: string): Promise<WechatLo
 }
 
 export async function createAlipayLoginSession(): Promise<AlipayLoginSession> {
-  const response = await http.post<unknown, RemoteAlipayLoginSession>("/api/v1/auth/alipay/login-sessions", {});
-  const session = requireValue<RemoteAlipayLoginSession>(response, "支付宝登录二维码不可用");
+  const response = await authApi.createAlipayLoginSession();
+  const session = requireValue<AlipayLoginSessionResponse>(response, "支付宝登录二维码不可用");
 
   if (!session.sessionId || !session.qrPayload) {
     throw new Error("支付宝登录二维码不可用");
@@ -266,8 +243,8 @@ export async function createAlipayLoginSession(): Promise<AlipayLoginSession> {
 }
 
 export async function readAlipayLoginStatus(sessionId: string): Promise<AlipayLoginStatus> {
-  const response = await http.get<unknown, RemoteAlipayLoginStatus>(`/api/v1/auth/alipay/login-sessions/${encodeURIComponent(sessionId)}`);
-  const loginStatus = requireValue<RemoteAlipayLoginStatus>(response, "支付宝登录状态不可用");
+  const response = await authApi.alipayLoginSession({ sessionId });
+  const loginStatus = requireValue<AlipayLoginStatusResponse>(response, "支付宝登录状态不可用");
   const token = loginStatus.token?.token;
 
   if (token) {
@@ -341,7 +318,7 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
     optionalSnapshotRequest(() => agentApi.list1(), []),
     optionalSnapshotRequest(() => myTaskApi.list(), []),
     optionalSnapshotRequest<number | undefined>(() => earningsApi.withdrawable(), undefined),
-    optionalSnapshotRequest<WithdrawalAccount | null>(() => http.get<unknown, WithdrawalAccount | null>("/api/v1/account/withdrawal-account"), null)
+    optionalSnapshotRequest<WithdrawalAccount | undefined>(() => accountApi.currentWithdrawalAccount(), undefined)
   ]);
 
   const account = accountResponse;
@@ -394,20 +371,18 @@ export async function markRemoteCurrentAgent(agentId: string): Promise<Agent | u
 }
 
 export async function startRemoteAgentEvaluation(agentId: string, questions = DEFAULT_AGENT_EVALUATION_QUESTIONS): Promise<AgentEvaluation> {
-  const response = await http.post<unknown, RemoteAgentEvaluation>(`/api/v1/agents/${encodeURIComponent(agentId)}/evaluate`, { questions });
-  return normalizeAgentEvaluation(requireValue<RemoteAgentEvaluation>(response, "Agent 评测启动失败"));
+  const response = await agentApi.evaluate({ agentId, agentEvaluationRequest: { questions } });
+  return normalizeAgentEvaluation(requireValue<AgentEvaluationDetailResponse>(response, "Agent 评测启动失败") as RemoteAgentEvaluation);
 }
 
 export async function readRemoteAgentEvaluation(agentId: string, evaluationId: string): Promise<AgentEvaluation> {
-  const response = await http.get<unknown, RemoteAgentEvaluation>(
-    `/api/v1/agents/${encodeURIComponent(agentId)}/evaluations/${encodeURIComponent(evaluationId)}`
-  );
-  return normalizeAgentEvaluation(requireValue<RemoteAgentEvaluation>(response, "Agent 评测状态不可用"));
+  const response = await agentApi.evaluation({ agentId, evaluationId });
+  return normalizeAgentEvaluation(requireValue<AgentEvaluationDetailResponse>(response, "Agent 评测状态不可用") as RemoteAgentEvaluation);
 }
 
 export async function readLatestRemoteAgentEvaluation(agentId: string): Promise<AgentEvaluation> {
-  const response = await http.get<unknown, RemoteAgentEvaluation>(`/api/v1/agents/${encodeURIComponent(agentId)}/evaluations/latest`);
-  return normalizeAgentEvaluation(requireValue<RemoteAgentEvaluation>(response, "暂无评测记录"));
+  const response = await agentApi.latestEvaluation({ agentId });
+  return normalizeAgentEvaluation(requireValue<AgentEvaluationDetailResponse>(response, "暂无评测记录") as RemoteAgentEvaluation);
 }
 
 export async function acceptRemoteTask(taskId: string): Promise<TaskExecution> {
@@ -436,8 +411,8 @@ export async function bindRemoteWithdrawalAccount(account: string, verifiedName:
 }
 
 export async function createRemoteAlipayBindSession(verifiedName: string): Promise<AlipayBindSession> {
-  const response = await http.post<unknown, RemoteAlipayBindSession>("/api/v1/account/alipay-bind-sessions", { verifiedName });
-  const session = requireValue<RemoteAlipayBindSession>(response, "支付宝绑定二维码不可用");
+  const response = await accountApi.createAlipayBindSession({ createAlipayBindSessionRequest: { verifiedName } });
+  const session = requireValue<AlipayBindSessionResponse>(response, "支付宝绑定二维码不可用");
   if (!session.sessionId || !session.qrPayload) {
     throw new Error("支付宝绑定二维码不可用");
   }
@@ -451,8 +426,8 @@ export async function createRemoteAlipayBindSession(verifiedName: string): Promi
 }
 
 export async function readRemoteAlipayBindStatus(sessionId: string): Promise<AlipayBindStatus> {
-  const response = await http.get<unknown, RemoteAlipayBindStatus>(`/api/v1/account/alipay-bind-sessions/${encodeURIComponent(sessionId)}`);
-  const status = requireValue<RemoteAlipayBindStatus>(response, "支付宝绑定状态不可用");
+  const response = await accountApi.pollAlipayBindSession({ sessionId });
+  const status = requireValue<AlipayBindSessionStatusResponse>(response, "支付宝绑定状态不可用");
   const normalizedStatus = status.status ?? "PENDING";
   return {
     sessionId: status.sessionId ?? sessionId,
