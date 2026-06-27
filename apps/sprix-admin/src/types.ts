@@ -211,6 +211,7 @@ export type AdminAppeal = {
 };
 
 export type Settlement = {
+  backendId?: string;
   settlementNo: string;
   taskTitle: string;
   userName: string;

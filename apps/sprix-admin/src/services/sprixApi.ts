@@ -2,7 +2,6 @@ import {
   AdminAppealControllerApiFactory,
   AdminFundsControllerApiFactory,
   AdminTaskControllerApiFactory,
-  AuthControllerApiFactory,
   type AppealRecord,
   type AuthTokenResponse,
   type FundFlow as ApiFundFlow,
@@ -37,7 +36,6 @@ const TOKEN_KEY = "sprix-admin-auth-token";
 const adminAppealApi = AdminAppealControllerApiFactory(undefined, API_BASE_URL, http);
 const adminFundsApi = AdminFundsControllerApiFactory(undefined, API_BASE_URL, http);
 const adminTaskApi = AdminTaskControllerApiFactory(undefined, API_BASE_URL, http);
-const authApi = AuthControllerApiFactory(undefined, API_BASE_URL, http);
 
 export type UpsertAdminTaskPayload = {
   title: string;
@@ -152,8 +150,8 @@ type RemoteAdminAppealDetail = {
   settlementStatus?: string;
 };
 
-export async function authenticateAdmin(identity: string, code: string) {
-  const response = await authApi.mockAdminLogin({ mockLoginRequest: { email: identity, code } });
+export async function authenticateAdmin(account: string, password: string) {
+  const response = await http.post<unknown, AuthTokenResponse>("/api/v1/auth/admin-login", { account, password });
   const token = requireValue<AuthTokenResponse>(response, "后台登录失败").token;
   localStorage.setItem(TOKEN_KEY, token ?? "");
   return token;
@@ -261,6 +259,10 @@ export async function approveRemoteWithdrawal(withdrawalId: string) {
 
 export async function rejectRemoteWithdrawal(withdrawalId: string, reason: string) {
   return adminFundsApi.rejectWithdrawal({ withdrawalId, withdrawalReviewRequest: { reason } });
+}
+
+export async function postRemoteSettlement(settlementId: string) {
+  return adminFundsApi.postSettlement({ settlementId });
 }
 
 export async function markRemoteWithdrawalPaid(withdrawalId: string) {
@@ -481,6 +483,7 @@ function mapAppealDetail(detail: RemoteAdminAppealDetail): AdminAppeal {
 function mapSettlement(settlement: SettlementRecord, taskById: Map<string, Task>): Settlement {
   const task = taskById.get(settlement.taskId ?? "");
   return {
+    backendId: settlement.id,
     settlementNo: settlement.settlementNo ?? settlement.id ?? "",
     taskTitle: task?.title ?? compactId(settlement.taskId, "任务"),
     userName: compactId(settlement.userId, "用户"),

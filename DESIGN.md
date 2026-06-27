@@ -17,4 +17,4 @@
 ## Current Feature Guidance
 
 - Alipay binding should present QR scan as the primary interaction and keep manual/open-link fallback secondary.
-- Platform acceptance review belongs in the admin task workflow, not the funds workflow; funds remains responsible for settlement posting, withdrawal review, and payout marking.
+- Platform acceptance review belongs in the admin task workflow; approval now auto-posts settlement and triggers platform payout. Funds pages remain the place to monitor payout results and handle historical settlement posting or exceptions.

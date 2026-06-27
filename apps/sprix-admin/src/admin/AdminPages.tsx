@@ -5,7 +5,7 @@ import type { ColumnsType } from "antd/es/table";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { CircleDollarSign, ClipboardList, ShieldCheck } from "lucide-react";
-import type { AdminAppeal, AdminOperationLog, CompletedExecution, FundException, Payout, ReviewingExecution, RunningExecution, Task, TerminatedExecution, Withdrawal } from "../types";
+import type { AdminAppeal, AdminOperationLog, CompletedExecution, FundException, Payout, ReviewingExecution, RunningExecution, Settlement, Task, TerminatedExecution, Withdrawal } from "../types";
 import {
   approveRemoteAcceptanceReview,
   approveRemoteAppeal,
@@ -16,6 +16,7 @@ import {
   markRemoteWithdrawalPayoutFailed,
   offlineRemoteAdminTask,
   payRemoteWithdrawal,
+  postRemoteSettlement,
   queryRemoteWithdrawalPayout,
   readRemoteAppeals,
   readRemoteAppealDetail,
@@ -47,6 +48,10 @@ import { getAdminEstimatedTokenField } from "./tokenEstimateView";
 
 function getAppealBackendId(record: AdminAppeal) {
   return record.backendId ?? record.appealNo;
+}
+
+function getSettlementBackendId(record: Pick<Settlement, "backendId" | "settlementNo">) {
+  return record.backendId ?? record.settlementNo;
 }
 
 function getWithdrawalBackendId(record: Pick<Withdrawal | Payout, "backendId" | "withdrawalNo">) {
@@ -93,13 +98,13 @@ export function AdminTaskCenter() {
   const approveAcceptanceReview = (record: ReviewingExecution) => {
     Modal.confirm({
       title: "确认平台审核通过",
-      content: "审核通过后将生成结算记录，后续仍需在资金中心执行结算入账。",
+      content: "审核通过后将生成结算记录、自动入账，并直接发起平台支付宝打款。请确认用户已绑定可出款的支付宝账户。",
       okText: "审核通过",
       onOk: async () => {
         try {
           await approveRemoteAcceptanceReview(record.executionId);
           await refreshTasks();
-          message.success("平台审核已通过，任务进入结算中");
+          message.success("平台审核已通过，已发起直接打款");
         } catch (error) {
           message.error(error instanceof Error ? `审核通过失败：${error.message}` : "审核通过失败");
         }
@@ -581,13 +586,13 @@ function AdminExecutionRecords({
   const approveAcceptanceReview = (record: ReviewingExecution) => {
     Modal.confirm({
       title: "确认平台审核通过",
-      content: "审核通过后将生成结算记录，后续仍需在资金中心执行结算入账。",
+      content: "审核通过后将生成结算记录、自动入账，并直接发起平台支付宝打款。请确认用户已绑定可出款的支付宝账户。",
       okText: "审核通过",
       onOk: async () => {
         try {
           await approveRemoteAcceptanceReview(record.executionId);
           await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-          message.success("平台审核已通过，任务进入结算中");
+          message.success("平台审核已通过，已发起直接打款");
         } catch (error) {
           message.error(error instanceof Error ? `审核通过失败：${error.message}` : "审核通过失败");
         }
@@ -955,6 +960,22 @@ export function AdminFundCenter() {
       showRequestError(error, "提现驳回失败", "提现驳回失败：");
     }
   };
+  const postSettlement = (record: Settlement) => {
+    Modal.confirm({
+      title: "确认补录结算入账",
+      content: "新审核通过记录会自动入账并发起打款。此操作仅用于处理历史结算中记录或异常补录。",
+      okText: "确认入账",
+      onOk: async () => {
+        try {
+          await postRemoteSettlement(getSettlementBackendId(record));
+          await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+          message.success("结算已入账");
+        } catch (error) {
+          showRequestError(error, "结算入账失败", "结算入账失败：");
+        }
+      }
+    });
+  };
   const payPayout = (record: Payout) => {
     Modal.confirm({
       title: "确认发起支付宝打款",
@@ -1025,20 +1046,31 @@ export function AdminFundCenter() {
                 <Table
                   rowKey="settlementNo"
                   dataSource={settlements}
-                  scroll={{ x: 1040 }}
+                  scroll={{ x: 1410 }}
                   columns={[
-                    { title: "结算单号", dataIndex: "settlementNo" },
-                    { title: "关联任务", dataIndex: "taskTitle" },
-                    { title: "用户昵称", dataIndex: "userName" },
-                    { title: "手机号", dataIndex: "userPhone" },
-                    { title: "执行 Agent", dataIndex: "agentName" },
-                    { title: "任务收入", dataIndex: "taskIncome", render: currency },
-                    { title: "平台服务费", dataIndex: "platformFee", render: currency },
-                    { title: "实际入账", dataIndex: "netIncome", render: currency },
-                    { title: "结算状态", dataIndex: "settlementStatus", render: (value) => <StatusTag status={value} /> },
-                    { title: "生成时间", dataIndex: "createdAt" },
-                    { title: "入账时间", dataIndex: "paidAt" },
-                    { title: "操作", render: () => <PendingFundActionButton action={getAdminSettlementDetailAction()} /> }
+                    { title: "结算单号", dataIndex: "settlementNo", width: 128 },
+                    { title: "关联任务", dataIndex: "taskTitle", width: 220 },
+                    { title: "用户昵称", dataIndex: "userName", width: 112 },
+                    { title: "手机号", dataIndex: "userPhone", width: 112 },
+                    { title: "执行 Agent", dataIndex: "agentName", width: 120 },
+                    { title: "任务收入", dataIndex: "taskIncome", width: 96, render: currency },
+                    { title: "平台服务费", dataIndex: "platformFee", width: 112, render: currency },
+                    { title: "实际入账", dataIndex: "netIncome", width: 112, render: currency },
+                    { title: "结算状态", dataIndex: "settlementStatus", width: 112, render: (value) => <StatusTag status={value} /> },
+                    { title: "生成时间", dataIndex: "createdAt", width: 136 },
+                    { title: "入账时间", dataIndex: "paidAt", width: 128 },
+                    {
+                      title: "操作",
+                      width: 112,
+                      fixed: "right",
+                      render: (_, record) => (
+                        record.settlementStatus === "结算中" ? (
+                          <Button className="whitespace-nowrap" type="link" onClick={() => postSettlement(record)}>补录入账</Button>
+                        ) : (
+                          <PendingFundActionButton action={getAdminSettlementDetailAction()} />
+                        )
+                      )
+                    }
                   ]}
                 />
               )
