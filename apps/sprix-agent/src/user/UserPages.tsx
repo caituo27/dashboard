@@ -7,8 +7,6 @@ import type { Agent, MyTask, Task } from "../types";
 import { useSprixStore } from "../store/sprixStore";
 import {
   acceptRemoteTask,
-  connectRemoteAgent,
-  disconnectRemoteAgent,
   initializeRemoteFaceVerification,
   markRemoteCurrentAgent,
   rerunRemoteTask,
@@ -18,14 +16,13 @@ import { ActionButton, EmptyState, MetricCard, PageHeader, SecondaryButton, Soft
 import { compactText, currency, scoreText } from "../utils/format";
 import { isGlobalAuthError } from "../utils/http";
 import { getCurrentExecutionAgent, getUserAdmissionState } from "./admission";
-import { getAgentAbilityResult, getAgentAdmissionSummary, getAgentConnectActionLabel, getAgentConnectSuccessMessage, getAgentProfileEditAction, getAgentTagLabels, getCurrentAgentScoreMetric } from "./agentResult";
+import { getAgentAbilityResult, getAgentAdmissionSummary, getAgentProfileEditAction, getAgentTagLabels, getCurrentAgentScoreMetric } from "./agentResult";
 import { getEarningsOverview, getWithdrawalAccountAction, getWithdrawalAccountCard, getWithdrawalEntryAction, getWithdrawalHistoryState, getWithdrawalProgressRefreshAction } from "./earningsView";
 import { getExecutionArtifactsState, getExecutionBackendPendingSections, getExecutionOverview, getExecutionRequirementText, getExecutionReviewState } from "./executionDetailView";
 import { getFaceVerificationStartState, getQualificationRecordRows } from "./qualificationView";
 import { getRecommendationPendingState } from "./recommendationView";
 import { getSmartAcceptPendingActions, getSmartAcceptUnavailableRows } from "./smartAcceptView";
 import { getEstimatedTokenField } from "./tokenEstimateView";
-import { checkLocalAgentHealth } from "./localAgentConnect";
 import { getMyTaskActions, getMyTaskMetaItems, getQualificationSuccessAction } from "./userFlowRules";
 
 const CLIENT_DOWNLOAD_URL = "https://cnb.cool/yztx_qxun/LocalCLIAgentRelease/-/git/raw/main/LocalCLIAgent.pkg";
@@ -46,7 +43,6 @@ function showRequestError(error: unknown, fallback: string, prefix = "") {
 export function LandingPage({ openLogin }: UserPageProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const queryClient = useQueryClient();
   const tasks = useSprixStore((state) => state.tasks);
   const account = useSprixStore((state) => state.account);
   const agents = useSprixStore((state) => state.agents);
@@ -56,7 +52,6 @@ export function LandingPage({ openLogin }: UserPageProps) {
   const shouldOpenLogin = Boolean(admissionState?.openLogin);
   const handledAdmissionLoginKey = useRef<string>();
   const autoEnteredAgentCenterRef = useRef(false);
-  const [checkingLocalAgent, setCheckingLocalAgent] = useState(false);
 
   useEffect(() => {
     if (admissionReason) message.warning(admissionReason);
@@ -74,32 +69,15 @@ export function LandingPage({ openLogin }: UserPageProps) {
     navigate("/agent/center");
   }, [admission.allowed, navigate]);
 
-  const connectedAgents = agents.filter((agent) => agent.status === "已连接");
   const currentAgent = admission.allowed ? admission.currentAgent : undefined;
   const publishedTaskCount = tasks.filter((task) => task.taskStatus === "已发布").length;
 
-  const startConnect = async () => {
+  const enterAgentCenter = () => {
     if (!account.isLoggedIn) {
       openLogin();
       return;
     }
-    setCheckingLocalAgent(true);
-    const result = await checkLocalAgentHealth();
-
-    if (result.kind === "running") {
-      await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
-      setCheckingLocalAgent(false);
-      message.success(`已检测到本机 LocalCLIAgent${result.version ? ` ${result.version}` : ""} 正在运行，正在进入 Agent 中心。`);
-      navigate("/agent/center");
-      return;
-    }
-
-    setCheckingLocalAgent(false);
-    Modal.warning({
-      title: "未检测到本机 LocalCLIAgent",
-      content: "请确认客户端已安装并正在运行。如果还没有安装，请点击“下载客户端”。",
-      okText: "知道了"
-    });
+    navigate("/agent/center");
   };
 
   return (
@@ -109,11 +87,11 @@ export function LandingPage({ openLogin }: UserPageProps) {
           <div className="sprix-hero-kicker">Sprix AI</div>
           <h1 className="sprix-title sprix-hero-title">让你的 Agent 自动帮你赚钱</h1>
           <p className="sprix-hero-subtitle">
-            连接当前设备上的 LocalCLIAgent，完成登录和绑定后，再进入任务市场接取真实后端发布的任务。
+            登录后选择当前执行 Agent，再进入任务市场接取真实后端发布的任务。
           </p>
           <div className="sprix-hero-actions">
-            <ActionButton icon={<PlugZap size={16} />} loading={checkingLocalAgent} onClick={admission.allowed ? () => navigate("/agent/center") : startConnect}>
-              {admission.allowed ? "进入 Agent 中心" : account.isLoggedIn ? "连接本地 Agent" : "登录后连接 Agent"}
+            <ActionButton icon={<PlugZap size={16} />} onClick={admission.allowed ? () => navigate("/agent/center") : enterAgentCenter}>
+              {account.isLoggedIn ? "进入 Agent 中心" : "登录 / 注册"}
             </ActionButton>
             {!account.isLoggedIn && <SecondaryButton onClick={openLogin}>登录 / 注册</SecondaryButton>}
             {account.isLoggedIn && !admission.allowed && (
@@ -125,17 +103,17 @@ export function LandingPage({ openLogin }: UserPageProps) {
         </div>
         <div className="mb-5 grid gap-4 md:grid-cols-3">
           <MetricCard title="已发布任务" value={publishedTaskCount || "-"} icon={<UsersRound size={19} />} />
-          <MetricCard title="已连接 Agent" value={connectedAgents.length || "-"} icon={<Bot size={19} />} />
+          <MetricCard title="Agent 数量" value={agents.length || "-"} icon={<Bot size={19} />} />
           <MetricCard title="当前执行评分" value={getCurrentAgentScoreMetric(currentAgent)} icon={primitiveIcons.check} />
         </div>
         <Surface className="p-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <SoftTag tone={admission.allowed ? "teal" : account.isLoggedIn ? "amber" : "neutral"}>
-                {admission.allowed ? "准入完成" : account.isLoggedIn ? "等待 Agent 绑定" : "等待登录"}
+                {admission.allowed ? "准入完成" : account.isLoggedIn ? "等待设置当前 Agent" : "等待登录"}
               </SoftTag>
               <h2 className="mt-3 text-2xl font-semibold text-ink">
-                {currentAgent ? `当前执行 Agent：${currentAgent.name}` : "先连接本地 Agent，再进入正式功能区"}
+                {currentAgent ? `当前执行 Agent：${currentAgent.name}` : "先设置当前执行 Agent，再进入正式功能区"}
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-7 text-ink-soft">
                 LocalCLIAgent 首次打开 `/local-agent/claim` 后，前端会为当前登录用户生成 enrollmentToken，并跳转到 8084 后端完成绑定。
@@ -145,7 +123,7 @@ export function LandingPage({ openLogin }: UserPageProps) {
               {admission.allowed ? (
                 <ActionButton onClick={() => navigate("/agent/center")}>进入 Agent 中心</ActionButton>
               ) : (
-                <ActionButton loading={checkingLocalAgent} onClick={startConnect}>{account.isLoggedIn ? "连接本地 Agent" : "登录 / 注册"}</ActionButton>
+                <ActionButton onClick={enterAgentCenter}>{account.isLoggedIn ? "进入 Agent 中心" : "登录 / 注册"}</ActionButton>
               )}
             </div>
           </div>
@@ -155,11 +133,10 @@ export function LandingPage({ openLogin }: UserPageProps) {
   );
 }
 
-export function TaskMarketPage({ openQualificationPrompt }: UserPageProps) {
+export function TaskMarketPage(_props: Partial<UserPageProps> = {}) {
   const navigate = useNavigate();
   const tasks = useSprixStore((state) => state.tasks);
   const myTasks = useSprixStore((state) => state.myTasks);
-  const account = useSprixStore((state) => state.account);
   const agents = useSprixStore((state) => state.agents);
   const currentAgent = getCurrentExecutionAgent(agents);
   const [smartAcceptOpen, setSmartAcceptOpen] = useState(false);
@@ -168,12 +145,8 @@ export function TaskMarketPage({ openQualificationPrompt }: UserPageProps) {
 
   const handleAccept = (task: Task) => {
     if (!currentAgent) {
-      message.warning("请先连接本地 Agent");
-      navigate("/");
-      return;
-    }
-    if (account.qualificationStatus !== "已开通") {
-      openQualificationPrompt(task.id);
+      message.warning("请先设置当前执行 Agent");
+      navigate("/agent/center");
       return;
     }
     navigate(`/agent/task/${task.id}`);
@@ -285,7 +258,7 @@ function SmartAcceptUnavailableModal({ open, currentAgent, onClose }: { open: bo
   );
 }
 
-export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageProps) {
+export function TaskDetailPage({ openLogin }: UserPageProps) {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -304,12 +277,8 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
       return;
     }
     if (!executionAgentName) {
-      message.warning("请先连接本地 Agent");
-      navigate("/");
-      return;
-    }
-    if (account.qualificationStatus !== "已开通") {
-      openQualificationPrompt(task.id);
+      message.warning("请先设置当前执行 Agent");
+      navigate("/agent/center");
       return;
     }
     if (task.taskStatus !== "已发布" || task.remainingSlots <= 0) {
@@ -388,25 +357,13 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   const queryClient = useQueryClient();
   const account = useSprixStore((state) => state.account);
   const agents = useSprixStore((state) => state.agents);
-  const connected = agents.filter((agent) => agent.status === "已连接");
-  const available = agents.filter((agent) => agent.status !== "已连接");
-  const current = agents.find((agent) => agent.role === "当前执行 Agent" && agent.status === "已连接");
+  const current = getCurrentExecutionAgent(agents);
 
-  const connect = async (agent: Agent) => {
+  const setCurrent = async (agentId: string) => {
     if (!account.isLoggedIn) {
       openLogin();
       return;
     }
-    try {
-      await connectRemoteAgent(agent.id);
-      await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
-      message.success(getAgentConnectSuccessMessage(agent));
-    } catch (error) {
-      showRequestError(error, "连接失败", "连接失败：");
-    }
-  };
-
-  const setCurrent = async (agentId: string) => {
     try {
       await markRemoteCurrentAgent(agentId);
       await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
@@ -416,13 +373,12 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
     }
   };
 
-  const disconnect = async (agentId: string) => {
+  const refreshAgentEvaluation = async () => {
     try {
-      await disconnectRemoteAgent(agentId);
       await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
-      message.success("已断开连接");
+      message.success("已刷新 Agent 评测结果");
     } catch (error) {
-      showRequestError(error, "断开失败", "断开失败：");
+      showRequestError(error, "评测刷新失败", "评测刷新失败：");
     }
   };
 
@@ -430,7 +386,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
     <>
       <PageHeader
         title="Agent 中心"
-        subtitle="连接当前设备可用 Agent，设置当前执行 Agent，并查看能力画像。"
+        subtitle="选择一个 Agent 作为当前执行 Agent，并查看能力画像。"
         actions={
           <ActionButton
             href={CLIENT_DOWNLOAD_URL}
@@ -447,30 +403,27 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         <AbilityProfile agent={current} />
       </div>
       <div className="mb-5 grid gap-4 md:grid-cols-3">
-        <MetricCard title="已连接 Agent" value={connected.length} icon={<PlugZap size={19} />} />
-        <MetricCard title="当前设备可连接 Agent" value={available.length} icon={primitiveIcons.plug} />
+        <MetricCard title="Agent 数量" value={agents.length} icon={<PlugZap size={19} />} />
+        <MetricCard title="可设置 Agent" value={agents.filter((agent) => agent.role !== "当前执行 Agent").length} icon={primitiveIcons.plug} />
         <MetricCard title="当前执行能力评分" value={getCurrentAgentScoreMetric(current)} icon={primitiveIcons.check} />
       </div>
       <AgentList
-        title="已连接 Agent"
-        agents={connected}
-        empty="暂无已连接 Agent"
+        title="Agent 列表"
+        agents={agents}
+        empty="暂无 Agent"
         renderActions={(agent) =>
           agent.role === "当前执行 Agent" ? (
-            <SecondaryButton onClick={() => disconnect(agent.id)}>断开连接</SecondaryButton>
+            <>
+              <SecondaryButton disabled>当前执行 Agent</SecondaryButton>
+              <ActionButton onClick={refreshAgentEvaluation}>评测</ActionButton>
+            </>
           ) : (
             <>
               <ActionButton onClick={() => setCurrent(agent.id)}>设为当前执行 Agent</ActionButton>
-              <SecondaryButton onClick={() => disconnect(agent.id)}>断开连接</SecondaryButton>
+              <SecondaryButton onClick={refreshAgentEvaluation}>评测</SecondaryButton>
             </>
           )
         }
-      />
-      <AgentList
-        title="当前设备可连接 Agent"
-        agents={available}
-        empty="暂无可连接 Agent"
-        renderActions={(agent) => <ActionButton onClick={() => connect(agent)}>{getAgentConnectActionLabel(agent)}</ActionButton>}
       />
     </>
   );
@@ -506,8 +459,8 @@ function CurrentAgentCard({ agent }: { agent?: Agent }) {
       ) : (
         <div className="mt-8 rounded-[22px] border border-dashed border-line p-7 text-center">
           <Bot className="mx-auto text-ink-soft" />
-          <h4 className="mt-3 text-lg font-semibold">未设置 / 待连接</h4>
-          <p className="mt-2 text-sm text-ink-soft">连接当前设备可用 Agent 后，即可执行平台任务。</p>
+          <h4 className="mt-3 text-lg font-semibold">未设置当前执行 Agent</h4>
+          <p className="mt-2 text-sm text-ink-soft">在 Agent 列表中选择一个 Agent 设为当前执行 Agent 后，即可执行平台任务。</p>
         </div>
       )}
     </Surface>

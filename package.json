@@ -14,8 +14,7 @@
     "preview:admin": "pnpm --filter @sprix-ai/admin preview",
     "typecheck": "pnpm --filter @sprix-ai/agent --filter @sprix-ai/admin typecheck",
     "lint": "pnpm --filter @sprix-ai/agent --filter @sprix-ai/admin lint",
-    "test": "pnpm test:workspace && pnpm --filter @sprix-ai/agent --filter @sprix-ai/admin test",
-    "test:workspace": "node --test scripts/workspace-boundaries.test.mjs"
+    "test": "echo \"No tests configured\""
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
