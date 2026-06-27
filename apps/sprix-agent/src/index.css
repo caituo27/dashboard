@@ -568,36 +568,6 @@ select {
   letter-spacing: 0;
 }
 
-.sprix-execution-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.sprix-execution-info-tile {
-  display: grid;
-  min-height: 96px;
-  align-content: center;
-  gap: 8px;
-}
-
-.sprix-execution-info-tile span {
-  color: var(--color-ink-soft);
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.sprix-execution-info-tile strong {
-  overflow: hidden;
-  color: var(--color-ink);
-  font-size: 24px;
-  line-height: 1.18;
-  font-weight: 800;
-  letter-spacing: 0;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .sprix-execution-progress-card {
   overflow: hidden;
 }
@@ -1438,7 +1408,6 @@ select {
     min-height: 0;
   }
 
-  .sprix-execution-summary-grid,
   .sprix-execution-content-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1479,7 +1448,6 @@ select {
   }
 
   .sprix-execution-hero,
-  .sprix-execution-summary-grid,
   .sprix-execution-content-grid {
     grid-template-columns: 1fr;
   }

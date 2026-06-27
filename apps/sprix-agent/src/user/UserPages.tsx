@@ -23,7 +23,7 @@ import { isGlobalAuthError } from "../utils/http";
 import { getCurrentExecutionAgent, getUserAdmissionState } from "./admission";
 import { getAgentAbilityResult, getAgentAdmissionSummary, getAgentTagLabels, hasPendingAgentEvaluation } from "./agentResult";
 import { getPayoutAccountText, getPayoutPageSubtitle, getPayoutRecordState } from "./earningsView";
-import { getExecutionArtifactsState, getExecutionBackendPendingSections, getExecutionOverview, getExecutionRequirementText, getExecutionReviewState } from "./executionDetailView";
+import { getExecutionArtifactsState, getExecutionBackendPendingSections, getExecutionRequirementText, getExecutionReviewState } from "./executionDetailView";
 import { getFaceVerificationStartState, getQualificationRecordRows } from "./qualificationView";
 import { getRecommendationPendingState } from "./recommendationView";
 import { getEstimatedTokenField } from "./tokenEstimateView";
@@ -901,7 +901,6 @@ export function MyTaskDetailPage() {
   const task = useSprixStore((state) => state.myTasks.find((item) => item.id === id));
   const base = useSprixStore((state) => state.tasks.find((item) => item.id === task?.taskId));
   if (!task || !base) return <EmptyState title="执行记录不存在" description="该任务记录暂不可访问" action={<SecondaryButton href="/agent/my-tasks">返回我的任务</SecondaryButton>} />;
-  const overview = getExecutionOverview(task);
   const requirementText = getExecutionRequirementText(base);
   const review = getExecutionReviewState(task, base);
   const artifacts = getExecutionArtifactsState(base);
@@ -928,11 +927,6 @@ export function MyTaskDetailPage() {
           <strong>{task.progress || "-"}</strong>
         </div>
       </Surface>
-      <div className="sprix-execution-summary-grid">
-        {overview.map((item) => (
-          <ExecutionInfoTile key={item.label} label={item.label} value={item.value} />
-        ))}
-      </div>
       <Surface className="sprix-execution-progress-card p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -990,15 +984,6 @@ export function MyTaskDetailPage() {
         ))}
       </div>
     </div>
-  );
-}
-
-function ExecutionInfoTile({ label, value }: { label: string; value: string }) {
-  return (
-    <Surface tight className="sprix-execution-info-tile p-4">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </Surface>
   );
 }
 
