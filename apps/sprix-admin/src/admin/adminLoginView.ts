@@ -1,7 +1,7 @@
 export function getAdminLoginBackendState() {
   return {
-    title: "后台登录接口待正式接入",
-    description: "当前后台登录仍调用 /api/v1/auth/mock-admin-login；正式管理员登录接口接入前，不把它标记为生产登录。",
-    endpoint: "/api/v1/auth/mock-admin-login"
+    title: "后台账号密码登录已接入",
+    description: "管理后台调用正式管理员登录接口，账号和密码由 SprixServer 配置项控制。",
+    endpoint: "/api/v1/auth/admin-login"
   };
 }

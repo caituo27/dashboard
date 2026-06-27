@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { Alert, Button, Form, Input, message } from "antd";
+import { Button, Form, Input, message } from "antd";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
-import { getAdminLoginBackendState } from "./adminLoginView";
 import { authenticateAdmin } from "../services/sprixApi";
 
 type LoginValues = {
-  email: string;
-  code: string;
+  account: string;
+  password: string;
 };
 
 export function hasAdminToken() {
@@ -28,7 +27,6 @@ export function AdminLoginPage() {
   const [searchParams] = useSearchParams();
   const [submitting, setSubmitting] = useState(false);
   const redirect = getSafeAdminRedirect(searchParams.get("redirect"));
-  const backendState = getAdminLoginBackendState();
 
   if (hasAdminToken()) {
     return <Navigate to={redirect} replace />;
@@ -37,7 +35,7 @@ export function AdminLoginPage() {
   const login = async (values: LoginValues) => {
     setSubmitting(true);
     try {
-      await authenticateAdmin(values.email, values.code);
+      await authenticateAdmin(values.account, values.password);
       message.success("登录成功");
       navigate(redirect, { replace: true });
     } catch (error) {
@@ -55,27 +53,15 @@ export function AdminLoginPage() {
             <div className="sprix-title text-3xl text-ink">Sprix Admin</div>
             <p className="mt-2 text-sm text-ink-soft">登录后进入平台运营后台</p>
           </div>
-          <Alert
-            className="mb-6"
-            type="warning"
-            showIcon
-            message={backendState.title}
-            description={
-              <div className="space-y-2">
-                <p>{backendState.description}</p>
-                <code className="block rounded-md bg-[#f7f7f5] px-3 py-2 text-xs text-ink">{backendState.endpoint}</code>
-              </div>
-            }
-          />
           <Form<LoginValues>
             layout="vertical"
             onFinish={login}
           >
-            <Form.Item label="邮箱" name="email" rules={[{ required: true, message: "请输入邮箱" }, { type: "email", message: "请输入有效邮箱" }]}>
+            <Form.Item label="账号" name="account" rules={[{ required: true, message: "请输入账号" }]}>
               <Input size="large" />
             </Form.Item>
-            <Form.Item label="验证码" name="code" rules={[{ required: true, message: "请输入验证码" }]}>
-              <Input size="large" />
+            <Form.Item label="密码" name="password" rules={[{ required: true, message: "请输入密码" }]}>
+              <Input.Password size="large" autoComplete="current-password" />
             </Form.Item>
             <Button type="primary" htmlType="submit" size="large" shape="round" block loading={submitting}>
               登录
