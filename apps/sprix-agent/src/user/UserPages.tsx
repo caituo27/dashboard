@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Modal, Progress, Segmented, Steps, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
@@ -16,6 +16,7 @@ import {
 } from "../services/sprixApi";
 import { ActionButton, EmptyState, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface, primitiveIcons } from "../components/Primitives";
 import { compactText, currency, scoreText } from "../utils/format";
+import { isGlobalAuthError } from "../utils/http";
 import { getCurrentExecutionAgent, getUserAdmissionState } from "./admission";
 import { getAgentAbilityResult, getAgentAdmissionSummary, getAgentConnectActionLabel, getAgentConnectSuccessMessage, getAgentProfileEditAction, getAgentTagLabels, getCurrentAgentScoreMetric } from "./agentResult";
 import { getEarningsOverview, getWithdrawalAccountAction, getWithdrawalAccountCard, getWithdrawalEntryAction, getWithdrawalHistoryState, getWithdrawalProgressRefreshAction } from "./earningsView";
@@ -37,6 +38,11 @@ type UserPageProps = {
   openAppeal: (executionId: string) => void;
 };
 
+function showRequestError(error: unknown, fallback: string, prefix = "") {
+  if (isGlobalAuthError(error)) return;
+  message.error(error instanceof Error ? `${prefix}${error.message}` : fallback);
+}
+
 export function LandingPage({ openLogin }: UserPageProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -45,12 +51,21 @@ export function LandingPage({ openLogin }: UserPageProps) {
   const account = useSprixStore((state) => state.account);
   const agents = useSprixStore((state) => state.agents);
   const admission = getUserAdmissionState(account, agents);
-  const admissionReason = (location.state as { admissionReason?: string } | null)?.admissionReason;
+  const admissionState = location.state as { admissionReason?: string; openLogin?: boolean } | null;
+  const admissionReason = admissionState?.admissionReason;
+  const shouldOpenLogin = Boolean(admissionState?.openLogin);
+  const handledAdmissionLoginKey = useRef<string>();
   const [checkingLocalAgent, setCheckingLocalAgent] = useState(false);
 
   useEffect(() => {
     if (admissionReason) message.warning(admissionReason);
   }, [admissionReason]);
+
+  useEffect(() => {
+    if (!shouldOpenLogin || account.isLoggedIn || handledAdmissionLoginKey.current === location.key) return;
+    handledAdmissionLoginKey.current = location.key;
+    openLogin();
+  }, [account.isLoggedIn, location.key, openLogin, shouldOpenLogin]);
 
   const connectedAgents = agents.filter((agent) => agent.status === "已连接");
   const currentAgent = admission.allowed ? admission.currentAgent : undefined;
@@ -306,7 +321,7 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
           message.success("接单成功，任务已进入执行中");
           navigate("/agent/my-tasks");
         } catch (error) {
-          message.error(error instanceof Error ? `接单失败：${error.message}` : "接单失败");
+          showRequestError(error, "接单失败", "接单失败：");
         }
       }
     });
@@ -380,7 +395,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
       message.success(getAgentConnectSuccessMessage(agent));
     } catch (error) {
-      message.error(error instanceof Error ? `连接失败：${error.message}` : "连接失败");
+      showRequestError(error, "连接失败", "连接失败：");
     }
   };
 
@@ -390,7 +405,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
       message.success("已设置当前执行 Agent");
     } catch (error) {
-      message.error(error instanceof Error ? `设置失败：${error.message}` : "设置失败");
+      showRequestError(error, "设置失败", "设置失败：");
     }
   };
 
@@ -400,7 +415,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
       message.success("已断开连接");
     } catch (error) {
-      message.error(error instanceof Error ? `断开失败：${error.message}` : "断开失败");
+      showRequestError(error, "断开失败", "断开失败：");
     }
   };
 
@@ -600,7 +615,7 @@ export function MyTasksPage({ openLogin, openAppeal }: UserPageProps) {
           await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
           message.success("已重新生成执行记录");
         } catch (error) {
-          message.error(error instanceof Error ? `重新执行失败：${error.message}` : "重新执行失败");
+          showRequestError(error, "重新执行失败", "重新执行失败：");
         }
       }
     });
@@ -874,7 +889,7 @@ export function QualificationPage() {
 
                     message.warning(startState.message);
                   } catch (error) {
-                    message.error(error instanceof Error ? `实人认证初始化失败：${error.message}` : "实人认证初始化失败");
+                    showRequestError(error, "实人认证初始化失败", "实人认证初始化失败：");
                   } finally {
                     setSubmitting(false);
                   }
@@ -908,7 +923,7 @@ export function QualificationPage() {
                     setStep(2);
                     message.success("接单资格已开通");
                   } catch (error) {
-                    message.error(error instanceof Error ? `协议签署失败：${error.message}` : "协议签署失败");
+                    showRequestError(error, "协议签署失败", "协议签署失败：");
                   } finally {
                     setSubmitting(false);
                   }

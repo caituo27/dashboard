@@ -7,6 +7,7 @@ import { useSprixStore } from "../store/sprixStore";
 import { ActionButton } from "./Primitives";
 import { userRoutes } from "../navigation";
 import { logoutConsumer } from "../services/sprixApi";
+import { isGlobalAuthError } from "../utils/http";
 
 function Sidebar() {
   const location = useLocation();
@@ -102,7 +103,9 @@ function UserTopBar({
                       navigate("/");
                       message.success("已退出登录");
                     } catch (error) {
-                      message.error(error instanceof Error ? `退出失败：${error.message}` : "退出失败");
+                      if (!isGlobalAuthError(error)) {
+                        message.error(error instanceof Error ? `退出失败：${error.message}` : "退出失败");
+                      }
                     }
                   }
                 }

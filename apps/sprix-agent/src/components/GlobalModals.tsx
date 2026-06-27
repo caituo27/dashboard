@@ -19,6 +19,7 @@ import {
   type WechatLoginSession
 } from "../services/sprixApi";
 import { currency } from "../utils/format";
+import { isGlobalAuthError } from "../utils/http";
 import { getAccountEditActions, getAccountProfileRows } from "../user/accountView";
 import { getWithdrawalAccountAction } from "../user/earningsView";
 
@@ -47,7 +48,13 @@ export function useGlobalModalState() {
   });
   const open = (key: keyof ModalState) => setModal((prev) => ({ ...prev, [key]: true }));
   const close = (key: keyof ModalState) => setModal((prev) => ({ ...prev, [key]: false }));
-  return { modal, open, close };
+  const closeAll = () => setModal({ login: false, account: false, agreements: false, contact: false, bindAlipay: false, withdraw: false });
+  return { modal, open, close, closeAll };
+}
+
+function showRequestError(error: unknown, fallback: string, prefix = "") {
+  if (isGlobalAuthError(error)) return;
+  message.error(error instanceof Error ? `${prefix}${error.message}` : fallback);
 }
 
 export function LoginRegisterModal({
@@ -91,7 +98,7 @@ export function LoginRegisterModal({
       await authenticateConsumer(values.phone, values.code);
       await completeLogin();
     } catch (error) {
-      message.error(error instanceof Error ? `登录失败：${error.message}` : "登录失败");
+      showRequestError(error, "登录失败", "登录失败：");
     } finally {
       setSubmitting(false);
     }
@@ -110,7 +117,7 @@ export function LoginRegisterModal({
       setWechatStatus("PENDING");
       setWechatExpiresInSeconds(session.expiresInSeconds);
     } catch (error) {
-      message.error(error instanceof Error ? `微信登录失败：${error.message}` : "微信登录失败");
+      showRequestError(error, "微信登录失败", "微信登录失败：");
     } finally {
       setWechatLoading(false);
     }
@@ -125,7 +132,7 @@ export function LoginRegisterModal({
       message.success("验证码已发送");
     } catch (error) {
       if (error && typeof error === "object" && "errorFields" in error) return;
-      message.error(error instanceof Error ? `验证码发送失败：${error.message}` : "验证码发送失败");
+      showRequestError(error, "验证码发送失败", "验证码发送失败：");
     } finally {
       setSmsSending(false);
     }
@@ -171,7 +178,7 @@ export function LoginRegisterModal({
       } catch (error) {
         if (cancelled) return;
         setWechatStatus("ERROR");
-        message.error(error instanceof Error ? `微信登录状态获取失败：${error.message}` : "微信登录状态获取失败");
+        showRequestError(error, "微信登录状态获取失败", "微信登录状态获取失败：");
       }
     };
 
@@ -431,7 +438,7 @@ export function BindAlipayModal({
       } catch (error) {
         if (cancelled) return;
         setStatus("ERROR");
-        message.error(error instanceof Error ? `支付宝绑定状态获取失败：${error.message}` : "支付宝绑定状态获取失败");
+        showRequestError(error, "支付宝绑定状态获取失败", "支付宝绑定状态获取失败：");
       }
     };
 
@@ -468,7 +475,7 @@ export function BindAlipayModal({
             setStatus("PENDING");
             setExpiresInSeconds(nextSession.expiresInSeconds);
           } catch (error) {
-            message.error(error instanceof Error ? `二维码生成失败：${error.message}` : "二维码生成失败");
+            showRequestError(error, "二维码生成失败", "二维码生成失败：");
           } finally {
             setSubmitting(false);
           }
@@ -553,7 +560,7 @@ export function WithdrawRequestModal({ open, onClose }: { open: boolean; onClose
             message.success("提现申请已提交，预计到账时间以后端返回为准");
             onClose();
           } catch (error) {
-            message.error(error instanceof Error ? `提现申请失败：${error.message}` : "提现申请失败");
+            showRequestError(error, "提现申请失败", "提现申请失败：");
           } finally {
             setSubmitting(false);
           }
@@ -599,7 +606,7 @@ export function AppealModal({
             message.success("申诉已提交，处理进度以后端返回状态为准");
             onClose();
           } catch (error) {
-            message.error(error instanceof Error ? `申诉提交失败：${error.message}` : "申诉提交失败");
+            showRequestError(error, "申诉提交失败", "申诉提交失败：");
           } finally {
             setSubmitting(false);
           }

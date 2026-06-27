@@ -1,6 +1,6 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Navigate, Route, BrowserRouter as Router, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, BrowserRouter as Router, Routes, useLocation, useNavigate } from "react-router-dom";
 import { message } from "antd";
 import {
   AccountModal,
@@ -50,7 +50,9 @@ function RemoteSprixBridge() {
 
 function ConsumerAppRoutes() {
   const location = useLocation();
-  const { modal, open, close } = useGlobalModalState();
+  const navigate = useNavigate();
+  const { modal, open, close, closeAll } = useGlobalModalState();
+  const logout = useSprixStore((state) => state.logout);
   const [afterLogin, setAfterLogin] = useState<(() => void) | undefined>();
   const [afterBind, setAfterBind] = useState<(() => void) | undefined>();
   const [qualificationTaskId, setQualificationTaskId] = useState<string | undefined>();
@@ -76,6 +78,24 @@ function ConsumerAppRoutes() {
     setAfterBind(() => callback);
     open("bindAlipay");
   };
+
+  useEffect(() => {
+    const handleAuthRequired = () => {
+      logout();
+      queryClient.removeQueries({ queryKey: ["sprix-agent"] });
+      setAfterLogin(undefined);
+      setAfterBind(undefined);
+      setQualificationTaskId(undefined);
+      setQualificationOpen(false);
+      setAppealExecutionId(null);
+      closeAll();
+      open("login");
+      navigate("/", { replace: true, state: { admissionReason: "登录已过期，请重新登录" } });
+    };
+
+    window.addEventListener("sprix-auth-required", handleAuthRequired);
+    return () => window.removeEventListener("sprix-auth-required", handleAuthRequired);
+  }, [closeAll, logout, navigate, open]);
 
   const userPageProps = {
     openLogin,
@@ -174,7 +194,7 @@ function AdmissionGate({ children }: { children: ReactNode }) {
   }
 
   if (!admission.allowed) {
-    return <Navigate to="/" replace state={{ admissionReason: admission.reason, from: location.pathname }} />;
+    return <Navigate to="/" replace state={{ admissionReason: admission.reason, from: location.pathname, openLogin: !account.isLoggedIn }} />;
   }
 
   return <>{children}</>;

@@ -32,6 +32,7 @@ import {
 } from "../services/sprixApi";
 import { ActionButton, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface, primitiveIcons } from "../components/Primitives";
 import { currency } from "../utils/format";
+import { isGlobalAuthError } from "../utils/http";
 import { getAdminExecutionRecordActions, type AdminExecutionRecordAction } from "./adminExecutionView";
 import {
   getAdminPayoutBatchActions,
@@ -53,6 +54,11 @@ function getWithdrawalBackendId(record: Pick<Withdrawal | Payout, "backendId" | 
 
 function getFundExceptionBackendId(record: Pick<FundException, "backendId" | "withdrawalNo">) {
   return record.backendId ?? record.withdrawalNo;
+}
+
+function showRequestError(error: unknown, fallback: string, prefix = "") {
+  if (isGlobalAuthError(error)) return;
+  message.error(error instanceof Error ? `${prefix}${error.message}` : fallback);
 }
 
 export function AdminTaskCenter() {
@@ -122,7 +128,7 @@ export function AdminTaskCenter() {
       await refreshTasks();
       message.success(successText);
     } catch (error) {
-      message.error(error instanceof Error ? error.message : successText.replace("已", "") + "失败");
+      showRequestError(error, successText.replace("已", "") + "失败");
     }
   };
   const confirmTaskAction = (task: Task, action: AdminTaskWriteAction) => {
@@ -387,7 +393,7 @@ export function AdminTaskForm() {
       await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
       navigate("/tasks");
     } catch (error) {
-      message.error(error instanceof Error ? error.message : "任务保存失败");
+      showRequestError(error, "任务保存失败");
     }
   };
 
@@ -789,7 +795,7 @@ export function AdminAppealCenter() {
                           await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
                           message.success("已开始处理");
                         } catch (error) {
-                          message.error(error instanceof Error ? `开始处理失败：${error.message}` : "开始处理失败");
+                          showRequestError(error, "开始处理失败", "开始处理失败：");
                         }
                       }}
                     >
@@ -868,7 +874,7 @@ export function AdminAppealDetail() {
                       message.success("申诉已通过，任务已进入结算中");
                       navigate("/appeals");
                     } catch (error) {
-                      message.error(error instanceof Error ? `申诉通过失败：${error.message}` : "申诉通过失败");
+                      showRequestError(error, "申诉通过失败", "申诉通过失败：");
                     }
                   }
                 })
@@ -889,7 +895,7 @@ export function AdminAppealDetail() {
                       message.success("已处理为申诉不通过");
                       navigate("/appeals");
                     } catch (error) {
-                      message.error(error instanceof Error ? `申诉驳回失败：${error.message}` : "申诉驳回失败");
+                      showRequestError(error, "申诉驳回失败", "申诉驳回失败：");
                     }
                   }
                 })
@@ -936,7 +942,7 @@ export function AdminFundCenter() {
       await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
       message.success("已通过审核，进入待打款");
     } catch (error) {
-      message.error(error instanceof Error ? `提现审核失败：${error.message}` : "提现审核失败");
+      showRequestError(error, "提现审核失败", "提现审核失败：");
     }
   };
   const rejectWithdrawal = async (record: Withdrawal) => {
@@ -945,7 +951,7 @@ export function AdminFundCenter() {
       await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
       message.success("已驳回提现申请");
     } catch (error) {
-      message.error(error instanceof Error ? `提现驳回失败：${error.message}` : "提现驳回失败");
+      showRequestError(error, "提现驳回失败", "提现驳回失败：");
     }
   };
   const markPayoutPaid = async (record: Payout) => {
@@ -954,7 +960,7 @@ export function AdminFundCenter() {
       await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
       message.success("已标记打款完成");
     } catch (error) {
-      message.error(error instanceof Error ? `标记打款失败：${error.message}` : "标记打款失败");
+      showRequestError(error, "标记打款失败", "标记打款失败：");
     }
   };
   const returnPayoutForReview = async (record: Payout) => {
@@ -963,7 +969,7 @@ export function AdminFundCenter() {
       await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
       message.success("已退回提现审核");
     } catch (error) {
-      message.error(error instanceof Error ? `退回审核失败：${error.message}` : "退回审核失败");
+      showRequestError(error, "退回审核失败", "退回审核失败：");
     }
   };
   const markPayoutFailed = async (record: Payout) => {
@@ -972,7 +978,7 @@ export function AdminFundCenter() {
       await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
       message.success("已标记打款失败");
     } catch (error) {
-      message.error(error instanceof Error ? `打款失败标记提交失败：${error.message}` : "打款失败标记提交失败");
+      showRequestError(error, "打款失败标记提交失败", "打款失败标记提交失败：");
     }
   };
   const markExceptionHandled = async (record: FundException) => {
@@ -981,7 +987,7 @@ export function AdminFundCenter() {
       await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
       message.success("异常已标记处理");
     } catch (error) {
-      message.error(error instanceof Error ? `异常处理失败：${error.message}` : "异常处理失败");
+      showRequestError(error, "异常处理失败", "异常处理失败：");
     }
   };
   return (

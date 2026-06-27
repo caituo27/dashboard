@@ -24,6 +24,14 @@ type ApiEnvelope<T = unknown> = {
   data?: T;
 };
 
+export class GlobalAuthError extends Error {
+  readonly globalAuth = true;
+}
+
+export function isGlobalAuthError(error: unknown): error is GlobalAuthError {
+  return error instanceof GlobalAuthError || (typeof error === "object" && error !== null && (error as { globalAuth?: unknown }).globalAuth === true);
+}
+
 function redirectToLogin() {
   localStorage.removeItem("sprix-admin-auth-token");
   if (window.location.pathname === "/login") return;
@@ -52,6 +60,7 @@ http.interceptors.response.use(
         window.dispatchEvent(new CustomEvent("sprix-api-error", { detail: { code: body.code, message } }));
         if (body.code === "UNAUTHENTICATED") {
           redirectToLogin();
+          throw new GlobalAuthError(message);
         }
         throw new Error(message);
       }
@@ -68,6 +77,7 @@ http.interceptors.response.use(
 
     if (status === 401) {
       redirectToLogin();
+      return Promise.reject(new GlobalAuthError(message));
     }
 
     return Promise.reject(new Error(message));
