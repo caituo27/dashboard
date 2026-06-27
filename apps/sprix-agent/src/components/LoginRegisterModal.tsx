@@ -208,7 +208,7 @@ export function LoginRegisterModal({ open, onClose, afterLogin }: LoginRegisterM
             key: "alipay",
             label: "支付宝扫码登录",
             children: (
-              <div className="space-y-4">
+              <div className="space-y-6 pt-2">
                 <QrPayloadBox value={alipaySession?.qrPayload} placeholder="同意协议后生成二维码" />
                 <p className="text-center text-sm text-ink-soft">{alipayStatusText}</p>
                 {alipaySession && <SessionExpiryText expiresInSeconds={alipayExpiresInSeconds} fallback="二维码已过期" />}
@@ -228,7 +228,7 @@ export function LoginRegisterModal({ open, onClose, afterLogin }: LoginRegisterM
             key: "wechat",
             label: "微信扫码登录",
             children: (
-              <div className="space-y-4">
+              <div className="space-y-6 pt-2">
                 <QrPayloadBox value={wechatSession?.qrPayload} placeholder="同意协议后生成二维码" />
                 <p className="text-center text-sm text-ink-soft">{wechatStatusText}</p>
                 {wechatSession && <SessionExpiryText expiresInSeconds={wechatExpiresInSeconds} fallback="二维码有效期以微信页面为准" />}
@@ -243,7 +243,7 @@ export function LoginRegisterModal({ open, onClose, afterLogin }: LoginRegisterM
             key: "phone",
             label: "手机号验证码",
             children: (
-              <Form form={phoneForm} layout="vertical" onFinish={finishLogin} className="pt-2">
+              <Form form={phoneForm} layout="vertical" onFinish={finishLogin} className="space-y-2 pt-4">
                 <Form.Item label="手机号" name="phone" rules={[{ required: true, message: "请输入手机号" }]}>
                   <Input placeholder="请输入手机号" />
                 </Form.Item>
