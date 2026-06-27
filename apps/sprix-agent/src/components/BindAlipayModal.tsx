@@ -1,0 +1,143 @@
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Form, Input, Modal, message } from "antd";
+import {
+  createRemoteAlipayBindSession,
+  mapWithdrawalAccountState,
+  readRemoteAlipayBindStatus,
+  type AlipayBindSession
+} from "../services/sprixApi";
+import { useSprixStore } from "../store/sprixStore";
+import { getWithdrawalAccountBindMessage } from "../user/withdrawalAccountView";
+import { ActionButton, SecondaryButton } from "./Primitives";
+import { formatRemainingSeconds, QrPayloadBox } from "./QrSession";
+import { showRequestError } from "./requestErrors";
+
+type BindAlipayModalProps = {
+  readonly open: boolean;
+  readonly onClose: () => void;
+  readonly afterBind?: () => void;
+};
+
+export function BindAlipayModal({ open, onClose, afterBind }: BindAlipayModalProps) {
+  const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
+  const queryClient = useQueryClient();
+  const [form] = Form.useForm<{ verifiedName: string }>();
+  const [submitting, setSubmitting] = useState(false);
+  const [session, setSession] = useState<AlipayBindSession>();
+  const [status, setStatus] = useState("WAITING");
+  const [expiresInSeconds, setExpiresInSeconds] = useState(0);
+
+  useEffect(() => {
+    if (open) return;
+    form.resetFields();
+    setSession(undefined);
+    setStatus("WAITING");
+    setExpiresInSeconds(0);
+    setSubmitting(false);
+  }, [form, open]);
+
+  useEffect(() => {
+    if (!open || !session) return;
+    let cancelled = false;
+    let timeoutId: number | undefined;
+
+    const pollAlipayStatus = async () => {
+      try {
+        const bindStatus = await readRemoteAlipayBindStatus(session.sessionId);
+        if (cancelled) return;
+        setStatus(bindStatus.status);
+        setExpiresInSeconds(bindStatus.expiresInSeconds);
+        if (bindStatus.completed && bindStatus.withdrawalAccount) {
+          mergeRemoteState({ account: mapWithdrawalAccountState(bindStatus.withdrawalAccount) });
+          await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
+          message.success(getWithdrawalAccountBindMessage(bindStatus.withdrawalAccount));
+          onClose();
+          afterBind?.();
+          return;
+        }
+        if (isAlipaySessionExpired(bindStatus.status, bindStatus.expiresInSeconds)) return;
+        timeoutId = window.setTimeout(pollAlipayStatus, session.pollIntervalMs);
+      } catch (error) {
+        if (cancelled) return;
+        setStatus("ERROR");
+        showRequestError(error, "支付宝绑定状态获取失败", "支付宝绑定状态获取失败：");
+      }
+    };
+
+    timeoutId = window.setTimeout(pollAlipayStatus, session.pollIntervalMs);
+    return () => {
+      cancelled = true;
+      if (timeoutId) window.clearTimeout(timeoutId);
+    };
+  }, [afterBind, mergeRemoteState, onClose, open, queryClient, session]);
+
+  const alipayStatusText = getAlipayStatusText(status, expiresInSeconds, Boolean(session));
+
+  return (
+    <Modal
+      title="设置提现账户"
+      open={open}
+      onCancel={onClose}
+      footer={null}
+      width={520}
+      style={{ top: 32 }}
+      styles={{ body: { maxHeight: "calc(100vh - 128px)", overflowY: "auto" } }}
+    >
+      <p className="mb-5 text-sm leading-7 text-ink-soft">为确保提现资金进入本人账户，请绑定与接单实人认证主体一致的支付宝账户。</p>
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={async (values) => {
+          const verifiedName = values.verifiedName || "";
+          setSubmitting(true);
+          try {
+            const nextSession = await createRemoteAlipayBindSession(verifiedName);
+            setSession(nextSession);
+            setStatus("PENDING");
+            setExpiresInSeconds(nextSession.expiresInSeconds);
+          } catch (error) {
+            showRequestError(error, "二维码生成失败", "二维码生成失败：");
+          } finally {
+            setSubmitting(false);
+          }
+        }}
+      >
+        <Form.Item label="认证姓名" name="verifiedName" rules={[{ required: true, message: "请输入实人认证姓名" }]}>
+          <Input placeholder="请输入与实人认证一致的姓名" />
+        </Form.Item>
+        <div className="mb-4 rounded-2xl bg-[#e7f7f2] px-4 py-3 text-sm text-accent">扫码授权后，后台将校验支付宝实名主体与接单实人认证主体是否一致。</div>
+        {session && (
+          <div className="mb-4 space-y-3">
+            <QrPayloadBox value={session.qrPayload} placeholder="同意协议后生成二维码" />
+            <p className="text-center text-sm text-ink-soft">{alipayStatusText}</p>
+            <p className="text-center text-xs text-ink-soft">
+              {expiresInSeconds > 0 ? `二维码剩余 ${formatRemainingSeconds(expiresInSeconds)}` : "二维码已过期"}
+            </p>
+          </div>
+        )}
+        <ActionButton htmlType="submit" block loading={submitting}>
+          {session ? "刷新支付宝绑定二维码" : "生成支付宝绑定二维码"}
+        </ActionButton>
+        {session && (
+          <SecondaryButton className="mt-2" block href={session.qrPayload} target="_blank">
+            无法扫码时打开授权页
+          </SecondaryButton>
+        )}
+      </Form>
+    </Modal>
+  );
+}
+
+function isAlipaySessionExpired(status: string, expiresInSeconds: number) {
+  const normalizedStatus = status.toUpperCase();
+  return expiresInSeconds <= 0 || normalizedStatus === "EXPIRED" || normalizedStatus === "CANCELLED" || normalizedStatus === "FAILED";
+}
+
+function getAlipayStatusText(status: string, expiresInSeconds: number, hasSession: boolean) {
+  if (!hasSession) return "生成二维码后使用支付宝扫码授权";
+  if (status === "ERROR") return "扫码状态获取失败，请刷新二维码";
+  if (isAlipaySessionExpired(status, expiresInSeconds)) return "二维码已过期，请刷新后重试";
+  if (status.toUpperCase() === "COMPLETED") return "绑定完成，正在同步账户状态";
+  return "请使用支付宝扫码授权，完成后会自动更新账户";
+}

@@ -242,6 +242,13 @@ export type Withdrawal = {
   reviewReason?: string;
   payoutFailureReason?: string;
   exceptionRemark?: string;
+  payoutProvider?: string;
+  payoutOutBizNo?: string;
+  payoutOrderId?: string;
+  payoutStatus?: string;
+  payoutRequestedAt?: string;
+  payoutCompletedAt?: string;
+  payoutLastQueriedAt?: string;
 };
 
 export type Payout = {
@@ -254,6 +261,13 @@ export type Payout = {
   estimatedArrivalTime: string;
   approvedAt: string;
   withdrawStatus: WithdrawStatus;
+  payoutProvider?: string;
+  payoutOutBizNo?: string;
+  payoutOrderId?: string;
+  payoutStatus?: string;
+  payoutRequestedAt?: string;
+  payoutCompletedAt?: string;
+  payoutLastQueriedAt?: string;
 };
 
 export type FundException = {

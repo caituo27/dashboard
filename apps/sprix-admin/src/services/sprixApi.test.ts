@@ -257,6 +257,42 @@ describe("sprix admin api", () => {
     });
   });
 
+  it("maps Alipay payout audit fields from pending payout withdrawals", async () => {
+    const { readRemoteFunds } = await import("./sprixApi");
+    mocks.tasks.mockResolvedValue([]);
+    mocks.settlements.mockResolvedValue([]);
+    mocks.withdrawals.mockResolvedValue([
+      {
+        id: "withdrawal-1",
+        withdrawalNo: "W-1",
+        amount: 100,
+        alipayAccount: "user@example.com",
+        status: "PENDING_PAYOUT",
+        payoutProvider: "ALIPAY",
+        payoutOutBizNo: "AP202606270001",
+        payoutOrderId: "202606272200140001",
+        payoutStatus: "SUCCESS",
+        payoutRequestedAt: "2026-06-27T12:00:00",
+        payoutCompletedAt: "2026-06-27T12:01:00",
+        payoutLastQueriedAt: "2026-06-27T12:02:00"
+      }
+    ]);
+    mocks.flows.mockResolvedValue([]);
+
+    const snapshot = await readRemoteFunds();
+
+    expect(snapshot.payouts[0]).toMatchObject({
+      withdrawalNo: "W-1",
+      payoutProvider: "ALIPAY",
+      payoutOutBizNo: "AP202606270001",
+      payoutOrderId: "202606272200140001",
+      payoutStatus: "SUCCESS",
+      payoutRequestedAt: "2026-06-27 12:00",
+      payoutCompletedAt: "2026-06-27 12:01",
+      payoutLastQueriedAt: "2026-06-27 12:02"
+    });
+  });
+
   it("does not invent task copy when admin task summary fields are missing", async () => {
     const { readRemoteTaskCenterSnapshot } = await import("./sprixApi");
     mocks.appeals.mockResolvedValue([]);
@@ -339,6 +375,17 @@ describe("sprix admin api", () => {
       withdrawalId: "withdrawal-1",
       withdrawalReviewRequest: { reason: "异常已处理" }
     });
+  });
+
+  it("uses the current admin Alipay payout endpoints", async () => {
+    const { payRemoteWithdrawal, queryRemoteWithdrawalPayout } = await import("./sprixApi");
+    mocks.post.mockResolvedValue({});
+
+    await payRemoteWithdrawal("withdrawal-1");
+    await queryRemoteWithdrawalPayout("withdrawal-1");
+
+    expect(mocks.post).toHaveBeenCalledWith("/api/v1/admin/funds/withdrawals/withdrawal-1/payout", {});
+    expect(mocks.post).toHaveBeenCalledWith("/api/v1/admin/funds/withdrawals/withdrawal-1/payout-query", {});
   });
 
   it("uses the current Swagger admin task write endpoints", async () => {

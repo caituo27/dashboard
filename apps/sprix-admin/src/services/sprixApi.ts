@@ -267,6 +267,16 @@ export async function markRemoteWithdrawalPaid(withdrawalId: string) {
   return adminFundsApi.markWithdrawalPaid({ withdrawalId });
 }
 
+export async function payRemoteWithdrawal(withdrawalId: string): Promise<WithdrawalRecord> {
+  const response = await http.post<unknown, WithdrawalRecord>(`/api/v1/admin/funds/withdrawals/${encodeURIComponent(withdrawalId)}/payout`, {});
+  return requireValue<WithdrawalRecord>(response, "支付宝打款失败");
+}
+
+export async function queryRemoteWithdrawalPayout(withdrawalId: string): Promise<WithdrawalRecord> {
+  const response = await http.post<unknown, WithdrawalRecord>(`/api/v1/admin/funds/withdrawals/${encodeURIComponent(withdrawalId)}/payout-query`, {});
+  return requireValue<WithdrawalRecord>(response, "支付宝打款查询失败");
+}
+
 export async function markRemoteWithdrawalPayoutFailed(withdrawalId: string) {
   return adminFundsApi.markWithdrawalPayoutFailed({ withdrawalId });
 }
@@ -503,7 +513,14 @@ function mapWithdrawal(withdrawal: WithdrawalRecord): Withdrawal {
     reviewer: withdrawal.reviewer ?? "-",
     reviewReason: readString(withdrawal, "reviewReason"),
     payoutFailureReason: readString(withdrawal, "payoutFailureReason"),
-    exceptionRemark: readString(withdrawal, "exceptionRemark")
+    exceptionRemark: readString(withdrawal, "exceptionRemark"),
+    payoutProvider: readString(withdrawal, "payoutProvider"),
+    payoutOutBizNo: readString(withdrawal, "payoutOutBizNo"),
+    payoutOrderId: readString(withdrawal, "payoutOrderId"),
+    payoutStatus: readString(withdrawal, "payoutStatus"),
+    payoutRequestedAt: formatDateTime(readString(withdrawal, "payoutRequestedAt")),
+    payoutCompletedAt: formatDateTime(readString(withdrawal, "payoutCompletedAt")),
+    payoutLastQueriedAt: formatDateTime(readString(withdrawal, "payoutLastQueriedAt"))
   };
 }
 
@@ -519,7 +536,14 @@ function mapPayouts(withdrawals: Withdrawal[]): Payout[] {
       payoutAmount: item.applyAmount,
       estimatedArrivalTime: item.estimatedArrivalTime,
       approvedAt: item.appliedAt,
-      withdrawStatus: item.withdrawStatus
+      withdrawStatus: item.withdrawStatus,
+      payoutProvider: item.payoutProvider,
+      payoutOutBizNo: item.payoutOutBizNo,
+      payoutOrderId: item.payoutOrderId,
+      payoutStatus: item.payoutStatus,
+      payoutRequestedAt: item.payoutRequestedAt,
+      payoutCompletedAt: item.payoutCompletedAt,
+      payoutLastQueriedAt: item.payoutLastQueriedAt
     }));
 }
 

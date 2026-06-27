@@ -9,8 +9,13 @@ const { serviceMocks } = vi.hoisted(() => ({
     applyRemoteWithdrawal: vi.fn(),
     authenticateConsumer: vi.fn(),
     bindRemoteWithdrawalAccount: vi.fn(),
+    createAlipayLoginSession: vi.fn(),
+    createRemoteAlipayBindSession: vi.fn(),
     createWechatLoginSession: vi.fn(),
+    mapWithdrawalAccountState: vi.fn(),
     mapRemoteWithdrawal: vi.fn(),
+    readAlipayLoginStatus: vi.fn(),
+    readRemoteAlipayBindStatus: vi.fn(),
     readWechatLoginStatus: vi.fn(),
     sendSmsCode: vi.fn(),
     submitRemoteAppeal: vi.fn()
@@ -58,6 +63,29 @@ describe("LoginRegisterModal", () => {
     vi.clearAllMocks();
   });
 
+  it("starts an Alipay QR session after the user agrees to the policies", async () => {
+    serviceMocks.createAlipayLoginSession.mockResolvedValue({
+      sessionId: "alipay-session-1",
+      qrPayload: "https://openauth.alipay.com/oauth2/publicAppAuthorize.htm?state=alipay-session-1",
+      expiresInSeconds: 300,
+      pollIntervalMs: 2000
+    });
+    serviceMocks.readAlipayLoginStatus.mockResolvedValue({
+      sessionId: "alipay-session-1",
+      status: "PENDING",
+      expiresInSeconds: 300,
+      authenticated: false
+    });
+
+    renderLoginModal();
+
+    fireEvent.click(screen.getByLabelText("我已阅读并同意《用户协议》和《隐私协议》"));
+    fireEvent.click(screen.getByRole("button", { name: "生成支付宝登录二维码" }));
+
+    await waitFor(() => expect(serviceMocks.createAlipayLoginSession).toHaveBeenCalledTimes(1));
+    expect(screen.getByText("请使用支付宝扫码授权，确认后会自动进入平台")).toBeInTheDocument();
+  });
+
   it("starts a WeChat QR session after the user agrees to the policies", async () => {
     serviceMocks.createWechatLoginSession.mockResolvedValue({
       sessionId: "session-1",
@@ -74,7 +102,9 @@ describe("LoginRegisterModal", () => {
 
     renderLoginModal();
 
-    fireEvent.click(screen.getByLabelText("我已阅读并同意《用户协议》和《隐私协议》"));
+    fireEvent.click(screen.getByRole("tab", { name: "微信扫码登录" }));
+    const agreementChecks = screen.getAllByLabelText("我已阅读并同意《用户协议》和《隐私协议》");
+    fireEvent.click(agreementChecks[agreementChecks.length - 1]);
     fireEvent.click(screen.getByRole("button", { name: "生成微信登录二维码" }));
 
     await waitFor(() => expect(serviceMocks.createWechatLoginSession).toHaveBeenCalledTimes(1));
@@ -90,7 +120,7 @@ describe("LoginRegisterModal", () => {
 
     renderLoginModal();
 
-    fireEvent.click(screen.getByRole("tab", { name: "手机验证码登录 / 注册" }));
+    fireEvent.click(screen.getByRole("tab", { name: "手机号验证码" }));
     fireEvent.change(screen.getByPlaceholderText("请输入手机号"), { target: { value: "13800008624" } });
     fireEvent.click(screen.getByRole("button", { name: "获取验证码" }));
 
@@ -103,7 +133,7 @@ describe("LoginRegisterModal", () => {
 
     renderLoginModal();
 
-    fireEvent.click(screen.getByRole("tab", { name: "手机验证码登录 / 注册" }));
+    fireEvent.click(screen.getByRole("tab", { name: "手机号验证码" }));
     const agreementChecks = screen.getAllByLabelText("我已阅读并同意《用户协议》和《隐私协议》");
     fireEvent.click(agreementChecks[agreementChecks.length - 1]);
     fireEvent.change(screen.getByPlaceholderText("请输入手机号"), { target: { value: "13800008624" } });

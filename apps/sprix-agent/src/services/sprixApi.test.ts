@@ -46,9 +46,11 @@ vi.mock("../apis/sprix", () => ({
 }));
 
 import {
+  createAlipayLoginSession,
   authenticateConsumer,
   createWechatLoginSession,
   mapRemoteWithdrawal,
+  readAlipayLoginStatus,
   readAgentSnapshot,
   readWechatLoginStatus,
   resolveLocalAgentClaimBaseUrlForRuntime,
@@ -104,6 +106,44 @@ describe("Sprix API WeChat login adapter", () => {
     });
 
     await expect(createWechatLoginSession()).rejects.toThrow("微信扫码登录二维码不可用");
+  });
+
+  it("creates an Alipay QR login session from the backend login session", async () => {
+    httpPostMock.mockResolvedValue({
+      sessionId: "alipay-session-1",
+      qrPayload: "https://openauth.alipay.com/oauth2/publicAppAuthorize.htm?state=alipay-session-1",
+      expiresInSeconds: 300,
+      pollIntervalSeconds: 2
+    });
+
+    await expect(createAlipayLoginSession()).resolves.toEqual({
+      sessionId: "alipay-session-1",
+      qrPayload: "https://openauth.alipay.com/oauth2/publicAppAuthorize.htm?state=alipay-session-1",
+      expiresInSeconds: 300,
+      pollIntervalMs: 2000
+    });
+    expect(httpPostMock).toHaveBeenCalledWith("/api/v1/auth/alipay/login-sessions", {});
+  });
+
+  it("stores the returned auth token when the Alipay login session is confirmed", async () => {
+    httpGetMock.mockResolvedValue({
+      sessionId: "alipay-session-1",
+      status: "CONFIRMED",
+      expiresInSeconds: 250,
+      token: {
+        token: "alipay-token-1",
+        nickname: "Alipay user"
+      }
+    });
+
+    await expect(readAlipayLoginStatus("alipay-session-1")).resolves.toEqual({
+      sessionId: "alipay-session-1",
+      status: "CONFIRMED",
+      expiresInSeconds: 250,
+      authenticated: true
+    });
+    expect(httpGetMock).toHaveBeenCalledWith("/api/v1/auth/alipay/login-sessions/alipay-session-1");
+    expect(localStorage.getItem("sprix-auth-token")).toBe("alipay-token-1");
   });
 
   it("sends SMS code requests to the real backend endpoint", async () => {

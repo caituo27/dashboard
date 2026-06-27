@@ -13,9 +13,10 @@ import {
   createRemoteAdminTask,
   deleteRemoteAdminTask,
   markRemotePayoutExceptionHandled,
-  markRemoteWithdrawalPaid,
   markRemoteWithdrawalPayoutFailed,
   offlineRemoteAdminTask,
+  payRemoteWithdrawal,
+  queryRemoteWithdrawalPayout,
   readRemoteAppeals,
   readRemoteAppealDetail,
   readRemoteFunds,
@@ -954,13 +955,29 @@ export function AdminFundCenter() {
       showRequestError(error, "提现驳回失败", "提现驳回失败：");
     }
   };
-  const markPayoutPaid = async (record: Payout) => {
+  const payPayout = (record: Payout) => {
+    Modal.confirm({
+      title: "确认发起支付宝打款",
+      content: `将通过支付宝向 ${record.alipayAccount} 打款 ${currency(record.payoutAmount)}。确认后会调用后端真实出款接口。`,
+      okText: "发起打款",
+      onOk: async () => {
+        try {
+          await payRemoteWithdrawal(getWithdrawalBackendId(record));
+          await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+          message.success("支付宝打款已发起，状态以后端返回为准");
+        } catch (error) {
+          showRequestError(error, "支付宝打款失败", "支付宝打款失败：");
+        }
+      }
+    });
+  };
+  const queryPayout = async (record: Payout) => {
     try {
-      await markRemoteWithdrawalPaid(getWithdrawalBackendId(record));
+      await queryRemoteWithdrawalPayout(getWithdrawalBackendId(record));
       await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-      message.success("已标记打款完成");
+      message.success("已查询支付宝打款结果");
     } catch (error) {
-      showRequestError(error, "标记打款失败", "标记打款失败：");
+      showRequestError(error, "打款结果查询失败", "打款结果查询失败：");
     }
   };
   const returnPayoutForReview = async (record: Payout) => {
@@ -1034,7 +1051,7 @@ export function AdminFundCenter() {
             {
               key: "payouts",
               label: "待打款",
-              children: <PendingPayoutTable data={payouts} onMarkPaid={markPayoutPaid} onReturnReview={returnPayoutForReview} onMarkFailed={markPayoutFailed} />
+              children: <PendingPayoutTable data={payouts} onPay={payPayout} onQuery={queryPayout} onReturnReview={returnPayoutForReview} onMarkFailed={markPayoutFailed} />
             },
             {
               key: "exceptions",
@@ -1165,12 +1182,14 @@ function WithdrawalTable({
 
 function PendingPayoutTable({
   data,
-  onMarkPaid,
+  onPay,
+  onQuery,
   onReturnReview,
   onMarkFailed
 }: {
   data: Payout[];
-  onMarkPaid: (payout: Payout) => Promise<void>;
+  onPay: (payout: Payout) => void;
+  onQuery: (payout: Payout) => Promise<void>;
   onReturnReview: (payout: Payout) => Promise<void>;
   onMarkFailed: (payout: Payout) => Promise<void>;
 }) {
@@ -1194,7 +1213,7 @@ function PendingPayoutTable({
         rowKey="withdrawalNo"
         dataSource={data}
         rowSelection={{ selectedRowKeys: selectedKeys, onChange: setSelectedKeys }}
-        scroll={{ x: 980 }}
+        scroll={{ x: 1480 }}
         columns={[
           { title: "提现单号", dataIndex: "withdrawalNo" },
           { title: "用户昵称", dataIndex: "userName" },
@@ -1203,13 +1222,21 @@ function PendingPayoutTable({
           { title: "打款金额", dataIndex: "payoutAmount", render: currency },
           { title: "预计到账时间", dataIndex: "estimatedArrivalTime" },
           { title: "审核通过时间", dataIndex: "approvedAt" },
+          { title: "打款渠道", dataIndex: "payoutProvider", render: (value) => value || "-" },
+          { title: "商户单号", dataIndex: "payoutOutBizNo", render: (value) => value || "-" },
+          { title: "支付宝订单号", dataIndex: "payoutOrderId", render: (value) => value || "-" },
+          { title: "支付宝状态", dataIndex: "payoutStatus", render: (value) => value || "-" },
+          { title: "发起时间", dataIndex: "payoutRequestedAt", render: (value) => value || "-" },
+          { title: "完成时间", dataIndex: "payoutCompletedAt", render: (value) => value || "-" },
+          { title: "最近查询", dataIndex: "payoutLastQueriedAt", render: (value) => value || "-" },
           { title: "当前状态", dataIndex: "withdrawStatus", render: (value) => <StatusTag status={value} /> },
           {
             title: "操作",
             fixed: "right",
             render: (_, record) => (
-              <div className="flex gap-1">
-                <Button type="link" onClick={() => onMarkPaid(record)}>标记已打款</Button>
+              <div className="flex flex-wrap gap-1">
+                <Button type="link" disabled={record.withdrawStatus !== "待打款"} onClick={() => onPay(record)}>发起支付宝打款</Button>
+                <Button type="link" onClick={() => onQuery(record)}>查询打款结果</Button>
                 <Button type="link" onClick={() => onReturnReview(record)}>退回审核</Button>
                 <Button type="link" onClick={() => onMarkFailed(record)}>标记打款失败</Button>
               </div>

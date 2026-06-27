@@ -52,6 +52,20 @@ export type WechatLoginStatus = {
   authenticated: boolean;
 };
 
+export type AlipayLoginSession = {
+  sessionId: string;
+  qrPayload: string;
+  expiresInSeconds: number;
+  pollIntervalMs: number;
+};
+
+export type AlipayLoginStatus = {
+  sessionId: string;
+  status: string;
+  expiresInSeconds: number;
+  authenticated: boolean;
+};
+
 export type SmsCodeResponse = {
   mobile: string;
   expiresInSeconds: number;
@@ -78,6 +92,20 @@ type RemoteAlipayBindSession = {
   qrPayload?: string;
   expiresInSeconds?: number;
   pollIntervalSeconds?: number;
+};
+
+type RemoteAlipayLoginSession = {
+  sessionId?: string;
+  qrPayload?: string;
+  expiresInSeconds?: number;
+  pollIntervalSeconds?: number;
+};
+
+type RemoteAlipayLoginStatus = {
+  sessionId?: string;
+  status?: string;
+  expiresInSeconds?: number;
+  token?: AuthTokenResponse | null;
 };
 
 type RemoteAlipayBindStatus = {
@@ -141,6 +169,39 @@ export async function readWechatLoginStatus(sessionId: string): Promise<WechatLo
     sessionId: scanStatus.sessionId ?? sessionId,
     status: scanStatus.status ?? "PENDING",
     expiresInSeconds: scanStatus.expiresInSeconds ?? 0,
+    authenticated: Boolean(token)
+  };
+}
+
+export async function createAlipayLoginSession(): Promise<AlipayLoginSession> {
+  const response = await http.post<unknown, RemoteAlipayLoginSession>("/api/v1/auth/alipay/login-sessions", {});
+  const session = requireValue<RemoteAlipayLoginSession>(response, "支付宝登录二维码不可用");
+
+  if (!session.sessionId || !session.qrPayload) {
+    throw new Error("支付宝登录二维码不可用");
+  }
+
+  return {
+    sessionId: session.sessionId,
+    qrPayload: session.qrPayload,
+    expiresInSeconds: session.expiresInSeconds ?? 0,
+    pollIntervalMs: Math.max(session.pollIntervalSeconds ?? 2, 1) * 1000
+  };
+}
+
+export async function readAlipayLoginStatus(sessionId: string): Promise<AlipayLoginStatus> {
+  const response = await http.get<unknown, RemoteAlipayLoginStatus>(`/api/v1/auth/alipay/login-sessions/${encodeURIComponent(sessionId)}`);
+  const loginStatus = requireValue<RemoteAlipayLoginStatus>(response, "支付宝登录状态不可用");
+  const token = loginStatus.token?.token;
+
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+  }
+
+  return {
+    sessionId: loginStatus.sessionId ?? sessionId,
+    status: loginStatus.status ?? "PENDING",
+    expiresInSeconds: loginStatus.expiresInSeconds ?? 0,
     authenticated: Boolean(token)
   };
 }
