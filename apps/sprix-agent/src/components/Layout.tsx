@@ -9,7 +9,17 @@ import { userRoutes } from "../navigation";
 import { logoutConsumer } from "../services/sprixApi";
 import { isGlobalAuthError } from "../utils/http";
 
-function Sidebar() {
+function Sidebar({
+  onOpenLogin,
+  onOpenAccount,
+  onOpenAgreements,
+  onOpenContact
+}: {
+  onOpenLogin: () => void;
+  onOpenAccount: () => void;
+  onOpenAgreements: () => void;
+  onOpenContact: () => void;
+}) {
   const location = useLocation();
   return (
     <aside className="sprix-sidebar">
@@ -45,18 +55,22 @@ function Sidebar() {
           );
         })}
       </nav>
+      <UserMenu
+        onOpenLogin={onOpenLogin}
+        onOpenAccount={onOpenAccount}
+        onOpenAgreements={onOpenAgreements}
+        onOpenContact={onOpenContact}
+      />
     </aside>
   );
 }
 
-function UserTopBar({
-  title,
+function UserMenu({
   onOpenLogin,
   onOpenAccount,
   onOpenAgreements,
   onOpenContact
 }: {
-  title: string;
   onOpenLogin: () => void;
   onOpenAccount: () => void;
   onOpenAgreements: () => void;
@@ -67,12 +81,8 @@ function UserTopBar({
   const account = useSprixStore((state) => state.account);
   const logout = useSprixStore((state) => state.logout);
   return (
-    <header className="sprix-topbar">
-      <div>
-        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-soft">C 端用户站点</div>
-        <h2 className="mt-1 text-xl font-semibold text-ink">{title}</h2>
-      </div>
-      <div className="flex items-center gap-2">
+    <div className="sprix-sidebar-user">
+      <div className="flex min-w-0 items-center gap-2">
         {account.isLoggedIn ? (
           <Dropdown
             trigger={["click"]}
@@ -112,23 +122,22 @@ function UserTopBar({
               ]
             }}
           >
-            <button className="flex items-center gap-2 rounded-full border border-line bg-white px-3 py-2 text-sm font-semibold text-ink">
-              <span className="flex size-8 items-center justify-center rounded-full bg-[#e7f7f2] text-accent">
+            <button className="sprix-sidebar-user-button">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#e7f7f2] text-accent">
                 <UserRound size={17} />
               </span>
-              {account.nickname}
+              <span className="truncate">{account.nickname}</span>
             </button>
           </Dropdown>
         ) : (
-          <ActionButton onClick={onOpenLogin}>登录 / 注册</ActionButton>
+          <ActionButton className="w-full justify-center" onClick={onOpenLogin}>登录 / 注册</ActionButton>
         )}
       </div>
-    </header>
+    </div>
   );
 }
 
 export function UserShell({
-  title,
   children,
   onOpenLogin,
   onOpenAccount,
@@ -144,16 +153,14 @@ export function UserShell({
 }) {
   return (
     <div className="sprix-shell">
-      <Sidebar />
+      <Sidebar
+        onOpenLogin={onOpenLogin}
+        onOpenAccount={onOpenAccount}
+        onOpenAgreements={onOpenAgreements}
+        onOpenContact={onOpenContact}
+      />
       <main className="sprix-main">
         <div className="sprix-container">
-          <UserTopBar
-            title={title}
-            onOpenLogin={onOpenLogin}
-            onOpenAccount={onOpenAccount}
-            onOpenAgreements={onOpenAgreements}
-            onOpenContact={onOpenContact}
-          />
           {children}
         </div>
       </main>

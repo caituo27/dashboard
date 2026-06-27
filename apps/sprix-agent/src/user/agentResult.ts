@@ -1,6 +1,15 @@
 import type { Agent } from "../types";
 import { scoreText } from "../utils/format";
 
+const evaluationDimensionLabels: Record<string, string> = {
+  clarity: "表达清晰",
+  completeness: "覆盖完整",
+  safety: "安全边界",
+  maintainability: "改动边界",
+  specificity: "项目理解",
+  efficiency: "执行效率"
+};
+
 export type AgentAdmissionSummary = {
   title: string;
   status: Agent["status"];
@@ -41,15 +50,25 @@ export function getAgentAdmissionSummary(agent: Agent): AgentAdmissionSummary {
 }
 
 export function getAgentTagLabels(tags: string[]) {
-  return tags.length > 0 ? tags : ["能力标签待后端返回"];
+  return tags;
 }
 
 export function getAgentAbilityResult(agent?: Agent): AgentAbilityResult {
+  if (agent?.evaluation?.result.status === "completed" && Object.keys(agent.evaluation.result.dimensions).length > 0) {
+    return {
+      kind: "profile",
+      rows: Object.entries(evaluationDimensionLabels).map(([key, label]) => ({
+        label,
+        value: agent.evaluation?.result.dimensions[key]?.score ?? 0
+      }))
+    };
+  }
+
   if (!agent?.profile) {
     return {
       kind: "empty",
-      title: "能力维度待接入",
-      description: "后端尚未返回标准能力维度，暂不展示前端推导分。"
+      title: "暂未完成评测",
+      description: "点击 Agent 列表中的开始评测后，将展示六个能力维度和改进建议。"
     };
   }
 

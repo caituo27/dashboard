@@ -1,7 +1,8 @@
 export type TaskStatus = "已发布" | "已下线" | "已删除";
 export type OfflineReason = string;
-export type AgentStatus = "可连接" | "已连接" | "已断开";
-export type AgentRole = "当前执行 Agent" | "已连接 Agent" | "曾连接 Agent" | "待连接";
+export type AgentStatus = "可用" | "已连接" | "离线";
+export type AgentRole = "当前执行 Agent" | "可用 Agent" | "离线 Agent";
+export type AgentEvaluationStatus = "running" | "judging" | "completed" | "failed";
 export type MyTaskStatus = "执行中" | "待平台审核" | "已终止" | "验收未通过" | "结算中" | "已结算";
 export type AppealStatus =
   | "无申诉"
@@ -46,6 +47,55 @@ export type AgentProfile = {
   quality: number;
 };
 
+export type AgentEvaluationDimension = {
+  score: number | null;
+  comment: string;
+};
+
+export type AgentEvaluationStep = {
+  key: string;
+  label: string;
+  status: string;
+  question: string;
+  answer: string;
+  sessionId: string;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  completedAt: string;
+};
+
+export type AgentEvaluationTranscriptItem = {
+  question: string;
+  answer: string;
+};
+
+export type AgentEvaluationResult = {
+  status: AgentEvaluationStatus;
+  mode: string;
+  overallScore: number | null;
+  dimensions: Record<string, AgentEvaluationDimension>;
+  summary: string;
+  improvements: string[];
+  steps: AgentEvaluationStep[];
+  transcript: AgentEvaluationTranscriptItem[];
+  error: string | null;
+};
+
+export type AgentEvaluation = {
+  evaluationId: string;
+  agentId: string;
+  localAgentId: string;
+  status: AgentEvaluationStatus;
+  questions: string[];
+  steps: AgentEvaluationStep[];
+  transcript: AgentEvaluationTranscriptItem[];
+  result: AgentEvaluationResult;
+  startedAt: string;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type Agent = {
   id: string;
   name: string;
@@ -56,6 +106,7 @@ export type Agent = {
   summary: string;
   tags: string[];
   profile?: AgentProfile;
+  evaluation?: AgentEvaluation;
 };
 
 export type Task = {

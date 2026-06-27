@@ -1,22 +1,27 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Modal, Progress, Segmented, Steps, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Bot, BrainCircuit, Download, PlugZap, Sparkles, UsersRound } from "lucide-react";
-import type { Agent, MyTask, Task } from "../types";
+import type { Agent, AgentEvaluation, MyTask, Task } from "../types";
 import { useSprixStore } from "../store/sprixStore";
 import {
   acceptRemoteTask,
+  DEFAULT_AGENT_EVALUATION_QUESTIONS,
   initializeRemoteFaceVerification,
+  readLatestRemoteAgentEvaluation,
   markRemoteCurrentAgent,
+  readRemoteAgents,
+  readRemoteAgentEvaluation,
   rerunRemoteTask,
-  signRemoteFreelancerAgreement
+  signRemoteFreelancerAgreement,
+  startRemoteAgentEvaluation
 } from "../services/sprixApi";
-import { ActionButton, EmptyState, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface, primitiveIcons } from "../components/Primitives";
+import { ActionButton, EmptyState, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface } from "../components/Primitives";
 import { compactText, currency, scoreText } from "../utils/format";
 import { isGlobalAuthError } from "../utils/http";
 import { getCurrentExecutionAgent, getUserAdmissionState } from "./admission";
-import { getAgentAbilityResult, getAgentAdmissionSummary, getAgentProfileEditAction, getAgentTagLabels, getCurrentAgentScoreMetric } from "./agentResult";
+import { getAgentAbilityResult, getAgentAdmissionSummary, getAgentTagLabels } from "./agentResult";
 import { getEarningsOverview, getWithdrawalAccountAction, getWithdrawalAccountCard, getWithdrawalEntryAction, getWithdrawalHistoryState, getWithdrawalProgressRefreshAction } from "./earningsView";
 import { getExecutionArtifactsState, getExecutionBackendPendingSections, getExecutionOverview, getExecutionRequirementText, getExecutionReviewState } from "./executionDetailView";
 import { getFaceVerificationStartState, getQualificationRecordRows } from "./qualificationView";
@@ -26,6 +31,15 @@ import { getEstimatedTokenField } from "./tokenEstimateView";
 import { getMyTaskActions, getMyTaskMetaItems, getQualificationSuccessAction } from "./userFlowRules";
 
 const CLIENT_DOWNLOAD_URL = "https://cnb.cool/yztx_qxun/LocalCLIAgentRelease/-/git/raw/main/LocalCLIAgent.pkg";
+
+const evaluationDimensionLabels: Record<string, string> = {
+  clarity: "表达清晰",
+  completeness: "覆盖完整",
+  safety: "安全边界",
+  maintainability: "改动边界",
+  specificity: "项目理解",
+  efficiency: "执行效率"
+};
 
 type UserPageProps = {
   openLogin: () => void;
@@ -351,58 +365,132 @@ function InfoBlock({ title, body }: { title: string; body: string }) {
 }
 
 export function AgentCenterPage({ openLogin }: UserPageProps) {
-  const queryClient = useQueryClient();
   const account = useSprixStore((state) => state.account);
   const agents = useSprixStore((state) => state.agents);
+  const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
   const current = getCurrentExecutionAgent(agents);
+  const [evaluationAgent, setEvaluationAgent] = useState<Agent | null>(null);
+  const [evaluation, setEvaluation] = useState<AgentEvaluation | undefined>();
+  const [currentEvaluation, setCurrentEvaluation] = useState<AgentEvaluation | undefined>();
+  const [evaluationLoading, setEvaluationLoading] = useState(false);
+  const [evaluationError, setEvaluationError] = useState<string>();
+  const currentWithEvaluation = currentEvaluation && current ? { ...current, evaluation: currentEvaluation, score: currentEvaluation.result.overallScore ?? current.score } : current;
 
-  const setCurrent = async (agentId: string) => {
+  const refreshAgents = useCallback(async () => {
+    const refreshedAgents = await readRemoteAgents();
+    mergeRemoteState({ agents: refreshedAgents });
+  }, [mergeRemoteState]);
+
+  const setCurrent = async (agent: Agent) => {
     if (!account.isLoggedIn) {
       openLogin();
       return;
     }
     try {
-      await markRemoteCurrentAgent(agentId);
-      await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
+      const latestEvaluation = await readLatestRemoteAgentEvaluation(agent.id);
+      if (!isCompletedAgentEvaluation(latestEvaluation)) {
+        message.warning("请先完成该 Agent 测评后再设为当前执行 Agent");
+        return;
+      }
+      await markRemoteCurrentAgent(agent.id);
+      setCurrentEvaluation(undefined);
+      await refreshAgents();
       message.success("已设置当前执行 Agent");
     } catch (error) {
+      if (error instanceof Error && error.message === "Agent evaluation not found") {
+        message.warning("请先完成该 Agent 测评后再设为当前执行 Agent");
+        return;
+      }
       showRequestError(error, "设置失败", "设置失败：");
     }
   };
 
-  const refreshAgentEvaluation = async () => {
-    try {
-      await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
-      message.success("已刷新 Agent 评测结果");
-    } catch (error) {
-      showRequestError(error, "评测刷新失败", "评测刷新失败：");
+  const startAgentEvaluation = async (agent: Agent) => {
+    if (!account.isLoggedIn) {
+      openLogin();
+      return;
     }
+    setEvaluationAgent(agent);
+    setEvaluation(undefined);
+    setEvaluationError(undefined);
+    setEvaluationLoading(true);
+    try {
+      const started = await startRemoteAgentEvaluation(agent.id);
+      setEvaluation(started);
+      message.success("评测已开始");
+    } catch (error) {
+      setEvaluationError(error instanceof Error ? error.message : "评测启动失败");
+      showRequestError(error, "评测启动失败", "评测启动失败：");
+    } finally {
+      setEvaluationLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!evaluationAgent || !evaluation || isEvaluationTerminal(evaluation.status)) return;
+
+    let cancelled = false;
+    const poll = window.setInterval(async () => {
+      try {
+        const next = await readRemoteAgentEvaluation(evaluationAgent.id, evaluation.evaluationId);
+        if (cancelled) return;
+        setEvaluation(next);
+        if (isEvaluationTerminal(next.status)) {
+          window.clearInterval(poll);
+          if (current?.id === evaluationAgent.id) {
+            setCurrentEvaluation(next);
+          }
+          void refreshAgents();
+        }
+      } catch (error) {
+        if (cancelled) return;
+        setEvaluationError(error instanceof Error ? error.message : "评测状态获取失败");
+        window.clearInterval(poll);
+      }
+    }, 1_500);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(poll);
+    };
+  }, [current?.id, evaluation, evaluationAgent, refreshAgents]);
+
+  useEffect(() => {
+    if (!account.isLoggedIn || !current?.id || current.evaluation?.result.status === "completed") {
+      setCurrentEvaluation(undefined);
+      return;
+    }
+
+    let cancelled = false;
+    readLatestRemoteAgentEvaluation(current.id)
+      .then((latest) => {
+        if (!cancelled && latest.result.status === "completed") {
+          setCurrentEvaluation(latest);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setCurrentEvaluation(undefined);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [account.isLoggedIn, current?.id, current?.lastEvaluatedAt, current?.evaluation?.result.status]);
+
+  const closeEvaluation = () => {
+    setEvaluationAgent(null);
+    setEvaluation(undefined);
+    setEvaluationError(undefined);
+    setEvaluationLoading(false);
   };
 
   return (
     <>
       <PageHeader
         title="Agent 中心"
-        subtitle="选择一个 Agent 作为当前执行 Agent，并查看能力画像。"
-        actions={
-          <ActionButton
-            href={CLIENT_DOWNLOAD_URL}
-            icon={<Download size={16} />}
-            target="_blank"
-            rel="noreferrer"
-          >
-            下载客户端
-          </ActionButton>
-        }
       />
-      <div className="mb-5 grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-        <CurrentAgentCard agent={current} />
-        <AbilityProfile agent={current} />
-      </div>
-      <div className="mb-5 grid gap-4 md:grid-cols-3">
-        <MetricCard title="Agent 数量" value={agents.length} icon={<PlugZap size={19} />} />
-        <MetricCard title="可设置 Agent" value={agents.filter((agent) => agent.role !== "当前执行 Agent").length} icon={primitiveIcons.plug} />
-        <MetricCard title="当前执行能力评分" value={getCurrentAgentScoreMetric(current)} icon={primitiveIcons.check} />
+      <div className="mb-5">
+        <CurrentAgentCard agent={currentWithEvaluation} />
       </div>
       <AgentList
         title="Agent 列表"
@@ -412,49 +500,206 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
           agent.role === "当前执行 Agent" ? (
             <>
               <SecondaryButton disabled>当前执行 Agent</SecondaryButton>
-              <ActionButton onClick={refreshAgentEvaluation}>评测</ActionButton>
+              <ActionButton onClick={() => startAgentEvaluation(agent)}>开始评测</ActionButton>
             </>
           ) : (
             <>
-              <ActionButton onClick={() => setCurrent(agent.id)}>设为当前执行 Agent</ActionButton>
-              <SecondaryButton onClick={refreshAgentEvaluation}>评测</SecondaryButton>
+              <ActionButton onClick={() => setCurrent(agent)}>设为当前执行 Agent</ActionButton>
+              <SecondaryButton onClick={() => startAgentEvaluation(agent)}>开始评测</SecondaryButton>
             </>
           )
         }
       />
+      <AgentEvaluationModal agent={evaluationAgent} evaluation={evaluation} loading={evaluationLoading} error={evaluationError} onClose={closeEvaluation} />
     </>
+  );
+}
+
+function isEvaluationTerminal(status: AgentEvaluation["status"]) {
+  return status === "completed" || status === "failed";
+}
+
+function isCompletedAgentEvaluation(evaluation: AgentEvaluation) {
+  return evaluation.status === "completed" || evaluation.result.status === "completed";
+}
+
+function evaluationDimensions(result: AgentEvaluation["result"]) {
+  return Object.entries(evaluationDimensionLabels).map(([key, label]) => ({
+    key,
+    label,
+    score: Number(result.dimensions[key]?.score) || 0,
+    comment: result.dimensions[key]?.comment
+  }));
+}
+
+function EvaluationRadar({ result }: { result: AgentEvaluation["result"] }) {
+  const dimensions = evaluationDimensions(result);
+  const size = 220;
+  const center = size / 2;
+  const radius = 76;
+  const rings = [20, 40, 60, 80, 100];
+  const pointFor = (index: number, value: number) => {
+    const angle = -Math.PI / 2 + (Math.PI * 2 * index) / dimensions.length;
+    const nextRadius = radius * (value / 100);
+    return `${center + Math.cos(angle) * nextRadius},${center + Math.sin(angle) * nextRadius}`;
+  };
+  const polygon = dimensions.map((item, index) => pointFor(index, item.score)).join(" ");
+
+  return (
+    <svg className="sprix-evaluation-radar" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="六维能力雷达图">
+      {rings.map((ring) => (
+        <polygon
+          key={ring}
+          points={dimensions.map((_, index) => pointFor(index, ring)).join(" ")}
+          className="sprix-evaluation-radar-ring"
+        />
+      ))}
+      {dimensions.map((item, index) => {
+        const axisEnd = pointFor(index, 100);
+        const [x, y] = axisEnd.split(",").map(Number);
+        const labelX = center + (x - center) * 1.18;
+        const labelY = center + (y - center) * 1.18;
+        return (
+          <g key={item.key}>
+            <line x1={center} y1={center} x2={x} y2={y} className="sprix-evaluation-radar-axis" />
+            <text x={labelX} y={labelY} textAnchor="middle" dominantBaseline="middle" className="sprix-evaluation-radar-label">
+              {item.label}
+            </text>
+          </g>
+        );
+      })}
+      <polygon points={polygon} className="sprix-evaluation-radar-area" />
+      <polyline points={`${polygon} ${polygon.split(" ")[0]}`} className="sprix-evaluation-radar-line" />
+      {dimensions.map((item, index) => {
+        const [x, y] = pointFor(index, item.score).split(",").map(Number);
+        return <circle key={item.key} cx={x} cy={y} r="3.8" className="sprix-evaluation-radar-dot" />;
+      })}
+    </svg>
+  );
+}
+
+function AgentEvaluationModal({
+  agent,
+  evaluation,
+  loading,
+  error,
+  onClose
+}: {
+  agent: Agent | null;
+  evaluation?: AgentEvaluation;
+  loading: boolean;
+  error?: string;
+  onClose: () => void;
+}) {
+  const questions = evaluation?.questions.length ? evaluation.questions : DEFAULT_AGENT_EVALUATION_QUESTIONS;
+  const answeredCount = evaluation?.transcript.filter((item) => item.answer).length ?? 0;
+  const status = evaluation?.status ?? "running";
+  const result = evaluation?.result;
+  const activeQuestionIndex = status === "judging" || isEvaluationTerminal(status) ? -1 : Math.min(answeredCount, questions.length - 1);
+
+  return (
+    <Modal
+      title={
+        <div className="sprix-evaluation-title">
+          <span>面试 {agent?.name ?? "Agent"}</span>
+          {status === "running" && <span>{answeredCount}/{questions.length}</span>}
+        </div>
+      }
+      open={Boolean(agent)}
+      onCancel={onClose}
+      width={720}
+      className="sprix-evaluation-modal"
+      footer={
+        <div className="sprix-evaluation-footer">
+          <span className={status === "running" || status === "judging" ? "is-active" : ""}>
+            {status === "judging"
+              ? "正在生成测评结果"
+              : status === "running"
+                ? `逐题向 ${agent?.name ?? "Agent"} 提问中，请稍候`
+                : status === "failed"
+                  ? "测评失败"
+                  : "测评完成"}
+          </span>
+          <ActionButton onClick={onClose}>关闭</ActionButton>
+        </div>
+      }
+    >
+      <div className="sprix-evaluation-shell">
+        {error && <p className="sprix-evaluation-error">{error}</p>}
+
+        <div className="sprix-evaluation-scroll">
+          {questions.map((question, index) => {
+            const transcript = evaluation?.transcript[index];
+            const answer = transcript?.answer;
+            const isActive = !answer && index === activeQuestionIndex;
+            const isQuestionLoading = isActive || (loading && index === 0);
+            return (
+              <div
+                key={`${question}-${index}`}
+                className={`sprix-evaluation-question ${answer ? "is-done" : ""} ${isQuestionLoading ? "is-active" : ""}`}
+                style={{ animationDelay: `${index * 38}ms` }}
+              >
+                <p className="sprix-evaluation-question-text">
+                  <span className={`sprix-evaluation-status-dot ${answer ? "is-done" : ""} ${isQuestionLoading ? "is-active" : ""}`} />
+                  <span className="sprix-evaluation-question-index">Q{index + 1}.</span>
+                  <span>{question}</span>
+                </p>
+                {!answer && <p className="sprix-evaluation-pending">{isQuestionLoading ? "提问中..." : "待提问..."}</p>}
+                {answer && <p className="sprix-evaluation-answer">{answer}</p>}
+              </div>
+            );
+          })}
+
+          {result?.status === "completed" && (
+            <div className="sprix-evaluation-result">
+              <strong>测评完成</strong>
+              <span>能力画像已更新，可在当前执行 Agent 的能力画像中查看六维结果。</span>
+            </div>
+          )}
+
+          {result?.status === "failed" && <p className="sprix-evaluation-error">{result.error ?? "评测失败"}</p>}
+        </div>
+      </div>
+    </Modal>
   );
 }
 
 function CurrentAgentCard({ agent }: { agent?: Agent }) {
   const summary = agent ? getAgentAdmissionSummary(agent) : undefined;
   const tagLabels = summary ? getAgentTagLabels(summary.tags) : [];
+  const evaluationResult = agent?.evaluation?.result.status === "completed" ? agent.evaluation.result : undefined;
   return (
-    <Surface className="min-h-[272px] p-6">
-      <h3 className="text-lg font-semibold">当前执行 Agent</h3>
+    <Surface className="sprix-current-agent-card sprix-agent-profile-card p-6">
       {summary ? (
-        <div className="mt-5 flex gap-4">
-          <AgentAvatar name={summary.title} />
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h4 className="text-2xl font-semibold">{summary.title}</h4>
-              <StatusTag status={summary.status} />
-            </div>
-            <p className="mt-2 text-sm text-ink-soft">{summary.summary}</p>
-            <div className="mt-4 grid gap-2 text-sm text-ink-soft md:grid-cols-2">
-              <span>综合评分：<b className="text-ink">{summary.score}</b></span>
-              <span>当前角色：{summary.role}</span>
-              <span className="md:col-span-2">最近评测时间：{summary.lastEvaluatedAt}</span>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {tagLabels.map((tag) => (
-                <SoftTag key={tag}>{tag}</SoftTag>
-              ))}
+        <>
+          <div className="sprix-agent-identity-panel">
+            <div className="sprix-current-agent-body">
+              <div className="min-w-0 flex-1">
+                <span className="sprix-agent-current-label">当前执行 Agent</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h4 className="text-2xl font-semibold">{summary.title}</h4>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {tagLabels.map((tag) => (
+                    <SoftTag key={tag}>{tag}</SoftTag>
+                  ))}
+                </div>
+                {evaluationResult && (
+                  <div className="sprix-agent-score-panel">
+                    <strong>{evaluationResult.overallScore ?? "-"}</strong>
+                    <span>综合评分</span>
+                    <EvaluationRadar result={evaluationResult} />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+          <div className="sprix-agent-ability-section">
+            <AbilityProfile agent={agent} embedded showScore={false} />
+          </div>
+        </>
       ) : (
-        <div className="mt-8 rounded-[22px] border border-dashed border-line p-7 text-center">
+        <div className="rounded-[22px] border border-dashed border-line p-7 text-center">
           <Bot className="mx-auto text-ink-soft" />
           <h4 className="mt-3 text-lg font-semibold">未设置当前执行 Agent</h4>
           <p className="mt-2 text-sm text-ink-soft">在 Agent 列表中选择一个 Agent 设为当前执行 Agent 后，即可执行平台任务。</p>
@@ -464,17 +709,72 @@ function CurrentAgentCard({ agent }: { agent?: Agent }) {
   );
 }
 
-function AbilityProfile({ agent }: { agent?: Agent }) {
+function AbilityProfile({ agent, embedded = false, showScore = true }: { agent?: Agent; embedded?: boolean; showScore?: boolean }) {
   const ability = getAgentAbilityResult(agent);
-  const editAction = getAgentProfileEditAction();
-  return (
-    <Surface className="min-h-[272px] p-6">
+  const summary = agent ? getAgentAdmissionSummary(agent) : undefined;
+  const evaluationResult = agent?.evaluation?.result.status === "completed" ? agent.evaluation.result : undefined;
+  const dimensions = evaluationResult ? evaluationDimensions(evaluationResult) : [];
+  const isAbilityPending = !evaluationResult && Boolean(agent && (agent.score !== null || agent.lastEvaluatedAt));
+  const content = (
+    <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-lg font-semibold">能力画像</h3>
-        <SecondaryButton disabled={editAction.disabled}>{editAction.label}</SecondaryButton>
       </div>
-      <p className="mt-3 text-sm leading-6 text-ink-soft">{editAction.description}</p>
-      {ability.kind === "profile" ? (
+      <p className="mt-3 text-sm leading-6 text-ink-soft">最近评测：{summary?.lastEvaluatedAt ?? "-"}</p>
+      {evaluationResult ? (
+        <div className={`sprix-ability-profile mt-5 ${showScore ? "" : "is-bars-only"}`}>
+          {showScore && (
+            <div className="sprix-ability-score">
+              <strong>{evaluationResult.overallScore ?? "-"}</strong>
+              <span>综合评分</span>
+              <EvaluationRadar result={evaluationResult} />
+            </div>
+          )}
+          <div className="sprix-ability-detail">
+            <div className="sprix-ability-bars">
+              {dimensions.map((dimension, index) => (
+                <div key={dimension.key} className="sprix-ability-dimension">
+                  <div className="sprix-ability-dimension-row">
+                    <span>{dimension.label}</span>
+                    <div>
+                      <span style={{ width: `${dimension.score}%`, transitionDelay: `${index * 60}ms` }} />
+                    </div>
+                    <strong>{dimension.score}</strong>
+                  </div>
+                  {dimension.comment && <p>{dimension.comment}</p>}
+                </div>
+              ))}
+            </div>
+            {evaluationResult.summary && <p className="sprix-ability-summary">{evaluationResult.summary}</p>}
+            {evaluationResult.improvements.length > 0 && (
+              <div className="sprix-ability-improvements">
+                {evaluationResult.improvements.map((item) => (
+                  <SoftTag key={item} tone="amber">
+                    {item}
+                  </SoftTag>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : isAbilityPending ? (
+        <div className="sprix-ability-pending mt-5">
+          <div className="sprix-ability-pending-head">
+            <span>能力画像生成中</span>
+          </div>
+          <div className="sprix-ability-pending-bars">
+            {Object.values(evaluationDimensionLabels).map((label, index) => (
+              <div key={label} className="sprix-ability-pending-row">
+                <span>{label}</span>
+                <div>
+                  <i style={{ animationDelay: `${index * 90}ms` }} />
+                </div>
+                <em>待生成</em>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : ability.kind === "profile" ? (
         <div className="mt-5 space-y-4">
           {ability.rows.map((row) => (
             <div key={row.label}>
@@ -493,8 +793,10 @@ function AbilityProfile({ agent }: { agent?: Agent }) {
           <p className="mt-2 text-sm text-ink-soft">{ability.description}</p>
         </div>
       )}
-    </Surface>
+    </>
   );
+
+  return embedded ? <div className="sprix-embedded-ability-profile">{content}</div> : <Surface className="p-6">{content}</Surface>;
 }
 
 function AgentList({
@@ -515,38 +817,36 @@ function AgentList({
         <p className="rounded-2xl bg-[#fafafa] p-4 text-sm text-ink-soft">{empty}</p>
       ) : (
         <div className="space-y-3">
-          {agents.map((agent) => (
-            <div key={agent.id} className="flex flex-col gap-4 rounded-[18px] border border-line bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex gap-4">
-                <AgentAvatar name={agent.name} />
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h4 className="text-lg font-semibold">{agent.name}</h4>
-                    <StatusTag status={agent.status} />
-                  </div>
-                  <p className="mt-1 text-sm text-ink-soft">
-                    综合评分：{scoreText(agent.score)} · 当前角色：{agent.role} · 最近评测时间：{agent.lastEvaluatedAt}
-                  </p>
-                  {agent.tags.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {agent.tags.map((tag) => (
-                        <SoftTag key={tag}>{tag}</SoftTag>
-                      ))}
+          {agents.map((agent) => {
+            const completedEvaluation = agent.evaluation?.result.status === "completed" ? agent.evaluation.result : undefined;
+            return (
+              <div key={agent.id} className="flex flex-col gap-4 rounded-[18px] border border-line bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex gap-4">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="text-lg font-semibold">{agent.name}</h4>
+                      <StatusTag status={agent.status} />
                     </div>
-                  )}
+                    <p className="mt-1 text-sm text-ink-soft">
+                      {completedEvaluation ? `综合评分：${scoreText(completedEvaluation.overallScore)} · ` : ""}当前角色：{agent.role} · 最近评测时间：{agent.lastEvaluatedAt}
+                    </p>
+                    {agent.tags.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {agent.tags.map((tag) => (
+                          <SoftTag key={tag}>{tag}</SoftTag>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
+                <div className="flex flex-wrap gap-2">{renderActions(agent)}</div>
               </div>
-              <div className="flex flex-wrap gap-2">{renderActions(agent)}</div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </Surface>
   );
-}
-
-function AgentAvatar({ name }: { name: string }) {
-  return <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-pill text-lg font-semibold text-white">{name.slice(0, 1)}</div>;
 }
 
 export function MyTasksPage({ openLogin, openAppeal }: UserPageProps) {
