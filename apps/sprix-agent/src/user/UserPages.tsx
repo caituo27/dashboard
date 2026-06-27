@@ -43,19 +43,24 @@ function showRequestError(error: unknown, fallback: string, prefix = "") {
 export function LandingPage({ openLogin }: UserPageProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const tasks = useSprixStore((state) => state.tasks);
+  const queryClient = useQueryClient();
   const account = useSprixStore((state) => state.account);
   const agents = useSprixStore((state) => state.agents);
   const admission = getUserAdmissionState(account, agents);
   const admissionState = location.state as { admissionReason?: string; openLogin?: boolean } | null;
   const admissionReason = admissionState?.admissionReason;
   const shouldOpenLogin = Boolean(admissionState?.openLogin);
+  const handledAdmissionReasonKey = useRef<string>();
   const handledAdmissionLoginKey = useRef<string>();
   const autoEnteredAgentCenterRef = useRef(false);
 
   useEffect(() => {
-    if (admissionReason) message.warning(admissionReason);
-  }, [admissionReason]);
+    if (!admissionReason) return;
+    const reasonKey = `${location.key}:${admissionReason}`;
+    if (handledAdmissionReasonKey.current === reasonKey) return;
+    handledAdmissionReasonKey.current = reasonKey;
+    message.warning(admissionReason);
+  }, [admissionReason, location.key]);
 
   useEffect(() => {
     if (!shouldOpenLogin || account.isLoggedIn || handledAdmissionLoginKey.current === location.key) return;
@@ -69,16 +74,13 @@ export function LandingPage({ openLogin }: UserPageProps) {
     navigate("/agent/center");
   }, [admission.allowed, navigate]);
 
-  const currentAgent = admission.allowed ? admission.currentAgent : undefined;
-  const publishedTaskCount = tasks.filter((task) => task.taskStatus === "已发布").length;
-
-  const enterAgentCenter = () => {
-    if (!account.isLoggedIn) {
-      openLogin();
-      return;
-    }
-    navigate("/agent/center");
-  };
+  useEffect(() => {
+    if (!account.isLoggedIn || admission.allowed) return;
+    const poll = window.setInterval(() => {
+      void queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
+    }, 3_000);
+    return () => window.clearInterval(poll);
+  }, [account.isLoggedIn, admission.allowed, queryClient]);
 
   return (
     <main className="sprix-landing">
@@ -87,49 +89,44 @@ export function LandingPage({ openLogin }: UserPageProps) {
           <div className="sprix-hero-kicker">Sprix AI</div>
           <h1 className="sprix-title sprix-hero-title">让你的 Agent 自动帮你赚钱</h1>
           <p className="sprix-hero-subtitle">
-            登录后选择当前执行 Agent，再进入任务市场接取真实后端发布的任务。
+            安装并启动本地 Agent，系统会自动完成连接；连接成功后即可进入任务市场接单执行。
           </p>
           <div className="sprix-hero-actions">
-            <ActionButton icon={<PlugZap size={16} />} onClick={admission.allowed ? () => navigate("/agent/center") : enterAgentCenter}>
-              {account.isLoggedIn ? "进入 Agent 中心" : "登录 / 注册"}
-            </ActionButton>
-            {!account.isLoggedIn && <SecondaryButton onClick={openLogin}>登录 / 注册</SecondaryButton>}
-            {account.isLoggedIn && !admission.allowed && (
-              <SecondaryButton href={CLIENT_DOWNLOAD_URL} target="_blank" rel="noreferrer" icon={<Download size={16} />}>
-                下载客户端
-              </SecondaryButton>
+            {admission.allowed ? (
+              <ActionButton icon={<PlugZap size={16} />} onClick={() => navigate("/agent/center")}>
+                进入 Agent 中心
+              </ActionButton>
+            ) : account.isLoggedIn ? (
+              <ActionButton className="sprix-agent-download-cta" href={CLIENT_DOWNLOAD_URL} target="_blank" rel="noreferrer" icon={<Download size={20} />}>
+                下载并安装本地 Agent
+              </ActionButton>
+            ) : (
+              <>
+                <ActionButton icon={<PlugZap size={16} />} onClick={openLogin}>
+                  登录 / 注册
+                </ActionButton>
+                <SecondaryButton href={CLIENT_DOWNLOAD_URL} target="_blank" rel="noreferrer" icon={<Download size={16} />}>
+                  下载客户端
+                </SecondaryButton>
+              </>
             )}
           </div>
         </div>
-        <div className="mb-5 grid gap-4 md:grid-cols-3">
-          <MetricCard title="已发布任务" value={publishedTaskCount || "-"} icon={<UsersRound size={19} />} />
-          <MetricCard title="Agent 数量" value={agents.length || "-"} icon={<Bot size={19} />} />
-          <MetricCard title="当前执行评分" value={getCurrentAgentScoreMetric(currentAgent)} icon={primitiveIcons.check} />
+        <div className="sprix-platform-metrics">
+          <PlatformMetricCard label="平台 Agent 数量" value="-" />
+          <PlatformMetricCard label="平台任务总量" value="-" />
         </div>
-        <Surface className="p-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <SoftTag tone={admission.allowed ? "teal" : account.isLoggedIn ? "amber" : "neutral"}>
-                {admission.allowed ? "准入完成" : account.isLoggedIn ? "等待设置当前 Agent" : "等待登录"}
-              </SoftTag>
-              <h2 className="mt-3 text-2xl font-semibold text-ink">
-                {currentAgent ? `当前执行 Agent：${currentAgent.name}` : "先设置当前执行 Agent，再进入正式功能区"}
-              </h2>
-              <p className="mt-2 max-w-3xl text-sm leading-7 text-ink-soft">
-                LocalCLIAgent 首次打开 `/local-agent/claim` 后，前端会为当前登录用户生成 enrollmentToken，并跳转到 8084 后端完成绑定。
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {admission.allowed ? (
-                <ActionButton onClick={() => navigate("/agent/center")}>进入 Agent 中心</ActionButton>
-              ) : (
-                <ActionButton onClick={enterAgentCenter}>{account.isLoggedIn ? "进入 Agent 中心" : "登录 / 注册"}</ActionButton>
-              )}
-            </div>
-          </div>
-        </Surface>
       </section>
     </main>
+  );
+}
+
+function PlatformMetricCard({ label, value }: { label: string; value: string }) {
+  return (
+    <Surface className="sprix-platform-metric-card">
+      <strong>{value}</strong>
+      <span>{label}</span>
+    </Surface>
   );
 }
 
@@ -157,7 +154,7 @@ export function TaskMarketPage(_props: Partial<UserPageProps> = {}) {
       <PageHeader
         eyebrow="任务市场"
         title="可接取任务"
-        subtitle="这里展示真实后端已发布的任务。推荐排序、匹配度和预计 Token 字段接入后，会在对应位置展示。"
+        subtitle="浏览当前可接取的任务，选择适合你的 Agent 执行的工作，并持续跟踪执行进度与收益。"
         actions={
           <ActionButton icon={<Sparkles size={16} />} onClick={() => setSmartAcceptOpen(true)}>
             智能接单
@@ -190,7 +187,7 @@ export function TaskMarketPage(_props: Partial<UserPageProps> = {}) {
           <TaskCard key={task.id} task={task} onAccept={() => handleAccept(task)} />
         ))}
       </div>
-      {availableTasks.length === 0 && <EmptyState title="暂无可接取任务" description="当前后端没有已发布任务，稍后再来查看新的 Agent 任务。" />}
+      {availableTasks.length === 0 && <EmptyState title="暂无可接取任务" description="当前暂时没有新的任务，稍后再来查看适合 Agent 执行的工作。" />}
       <SmartAcceptUnavailableModal open={smartAcceptOpen} currentAgent={currentAgent} onClose={() => setSmartAcceptOpen(false)} />
     </>
   );
