@@ -15,7 +15,7 @@ export function getCurrentExecutionAgent(agents: Agent[]) {
 }
 
 export function getConnectedAgent(agents: Agent[]) {
-  return agents.find((agent) => agent.status === "已连接");
+  return agents.find((agent) => agent.status === "已连接" || agent.status === "可连接");
 }
 
 export function canVisitAgentCenterBeforeAdmission(pathname: string) {
@@ -30,7 +30,7 @@ export function getUserAdmissionState(account: Pick<Account, "isLoggedIn">, agen
     };
   }
 
-  const connectedCurrentAgent = agents.find((agent) => agent.role === "当前执行 Agent" && agent.status === "已连接");
+  const connectedCurrentAgent = agents.find((agent) => agent.role === "当前执行 Agent" && (agent.status === "已连接" || agent.status === "可连接"));
   const connectedAgent = connectedCurrentAgent ?? getConnectedAgent(agents);
   if (!connectedAgent) {
     return {
