@@ -159,6 +159,31 @@ export async function readRemoteTaskDetail(taskId: string): Promise<AdminTaskDet
   };
 }
 
+export async function createRemoteAdminTask(payload: UpsertAdminTaskPayload): Promise<Task> {
+  const task = await http.post<unknown, TaskEntity>("/api/v1/admin/tasks", payload);
+  return mapTask(requireValue(task, "任务发布失败"));
+}
+
+export async function updateRemoteAdminTask(taskId: string, payload: UpsertAdminTaskPayload): Promise<Task> {
+  const task = await http.put<unknown, TaskEntity>(`/api/v1/admin/tasks/${encodeURIComponent(taskId)}`, payload);
+  return mapTask(requireValue(task, "任务保存失败"));
+}
+
+export async function offlineRemoteAdminTask(taskId: string, reason: string): Promise<Task> {
+  const task = await http.post<unknown, TaskEntity>(`/api/v1/admin/tasks/${encodeURIComponent(taskId)}/offline`, { reason });
+  return mapTask(requireValue(task, "任务下线失败"));
+}
+
+export async function republishRemoteAdminTask(taskId: string): Promise<Task> {
+  const task = await http.post<unknown, TaskEntity>(`/api/v1/admin/tasks/${encodeURIComponent(taskId)}/republish`);
+  return mapTask(requireValue(task, "任务重新发布失败"));
+}
+
+export async function deleteRemoteAdminTask(taskId: string, reason: string): Promise<Task> {
+  const task = await http.delete<unknown, TaskEntity>(`/api/v1/admin/tasks/${encodeURIComponent(taskId)}`, { data: { reason } });
+  return mapTask(requireValue(task, "任务删除失败"));
+}
+
 export async function readRemoteAppeals(): Promise<AdminAppeal[]> {
   const appealsResponse = await adminAppealApi.appeals();
   return Promise.all(

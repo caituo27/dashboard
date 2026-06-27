@@ -21,7 +21,7 @@ describe("AdminTaskForm", () => {
     });
   });
 
-  it("does not prefill a source type while task write APIs are backend-pending", () => {
+  it("requires an explicit source type and enables submit when task write APIs exist", () => {
     const client = new QueryClient();
 
     render(
@@ -33,6 +33,6 @@ describe("AdminTaskForm", () => {
     );
 
     expect((screen.getByLabelText("任务来源类型") as HTMLInputElement).value).toBe("");
-    expect((screen.getByText("发布任务（待接口）").closest("button") as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByText("发布任务").closest("button") as HTMLButtonElement).disabled).toBe(false);
   });
 });

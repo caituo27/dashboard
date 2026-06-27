@@ -10,7 +10,10 @@ const mocks = vi.hoisted(() => ({
   settlements: vi.fn(),
   tasks: vi.fn(),
   withdrawals: vi.fn(),
-  get: vi.fn()
+  get: vi.fn(),
+  post: vi.fn(),
+  put: vi.fn(),
+  delete: vi.fn()
 }));
 
 vi.mock("../apis/sprix", () => ({
@@ -29,7 +32,10 @@ vi.mock("../apis/sprix", () => ({
 
 vi.mock("../utils/http", () => ({
   http: {
-    get: mocks.get
+    get: mocks.get,
+    post: mocks.post,
+    put: mocks.put,
+    delete: mocks.delete
   }
 }));
 
@@ -269,5 +275,40 @@ describe("sprix admin api", () => {
       withdrawalId: "withdrawal-1",
       withdrawalReviewRequest: { reason: "异常已处理" }
     });
+  });
+
+  it("uses the current Swagger admin task write endpoints", async () => {
+    const {
+      createRemoteAdminTask,
+      deleteRemoteAdminTask,
+      offlineRemoteAdminTask,
+      republishRemoteAdminTask,
+      updateRemoteAdminTask
+    } = await import("./sprixApi");
+    const payload = {
+      title: "任务",
+      category: "数据处理",
+      sourceType: "PLATFORM",
+      description: "描述",
+      deliverables: "交付",
+      acceptanceCriteria: "验收",
+      reward: 100,
+      totalSlots: 3
+    };
+    mocks.post.mockResolvedValue({});
+    mocks.put.mockResolvedValue({});
+    mocks.delete.mockResolvedValue({});
+
+    await createRemoteAdminTask(payload);
+    await updateRemoteAdminTask("task-1", payload);
+    await offlineRemoteAdminTask("task-1", "暂停维护");
+    await republishRemoteAdminTask("task-1");
+    await deleteRemoteAdminTask("task-1", "运营删除");
+
+    expect(mocks.post).toHaveBeenCalledWith("/api/v1/admin/tasks", payload);
+    expect(mocks.put).toHaveBeenCalledWith("/api/v1/admin/tasks/task-1", payload);
+    expect(mocks.post).toHaveBeenCalledWith("/api/v1/admin/tasks/task-1/offline", { reason: "暂停维护" });
+    expect(mocks.post).toHaveBeenCalledWith("/api/v1/admin/tasks/task-1/republish");
+    expect(mocks.delete).toHaveBeenCalledWith("/api/v1/admin/tasks/task-1", { data: { reason: "运营删除" } });
   });
 });

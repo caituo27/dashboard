@@ -9,9 +9,12 @@ import type { AdminAppeal, AdminOperationLog, CompletedExecution, FundException,
 import {
   approveRemoteAppeal,
   approveRemoteWithdrawal,
+  createRemoteAdminTask,
+  deleteRemoteAdminTask,
   markRemotePayoutExceptionHandled,
   markRemoteWithdrawalPaid,
   markRemoteWithdrawalPayoutFailed,
+  offlineRemoteAdminTask,
   readRemoteAppeals,
   readRemoteAppealDetail,
   readRemoteFunds,
@@ -19,8 +22,10 @@ import {
   readRemoteTaskDetail,
   rejectRemoteAppeal,
   rejectRemoteWithdrawal,
+  republishRemoteAdminTask,
   returnRemoteWithdrawalForReview,
   startRemoteAppeal,
+  updateRemoteAdminTask,
   type UpsertAdminTaskPayload
 } from "../services/sprixApi";
 import { ActionButton, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface, primitiveIcons } from "../components/Primitives";
@@ -50,6 +55,7 @@ function getFundExceptionBackendId(record: Pick<FundException, "backendId" | "wi
 
 export function AdminTaskCenter() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const taskCenterQuery = useQuery({
     queryKey: ["sprix-admin", "task-center"],
     queryFn: readRemoteTaskCenterSnapshot,
@@ -72,6 +78,50 @@ export function AdminTaskCenter() {
     return `${task.title}${task.category}${task.sourceType}`.includes(query);
   });
   const executionCount = tasks.reduce((sum, task) => sum + (task.executionTotal ?? 0), 0);
+  const refreshTasks = () => queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+  const runTaskAction = async (action: () => Promise<unknown>, successText: string) => {
+    try {
+      await action();
+      await refreshTasks();
+      message.success(successText);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : successText.replace("已", "") + "失败");
+    }
+  };
+  const confirmTaskAction = (task: Task, action: AdminTaskWriteAction) => {
+    if (action.kind === "edit") {
+      navigate(`/tasks/${task.id}/edit`);
+      return;
+    }
+    if (action.kind === "offline") {
+      Modal.confirm({
+        title: "确认下线该任务？",
+        content: task.title,
+        okText: "确认下线",
+        cancelText: "取消",
+        onOk: () => runTaskAction(() => offlineRemoteAdminTask(task.id, "Admin offlined task"), "已下线任务")
+      });
+      return;
+    }
+    if (action.kind === "republish") {
+      Modal.confirm({
+        title: "确认重新发布该任务？",
+        content: task.title,
+        okText: "重新发布",
+        cancelText: "取消",
+        onOk: () => runTaskAction(() => republishRemoteAdminTask(task.id), "已重新发布任务")
+      });
+      return;
+    }
+    Modal.confirm({
+      title: "确认删除该任务？",
+      content: "删除后任务会被标记为已删除。",
+      okText: "确认删除",
+      cancelText: "取消",
+      okButtonProps: { danger: true },
+      onOk: () => runTaskAction(() => deleteRemoteAdminTask(task.id, "Admin deleted task"), "已删除任务")
+    });
+  };
   const taskColumns: ColumnsType<Task> = [
     {
       title: "任务",
@@ -109,16 +159,16 @@ export function AdminTaskCenter() {
       width: 230,
       render: (_, task) => (
         <div className="flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
-          <PendingTaskWriteButton action={getAdminTaskWriteAction("edit")} />
+          <TaskWriteButton action={getAdminTaskWriteAction("edit")} onClick={() => confirmTaskAction(task, getAdminTaskWriteAction("edit"))} />
           {task.taskStatus === "已发布" ? (
             <>
-              <PendingTaskWriteButton action={getAdminTaskWriteAction("offline")} />
-              <PendingTaskWriteButton action={getAdminTaskWriteAction("delete")} />
+              <TaskWriteButton action={getAdminTaskWriteAction("offline")} onClick={() => confirmTaskAction(task, getAdminTaskWriteAction("offline"))} />
+              <TaskWriteButton action={getAdminTaskWriteAction("delete")} onClick={() => confirmTaskAction(task, getAdminTaskWriteAction("delete"))} />
             </>
           ) : (
             <>
-              <PendingTaskWriteButton action={getAdminTaskWriteAction("republish")} />
-              <PendingTaskWriteButton action={getAdminTaskWriteAction("delete")} />
+              <TaskWriteButton action={getAdminTaskWriteAction("republish")} onClick={() => confirmTaskAction(task, getAdminTaskWriteAction("republish"))} />
+              <TaskWriteButton action={getAdminTaskWriteAction("delete")} onClick={() => confirmTaskAction(task, getAdminTaskWriteAction("delete"))} />
             </>
           )}
         </div>
@@ -132,7 +182,7 @@ export function AdminTaskCenter() {
         eyebrow="Sprix 管理后台"
         title="任务管理中心"
         subtitle="集中查看任务发布状态、执行记录、申诉数量和任务操作。"
-        actions={<PendingTaskWriteButton action={getAdminTaskWriteAction("publish")} primary />}
+        actions={<TaskWriteButton action={getAdminTaskWriteAction("publish")} primary onClick={() => navigate("/tasks/new")} />}
       />
       <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <MetricCard title="全部任务" value={tasks.filter((task) => task.taskStatus !== "已删除").length} icon={<ClipboardList size={19} />} />
@@ -164,19 +214,24 @@ export function AdminTaskCenter() {
   );
 }
 
-function PendingTaskWriteButton({ action, primary = false }: { action: AdminTaskWriteAction; primary?: boolean }) {
+function TaskWriteButton({ action, primary = false, onClick }: { action: AdminTaskWriteAction; primary?: boolean; onClick?: () => void }) {
   const ButtonComponent = primary ? ActionButton : SecondaryButton;
+  const button = (
+    <ButtonComponent size={primary ? undefined : "small"} danger={action.danger} disabled={action.disabled} onClick={onClick}>
+      {action.label}
+    </ButtonComponent>
+  );
+  if (!action.reason) return button;
   return (
     <Tooltip title={action.reason}>
-      <ButtonComponent size={primary ? undefined : "small"} danger={action.danger} disabled={action.disabled}>
-        {action.label}
-      </ButtonComponent>
+      {button}
     </Tooltip>
   );
 }
 
 export function AdminTaskForm() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { id: editTaskId } = useParams();
   const [form] = Form.useForm<UpsertAdminTaskPayload>();
   const editTaskQuery = useQuery({
@@ -217,6 +272,21 @@ export function AdminTaskForm() {
   }, [editTask, form]);
 
   const writeAction = getAdminTaskWriteAction(isEdit ? "edit" : "publish");
+  const submitTask = async (values: UpsertAdminTaskPayload) => {
+    try {
+      if (isEdit && editTaskId) {
+        await updateRemoteAdminTask(editTaskId, values);
+        message.success("任务已保存");
+      } else {
+        await createRemoteAdminTask(values);
+        message.success("任务已发布");
+      }
+      await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+      navigate("/tasks");
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "任务保存失败");
+    }
+  };
 
   if (editTaskId && editTaskQuery.isLoading) return <Surface className="p-8">任务详情加载中</Surface>;
   if (editTaskQuery.isError) {
@@ -233,7 +303,7 @@ export function AdminTaskForm() {
           form={form}
           layout="vertical"
           initialValues={initialValues}
-          onFinish={() => message.warning(writeAction.reason)}
+          onFinish={submitTask}
         >
           <div className="grid gap-4 lg:grid-cols-3">
             <Form.Item label="任务名称" name="title" rules={[{ required: true, message: "请输入任务名称" }]}>
@@ -271,9 +341,7 @@ export function AdminTaskForm() {
             <p className="mt-1">{estimatedToken.helper}</p>
           </div>
           <div className="flex gap-2">
-            <Tooltip title={writeAction.reason}>
-              <ActionButton htmlType="submit" disabled={writeAction.disabled}>{writeAction.label}</ActionButton>
-            </Tooltip>
+            <ActionButton htmlType="submit" disabled={writeAction.disabled}>{writeAction.label}</ActionButton>
             <SecondaryButton
               onClick={() =>
                 Modal.confirm({
