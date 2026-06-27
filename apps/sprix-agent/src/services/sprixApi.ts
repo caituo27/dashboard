@@ -562,7 +562,7 @@ function mapAgent(agent: RemoteAgentProfileResponse): Agent {
 }
 
 function normalizeOptionalAgentEvaluation(evaluation?: RemoteAgentEvaluation | null) {
-  if (!evaluation?.evaluationId && !evaluation?.status && !evaluation?.result?.status) return undefined;
+  if (!evaluation?.evaluationId) return undefined;
   return normalizeAgentEvaluation(evaluation);
 }
 

@@ -20,7 +20,7 @@ import {
 import { ActionButton, EmptyState, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface } from "../components/Primitives";
 import { compactText, currency, scoreText } from "../utils/format";
 import { isGlobalAuthError } from "../utils/http";
-import { getCurrentExecutionAgent, getUserAdmissionState } from "./admission";
+import { getConnectedAgent, getCurrentExecutionAgent, getUserAdmissionState } from "./admission";
 import { getAgentAbilityResult, getAgentAdmissionSummary, getAgentTagLabels, hasPendingAgentEvaluation } from "./agentResult";
 import { getPayoutAccountText, getPayoutPageSubtitle, getPayoutRecordState } from "./earningsView";
 import { getExecutionArtifactsState, getExecutionBackendPendingSections, getExecutionRequirementText, getExecutionReviewState } from "./executionDetailView";
@@ -52,8 +52,6 @@ function showRequestError(error: unknown, fallback: string, prefix = "") {
   message.error(error instanceof Error ? `${prefix}${error.message}` : fallback);
 }
 
-const activeAgentEvaluationStatuses: ReadonlySet<AgentEvaluation["status"]> = new Set(["running", "judging"]);
-
 const agentEvaluationStatusLabels: Record<AgentEvaluation["status"], string> = {
   running: "能力画像生成中",
   judging: "能力画像评分中",
@@ -67,10 +65,6 @@ const agentEvaluationActionLabels: Record<AgentEvaluation["status"], string> = {
   completed: "查看结果",
   failed: "重新评测"
 };
-
-function isAgentEvaluationActive(evaluation?: AgentEvaluation) {
-  return evaluation ? activeAgentEvaluationStatuses.has(evaluation.status) : false;
-}
 
 function getAgentEvaluationStatusLabel(evaluation?: AgentEvaluation) {
   return evaluation ? agentEvaluationStatusLabels[evaluation.status] : "未测评";
@@ -110,7 +104,9 @@ export function LandingPage({ openLogin }: UserPageProps) {
   const location = useLocation();
   const account = useSprixStore((state) => state.account);
   const agents = useSprixStore((state) => state.agents);
+  const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
   const admission = getUserAdmissionState(account, agents);
+  const hasConnectedAgent = Boolean(getConnectedAgent(agents));
   const admissionState = location.state as { admissionReason?: string; openLogin?: boolean } | null;
   const admissionReason = admissionState?.admissionReason;
   const shouldOpenLogin = Boolean(admissionState?.openLogin);
@@ -138,6 +134,29 @@ export function LandingPage({ openLogin }: UserPageProps) {
     autoEnteredAgentCenterRef.current = true;
     navigate("/agent/center");
   }, [admission.allowed, navigate]);
+
+  useEffect(() => {
+    if (!account.isLoggedIn || hasConnectedAgent) return;
+    let cancelled = false;
+
+    const refreshAgents = async () => {
+      try {
+        const refreshedAgents = await readRemoteAgents();
+        if (!cancelled) {
+          mergeRemoteState({ agents: refreshedAgents });
+        }
+      } catch {
+        // Keep the landing page quiet while waiting for Local Agent enrollment to complete.
+      }
+    };
+
+    void refreshAgents();
+    const poll = window.setInterval(refreshAgents, 3_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(poll);
+    };
+  }, [account.isLoggedIn, hasConnectedAgent, mergeRemoteState]);
 
   return (
     <main className="sprix-landing">
@@ -385,22 +404,6 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
     const refreshedAgents = await readRemoteAgents();
     mergeRemoteState({ agents: refreshedAgents });
   }, [mergeRemoteState]);
-  const activeEvaluationKey = useMemo(
-    () =>
-      agents
-        .filter((agent) => isAgentEvaluationActive(agent.evaluation))
-        .map((agent) => `${agent.id}:${agent.evaluation?.status}`)
-        .join("|"),
-    [agents]
-  );
-
-  useEffect(() => {
-    if (!account.isLoggedIn || !activeEvaluationKey) return;
-    const poll = window.setInterval(() => {
-      void refreshAgents().catch(() => undefined);
-    }, 3_000);
-    return () => window.clearInterval(poll);
-  }, [account.isLoggedIn, activeEvaluationKey, refreshAgents]);
 
   const setCurrent = async (agent: Agent) => {
     if (!account.isLoggedIn) {
@@ -437,15 +440,25 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
     setEvaluationError(undefined);
     setEvaluationLoading(true);
     try {
-      const nextEvaluation = agent.evaluation && agent.evaluation.status !== "failed"
-        ? await readLatestRemoteAgentEvaluation(agent.id)
-        : await startRemoteAgentEvaluation(agent.id);
+      let nextEvaluation: AgentEvaluation;
+      if (agent.evaluation && agent.evaluation.status !== "failed") {
+        try {
+          nextEvaluation = await readLatestRemoteAgentEvaluation(agent.id);
+        } catch (error) {
+          if (!(error instanceof Error && error.message === "Agent evaluation not found")) {
+            throw error;
+          }
+          nextEvaluation = await startRemoteAgentEvaluation(agent.id);
+        }
+      } else {
+        nextEvaluation = await startRemoteAgentEvaluation(agent.id);
+      }
       setEvaluation(nextEvaluation);
       if (current?.id === agent.id) {
         setCurrentEvaluation(nextEvaluation);
       }
       await refreshAgents();
-      if (!agent.evaluation || agent.evaluation.status === "failed") {
+      if (!agent.evaluation || agent.evaluation.status === "failed" || nextEvaluation.status === "running") {
         message.success("评测已开始");
       }
     } catch (error) {
@@ -737,7 +750,7 @@ function CurrentAgentCard({ agent }: { agent?: Agent }) {
           </div>
         </>
       ) : (
-        <div className="rounded-[22px] border border-dashed border-line p-7 text-center">
+        <div className="sprix-current-agent-empty rounded-[22px] border border-dashed border-line p-7 text-center">
           <Bot className="mx-auto text-ink-soft" />
           <h4 className="mt-3 text-lg font-semibold">未设置当前执行 Agent</h4>
           <p className="mt-2 text-sm text-ink-soft">在 Agent 列表中选择一个 Agent 设为当前执行 Agent 后，即可执行平台任务。</p>

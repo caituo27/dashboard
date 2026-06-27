@@ -1063,6 +1063,11 @@ select {
   align-items: start;
 }
 
+.sprix-current-agent-empty {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
 .sprix-agent-identity-panel {
   min-width: 0;
 }
