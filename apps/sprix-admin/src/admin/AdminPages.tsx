@@ -4,7 +4,7 @@ import { Button, Form, Input, InputNumber, Modal, Segmented, Select, Table, Tabs
 import type { ColumnsType } from "antd/es/table";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
-import { CircleDollarSign, ClipboardList, ShieldCheck } from "lucide-react";
+import { ArrowLeft, CircleDollarSign, ClipboardList, ShieldCheck } from "lucide-react";
 import type { AdminAppeal, AdminOperationLog, CompletedExecution, FundException, Payout, ReviewingExecution, RunningExecution, Settlement, Task, TerminatedExecution, Withdrawal } from "../types";
 import {
   approveRemoteAcceptanceReview,
@@ -20,6 +20,7 @@ import {
   queryRemoteWithdrawalPayout,
   readRemoteAppeals,
   readRemoteAppealDetail,
+  readRemoteAcceptanceReviews,
   readRemoteFunds,
   readRemoteTaskCenterSnapshot,
   readRemoteTaskDetail,
@@ -94,40 +95,11 @@ export function AdminTaskCenter() {
   });
   const executionCount = tasks.reduce((sum, task) => sum + (task.executionTotal ?? 0), 0);
   const reviewCount = acceptanceReviews.length;
+  const selectTaskTab = (nextTab: string) => {
+    setTab(nextTab);
+    setKeyword("");
+  };
   const refreshTasks = () => queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-  const approveAcceptanceReview = (record: ReviewingExecution) => {
-    Modal.confirm({
-      title: "确认平台审核通过",
-      content: "审核通过后将生成结算记录、自动入账，并直接发起平台支付宝打款。请确认用户已绑定可出款的支付宝账户。",
-      okText: "审核通过",
-      onOk: async () => {
-        try {
-          await approveRemoteAcceptanceReview(record.executionId);
-          await refreshTasks();
-          message.success("平台审核已通过，已发起直接打款");
-        } catch (error) {
-          message.error(error instanceof Error ? `审核通过失败：${error.message}` : "审核通过失败");
-        }
-      }
-    });
-  };
-  const rejectAcceptanceReview = (record: ReviewingExecution) => {
-    Modal.confirm({
-      title: "确认平台审核不通过",
-      content: "审核不通过后，用户任务将变为验收未通过，并可按现有规则发起申诉。",
-      okText: "审核不通过",
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        try {
-          await rejectRemoteAcceptanceReview(record.executionId, "平台人工复核不通过");
-          await refreshTasks();
-          message.success("已处理为平台审核不通过");
-        } catch (error) {
-          message.error(error instanceof Error ? `审核驳回失败：${error.message}` : "审核驳回失败");
-        }
-      }
-    });
-  };
   const runTaskAction = async (action: () => Promise<unknown>, successText: string) => {
     try {
       await action();
@@ -206,9 +178,9 @@ export function AdminTaskCenter() {
     {
       title: "操作",
       fixed: "right",
-      width: 230,
+      width: 280,
       render: (_, task) => (
-        <div className="flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
+        <div className="sprix-task-action-group" onClick={(event) => event.stopPropagation()}>
           <TaskWriteButton action={getAdminTaskWriteAction("edit")} onClick={() => confirmTaskAction(task, getAdminTaskWriteAction("edit"))} />
           {task.taskStatus === "已发布" ? (
             <>
@@ -235,12 +207,12 @@ export function AdminTaskCenter() {
         actions={<TaskWriteButton action={getAdminTaskWriteAction("publish")} primary onClick={() => navigate("/tasks/new")} />}
       />
       <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-        <MetricCard title="全部任务" value={tasks.filter((task) => task.taskStatus !== "已删除").length} icon={<ClipboardList size={19} />} />
-        <MetricCard title="已发布任务" value={tasks.filter((task) => task.taskStatus === "已发布").length} />
-        <MetricCard title="已下线任务" value={tasks.filter((task) => task.taskStatus === "已下线").length} />
-        <MetricCard title="执行记录" value={executionCount} icon={primitiveIcons.clock} />
-        <MetricCard title="待平台审核" value={reviewCount} icon={<ShieldCheck size={19} />} />
-        <MetricCard title="申诉记录" value={appealCount} icon={<ShieldCheck size={19} />} />
+        <MetricCard title="全部任务" value={tasks.filter((task) => task.taskStatus !== "已删除").length} icon={<ClipboardList size={19} />} active={tab === "全部"} onClick={() => selectTaskTab("全部")} />
+        <MetricCard title="已发布任务" value={tasks.filter((task) => task.taskStatus === "已发布").length} active={tab === "已发布"} onClick={() => selectTaskTab("已发布")} />
+        <MetricCard title="已下线任务" value={tasks.filter((task) => task.taskStatus === "已下线").length} active={tab === "已下线"} onClick={() => selectTaskTab("已下线")} />
+        <MetricCard title="执行记录" value={executionCount} icon={primitiveIcons.clock} onClick={() => selectTaskTab("全部")} />
+        <MetricCard title="待平台审核" value={reviewCount} icon={<ShieldCheck size={19} />} onClick={() => navigate("/acceptance")} />
+        <MetricCard title="申诉记录" value={appealCount} icon={<ShieldCheck size={19} />} onClick={() => navigate("/appeals")} />
       </div>
       <Surface className="sprix-table-card p-4">
         <div className="sprix-toolbar">
@@ -261,12 +233,53 @@ export function AdminTaskCenter() {
           onRow={(task) => ({ onClick: () => navigate(`/tasks/${task.id}`) })}
         />
       </Surface>
-      <Surface className="sprix-table-card mt-4 p-4">
-        <h3 className="sprix-section-title">平台验收审核</h3>
-        <p className="mt-1 text-sm text-ink-soft">Local Agent 完成评分后，需在这里人工复核，通过后才会生成结算记录。</p>
+    </>
+  );
+}
+
+export function AdminAcceptanceCenter() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const acceptanceQuery = useQuery({
+    queryKey: ["sprix-admin", "acceptance-reviews"],
+    queryFn: readRemoteAcceptanceReviews,
+    retry: 1
+  });
+  const refreshAcceptance = () => queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+  const { approveAcceptanceReview, rejectAcceptanceReview } = useAcceptanceReviewActions(refreshAcceptance);
+
+  if (acceptanceQuery.isLoading) return <Surface className="p-8">平台验收中心数据加载中</Surface>;
+  if (acceptanceQuery.isError) {
+    const messageText = acceptanceQuery.error instanceof Error ? acceptanceQuery.error.message : "平台验收中心数据加载失败";
+    return <Surface className="p-8">平台验收中心数据加载失败：{messageText}</Surface>;
+  }
+
+  const acceptanceReviews = acceptanceQuery.data ?? [];
+  const taskCount = new Set(acceptanceReviews.map((record) => record.taskTitle).filter(Boolean)).size;
+  const userCount = new Set(acceptanceReviews.map((record) => record.userName).filter(Boolean)).size;
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="Sprix 管理后台"
+        title="平台验收中心"
+        subtitle="集中审核 Agent 提交的任务验收结果，确认通过后进入结算和打款流程。"
+      />
+      <div className="mb-4 grid gap-3 md:grid-cols-3">
+        <MetricCard title="待审核记录" value={acceptanceReviews.length} icon={<ShieldCheck size={19} />} />
+        <MetricCard title="涉及任务" value={taskCount} icon={<ClipboardList size={19} />} />
+        <MetricCard title="执行用户" value={userCount} />
+      </div>
+      <Surface className="sprix-table-card p-4">
+        <div className="sprix-toolbar">
+          <div className="sprix-toolbar-row flex-col items-start lg:flex-row lg:items-center">
+            <h3 className="sprix-section-title">验收审核列表</h3>
+          </div>
+        </div>
         <AcceptanceReviewTable
           data={acceptanceReviews}
           showTask
+          onOpenDetail={(record) => navigate(`/acceptance/${encodeURIComponent(record.executionId)}`)}
           onApprove={approveAcceptanceReview}
           onReject={rejectAcceptanceReview}
         />
@@ -275,10 +288,158 @@ export function AdminTaskCenter() {
   );
 }
 
+export function AdminAcceptanceDetail() {
+  const navigate = useNavigate();
+  const { executionId } = useParams();
+  const queryClient = useQueryClient();
+  const acceptanceQuery = useQuery({
+    queryKey: ["sprix-admin", "acceptance-reviews"],
+    queryFn: readRemoteAcceptanceReviews,
+    retry: 1
+  });
+  const returnToList = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+    navigate("/acceptance", { replace: true });
+  };
+  const { approveAcceptanceReview, rejectAcceptanceReview } = useAcceptanceReviewActions(returnToList);
+
+  if (!executionId) return <Surface className="p-8">验收详情参数缺失</Surface>;
+  if (acceptanceQuery.isLoading) return <Surface className="p-8">验收详情加载中</Surface>;
+  if (acceptanceQuery.isError) {
+    const messageText = acceptanceQuery.error instanceof Error ? acceptanceQuery.error.message : "验收详情加载失败";
+    return <Surface className="p-8">验收详情加载失败：{messageText}</Surface>;
+  }
+
+  const record = (acceptanceQuery.data ?? []).find((item) => item.executionId === executionId);
+  if (!record) {
+    return (
+      <>
+        <PageHeader title="验收详情" subtitle="当前执行记录已处理或不存在。" actions={<SecondaryButton href="/acceptance">返回平台验收中心</SecondaryButton>} />
+        <Surface className="p-8 text-sm text-ink-soft">没有找到对应的待验收记录。</Surface>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="sprix-detail-heading">
+        <button className="sprix-detail-back" type="button" onClick={() => navigate("/acceptance")} aria-label="返回平台验收中心">
+          <ArrowLeft size={17} />
+        </button>
+        <div className="min-w-0">
+          <div className="sprix-page-kicker">平台验收中心</div>
+          <h1 className="sprix-detail-title">{record.taskTitle || "验收详情"}</h1>
+        </div>
+      </div>
+      <div className="mb-4 grid gap-3 md:grid-cols-4">
+        <MetricCard title="验收状态" value={<StatusTag status={record.acceptanceStatus} />} icon={<ShieldCheck size={19} />} />
+        <MetricCard title="验收评分" value={record.acceptanceScore} />
+        <MetricCard title="Agent 评分" value={record.agentScore} />
+        <MetricCard title="当前节点" value={<span className="text-lg">{record.currentNode}</span>} />
+      </div>
+      <Surface className="mb-4 p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h3 className="sprix-section-title">审核操作</h3>
+            <p className="mt-1 text-sm text-ink-soft">确认该执行结果是否满足任务交付和验收要求。</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <ActionButton onClick={() => approveAcceptanceReview(record)}>通过</ActionButton>
+            <SecondaryButton danger onClick={() => rejectAcceptanceReview(record)}>不通过</SecondaryButton>
+          </div>
+        </div>
+      </Surface>
+      <div className="grid gap-4 xl:grid-cols-[1fr_1.2fr]">
+        <Surface className="p-4">
+          <h3 className="sprix-section-title">执行信息</h3>
+          <InfoGrid
+            rows={[
+              ["executionId", record.executionId],
+              ["关联任务", record.taskTitle || "-"],
+              ["任务分类", record.taskCategory || "-"],
+              ["执行用户", record.userName],
+              ["手机号", record.phone],
+              ["执行 Agent", record.agentName],
+              ["提交时间", record.submittedAt],
+              ["当前进度", record.progress]
+            ]}
+          />
+        </Surface>
+        <Surface className="p-4">
+          <h3 className="sprix-section-title">验收结果</h3>
+          <LongTextBlock title="验收摘要" body={record.acceptanceSummary} />
+          <LongTextBlock title="问题记录" body={record.acceptanceIssues} />
+        </Surface>
+      </div>
+    </>
+  );
+}
+
+function useAcceptanceReviewActions(afterAction: () => Promise<unknown>) {
+  const approveAcceptanceReview = (record: ReviewingExecution) => {
+    Modal.confirm({
+      title: "确认平台审核通过",
+      content: "审核通过后将生成结算记录、自动入账，并直接发起平台支付宝打款。请确认用户已绑定可出款的支付宝账户。",
+      okText: "审核通过",
+      onOk: async () => {
+        try {
+          await approveRemoteAcceptanceReview(record.executionId);
+          await afterAction();
+          message.success("平台审核已通过，已发起直接打款");
+        } catch (error) {
+          message.error(error instanceof Error ? `审核通过失败：${error.message}` : "审核通过失败");
+        }
+      }
+    });
+  };
+  const rejectAcceptanceReview = (record: ReviewingExecution) => {
+    Modal.confirm({
+      title: "确认平台审核不通过",
+      content: "审核不通过后，用户任务将变为验收未通过，并可按现有规则发起申诉。",
+      okText: "审核不通过",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await rejectRemoteAcceptanceReview(record.executionId, "平台人工复核不通过");
+          await afterAction();
+          message.success("已处理为平台审核不通过");
+        } catch (error) {
+          message.error(error instanceof Error ? `审核驳回失败：${error.message}` : "审核驳回失败");
+        }
+      }
+    });
+  };
+  return { approveAcceptanceReview, rejectAcceptanceReview };
+}
+
+function InfoGrid({ rows }: { rows: Array<[string, string]> }) {
+  return (
+    <dl className="mt-4 grid gap-3 text-sm">
+      {rows.map(([label, value]) => (
+        <div key={label} className="grid gap-1 sm:grid-cols-[120px_1fr]">
+          <dt className="text-ink-soft">{label}</dt>
+          <dd className="min-w-0 text-ink">
+            <EllipsisCell value={value} />
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function LongTextBlock({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="mt-4 first:mt-3">
+      <div className="text-sm font-semibold text-ink">{title}</div>
+      <p className="mt-2 whitespace-pre-wrap rounded-lg border border-line bg-[#fafafa] p-3 text-sm leading-7 text-ink-soft">{body || "-"}</p>
+    </div>
+  );
+}
+
 function TaskWriteButton({ action, primary = false, onClick }: { action: AdminTaskWriteAction; primary?: boolean; onClick?: () => void }) {
   const ButtonComponent = primary ? ActionButton : SecondaryButton;
   const button = (
-    <ButtonComponent size={primary ? undefined : "small"} danger={action.danger} disabled={action.disabled} onClick={onClick}>
+    <ButtonComponent className={primary ? undefined : "sprix-task-action-button"} size={primary ? undefined : "small"} danger={action.danger} disabled={action.disabled} onClick={onClick}>
       {action.label}
     </ButtonComponent>
   );
@@ -290,43 +451,54 @@ function TaskWriteButton({ action, primary = false, onClick }: { action: AdminTa
   );
 }
 
+function EllipsisCell({ value }: { value?: string | number | null }) {
+  const text = value == null || value === "" ? "-" : String(value);
+  return (
+    <Tooltip title={text === "-" ? undefined : text}>
+      <span className="sprix-table-ellipsis-cell">{text}</span>
+    </Tooltip>
+  );
+}
+
 function AcceptanceReviewTable({
   data,
   showTask = false,
+  onOpenDetail,
   onApprove,
   onReject
 }: {
   data: ReviewingExecution[];
   showTask?: boolean;
+  onOpenDetail?: (record: ReviewingExecution) => void;
   onApprove: (record: ReviewingExecution) => void;
   onReject: (record: ReviewingExecution) => void;
 }) {
   const columns: ColumnsType<ReviewingExecution> = [
     ...(showTask
       ? [
-          { title: "关联任务", dataIndex: "taskTitle", width: 260 },
-          { title: "任务分类", dataIndex: "taskCategory", width: 130 }
+          { title: "关联任务", dataIndex: "taskTitle", width: 260, render: (value) => <EllipsisCell value={value} /> },
+          { title: "任务分类", dataIndex: "taskCategory", width: 130, render: (value) => <EllipsisCell value={value} /> }
         ] satisfies ColumnsType<ReviewingExecution>
       : []),
-    { title: "executionId", dataIndex: "executionId", width: 280 },
-    { title: "执行用户", dataIndex: "userName", width: 130 },
-    { title: "手机号", dataIndex: "phone", width: 140 },
-    { title: "执行 Agent", dataIndex: "agentName", width: 160 },
+    { title: "执行用户", dataIndex: "userName", width: 130, render: (value) => <EllipsisCell value={value} /> },
+    { title: "手机号", dataIndex: "phone", width: 140, render: (value) => <EllipsisCell value={value} /> },
+    { title: "执行 Agent", dataIndex: "agentName", width: 160, render: (value) => <EllipsisCell value={value} /> },
     { title: "Agent 综合评分", dataIndex: "agentScore", width: 130 },
     { title: "验收状态", dataIndex: "acceptanceStatus", width: 140, render: (value) => <StatusTag status={value} /> },
     { title: "验收评分", dataIndex: "acceptanceScore", width: 110 },
-    { title: "验收摘要", dataIndex: "acceptanceSummary", width: 240 },
-    { title: "问题记录", dataIndex: "acceptanceIssues", width: 240 },
-    { title: "当前节点", dataIndex: "currentNode", width: 130 },
+    { title: "验收摘要", dataIndex: "acceptanceSummary", width: 260, render: (value) => <EllipsisCell value={value} /> },
+    { title: "问题记录", dataIndex: "acceptanceIssues", width: 280, render: (value) => <EllipsisCell value={value} /> },
+    { title: "当前节点", dataIndex: "currentNode", width: 130, render: (value) => <EllipsisCell value={value} /> },
     { title: "提交时间", dataIndex: "submittedAt", width: 160 },
     {
       title: "操作",
       fixed: "right",
-      width: 170,
+      width: 240,
       render: (_, record) => (
-        <div className="flex flex-wrap gap-1">
-          <Button type="link" onClick={() => onApprove(record)}>通过</Button>
-          <Button type="link" danger onClick={() => onReject(record)}>不通过</Button>
+        <div className="flex flex-nowrap items-center gap-1 whitespace-nowrap" onClick={(event) => event.stopPropagation()}>
+          {onOpenDetail && <Button size="small" type="link" onClick={() => onOpenDetail(record)}>查看</Button>}
+          <Button size="small" type="link" onClick={() => onApprove(record)}>通过</Button>
+          <Button size="small" type="link" danger onClick={() => onReject(record)}>不通过</Button>
         </div>
       )
     }
@@ -339,7 +511,9 @@ function AcceptanceReviewTable({
       columns={columns}
       pagination={{ pageSize: 6 }}
       locale={{ emptyText: "暂无待平台审核记录" }}
-      scroll={{ x: showTask ? 2100 : 1700 }}
+      scroll={{ x: showTask ? 1860 : 1460 }}
+      rowClassName={onOpenDetail ? "cursor-pointer" : undefined}
+      onRow={onOpenDetail ? (record) => ({ onClick: () => onOpenDetail(record) }) : undefined}
     />
   );
 }
@@ -737,18 +911,27 @@ export function AdminAppealCenter() {
     retry: 1
   });
   const [tab, setTab] = useState("全部");
+  const [quickFilter, setQuickFilter] = useState<"none" | "today" | "done">("none");
   if (appealsQuery.isLoading) return <Surface className="p-8">申诉数据加载中</Surface>;
   if (appealsQuery.isError) {
     const messageText = appealsQuery.error instanceof Error ? appealsQuery.error.message : "申诉数据加载失败";
     return <Surface className="p-8">申诉数据加载失败：{messageText}</Surface>;
   }
   const appeals = appealsQuery.data ?? [];
-  const visible = appeals.filter((appeal) => tab === "全部" || appeal.appealStatus === tab);
   const today = new Intl.DateTimeFormat("sv-SE", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit"
   }).format(new Date());
+  const selectAppealTab = (nextTab: string) => {
+    setTab(nextTab);
+    setQuickFilter("none");
+  };
+  const visible = appeals.filter((appeal) => {
+    if (quickFilter === "today") return appeal.submittedAt.includes(today);
+    if (quickFilter === "done") return ["申诉通过", "申诉不通过"].includes(appeal.appealStatus);
+    return tab === "全部" || appeal.appealStatus === tab;
+  });
   const stats = {
     pending: appeals.filter((item) => item.appealStatus === "待处理").length,
     processing: appeals.filter((item) => item.appealStatus === "处理中").length,
@@ -759,38 +942,46 @@ export function AdminAppealCenter() {
     <>
       <PageHeader title="申诉处理中心" subtitle="复核验收争议并同步任务状态、结算状态和用户资金记录。" />
       <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <MetricCard title="待处理申诉" value={stats.pending} />
-        <MetricCard title="处理中申诉" value={stats.processing} />
-        <MetricCard title="今日新增" value={stats.today} />
-        <MetricCard title="已处理" value={stats.done} />
+        <MetricCard title="待处理申诉" value={stats.pending} active={quickFilter === "none" && tab === "待处理"} onClick={() => selectAppealTab("待处理")} />
+        <MetricCard title="处理中申诉" value={stats.processing} active={quickFilter === "none" && tab === "处理中"} onClick={() => selectAppealTab("处理中")} />
+        <MetricCard title="今日新增" value={stats.today} active={quickFilter === "today"} onClick={() => {
+          setTab("全部");
+          setQuickFilter("today");
+        }} />
+        <MetricCard title="已处理" value={stats.done} active={quickFilter === "done"} onClick={() => {
+          setTab("全部");
+          setQuickFilter("done");
+        }} />
         <MetricCard title="平均处理时长" value="-" />
       </div>
       <Surface className="sprix-table-card p-4">
         <div className="sprix-toolbar-row mb-3 flex-col items-start lg:flex-row lg:items-center">
-          <Segmented options={["全部", "待处理", "处理中", "申诉通过", "申诉不通过"]} value={tab} onChange={(value) => setTab(String(value))} />
+          <Segmented options={["全部", "待处理", "处理中", "申诉通过", "申诉不通过"]} value={tab} onChange={(value) => selectAppealTab(String(value))} />
           <Input.Search className="max-w-[420px]" placeholder="搜索任务名称、用户手机号、Agent、申诉编号" />
         </div>
         <Table
           rowKey="appealNo"
           dataSource={visible}
           pagination={{ pageSize: 6 }}
-          scroll={{ x: 1180 }}
+          tableLayout="fixed"
+          scroll={{ x: 1320 }}
           columns={[
-            { title: "申诉编号", dataIndex: "appealNo" },
-            { title: "关联任务", dataIndex: "taskTitle" },
-            { title: "提交用户", dataIndex: "userName" },
-            { title: "用户手机号", dataIndex: "userPhone" },
-            { title: "执行 Agent", dataIndex: "agentName" },
-            { title: "问题摘要", dataIndex: "issueSummary" },
-            { title: "当前状态", dataIndex: "appealStatus", render: (value) => <StatusTag status={value} /> },
-            { title: "优先级", dataIndex: "priority" },
-            { title: "提交时间", dataIndex: "submittedAt" },
-            { title: "处理人", dataIndex: "handler" },
+            { title: "申诉编号", dataIndex: "appealNo", width: 130, render: (value) => <EllipsisCell value={value} /> },
+            { title: "关联任务", dataIndex: "taskTitle", width: 190, render: (value) => <EllipsisCell value={value} /> },
+            { title: "提交用户", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
+            { title: "用户手机号", dataIndex: "userPhone", width: 130, render: (value) => <EllipsisCell value={value} /> },
+            { title: "执行 Agent", dataIndex: "agentName", width: 140, render: (value) => <EllipsisCell value={value} /> },
+            { title: "问题摘要", dataIndex: "issueSummary", width: 220, render: (value) => <EllipsisCell value={value} /> },
+            { title: "当前状态", dataIndex: "appealStatus", width: 120, render: (value) => <StatusTag status={value} /> },
+            { title: "优先级", dataIndex: "priority", width: 100, render: (value) => <EllipsisCell value={value} /> },
+            { title: "提交时间", dataIndex: "submittedAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
+            { title: "处理人", dataIndex: "handler", width: 130, render: (value) => <EllipsisCell value={value} /> },
             {
               title: "操作",
               fixed: "right",
+              width: 150,
               render: (_, record: AdminAppeal) => (
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-nowrap items-center gap-1 whitespace-nowrap">
                   <Button type="link" onClick={() => navigate(`/appeals/${getAppealBackendId(record)}`)}>查看详情</Button>
                   {record.appealStatus === "待处理" && (
                     <Button

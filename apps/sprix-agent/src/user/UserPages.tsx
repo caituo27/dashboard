@@ -21,7 +21,7 @@ import { ActionButton, EmptyState, MetricCard, PageHeader, SecondaryButton, Soft
 import { compactText, currency, scoreText } from "../utils/format";
 import { isGlobalAuthError } from "../utils/http";
 import { getCurrentExecutionAgent, getUserAdmissionState } from "./admission";
-import { getAgentAbilityResult, getAgentAdmissionSummary, getAgentTagLabels } from "./agentResult";
+import { getAgentAbilityResult, getAgentAdmissionSummary, getAgentTagLabels, hasPendingAgentEvaluation } from "./agentResult";
 import { getEarningsOverview, getWithdrawalAccountAction, getWithdrawalAccountCard, getWithdrawalEntryAction, getWithdrawalHistoryState, getWithdrawalProgressRefreshAction } from "./earningsView";
 import { getExecutionArtifactsState, getExecutionBackendPendingSections, getExecutionOverview, getExecutionRequirementText, getExecutionReviewState } from "./executionDetailView";
 import { getFaceVerificationStartState, getQualificationRecordRows } from "./qualificationView";
@@ -371,6 +371,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   const current = getCurrentExecutionAgent(agents);
   const [evaluationAgent, setEvaluationAgent] = useState<Agent | null>(null);
   const [evaluation, setEvaluation] = useState<AgentEvaluation | undefined>();
+  const [evaluationModalOpen, setEvaluationModalOpen] = useState(false);
   const [currentEvaluation, setCurrentEvaluation] = useState<AgentEvaluation | undefined>();
   const [evaluationLoading, setEvaluationLoading] = useState(false);
   const [evaluationError, setEvaluationError] = useState<string>();
@@ -412,11 +413,15 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
     }
     setEvaluationAgent(agent);
     setEvaluation(undefined);
+    setEvaluationModalOpen(true);
     setEvaluationError(undefined);
     setEvaluationLoading(true);
     try {
       const started = await startRemoteAgentEvaluation(agent.id);
       setEvaluation(started);
+      if (current?.id === agent.id) {
+        setCurrentEvaluation(started);
+      }
       message.success("评测已开始");
     } catch (error) {
       setEvaluationError(error instanceof Error ? error.message : "评测启动失败");
@@ -435,11 +440,11 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         const next = await readRemoteAgentEvaluation(evaluationAgent.id, evaluation.evaluationId);
         if (cancelled) return;
         setEvaluation(next);
+        if (current?.id === evaluationAgent.id) {
+          setCurrentEvaluation(next);
+        }
         if (isEvaluationTerminal(next.status)) {
           window.clearInterval(poll);
-          if (current?.id === evaluationAgent.id) {
-            setCurrentEvaluation(next);
-          }
           void refreshAgents();
         }
       } catch (error) {
@@ -464,8 +469,11 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
     let cancelled = false;
     readLatestRemoteAgentEvaluation(current.id)
       .then((latest) => {
-        if (!cancelled && latest.result.status === "completed") {
-          setCurrentEvaluation(latest);
+        if (cancelled) return;
+        setCurrentEvaluation(latest);
+        if (!isEvaluationTerminal(latest.status)) {
+          setEvaluationAgent(current);
+          setEvaluation(latest);
         }
       })
       .catch(() => {
@@ -478,8 +486,11 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   }, [account.isLoggedIn, current?.id, current?.lastEvaluatedAt, current?.evaluation?.result.status]);
 
   const closeEvaluation = () => {
-    setEvaluationAgent(null);
-    setEvaluation(undefined);
+    setEvaluationModalOpen(false);
+    if (!evaluation || isEvaluationTerminal(evaluation.status)) {
+      setEvaluationAgent(null);
+      setEvaluation(undefined);
+    }
     setEvaluationError(undefined);
     setEvaluationLoading(false);
   };
@@ -510,7 +521,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
           )
         }
       />
-      <AgentEvaluationModal agent={evaluationAgent} evaluation={evaluation} loading={evaluationLoading} error={evaluationError} onClose={closeEvaluation} />
+      <AgentEvaluationModal open={evaluationModalOpen} agent={evaluationAgent} evaluation={evaluation} loading={evaluationLoading} error={evaluationError} onClose={closeEvaluation} />
     </>
   );
 }
@@ -579,12 +590,14 @@ function EvaluationRadar({ result }: { result: AgentEvaluation["result"] }) {
 }
 
 function AgentEvaluationModal({
+  open,
   agent,
   evaluation,
   loading,
   error,
   onClose
 }: {
+  open: boolean;
   agent: Agent | null;
   evaluation?: AgentEvaluation;
   loading: boolean;
@@ -605,7 +618,7 @@ function AgentEvaluationModal({
           {status === "running" && <span>{answeredCount}/{questions.length}</span>}
         </div>
       }
-      open={Boolean(agent)}
+      open={open && Boolean(agent)}
       onCancel={onClose}
       width={720}
       className="sprix-evaluation-modal"
@@ -714,7 +727,7 @@ function AbilityProfile({ agent, embedded = false, showScore = true }: { agent?:
   const summary = agent ? getAgentAdmissionSummary(agent) : undefined;
   const evaluationResult = agent?.evaluation?.result.status === "completed" ? agent.evaluation.result : undefined;
   const dimensions = evaluationResult ? evaluationDimensions(evaluationResult) : [];
-  const isAbilityPending = !evaluationResult && Boolean(agent && (agent.score !== null || agent.lastEvaluatedAt));
+  const isAbilityPending = !evaluationResult && hasPendingAgentEvaluation(agent);
   const content = (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">

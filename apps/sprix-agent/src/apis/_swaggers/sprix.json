@@ -714,6 +714,127 @@
         }
       }
     },
+    "/api/v1/auth/alipay/login-sessions": {
+      "post": {
+        "tags": [
+          "auth-controller"
+        ],
+        "operationId": "createAlipayLoginSession",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAlipayLoginSessionResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/alipay/login-sessions/{sessionId}/confirm": {
+      "post": {
+        "tags": [
+          "auth-controller"
+        ],
+        "operationId": "confirmAlipayLoginSession",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlipayLoginConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAlipayLoginStatusResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/admin-login": {
+      "post": {
+        "tags": [
+          "auth-controller"
+        ],
+        "operationId": "adminLogin",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAuthTokenResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/appeals": {
       "post": {
         "tags": [
@@ -737,6 +858,56 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponseAppealRecord"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{agentId}/evaluate": {
+      "post": {
+        "tags": [
+          "agent-controller"
+        ],
+        "operationId": "evaluate",
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentEvaluationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAgentEvaluationDetailResponse"
                 }
               }
             }
@@ -1036,6 +1207,97 @@
         }
       }
     },
+    "/api/v1/admin/tasks/executions/{executionId}/acceptance/reject": {
+      "post": {
+        "tags": [
+          "admin-task-controller"
+        ],
+        "operationId": "rejectAcceptanceReview",
+        "parameters": [
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptanceReviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseTaskExecution"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/tasks/executions/{executionId}/acceptance/approve": {
+      "post": {
+        "tags": [
+          "admin-task-controller"
+        ],
+        "operationId": "approveAcceptanceReview",
+        "parameters": [
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseTaskExecution"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/funds/withdrawals/{withdrawalId}/return-review": {
       "post": {
         "tags": [
@@ -1112,6 +1374,88 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseWithdrawalRecord"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/funds/withdrawals/{withdrawalId}/payout": {
+      "post": {
+        "tags": [
+          "admin-funds-controller"
+        ],
+        "operationId": "payWithdrawal",
+        "parameters": [
+          {
+            "name": "withdrawalId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseWithdrawalRecord"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/funds/withdrawals/{withdrawalId}/payout-query": {
+      "post": {
+        "tags": [
+          "admin-funds-controller"
+        ],
+        "operationId": "queryWithdrawalPayout",
+        "parameters": [
+          {
+            "name": "withdrawalId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -1634,6 +1978,34 @@
       }
     },
     "/api/v1/account/withdrawal-account": {
+      "get": {
+        "tags": [
+          "account-controller"
+        ],
+        "operationId": "currentWithdrawalAccount",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseWithdrawalAccount"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "account-controller"
@@ -1746,6 +2118,46 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponseUserAccount"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/alipay-bind-sessions": {
+      "post": {
+        "tags": [
+          "account-controller"
+        ],
+        "operationId": "createAlipayBindSession",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAlipayBindSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAlipayBindSessionResponse"
                 }
               }
             }
@@ -2429,7 +2841,48 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponseListTaskExecution"
+                  "$ref": "#/components/schemas/ApiResponseListMyTaskExecutionDetail"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/my-tasks/{executionId}": {
+      "get": {
+        "tags": [
+          "my-task-controller"
+        ],
+        "operationId": "detail_2",
+        "parameters": [
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseMyTaskExecutionDetail"
                 }
               }
             }
@@ -2637,6 +3090,95 @@
         }
       }
     },
+    "/api/v1/auth/alipay/login-sessions/{sessionId}": {
+      "get": {
+        "tags": [
+          "auth-controller"
+        ],
+        "operationId": "alipayLoginSession",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAlipayLoginStatusResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/alipay/login-callback": {
+      "get": {
+        "tags": [
+          "auth-controller"
+        ],
+        "operationId": "alipayLoginCallback",
+        "parameters": [
+          {
+            "name": "auth_code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAlipayLoginStatusResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/agents": {
       "get": {
         "tags": [
@@ -2650,6 +3192,96 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponseListAgentProfileResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{agentId}/evaluations/{evaluationId}": {
+      "get": {
+        "tags": [
+          "agent-controller"
+        ],
+        "operationId": "evaluation",
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "evaluationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAgentEvaluationDetailResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{agentId}/evaluations/latest": {
+      "get": {
+        "tags": [
+          "agent-controller"
+        ],
+        "operationId": "latestEvaluation",
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAgentEvaluationDetailResponse"
                 }
               }
             }
@@ -2721,6 +3353,36 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponseListAdminTaskSummary"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/tasks/acceptance-reviews": {
+      "get": {
+        "tags": [
+          "admin-task-controller"
+        ],
+        "operationId": "acceptanceReviews",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListAcceptanceReviewRow"
                 }
               }
             }
@@ -2923,7 +3585,7 @@
         "tags": [
           "admin-appeal-controller"
         ],
-        "operationId": "detail_2",
+        "operationId": "detail_3",
         "parameters": [
           {
             "name": "appealId",
@@ -2972,6 +3634,95 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponseUserAccount"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/alipay-bind-sessions/{sessionId}": {
+      "get": {
+        "tags": [
+          "account-controller"
+        ],
+        "operationId": "pollAlipayBindSession",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAlipayBindSessionStatusResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/alipay-bind-callback": {
+      "get": {
+        "tags": [
+          "account-controller"
+        ],
+        "operationId": "completeAlipayBindSession",
+        "parameters": [
+          {
+            "name": "auth_code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/html;charset=UTF-8": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -3392,6 +4143,30 @@
           "exceptionRemark": {
             "type": "string"
           },
+          "payoutProvider": {
+            "type": "string"
+          },
+          "payoutOutBizNo": {
+            "type": "string"
+          },
+          "payoutOrderId": {
+            "type": "string"
+          },
+          "payoutStatus": {
+            "type": "string"
+          },
+          "payoutRequestedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "payoutCompletedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "payoutLastQueriedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
           "appliedAt": {
             "type": "string",
             "format": "date-time"
@@ -3454,6 +4229,7 @@
             "type": "string",
             "enum": [
               "RUNNING",
+              "PLATFORM_REVIEWING",
               "TERMINATED",
               "ACCEPTANCE_FAILED",
               "SETTLING",
@@ -3773,6 +4549,108 @@
           }
         }
       },
+      "AlipayLoginSessionResponse": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "qrPayload": {
+            "type": "string"
+          },
+          "expiresInSeconds": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pollIntervalSeconds": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "ApiResponseAlipayLoginSessionResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AlipayLoginSessionResponse"
+          }
+        }
+      },
+      "AlipayLoginConfirmRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "AlipayLoginStatusResponse": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "expiresInSeconds": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "token": {
+            "$ref": "#/components/schemas/AuthTokenResponse"
+          }
+        }
+      },
+      "ApiResponseAlipayLoginStatusResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AlipayLoginStatusResponse"
+          }
+        }
+      },
+      "AdminLoginRequest": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "type": "string",
+            "minLength": 1
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "account",
+          "password"
+        ]
+      },
       "SubmitAppealRequest": {
         "type": "object",
         "properties": {
@@ -3878,6 +4756,159 @@
           }
         }
       },
+      "AgentEvaluationRequest": {
+        "type": "object",
+        "properties": {
+          "questions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "AgentEvaluationDetailResponse": {
+        "type": "object",
+        "properties": {
+          "evaluationId": {
+            "type": "string"
+          },
+          "agentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "localAgentId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": {}
+            }
+          },
+          "transcript": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentEvaluationTranscriptItemResponse"
+            }
+          },
+          "result": {
+            "$ref": "#/components/schemas/AgentEvaluationResponse"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AgentEvaluationDimensionResponse": {
+        "type": "object",
+        "properties": {
+          "score": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "comment": {
+            "type": "string"
+          }
+        }
+      },
+      "AgentEvaluationResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "overallScore": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "dimensions": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/AgentEvaluationDimensionResponse"
+            }
+          },
+          "summary": {
+            "type": "string"
+          },
+          "improvements": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": {}
+            }
+          },
+          "transcript": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentEvaluationTranscriptItemResponse"
+            }
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "AgentEvaluationTranscriptItemResponse": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string"
+          },
+          "answer": {
+            "type": "string"
+          }
+        }
+      },
+      "ApiResponseAgentEvaluationDetailResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AgentEvaluationDetailResponse"
+          }
+        }
+      },
       "AgentProfileResponse": {
         "type": "object",
         "properties": {
@@ -3917,6 +4948,9 @@
           "lastEvaluatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "evaluation": {
+            "$ref": "#/components/schemas/AgentEvaluationResponse"
           }
         }
       },
@@ -3938,6 +4972,14 @@
         }
       },
       "TaskStateRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "AcceptanceReviewRequest": {
         "type": "object",
         "properties": {
           "reason": {
@@ -4130,6 +5172,9 @@
           "alipayAccount": {
             "type": "string"
           },
+          "alipayUserId": {
+            "type": "string"
+          },
           "verifiedName": {
             "type": "string"
           },
@@ -4247,6 +5292,55 @@
           },
           "status": {
             "type": "string"
+          }
+        }
+      },
+      "CreateAlipayBindSessionRequest": {
+        "type": "object",
+        "properties": {
+          "verifiedName": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "verifiedName"
+        ]
+      },
+      "AlipayBindSessionResponse": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "qrPayload": {
+            "type": "string"
+          },
+          "expiresInSeconds": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pollIntervalSeconds": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "ApiResponseAlipayBindSessionResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AlipayBindSessionResponse"
           }
         }
       },
@@ -4888,7 +5982,81 @@
           }
         }
       },
-      "ApiResponseListTaskExecution": {
+      "AcceptanceSnapshot": {
+        "type": "object",
+        "properties": {
+          "acceptanceId": {
+            "type": "string"
+          },
+          "localTaskId": {
+            "type": "string"
+          },
+          "agentId": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "score": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "issues": {
+            "type": "string"
+          },
+          "acceptancePayload": {
+            "type": "string"
+          },
+          "acceptanceArtifactId": {
+            "type": "string"
+          },
+          "mappedBusinessStatus": {
+            "type": "string"
+          },
+          "receivedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AgentSnapshot": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "name": {
+            "type": "string"
+          },
+          "score": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "abilityTags": {
+            "type": "string"
+          },
+          "lastEvaluatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseListMyTaskExecutionDetail": {
         "type": "object",
         "properties": {
           "success": {
@@ -4903,8 +6071,236 @@
           "data": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/TaskExecution"
+              "$ref": "#/components/schemas/MyTaskExecutionDetail"
             }
+          }
+        }
+      },
+      "ArtifactSnapshot": {
+        "type": "object",
+        "properties": {
+          "artifactId": {
+            "type": "string"
+          },
+          "fileId": {
+            "type": "string"
+          },
+          "localTaskId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "mimeType": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "localRelativePath": {
+            "type": "string"
+          },
+          "receivedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MyTaskExecutionDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "taskId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "agentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "appealStatus": {
+            "type": "string"
+          },
+          "settlementStatus": {
+            "type": "string"
+          },
+          "currentNode": {
+            "type": "string"
+          },
+          "progress": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "terminationReason": {
+            "type": "string"
+          },
+          "task": {
+            "$ref": "#/components/schemas/TaskSnapshot"
+          },
+          "agent": {
+            "$ref": "#/components/schemas/AgentSnapshot"
+          },
+          "output": {
+            "$ref": "#/components/schemas/OutputSnapshot"
+          },
+          "artifacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArtifactSnapshot"
+            }
+          },
+          "acceptance": {
+            "$ref": "#/components/schemas/AcceptanceSnapshot"
+          }
+        }
+      },
+      "OutputSnapshot": {
+        "type": "object",
+        "properties": {
+          "logId": {
+            "type": "string"
+          },
+          "localTaskId": {
+            "type": "string"
+          },
+          "stdout": {
+            "type": "string"
+          },
+          "stderr": {
+            "type": "string"
+          },
+          "stdoutTruncated": {
+            "type": "boolean"
+          },
+          "stderrTruncated": {
+            "type": "boolean"
+          },
+          "exitCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "finalMessage": {
+            "type": "string"
+          },
+          "inputTokens": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "outputTokens": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "receivedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TaskSnapshot": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "title": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "sourceName": {
+            "type": "string"
+          },
+          "sourceType": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "deliverables": {
+            "type": "string"
+          },
+          "acceptanceCriteria": {
+            "type": "string"
+          },
+          "reward": {
+            "type": "number"
+          },
+          "totalSlots": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "remainingSlots": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "type": "string"
+          },
+          "offlineReason": {
+            "type": "string"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseMyTaskExecutionDetail": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/MyTaskExecutionDetail"
           }
         }
       },
@@ -5129,6 +6525,26 @@
           }
         }
       },
+      "ApiResponseListTaskExecution": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskExecution"
+            }
+          }
+        }
+      },
       "AdminTaskSummary": {
         "type": "object",
         "properties": {
@@ -5140,6 +6556,10 @@
             "format": "int64"
           },
           "runningExecutionCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "reviewingExecutionCount": {
             "type": "integer",
             "format": "int64"
           },
@@ -5169,6 +6589,100 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/AdminTaskSummary"
+            }
+          }
+        }
+      },
+      "AcceptanceReviewRow": {
+        "type": "object",
+        "properties": {
+          "executionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "taskId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "taskTitle": {
+            "type": "string"
+          },
+          "taskCategory": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userName": {
+            "type": "string"
+          },
+          "userPhone": {
+            "type": "string"
+          },
+          "agentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "agentName": {
+            "type": "string"
+          },
+          "agentScore": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "acceptanceStatus": {
+            "type": "string"
+          },
+          "acceptanceScore": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "acceptanceSummary": {
+            "type": "string"
+          },
+          "acceptanceIssues": {
+            "type": "string"
+          },
+          "acceptancePayload": {
+            "type": "string"
+          },
+          "currentNode": {
+            "type": "string"
+          },
+          "progress": {
+            "type": "string"
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseListAcceptanceReviewRow": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AcceptanceReviewRow"
             }
           }
         }
@@ -5397,6 +6911,42 @@
           },
           "data": {
             "$ref": "#/components/schemas/AdminAppealDetail"
+          }
+        }
+      },
+      "AlipayBindSessionStatusResponse": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "expiresInSeconds": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "withdrawalAccount": {
+            "$ref": "#/components/schemas/WithdrawalAccount"
+          }
+        }
+      },
+      "ApiResponseAlipayBindSessionStatusResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AlipayBindSessionStatusResponse"
           }
         }
       },

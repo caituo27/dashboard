@@ -24,6 +24,45 @@ import type { RequestArgs } from './base';
 // @ts-ignore
 import { BASE_PATH, COLLECTION_FORMATS, BaseAPI, RequiredError, operationServerMap } from './base';
 
+export interface AcceptanceReviewRequest {
+    'reason'?: string;
+}
+export interface AcceptanceReviewRow {
+    'executionId'?: string;
+    'taskId'?: string;
+    'taskTitle'?: string;
+    'taskCategory'?: string;
+    'userId'?: string;
+    'userName'?: string;
+    'userPhone'?: string;
+    'agentId'?: string;
+    'agentName'?: string;
+    'agentScore'?: number;
+    'acceptanceStatus'?: string;
+    'acceptanceScore'?: number;
+    'acceptanceSummary'?: string;
+    'acceptanceIssues'?: string;
+    'acceptancePayload'?: string;
+    'currentNode'?: string;
+    'progress'?: string;
+    'submittedAt'?: string;
+    'startedAt'?: string;
+    'updatedAt'?: string;
+}
+export interface AcceptanceSnapshot {
+    'acceptanceId'?: string;
+    'localTaskId'?: string;
+    'agentId'?: string;
+    'sessionId'?: string;
+    'status'?: string;
+    'score'?: number;
+    'summary'?: string;
+    'issues'?: string;
+    'acceptancePayload'?: string;
+    'acceptanceArtifactId'?: string;
+    'mappedBusinessStatus'?: string;
+    'receivedAt'?: string;
+}
 export interface AcceptanceUploadRequest {
     'localTaskId'?: string;
     'agentId'?: string;
@@ -36,6 +75,96 @@ export interface AcceptanceUploadResponse {
     'mappedBusinessStatus'?: string;
     'receivedAt'?: string;
 }
+export interface AdminAppealDetail {
+    'appeal'?: AppealRecord;
+    'executionId'?: string;
+    'executionIndex'?: number;
+    'taskTitle'?: string;
+    'taskCategory'?: string;
+    'taskReward'?: string;
+    'deliverables'?: string;
+    'acceptanceCriteria'?: string;
+    'userName'?: string;
+    'userPhone'?: string;
+    'agentName'?: string;
+    'agentScore'?: number;
+    'executionStatus'?: string;
+    'currentNode'?: string;
+    'progress'?: string;
+    'settlementStatus'?: string;
+}
+export interface AdminExecutionRow {
+    'executionId'?: string;
+    'executionIndex'?: number;
+    'userId'?: string;
+    'userName'?: string;
+    'userPhone'?: string;
+    'agentId'?: string;
+    'agentName'?: string;
+    'agentScore'?: number;
+    'executionStatus'?: string;
+    'currentNode'?: string;
+    'progress'?: string;
+    'terminationReason'?: string;
+    'appealStatus'?: string;
+    'settlementStatus'?: string;
+    'startedAt'?: string;
+    'updatedAt'?: string;
+    'completedAt'?: string;
+}
+export interface AdminLoginRequest {
+    'account': string;
+    'password': string;
+}
+export interface AdminTaskDetail {
+    'task'?: TaskEntity;
+    'executions'?: Array<AdminExecutionRow>;
+    'operationLogs'?: Array<AuditLog>;
+}
+export interface AdminTaskSummary {
+    'task'?: TaskEntity;
+    'executionTotal'?: number;
+    'runningExecutionCount'?: number;
+    'reviewingExecutionCount'?: number;
+    'completedExecutionCount'?: number;
+    'terminatedExecutionCount'?: number;
+}
+export interface AgentEvaluationDetailResponse {
+    'evaluationId'?: string;
+    'agentId'?: string;
+    'localAgentId'?: string;
+    'status'?: string;
+    'questions'?: Array<string>;
+    'steps'?: Array<{ [key: string]: any; }>;
+    'transcript'?: Array<AgentEvaluationTranscriptItemResponse>;
+    'result'?: AgentEvaluationResponse;
+    'startedAt'?: string;
+    'completedAt'?: string;
+    'createdAt'?: string;
+    'updatedAt'?: string;
+}
+export interface AgentEvaluationDimensionResponse {
+    'score'?: number;
+    'comment'?: string;
+}
+export interface AgentEvaluationRequest {
+    'questions'?: Array<string>;
+}
+export interface AgentEvaluationResponse {
+    'status'?: string;
+    'mode'?: string;
+    'overallScore'?: number;
+    'dimensions'?: { [key: string]: AgentEvaluationDimensionResponse; };
+    'summary'?: string;
+    'improvements'?: Array<string>;
+    'steps'?: Array<{ [key: string]: any; }>;
+    'transcript'?: Array<AgentEvaluationTranscriptItemResponse>;
+    'error'?: string;
+}
+export interface AgentEvaluationTranscriptItemResponse {
+    'question'?: string;
+    'answer'?: string;
+}
 export interface AgentProfileResponse {
     'id'?: string;
     'createdAt'?: string;
@@ -46,6 +175,7 @@ export interface AgentProfileResponse {
     'score'?: number;
     'abilityTags'?: string;
     'lastEvaluatedAt'?: string;
+    'evaluation'?: AgentEvaluationResponse;
 }
 
 export enum AgentProfileResponseStatusEnum {
@@ -54,11 +184,89 @@ export enum AgentProfileResponseStatusEnum {
     Available = 'AVAILABLE'
 }
 
+export interface AgentSnapshot {
+    'id'?: string;
+    'createdAt'?: string;
+    'updatedAt'?: string;
+    'name'?: string;
+    'score'?: number;
+    'abilityTags'?: string;
+    'lastEvaluatedAt'?: string;
+}
+export interface AlipayBindSessionResponse {
+    'sessionId'?: string;
+    'qrPayload'?: string;
+    'expiresInSeconds'?: number;
+    'pollIntervalSeconds'?: number;
+}
+export interface AlipayBindSessionStatusResponse {
+    'sessionId'?: string;
+    'status'?: string;
+    'expiresInSeconds'?: number;
+    'withdrawalAccount'?: WithdrawalAccount;
+}
+export interface AlipayLoginConfirmRequest {
+    'code': string;
+}
+export interface AlipayLoginSessionResponse {
+    'sessionId'?: string;
+    'qrPayload'?: string;
+    'expiresInSeconds'?: number;
+    'pollIntervalSeconds'?: number;
+}
+export interface AlipayLoginStatusResponse {
+    'sessionId'?: string;
+    'status'?: string;
+    'expiresInSeconds'?: number;
+    'token'?: AuthTokenResponse;
+}
+export interface ApiResponseAdminAppealDetail {
+    'success'?: boolean;
+    'code'?: string;
+    'message'?: string;
+    'data'?: AdminAppealDetail;
+}
+export interface ApiResponseAdminTaskDetail {
+    'success'?: boolean;
+    'code'?: string;
+    'message'?: string;
+    'data'?: AdminTaskDetail;
+}
+export interface ApiResponseAgentEvaluationDetailResponse {
+    'success'?: boolean;
+    'code'?: string;
+    'message'?: string;
+    'data'?: AgentEvaluationDetailResponse;
+}
 export interface ApiResponseAgentProfileResponse {
     'success'?: boolean;
     'code'?: string;
     'message'?: string;
     'data'?: AgentProfileResponse;
+}
+export interface ApiResponseAlipayBindSessionResponse {
+    'success'?: boolean;
+    'code'?: string;
+    'message'?: string;
+    'data'?: AlipayBindSessionResponse;
+}
+export interface ApiResponseAlipayBindSessionStatusResponse {
+    'success'?: boolean;
+    'code'?: string;
+    'message'?: string;
+    'data'?: AlipayBindSessionStatusResponse;
+}
+export interface ApiResponseAlipayLoginSessionResponse {
+    'success'?: boolean;
+    'code'?: string;
+    'message'?: string;
+    'data'?: AlipayLoginSessionResponse;
+}
+export interface ApiResponseAlipayLoginStatusResponse {
+    'success'?: boolean;
+    'code'?: string;
+    'message'?: string;
+    'data'?: AlipayLoginStatusResponse;
 }
 export interface ApiResponseAppealRecord {
     'success'?: boolean;
@@ -84,6 +292,24 @@ export interface ApiResponseBoolean {
     'message'?: string;
     'data'?: boolean;
 }
+export interface ApiResponseClaimConfirmResponse {
+    'success'?: boolean;
+    'code'?: string;
+    'message'?: string;
+    'data'?: ClaimConfirmResponse;
+}
+export interface ApiResponseClaimPreviewResponse {
+    'success'?: boolean;
+    'code'?: string;
+    'message'?: string;
+    'data'?: ClaimPreviewResponse;
+}
+export interface ApiResponseEnrollmentTokenResponse {
+    'success'?: boolean;
+    'code'?: string;
+    'message'?: string;
+    'data'?: EnrollmentTokenResponse;
+}
 export interface ApiResponseFaceVerificationSession {
     'success'?: boolean;
     'code'?: string;
@@ -95,6 +321,18 @@ export interface ApiResponseFundsOverview {
     'code'?: string;
     'message'?: string;
     'data'?: FundsOverview;
+}
+export interface ApiResponseListAcceptanceReviewRow {
+    'success'?: boolean;
+    'code'?: string;
+    'message'?: string;
+    'data'?: Array<AcceptanceReviewRow>;
+}
+export interface ApiResponseListAdminTaskSummary {
+    'success'?: boolean;
+    'code'?: string;
+    'message'?: string;
+    'data'?: Array<AdminTaskSummary>;
 }
 export interface ApiResponseListAgentProfileResponse {
     'success'?: boolean;
@@ -113,6 +351,12 @@ export interface ApiResponseListFundFlow {
     'code'?: string;
     'message'?: string;
     'data'?: Array<FundFlow>;
+}
+export interface ApiResponseListMyTaskExecutionDetail {
+    'success'?: boolean;
+    'code'?: string;
+    'message'?: string;
+    'data'?: Array<MyTaskExecutionDetail>;
 }
 export interface ApiResponseListSettlementRecord {
     'success'?: boolean;
@@ -138,6 +382,12 @@ export interface ApiResponseListWithdrawalRecord {
     'message'?: string;
     'data'?: Array<WithdrawalRecord>;
 }
+export interface ApiResponseMyTaskExecutionDetail {
+    'success'?: boolean;
+    'code'?: string;
+    'message'?: string;
+    'data'?: MyTaskExecutionDetail;
+}
 export interface ApiResponseObject {
     'success'?: boolean;
     'code'?: string;
@@ -149,6 +399,12 @@ export interface ApiResponseSettlementRecord {
     'code'?: string;
     'message'?: string;
     'data'?: SettlementRecord;
+}
+export interface ApiResponseSmsCodeResponse {
+    'success'?: boolean;
+    'code'?: string;
+    'message'?: string;
+    'data'?: SmsCodeResponse;
 }
 export interface ApiResponseTaskEntity {
     'success'?: boolean;
@@ -223,6 +479,18 @@ export enum AppealRecordStatusEnum {
 export interface ApplyWithdrawalRequest {
     'amount': number;
 }
+export interface ArtifactSnapshot {
+    'artifactId'?: string;
+    'fileId'?: string;
+    'localTaskId'?: string;
+    'role'?: string;
+    'name'?: string;
+    'mimeType'?: string;
+    'sizeBytes'?: number;
+    'sha256'?: string;
+    'localRelativePath'?: string;
+    'receivedAt'?: string;
+}
 export interface ArtifactUploadResponse {
     'artifactId'?: string;
     'fileId'?: string;
@@ -231,6 +499,18 @@ export interface ArtifactUploadResponse {
     'sizeBytes'?: number;
     'sha256'?: string;
     'receivedAt'?: string;
+}
+export interface AuditLog {
+    'id'?: string;
+    'createdAt'?: string;
+    'updatedAt'?: string;
+    'operatorId'?: string;
+    'action'?: string;
+    'targetType'?: string;
+    'targetId'?: string;
+    'beforeStatus'?: string;
+    'afterStatus'?: string;
+    'reason'?: string;
 }
 export interface AuthTokenResponse {
     'userId'?: string;
@@ -248,6 +528,19 @@ export interface BindWithdrawalAccountRequest {
     'alipayAccount': string;
     'verifiedName': string;
 }
+export interface BootstrapClaimStatusResponse {
+    'status'?: string;
+    'claimed'?: boolean;
+    'deviceId'?: string;
+    'deviceSecret'?: string;
+    'agentAccessToken'?: string;
+    'accessTokenExpiresAt'?: string;
+    'websocketUrl'?: string;
+    'serverTime'?: string;
+    'connectionStatus'?: string;
+    'claimExpiresAt'?: string;
+    'claimPollIntervalSeconds'?: number;
+}
 export interface BootstrapDeviceRequest {
     'installId'?: string;
     'deviceName'?: string;
@@ -257,12 +550,50 @@ export interface BootstrapDeviceRequest {
     'agentVersion'?: string;
     'workspaceRoot'?: string;
     'capabilities'?: Array<string>;
+    'network'?: NetworkReport;
+    'enrollmentToken'?: string;
+}
+export interface BulkWithdrawalRequest {
+    'withdrawalIds': Array<string>;
+    'reason'?: string;
+}
+export interface ClaimConfirmResponse {
+    'status'?: string;
+    'deviceId'?: string;
+    'claimedAt'?: string;
+}
+export interface ClaimPreviewResponse {
+    'status'?: string;
+    'deviceId'?: string;
+    'deviceName'?: string;
+    'hostname'?: string;
+    'platform'?: string;
+    'agentVersion'?: string;
+    'expiresAt'?: string;
+}
+export interface CommandAckRequest {
+    'status'?: string;
+    'reason'?: string;
+    'data'?: { [key: string]: any; };
+}
+export interface CommandAckResponse {
+    'commandId'?: string;
+    'status'?: string;
+    'ackedAt'?: string;
 }
 export interface CommandEnvelope {
     'id'?: string;
     'type'?: string;
     'timestamp'?: string;
     'payload'?: { [key: string]: any; };
+}
+export interface CreateAlipayBindSessionRequest {
+    'verifiedName': string;
+}
+export interface EnrollmentTokenResponse {
+    'enrollmentToken'?: string;
+    'expiresAt'?: string;
+    'ttlSeconds'?: number;
 }
 export interface EventEnvelope {
     'id'?: string;
@@ -318,6 +649,18 @@ export interface GatewayResponseArtifactUploadResponse {
     'message'?: string;
     'data'?: ArtifactUploadResponse;
 }
+export interface GatewayResponseBootstrapClaimStatusResponse {
+    'requestId'?: string;
+    'code'?: string;
+    'message'?: string;
+    'data'?: BootstrapClaimStatusResponse;
+}
+export interface GatewayResponseCommandAckResponse {
+    'requestId'?: string;
+    'code'?: string;
+    'message'?: string;
+    'data'?: CommandAckResponse;
+}
 export interface GatewayResponseEventsBatchResponse {
     'requestId'?: string;
     'code'?: string;
@@ -369,6 +712,7 @@ export interface HeartbeatRequest {
     'localTime'?: string;
     'runningExecutionIds'?: Array<string>;
     'runningExecutionCount'?: number;
+    'network'?: NetworkReport;
 }
 export interface HeartbeatResponse {
     'serverTime'?: string;
@@ -395,6 +739,55 @@ export interface MockLoginRequest {
     'email'?: string;
     'code': string;
 }
+export interface MyTaskExecutionDetail {
+    'id'?: string;
+    'createdAt'?: string;
+    'updatedAt'?: string;
+    'taskId'?: string;
+    'userId'?: string;
+    'agentId'?: string;
+    'status'?: string;
+    'appealStatus'?: string;
+    'settlementStatus'?: string;
+    'currentNode'?: string;
+    'progress'?: string;
+    'startedAt'?: string;
+    'completedAt'?: string;
+    'terminationReason'?: string;
+    'task'?: TaskSnapshot;
+    'agent'?: AgentSnapshot;
+    'output'?: OutputSnapshot;
+    'artifacts'?: Array<ArtifactSnapshot>;
+    'acceptance'?: AcceptanceSnapshot;
+}
+export interface NetworkAddress {
+    'name'?: string;
+    'address'?: string;
+    'family'?: string;
+    'internal'?: boolean;
+    'privateAddress'?: boolean;
+}
+export interface NetworkReport {
+    'primaryIp'?: string;
+    'localIps'?: Array<NetworkAddress>;
+    'listenHost'?: string;
+    'listenPort'?: number;
+    'directConnectEnabled'?: boolean;
+    'directBaseUrlCandidates'?: Array<string>;
+}
+export interface OutputSnapshot {
+    'logId'?: string;
+    'localTaskId'?: string;
+    'stdout'?: string;
+    'stderr'?: string;
+    'stdoutTruncated'?: boolean;
+    'stderrTruncated'?: boolean;
+    'exitCode'?: number;
+    'finalMessage'?: string;
+    'inputTokens'?: number;
+    'outputTokens'?: number;
+    'receivedAt'?: string;
+}
 export interface PairDeviceRequest {
     'pairingCode'?: string;
     'installId'?: string;
@@ -405,6 +798,7 @@ export interface PairDeviceRequest {
     'agentVersion'?: string;
     'workspaceRoot'?: string;
     'capabilities'?: Array<string>;
+    'network'?: NetworkReport;
 }
 export interface PairDeviceResponse {
     'deviceId'?: string;
@@ -414,6 +808,10 @@ export interface PairDeviceResponse {
     'websocketUrl'?: string;
     'serverTime'?: string;
     'connectionStatus'?: string;
+    'claimToken'?: string;
+    'claimUrl'?: string;
+    'claimExpiresAt'?: string;
+    'claimPollIntervalSeconds'?: number;
 }
 export interface PendingCommandsResponse {
     'commands'?: Array<CommandEnvelope>;
@@ -457,6 +855,18 @@ export enum SettlementRecordStatusEnum {
     Exception = 'EXCEPTION'
 }
 
+export interface SmsCodeRequest {
+    'mobile'?: string;
+}
+export interface SmsCodeResponse {
+    'mobile'?: string;
+    'expiresInSeconds'?: number;
+    'resendIntervalSeconds'?: number;
+}
+export interface SmsLoginRequest {
+    'mobile'?: string;
+    'code'?: string;
+}
 export interface SubmitAppealRequest {
     'executionId': string;
     'reason': string;
@@ -505,6 +915,7 @@ export interface TaskExecution {
 
 export enum TaskExecutionStatusEnum {
     Running = 'RUNNING',
+    PlatformReviewing = 'PLATFORM_REVIEWING',
     Terminated = 'TERMINATED',
     AcceptanceFailed = 'ACCEPTANCE_FAILED',
     Settling = 'SETTLING',
@@ -525,6 +936,27 @@ export enum TaskExecutionSettlementStatusEnum {
     Exception = 'EXCEPTION'
 }
 
+export interface TaskSnapshot {
+    'id'?: string;
+    'createdAt'?: string;
+    'updatedAt'?: string;
+    'title'?: string;
+    'category'?: string;
+    'sourceName'?: string;
+    'sourceType'?: string;
+    'description'?: string;
+    'deliverables'?: string;
+    'acceptanceCriteria'?: string;
+    'reward'?: number;
+    'totalSlots'?: number;
+    'remainingSlots'?: number;
+    'status'?: string;
+    'offlineReason'?: string;
+    'publishedAt'?: string;
+}
+export interface TaskStateRequest {
+    'reason'?: string;
+}
 export interface UnbindRequest {
     'reason'?: string;
 }
@@ -532,6 +964,16 @@ export interface UnbindResponse {
     'deviceId'?: string;
     'status'?: string;
     'unboundAt'?: string;
+}
+export interface UpsertTaskRequest {
+    'title': string;
+    'category': string;
+    'sourceType': string;
+    'description': string;
+    'deliverables': string;
+    'acceptanceCriteria': string;
+    'reward': number;
+    'totalSlots'?: number;
 }
 export interface UserAccount {
     'id'?: string;
@@ -582,6 +1024,7 @@ export interface WithdrawalAccount {
     'updatedAt'?: string;
     'userId'?: string;
     'alipayAccount'?: string;
+    'alipayUserId'?: string;
     'verifiedName'?: string;
     'realNameMatched'?: boolean;
 }
@@ -597,6 +1040,16 @@ export interface WithdrawalRecord {
     'estimatedArrivalTime'?: string;
     'status'?: WithdrawalRecordStatusEnum;
     'reviewer'?: string;
+    'reviewReason'?: string;
+    'payoutFailureReason'?: string;
+    'exceptionRemark'?: string;
+    'payoutProvider'?: string;
+    'payoutOutBizNo'?: string;
+    'payoutOrderId'?: string;
+    'payoutStatus'?: string;
+    'payoutRequestedAt'?: string;
+    'payoutCompletedAt'?: string;
+    'payoutLastQueriedAt'?: string;
     'appliedAt'?: string;
     'reviewedAt'?: string;
     'version'?: number;
@@ -656,6 +1109,49 @@ export const AccountControllerApiAxiosParamCreator = function (configuration?: C
         },
         /**
          * 
+         * @param {string} authCode 
+         * @param {string} state 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        completeAlipayBindSession: async (authCode: string, state: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'authCode' is not null or undefined
+            assertParamExists('completeAlipayBindSession', 'authCode', authCode)
+            // verify required parameter 'state' is not null or undefined
+            assertParamExists('completeAlipayBindSession', 'state', state)
+            const localVarPath = `/api/v1/account/alipay-bind-callback`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (authCode !== undefined) {
+                localVarQueryParameter['auth_code'] = authCode;
+            }
+
+            if (state !== undefined) {
+                localVarQueryParameter['state'] = state;
+            }
+
+            localVarHeaderParameter['Accept'] = 'text/html;charset=UTF-8,*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -677,6 +1173,40 @@ export const AccountControllerApiAxiosParamCreator = function (configuration?: C
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {CreateAlipayBindSessionRequest} createAlipayBindSessionRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createAlipayBindSession: async (createAlipayBindSessionRequest: CreateAlipayBindSessionRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'createAlipayBindSessionRequest' is not null or undefined
+            assertParamExists('createAlipayBindSession', 'createAlipayBindSessionRequest', createAlipayBindSessionRequest)
+            const localVarPath = `/api/v1/account/alipay-bind-sessions`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(createAlipayBindSessionRequest, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -717,6 +1247,35 @@ export const AccountControllerApiAxiosParamCreator = function (configuration?: C
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
+        currentWithdrawalAccount: async (options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/v1/account/withdrawal-account`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
         initializeFaceVerification: async (options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/api/v1/account/qualification/face-verification`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -727,6 +1286,39 @@ export const AccountControllerApiAxiosParamCreator = function (configuration?: C
             }
 
             const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} sessionId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        pollAlipayBindSession: async (sessionId: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'sessionId' is not null or undefined
+            assertParamExists('pollAlipayBindSession', 'sessionId', sessionId)
+            const localVarPath = `/api/v1/account/alipay-bind-sessions/{sessionId}`
+                .replace('{sessionId}', encodeURIComponent(String(sessionId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
 
@@ -793,6 +1385,19 @@ export const AccountControllerApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @param {string} authCode 
+         * @param {string} state 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async completeAlipayBindSession(authCode: string, state: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.completeAlipayBindSession(authCode, state, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AccountControllerApi.completeAlipayBindSession']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -800,6 +1405,18 @@ export const AccountControllerApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.completeRealPersonVerification(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AccountControllerApi.completeRealPersonVerification']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {CreateAlipayBindSessionRequest} createAlipayBindSessionRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async createAlipayBindSession(createAlipayBindSessionRequest: CreateAlipayBindSessionRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseAlipayBindSessionResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.createAlipayBindSession(createAlipayBindSessionRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AccountControllerApi.createAlipayBindSession']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -818,10 +1435,33 @@ export const AccountControllerApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
+        async currentWithdrawalAccount(options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseWithdrawalAccount>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.currentWithdrawalAccount(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AccountControllerApi.currentWithdrawalAccount']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
         async initializeFaceVerification(options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseFaceVerificationSession>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.initializeFaceVerification(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AccountControllerApi.initializeFaceVerification']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} sessionId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async pollAlipayBindSession(sessionId: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseAlipayBindSessionStatusResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.pollAlipayBindSession(sessionId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AccountControllerApi.pollAlipayBindSession']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -855,11 +1495,29 @@ export const AccountControllerApiFactory = function (configuration?: Configurati
         },
         /**
          * 
+         * @param {AccountControllerApiCompleteAlipayBindSessionRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        completeAlipayBindSession(requestParameters: AccountControllerApiCompleteAlipayBindSessionRequest, options?: AxiosRequestConfig): AxiosPromise<string> {
+            return localVarFp.completeAlipayBindSession(requestParameters.authCode, requestParameters.state, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
         completeRealPersonVerification(options?: AxiosRequestConfig): AxiosPromise<ApiResponseUserAccount> {
             return localVarFp.completeRealPersonVerification(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AccountControllerApiCreateAlipayBindSessionRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createAlipayBindSession(requestParameters: AccountControllerApiCreateAlipayBindSessionRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseAlipayBindSessionResponse> {
+            return localVarFp.createAlipayBindSession(requestParameters.createAlipayBindSessionRequest, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -874,8 +1532,25 @@ export const AccountControllerApiFactory = function (configuration?: Configurati
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
+        currentWithdrawalAccount(options?: AxiosRequestConfig): AxiosPromise<ApiResponseWithdrawalAccount> {
+            return localVarFp.currentWithdrawalAccount(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
         initializeFaceVerification(options?: AxiosRequestConfig): AxiosPromise<ApiResponseFaceVerificationSession> {
             return localVarFp.initializeFaceVerification(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AccountControllerApiPollAlipayBindSessionRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        pollAlipayBindSession(requestParameters: AccountControllerApiPollAlipayBindSessionRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseAlipayBindSessionStatusResponse> {
+            return localVarFp.pollAlipayBindSession(requestParameters.sessionId, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -896,6 +1571,29 @@ export interface AccountControllerApiBindWithdrawalAccountRequest {
 }
 
 /**
+ * Request parameters for completeAlipayBindSession operation in AccountControllerApi.
+ */
+export interface AccountControllerApiCompleteAlipayBindSessionRequest {
+    readonly authCode: string
+
+    readonly state: string
+}
+
+/**
+ * Request parameters for createAlipayBindSession operation in AccountControllerApi.
+ */
+export interface AccountControllerApiCreateAlipayBindSessionRequest {
+    readonly createAlipayBindSessionRequest: CreateAlipayBindSessionRequest
+}
+
+/**
+ * Request parameters for pollAlipayBindSession operation in AccountControllerApi.
+ */
+export interface AccountControllerApiPollAlipayBindSessionRequest {
+    readonly sessionId: string
+}
+
+/**
  * AccountControllerApi - object-oriented interface
  */
 export class AccountControllerApi extends BaseAPI {
@@ -911,11 +1609,31 @@ export class AccountControllerApi extends BaseAPI {
 
     /**
      * 
+     * @param {AccountControllerApiCompleteAlipayBindSessionRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public completeAlipayBindSession(requestParameters: AccountControllerApiCompleteAlipayBindSessionRequest, options?: AxiosRequestConfig) {
+        return AccountControllerApiFp(this.configuration).completeAlipayBindSession(requestParameters.authCode, requestParameters.state, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
     public completeRealPersonVerification(options?: AxiosRequestConfig) {
         return AccountControllerApiFp(this.configuration).completeRealPersonVerification(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AccountControllerApiCreateAlipayBindSessionRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public createAlipayBindSession(requestParameters: AccountControllerApiCreateAlipayBindSessionRequest, options?: AxiosRequestConfig) {
+        return AccountControllerApiFp(this.configuration).createAlipayBindSession(requestParameters.createAlipayBindSessionRequest, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -932,8 +1650,27 @@ export class AccountControllerApi extends BaseAPI {
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
+    public currentWithdrawalAccount(options?: AxiosRequestConfig) {
+        return AccountControllerApiFp(this.configuration).currentWithdrawalAccount(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
     public initializeFaceVerification(options?: AxiosRequestConfig) {
         return AccountControllerApiFp(this.configuration).initializeFaceVerification(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AccountControllerApiPollAlipayBindSessionRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public pollAlipayBindSession(requestParameters: AccountControllerApiPollAlipayBindSessionRequest, options?: AxiosRequestConfig) {
+        return AccountControllerApiFp(this.configuration).pollAlipayBindSession(requestParameters.sessionId, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -1001,6 +1738,39 @@ export const AdminAppealControllerApiAxiosParamCreator = function (configuration
             }
 
             const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} appealId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        detail3: async (appealId: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'appealId' is not null or undefined
+            assertParamExists('detail3', 'appealId', appealId)
+            const localVarPath = `/api/v1/admin/appeals/{appealId}`
+                .replace('{appealId}', encodeURIComponent(String(appealId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
 
@@ -1119,6 +1889,18 @@ export const AdminAppealControllerApiFp = function(configuration?: Configuration
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
+        async detail3(appealId: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseAdminAppealDetail>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.detail3(appealId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AdminAppealControllerApi.detail3']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} appealId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
         async reject(appealId: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseAppealRecord>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.reject(appealId, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
@@ -1165,6 +1947,15 @@ export const AdminAppealControllerApiFactory = function (configuration?: Configu
         },
         /**
          * 
+         * @param {AdminAppealControllerApiDetail3Request} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        detail3(requestParameters: AdminAppealControllerApiDetail3Request, options?: AxiosRequestConfig): AxiosPromise<ApiResponseAdminAppealDetail> {
+            return localVarFp.detail3(requestParameters.appealId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @param {AdminAppealControllerApiRejectRequest} requestParameters Request parameters.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -1188,6 +1979,13 @@ export const AdminAppealControllerApiFactory = function (configuration?: Configu
  * Request parameters for approve operation in AdminAppealControllerApi.
  */
 export interface AdminAppealControllerApiApproveRequest {
+    readonly appealId: string
+}
+
+/**
+ * Request parameters for detail3 operation in AdminAppealControllerApi.
+ */
+export interface AdminAppealControllerApiDetail3Request {
     readonly appealId: string
 }
 
@@ -1226,6 +2024,16 @@ export class AdminAppealControllerApi extends BaseAPI {
      */
     public approve(requestParameters: AdminAppealControllerApiApproveRequest, options?: AxiosRequestConfig) {
         return AdminAppealControllerApiFp(this.configuration).approve(requestParameters.appealId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AdminAppealControllerApiDetail3Request} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public detail3(requestParameters: AdminAppealControllerApiDetail3Request, options?: AxiosRequestConfig) {
+        return AdminAppealControllerApiFp(this.configuration).detail3(requestParameters.appealId, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -1283,6 +2091,40 @@ export const AdminFundsControllerApiAxiosParamCreator = function (configuration?
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {BulkWithdrawalRequest} bulkWithdrawalRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        approveWithdrawals: async (bulkWithdrawalRequest: BulkWithdrawalRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'bulkWithdrawalRequest' is not null or undefined
+            assertParamExists('approveWithdrawals', 'bulkWithdrawalRequest', bulkWithdrawalRequest)
+            const localVarPath = `/api/v1/admin/funds/withdrawals/bulk-approve`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(bulkWithdrawalRequest, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -1422,11 +2264,141 @@ export const AdminFundsControllerApiAxiosParamCreator = function (configuration?
         },
         /**
          * 
+         * @param {BulkWithdrawalRequest} bulkWithdrawalRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        markWithdrawalsPaid: async (bulkWithdrawalRequest: BulkWithdrawalRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'bulkWithdrawalRequest' is not null or undefined
+            assertParamExists('markWithdrawalsPaid', 'bulkWithdrawalRequest', bulkWithdrawalRequest)
+            const localVarPath = `/api/v1/admin/funds/withdrawals/bulk-paid`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(bulkWithdrawalRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {BulkWithdrawalRequest} bulkWithdrawalRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        markWithdrawalsPayoutFailed: async (bulkWithdrawalRequest: BulkWithdrawalRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'bulkWithdrawalRequest' is not null or undefined
+            assertParamExists('markWithdrawalsPayoutFailed', 'bulkWithdrawalRequest', bulkWithdrawalRequest)
+            const localVarPath = `/api/v1/admin/funds/withdrawals/bulk-payout-failed`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(bulkWithdrawalRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
         overview: async (options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/api/v1/admin/funds/overview`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} withdrawalId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        payWithdrawal: async (withdrawalId: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'withdrawalId' is not null or undefined
+            assertParamExists('payWithdrawal', 'withdrawalId', withdrawalId)
+            const localVarPath = `/api/v1/admin/funds/withdrawals/{withdrawalId}/payout`
+                .replace('{withdrawalId}', encodeURIComponent(String(withdrawalId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        pendingPayoutExport: async (options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/v1/admin/funds/withdrawals/pending-payout-export`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -1485,6 +2457,39 @@ export const AdminFundsControllerApiAxiosParamCreator = function (configuration?
         /**
          * 
          * @param {string} withdrawalId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        queryWithdrawalPayout: async (withdrawalId: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'withdrawalId' is not null or undefined
+            assertParamExists('queryWithdrawalPayout', 'withdrawalId', withdrawalId)
+            const localVarPath = `/api/v1/admin/funds/withdrawals/{withdrawalId}/payout-query`
+                .replace('{withdrawalId}', encodeURIComponent(String(withdrawalId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} withdrawalId 
          * @param {WithdrawalReviewRequest} [withdrawalReviewRequest] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -1512,6 +2517,40 @@ export const AdminFundsControllerApiAxiosParamCreator = function (configuration?
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
             localVarRequestOptions.data = serializeDataIfNeeded(withdrawalReviewRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {BulkWithdrawalRequest} bulkWithdrawalRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        rejectWithdrawals: async (bulkWithdrawalRequest: BulkWithdrawalRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'bulkWithdrawalRequest' is not null or undefined
+            assertParamExists('rejectWithdrawals', 'bulkWithdrawalRequest', bulkWithdrawalRequest)
+            const localVarPath = `/api/v1/admin/funds/withdrawals/bulk-reject`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(bulkWithdrawalRequest, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -1635,6 +2674,18 @@ export const AdminFundsControllerApiFp = function(configuration?: Configuration)
         },
         /**
          * 
+         * @param {BulkWithdrawalRequest} bulkWithdrawalRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async approveWithdrawals(bulkWithdrawalRequest: BulkWithdrawalRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseListWithdrawalRecord>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.approveWithdrawals(bulkWithdrawalRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AdminFundsControllerApi.approveWithdrawals']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -1683,6 +2734,30 @@ export const AdminFundsControllerApiFp = function(configuration?: Configuration)
         },
         /**
          * 
+         * @param {BulkWithdrawalRequest} bulkWithdrawalRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async markWithdrawalsPaid(bulkWithdrawalRequest: BulkWithdrawalRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseListWithdrawalRecord>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.markWithdrawalsPaid(bulkWithdrawalRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AdminFundsControllerApi.markWithdrawalsPaid']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {BulkWithdrawalRequest} bulkWithdrawalRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async markWithdrawalsPayoutFailed(bulkWithdrawalRequest: BulkWithdrawalRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseListWithdrawalRecord>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.markWithdrawalsPayoutFailed(bulkWithdrawalRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AdminFundsControllerApi.markWithdrawalsPayoutFailed']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -1690,6 +2765,29 @@ export const AdminFundsControllerApiFp = function(configuration?: Configuration)
             const localVarAxiosArgs = await localVarAxiosParamCreator.overview(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AdminFundsControllerApi.overview']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} withdrawalId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async payWithdrawal(withdrawalId: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseWithdrawalRecord>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.payWithdrawal(withdrawalId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AdminFundsControllerApi.payWithdrawal']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async pendingPayoutExport(options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseListWithdrawalRecord>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.pendingPayoutExport(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AdminFundsControllerApi.pendingPayoutExport']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -1707,6 +2805,18 @@ export const AdminFundsControllerApiFp = function(configuration?: Configuration)
         /**
          * 
          * @param {string} withdrawalId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async queryWithdrawalPayout(withdrawalId: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseWithdrawalRecord>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.queryWithdrawalPayout(withdrawalId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AdminFundsControllerApi.queryWithdrawalPayout']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} withdrawalId 
          * @param {WithdrawalReviewRequest} [withdrawalReviewRequest] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -1715,6 +2825,18 @@ export const AdminFundsControllerApiFp = function(configuration?: Configuration)
             const localVarAxiosArgs = await localVarAxiosParamCreator.rejectWithdrawal(withdrawalId, withdrawalReviewRequest, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AdminFundsControllerApi.rejectWithdrawal']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {BulkWithdrawalRequest} bulkWithdrawalRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async rejectWithdrawals(bulkWithdrawalRequest: BulkWithdrawalRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseListWithdrawalRecord>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.rejectWithdrawals(bulkWithdrawalRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AdminFundsControllerApi.rejectWithdrawals']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -1772,6 +2894,15 @@ export const AdminFundsControllerApiFactory = function (configuration?: Configur
         },
         /**
          * 
+         * @param {AdminFundsControllerApiApproveWithdrawalsRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        approveWithdrawals(requestParameters: AdminFundsControllerApiApproveWithdrawalsRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseListWithdrawalRecord> {
+            return localVarFp.approveWithdrawals(requestParameters.bulkWithdrawalRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -1807,11 +2938,46 @@ export const AdminFundsControllerApiFactory = function (configuration?: Configur
         },
         /**
          * 
+         * @param {AdminFundsControllerApiMarkWithdrawalsPaidRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        markWithdrawalsPaid(requestParameters: AdminFundsControllerApiMarkWithdrawalsPaidRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseListWithdrawalRecord> {
+            return localVarFp.markWithdrawalsPaid(requestParameters.bulkWithdrawalRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AdminFundsControllerApiMarkWithdrawalsPayoutFailedRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        markWithdrawalsPayoutFailed(requestParameters: AdminFundsControllerApiMarkWithdrawalsPayoutFailedRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseListWithdrawalRecord> {
+            return localVarFp.markWithdrawalsPayoutFailed(requestParameters.bulkWithdrawalRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
         overview(options?: AxiosRequestConfig): AxiosPromise<ApiResponseFundsOverview> {
             return localVarFp.overview(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AdminFundsControllerApiPayWithdrawalRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        payWithdrawal(requestParameters: AdminFundsControllerApiPayWithdrawalRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseWithdrawalRecord> {
+            return localVarFp.payWithdrawal(requestParameters.withdrawalId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        pendingPayoutExport(options?: AxiosRequestConfig): AxiosPromise<ApiResponseListWithdrawalRecord> {
+            return localVarFp.pendingPayoutExport(options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -1824,12 +2990,30 @@ export const AdminFundsControllerApiFactory = function (configuration?: Configur
         },
         /**
          * 
+         * @param {AdminFundsControllerApiQueryWithdrawalPayoutRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        queryWithdrawalPayout(requestParameters: AdminFundsControllerApiQueryWithdrawalPayoutRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseWithdrawalRecord> {
+            return localVarFp.queryWithdrawalPayout(requestParameters.withdrawalId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @param {AdminFundsControllerApiRejectWithdrawalRequest} requestParameters Request parameters.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
         rejectWithdrawal(requestParameters: AdminFundsControllerApiRejectWithdrawalRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseWithdrawalRecord> {
             return localVarFp.rejectWithdrawal(requestParameters.withdrawalId, requestParameters.withdrawalReviewRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AdminFundsControllerApiRejectWithdrawalsRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        rejectWithdrawals(requestParameters: AdminFundsControllerApiRejectWithdrawalsRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseListWithdrawalRecord> {
+            return localVarFp.rejectWithdrawals(requestParameters.bulkWithdrawalRequest, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -1867,6 +3051,13 @@ export interface AdminFundsControllerApiApproveWithdrawalRequest {
 }
 
 /**
+ * Request parameters for approveWithdrawals operation in AdminFundsControllerApi.
+ */
+export interface AdminFundsControllerApiApproveWithdrawalsRequest {
+    readonly bulkWithdrawalRequest: BulkWithdrawalRequest
+}
+
+/**
  * Request parameters for markPayoutExceptionHandled operation in AdminFundsControllerApi.
  */
 export interface AdminFundsControllerApiMarkPayoutExceptionHandledRequest {
@@ -1890,10 +3081,38 @@ export interface AdminFundsControllerApiMarkWithdrawalPayoutFailedRequest {
 }
 
 /**
+ * Request parameters for markWithdrawalsPaid operation in AdminFundsControllerApi.
+ */
+export interface AdminFundsControllerApiMarkWithdrawalsPaidRequest {
+    readonly bulkWithdrawalRequest: BulkWithdrawalRequest
+}
+
+/**
+ * Request parameters for markWithdrawalsPayoutFailed operation in AdminFundsControllerApi.
+ */
+export interface AdminFundsControllerApiMarkWithdrawalsPayoutFailedRequest {
+    readonly bulkWithdrawalRequest: BulkWithdrawalRequest
+}
+
+/**
+ * Request parameters for payWithdrawal operation in AdminFundsControllerApi.
+ */
+export interface AdminFundsControllerApiPayWithdrawalRequest {
+    readonly withdrawalId: string
+}
+
+/**
  * Request parameters for postSettlement operation in AdminFundsControllerApi.
  */
 export interface AdminFundsControllerApiPostSettlementRequest {
     readonly settlementId: string
+}
+
+/**
+ * Request parameters for queryWithdrawalPayout operation in AdminFundsControllerApi.
+ */
+export interface AdminFundsControllerApiQueryWithdrawalPayoutRequest {
+    readonly withdrawalId: string
 }
 
 /**
@@ -1903,6 +3122,13 @@ export interface AdminFundsControllerApiRejectWithdrawalRequest {
     readonly withdrawalId: string
 
     readonly withdrawalReviewRequest?: WithdrawalReviewRequest
+}
+
+/**
+ * Request parameters for rejectWithdrawals operation in AdminFundsControllerApi.
+ */
+export interface AdminFundsControllerApiRejectWithdrawalsRequest {
+    readonly bulkWithdrawalRequest: BulkWithdrawalRequest
 }
 
 /**
@@ -1926,6 +3152,16 @@ export class AdminFundsControllerApi extends BaseAPI {
      */
     public approveWithdrawal(requestParameters: AdminFundsControllerApiApproveWithdrawalRequest, options?: AxiosRequestConfig) {
         return AdminFundsControllerApiFp(this.configuration).approveWithdrawal(requestParameters.withdrawalId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AdminFundsControllerApiApproveWithdrawalsRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public approveWithdrawals(requestParameters: AdminFundsControllerApiApproveWithdrawalsRequest, options?: AxiosRequestConfig) {
+        return AdminFundsControllerApiFp(this.configuration).approveWithdrawals(requestParameters.bulkWithdrawalRequest, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -1969,11 +3205,50 @@ export class AdminFundsControllerApi extends BaseAPI {
 
     /**
      * 
+     * @param {AdminFundsControllerApiMarkWithdrawalsPaidRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public markWithdrawalsPaid(requestParameters: AdminFundsControllerApiMarkWithdrawalsPaidRequest, options?: AxiosRequestConfig) {
+        return AdminFundsControllerApiFp(this.configuration).markWithdrawalsPaid(requestParameters.bulkWithdrawalRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AdminFundsControllerApiMarkWithdrawalsPayoutFailedRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public markWithdrawalsPayoutFailed(requestParameters: AdminFundsControllerApiMarkWithdrawalsPayoutFailedRequest, options?: AxiosRequestConfig) {
+        return AdminFundsControllerApiFp(this.configuration).markWithdrawalsPayoutFailed(requestParameters.bulkWithdrawalRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
     public overview(options?: AxiosRequestConfig) {
         return AdminFundsControllerApiFp(this.configuration).overview(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AdminFundsControllerApiPayWithdrawalRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public payWithdrawal(requestParameters: AdminFundsControllerApiPayWithdrawalRequest, options?: AxiosRequestConfig) {
+        return AdminFundsControllerApiFp(this.configuration).payWithdrawal(requestParameters.withdrawalId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public pendingPayoutExport(options?: AxiosRequestConfig) {
+        return AdminFundsControllerApiFp(this.configuration).pendingPayoutExport(options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -1988,12 +3263,32 @@ export class AdminFundsControllerApi extends BaseAPI {
 
     /**
      * 
+     * @param {AdminFundsControllerApiQueryWithdrawalPayoutRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public queryWithdrawalPayout(requestParameters: AdminFundsControllerApiQueryWithdrawalPayoutRequest, options?: AxiosRequestConfig) {
+        return AdminFundsControllerApiFp(this.configuration).queryWithdrawalPayout(requestParameters.withdrawalId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @param {AdminFundsControllerApiRejectWithdrawalRequest} requestParameters Request parameters.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
     public rejectWithdrawal(requestParameters: AdminFundsControllerApiRejectWithdrawalRequest, options?: AxiosRequestConfig) {
         return AdminFundsControllerApiFp(this.configuration).rejectWithdrawal(requestParameters.withdrawalId, requestParameters.withdrawalReviewRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AdminFundsControllerApiRejectWithdrawalsRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public rejectWithdrawals(requestParameters: AdminFundsControllerApiRejectWithdrawalsRequest, options?: AxiosRequestConfig) {
+        return AdminFundsControllerApiFp(this.configuration).rejectWithdrawals(requestParameters.bulkWithdrawalRequest, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -2035,6 +3330,171 @@ export const AdminTaskControllerApiAxiosParamCreator = function (configuration?:
         /**
          * 
          * @param {string} taskId 
+         * @param {TaskStateRequest} [taskStateRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        _delete: async (taskId: string, taskStateRequest?: TaskStateRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'taskId' is not null or undefined
+            assertParamExists('_delete', 'taskId', taskId)
+            const localVarPath = `/api/v1/admin/tasks/{taskId}`
+                .replace('{taskId}', encodeURIComponent(String(taskId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(taskStateRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        acceptanceReviews: async (options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/v1/admin/tasks/acceptance-reviews`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} executionId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        approveAcceptanceReview: async (executionId: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'executionId' is not null or undefined
+            assertParamExists('approveAcceptanceReview', 'executionId', executionId)
+            const localVarPath = `/api/v1/admin/tasks/executions/{executionId}/acceptance/approve`
+                .replace('{executionId}', encodeURIComponent(String(executionId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {UpsertTaskRequest} upsertTaskRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        create: async (upsertTaskRequest: UpsertTaskRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'upsertTaskRequest' is not null or undefined
+            assertParamExists('create', 'upsertTaskRequest', upsertTaskRequest)
+            const localVarPath = `/api/v1/admin/tasks`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(upsertTaskRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} taskId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        detail: async (taskId: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'taskId' is not null or undefined
+            assertParamExists('detail', 'taskId', taskId)
+            const localVarPath = `/api/v1/admin/tasks/{taskId}`
+                .replace('{taskId}', encodeURIComponent(String(taskId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} taskId 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -2043,6 +3503,140 @@ export const AdminTaskControllerApiAxiosParamCreator = function (configuration?:
             assertParamExists('executions', 'taskId', taskId)
             const localVarPath = `/api/v1/admin/tasks/{taskId}/executions`
                 .replace('{taskId}', encodeURIComponent(String(taskId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} taskId 
+         * @param {TaskStateRequest} [taskStateRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        offline: async (taskId: string, taskStateRequest?: TaskStateRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'taskId' is not null or undefined
+            assertParamExists('offline', 'taskId', taskId)
+            const localVarPath = `/api/v1/admin/tasks/{taskId}/offline`
+                .replace('{taskId}', encodeURIComponent(String(taskId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(taskStateRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} executionId 
+         * @param {AcceptanceReviewRequest} [acceptanceReviewRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        rejectAcceptanceReview: async (executionId: string, acceptanceReviewRequest?: AcceptanceReviewRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'executionId' is not null or undefined
+            assertParamExists('rejectAcceptanceReview', 'executionId', executionId)
+            const localVarPath = `/api/v1/admin/tasks/executions/{executionId}/acceptance/reject`
+                .replace('{executionId}', encodeURIComponent(String(executionId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(acceptanceReviewRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} taskId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        republish: async (taskId: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'taskId' is not null or undefined
+            assertParamExists('republish', 'taskId', taskId)
+            const localVarPath = `/api/v1/admin/tasks/{taskId}/republish`
+                .replace('{taskId}', encodeURIComponent(String(taskId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        summaries: async (options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/v1/admin/tasks/summaries`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -2094,6 +3688,44 @@ export const AdminTaskControllerApiAxiosParamCreator = function (configuration?:
                 options: localVarRequestOptions,
             };
         },
+        /**
+         * 
+         * @param {string} taskId 
+         * @param {UpsertTaskRequest} upsertTaskRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        update: async (taskId: string, upsertTaskRequest: UpsertTaskRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'taskId' is not null or undefined
+            assertParamExists('update', 'taskId', taskId)
+            // verify required parameter 'upsertTaskRequest' is not null or undefined
+            assertParamExists('update', 'upsertTaskRequest', upsertTaskRequest)
+            const localVarPath = `/api/v1/admin/tasks/{taskId}`
+                .replace('{taskId}', encodeURIComponent(String(taskId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PUT', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(upsertTaskRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
     }
 };
 
@@ -2103,6 +3735,66 @@ export const AdminTaskControllerApiAxiosParamCreator = function (configuration?:
 export const AdminTaskControllerApiFp = function(configuration?: Configuration) {
     const localVarAxiosParamCreator = AdminTaskControllerApiAxiosParamCreator(configuration)
     return {
+        /**
+         * 
+         * @param {string} taskId 
+         * @param {TaskStateRequest} [taskStateRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async _delete(taskId: string, taskStateRequest?: TaskStateRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseTaskEntity>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator._delete(taskId, taskStateRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AdminTaskControllerApi._delete']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async acceptanceReviews(options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseListAcceptanceReviewRow>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.acceptanceReviews(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AdminTaskControllerApi.acceptanceReviews']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} executionId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async approveAcceptanceReview(executionId: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseTaskExecution>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.approveAcceptanceReview(executionId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AdminTaskControllerApi.approveAcceptanceReview']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {UpsertTaskRequest} upsertTaskRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async create(upsertTaskRequest: UpsertTaskRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseTaskEntity>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.create(upsertTaskRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AdminTaskControllerApi.create']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} taskId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async detail(taskId: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseAdminTaskDetail>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.detail(taskId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AdminTaskControllerApi.detail']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
         /**
          * 
          * @param {string} taskId 
@@ -2117,6 +3809,55 @@ export const AdminTaskControllerApiFp = function(configuration?: Configuration) 
         },
         /**
          * 
+         * @param {string} taskId 
+         * @param {TaskStateRequest} [taskStateRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async offline(taskId: string, taskStateRequest?: TaskStateRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseTaskEntity>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.offline(taskId, taskStateRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AdminTaskControllerApi.offline']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} executionId 
+         * @param {AcceptanceReviewRequest} [acceptanceReviewRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async rejectAcceptanceReview(executionId: string, acceptanceReviewRequest?: AcceptanceReviewRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseTaskExecution>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.rejectAcceptanceReview(executionId, acceptanceReviewRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AdminTaskControllerApi.rejectAcceptanceReview']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} taskId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async republish(taskId: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseTaskEntity>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.republish(taskId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AdminTaskControllerApi.republish']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async summaries(options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseListAdminTaskSummary>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.summaries(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AdminTaskControllerApi.summaries']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -2124,6 +3865,19 @@ export const AdminTaskControllerApiFp = function(configuration?: Configuration) 
             const localVarAxiosArgs = await localVarAxiosParamCreator.tasks(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AdminTaskControllerApi.tasks']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} taskId 
+         * @param {UpsertTaskRequest} upsertTaskRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async update(taskId: string, upsertTaskRequest: UpsertTaskRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseTaskEntity>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.update(taskId, upsertTaskRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AdminTaskControllerApi.update']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
     }
@@ -2137,6 +3891,50 @@ export const AdminTaskControllerApiFactory = function (configuration?: Configura
     return {
         /**
          * 
+         * @param {AdminTaskControllerApiDeleteRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        _delete(requestParameters: AdminTaskControllerApiDeleteRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseTaskEntity> {
+            return localVarFp._delete(requestParameters.taskId, requestParameters.taskStateRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        acceptanceReviews(options?: AxiosRequestConfig): AxiosPromise<ApiResponseListAcceptanceReviewRow> {
+            return localVarFp.acceptanceReviews(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AdminTaskControllerApiApproveAcceptanceReviewRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        approveAcceptanceReview(requestParameters: AdminTaskControllerApiApproveAcceptanceReviewRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseTaskExecution> {
+            return localVarFp.approveAcceptanceReview(requestParameters.executionId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AdminTaskControllerApiCreateRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        create(requestParameters: AdminTaskControllerApiCreateRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseTaskEntity> {
+            return localVarFp.create(requestParameters.upsertTaskRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AdminTaskControllerApiDetailRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        detail(requestParameters: AdminTaskControllerApiDetailRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseAdminTaskDetail> {
+            return localVarFp.detail(requestParameters.taskId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @param {AdminTaskControllerApiExecutionsRequest} requestParameters Request parameters.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -2146,14 +3944,88 @@ export const AdminTaskControllerApiFactory = function (configuration?: Configura
         },
         /**
          * 
+         * @param {AdminTaskControllerApiOfflineRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        offline(requestParameters: AdminTaskControllerApiOfflineRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseTaskEntity> {
+            return localVarFp.offline(requestParameters.taskId, requestParameters.taskStateRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AdminTaskControllerApiRejectAcceptanceReviewRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        rejectAcceptanceReview(requestParameters: AdminTaskControllerApiRejectAcceptanceReviewRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseTaskExecution> {
+            return localVarFp.rejectAcceptanceReview(requestParameters.executionId, requestParameters.acceptanceReviewRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AdminTaskControllerApiRepublishRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        republish(requestParameters: AdminTaskControllerApiRepublishRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseTaskEntity> {
+            return localVarFp.republish(requestParameters.taskId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        summaries(options?: AxiosRequestConfig): AxiosPromise<ApiResponseListAdminTaskSummary> {
+            return localVarFp.summaries(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
         tasks(options?: AxiosRequestConfig): AxiosPromise<ApiResponseListTaskEntity> {
             return localVarFp.tasks(options).then((request) => request(axios, basePath));
         },
+        /**
+         * 
+         * @param {AdminTaskControllerApiUpdateRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        update(requestParameters: AdminTaskControllerApiUpdateRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseTaskEntity> {
+            return localVarFp.update(requestParameters.taskId, requestParameters.upsertTaskRequest, options).then((request) => request(axios, basePath));
+        },
     };
 };
+
+/**
+ * Request parameters for _delete operation in AdminTaskControllerApi.
+ */
+export interface AdminTaskControllerApiDeleteRequest {
+    readonly taskId: string
+
+    readonly taskStateRequest?: TaskStateRequest
+}
+
+/**
+ * Request parameters for approveAcceptanceReview operation in AdminTaskControllerApi.
+ */
+export interface AdminTaskControllerApiApproveAcceptanceReviewRequest {
+    readonly executionId: string
+}
+
+/**
+ * Request parameters for create operation in AdminTaskControllerApi.
+ */
+export interface AdminTaskControllerApiCreateRequest {
+    readonly upsertTaskRequest: UpsertTaskRequest
+}
+
+/**
+ * Request parameters for detail operation in AdminTaskControllerApi.
+ */
+export interface AdminTaskControllerApiDetailRequest {
+    readonly taskId: string
+}
 
 /**
  * Request parameters for executions operation in AdminTaskControllerApi.
@@ -2163,9 +4035,92 @@ export interface AdminTaskControllerApiExecutionsRequest {
 }
 
 /**
+ * Request parameters for offline operation in AdminTaskControllerApi.
+ */
+export interface AdminTaskControllerApiOfflineRequest {
+    readonly taskId: string
+
+    readonly taskStateRequest?: TaskStateRequest
+}
+
+/**
+ * Request parameters for rejectAcceptanceReview operation in AdminTaskControllerApi.
+ */
+export interface AdminTaskControllerApiRejectAcceptanceReviewRequest {
+    readonly executionId: string
+
+    readonly acceptanceReviewRequest?: AcceptanceReviewRequest
+}
+
+/**
+ * Request parameters for republish operation in AdminTaskControllerApi.
+ */
+export interface AdminTaskControllerApiRepublishRequest {
+    readonly taskId: string
+}
+
+/**
+ * Request parameters for update operation in AdminTaskControllerApi.
+ */
+export interface AdminTaskControllerApiUpdateRequest {
+    readonly taskId: string
+
+    readonly upsertTaskRequest: UpsertTaskRequest
+}
+
+/**
  * AdminTaskControllerApi - object-oriented interface
  */
 export class AdminTaskControllerApi extends BaseAPI {
+    /**
+     * 
+     * @param {AdminTaskControllerApiDeleteRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public _delete(requestParameters: AdminTaskControllerApiDeleteRequest, options?: AxiosRequestConfig) {
+        return AdminTaskControllerApiFp(this.configuration)._delete(requestParameters.taskId, requestParameters.taskStateRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public acceptanceReviews(options?: AxiosRequestConfig) {
+        return AdminTaskControllerApiFp(this.configuration).acceptanceReviews(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AdminTaskControllerApiApproveAcceptanceReviewRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public approveAcceptanceReview(requestParameters: AdminTaskControllerApiApproveAcceptanceReviewRequest, options?: AxiosRequestConfig) {
+        return AdminTaskControllerApiFp(this.configuration).approveAcceptanceReview(requestParameters.executionId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AdminTaskControllerApiCreateRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public create(requestParameters: AdminTaskControllerApiCreateRequest, options?: AxiosRequestConfig) {
+        return AdminTaskControllerApiFp(this.configuration).create(requestParameters.upsertTaskRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AdminTaskControllerApiDetailRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public detail(requestParameters: AdminTaskControllerApiDetailRequest, options?: AxiosRequestConfig) {
+        return AdminTaskControllerApiFp(this.configuration).detail(requestParameters.taskId, options).then((request) => request(this.axios, this.basePath));
+    }
+
     /**
      * 
      * @param {AdminTaskControllerApiExecutionsRequest} requestParameters Request parameters.
@@ -2178,11 +4133,60 @@ export class AdminTaskControllerApi extends BaseAPI {
 
     /**
      * 
+     * @param {AdminTaskControllerApiOfflineRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public offline(requestParameters: AdminTaskControllerApiOfflineRequest, options?: AxiosRequestConfig) {
+        return AdminTaskControllerApiFp(this.configuration).offline(requestParameters.taskId, requestParameters.taskStateRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AdminTaskControllerApiRejectAcceptanceReviewRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public rejectAcceptanceReview(requestParameters: AdminTaskControllerApiRejectAcceptanceReviewRequest, options?: AxiosRequestConfig) {
+        return AdminTaskControllerApiFp(this.configuration).rejectAcceptanceReview(requestParameters.executionId, requestParameters.acceptanceReviewRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AdminTaskControllerApiRepublishRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public republish(requestParameters: AdminTaskControllerApiRepublishRequest, options?: AxiosRequestConfig) {
+        return AdminTaskControllerApiFp(this.configuration).republish(requestParameters.taskId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public summaries(options?: AxiosRequestConfig) {
+        return AdminTaskControllerApiFp(this.configuration).summaries(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
     public tasks(options?: AxiosRequestConfig) {
         return AdminTaskControllerApiFp(this.configuration).tasks(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AdminTaskControllerApiUpdateRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public update(requestParameters: AdminTaskControllerApiUpdateRequest, options?: AxiosRequestConfig) {
+        return AdminTaskControllerApiFp(this.configuration).update(requestParameters.taskId, requestParameters.upsertTaskRequest, options).then((request) => request(this.axios, this.basePath));
     }
 }
 
@@ -2245,6 +4249,112 @@ export const AgentControllerApiAxiosParamCreator = function (configuration?: Con
             }
 
             const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} agentId 
+         * @param {AgentEvaluationRequest} [agentEvaluationRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        evaluate: async (agentId: string, agentEvaluationRequest?: AgentEvaluationRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'agentId' is not null or undefined
+            assertParamExists('evaluate', 'agentId', agentId)
+            const localVarPath = `/api/v1/agents/{agentId}/evaluate`
+                .replace('{agentId}', encodeURIComponent(String(agentId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(agentEvaluationRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} agentId 
+         * @param {string} evaluationId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        evaluation: async (agentId: string, evaluationId: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'agentId' is not null or undefined
+            assertParamExists('evaluation', 'agentId', agentId)
+            // verify required parameter 'evaluationId' is not null or undefined
+            assertParamExists('evaluation', 'evaluationId', evaluationId)
+            const localVarPath = `/api/v1/agents/{agentId}/evaluations/{evaluationId}`
+                .replace('{agentId}', encodeURIComponent(String(agentId)))
+                .replace('{evaluationId}', encodeURIComponent(String(evaluationId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} agentId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        latestEvaluation: async (agentId: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'agentId' is not null or undefined
+            assertParamExists('latestEvaluation', 'agentId', agentId)
+            const localVarPath = `/api/v1/agents/{agentId}/evaluations/latest`
+                .replace('{agentId}', encodeURIComponent(String(agentId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
 
@@ -2356,6 +4466,44 @@ export const AgentControllerApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @param {string} agentId 
+         * @param {AgentEvaluationRequest} [agentEvaluationRequest] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async evaluate(agentId: string, agentEvaluationRequest?: AgentEvaluationRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseAgentEvaluationDetailResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.evaluate(agentId, agentEvaluationRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AgentControllerApi.evaluate']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} agentId 
+         * @param {string} evaluationId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async evaluation(agentId: string, evaluationId: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseAgentEvaluationDetailResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.evaluation(agentId, evaluationId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AgentControllerApi.evaluation']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} agentId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async latestEvaluation(agentId: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseAgentEvaluationDetailResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.latestEvaluation(agentId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AgentControllerApi.latestEvaluation']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -2406,6 +4554,33 @@ export const AgentControllerApiFactory = function (configuration?: Configuration
         },
         /**
          * 
+         * @param {AgentControllerApiEvaluateRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        evaluate(requestParameters: AgentControllerApiEvaluateRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseAgentEvaluationDetailResponse> {
+            return localVarFp.evaluate(requestParameters.agentId, requestParameters.agentEvaluationRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AgentControllerApiEvaluationRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        evaluation(requestParameters: AgentControllerApiEvaluationRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseAgentEvaluationDetailResponse> {
+            return localVarFp.evaluation(requestParameters.agentId, requestParameters.evaluationId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AgentControllerApiLatestEvaluationRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        latestEvaluation(requestParameters: AgentControllerApiLatestEvaluationRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseAgentEvaluationDetailResponse> {
+            return localVarFp.latestEvaluation(requestParameters.agentId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -2435,6 +4610,31 @@ export interface AgentControllerApiConnectRequest {
  * Request parameters for disconnect operation in AgentControllerApi.
  */
 export interface AgentControllerApiDisconnectRequest {
+    readonly agentId: string
+}
+
+/**
+ * Request parameters for evaluate operation in AgentControllerApi.
+ */
+export interface AgentControllerApiEvaluateRequest {
+    readonly agentId: string
+
+    readonly agentEvaluationRequest?: AgentEvaluationRequest
+}
+
+/**
+ * Request parameters for evaluation operation in AgentControllerApi.
+ */
+export interface AgentControllerApiEvaluationRequest {
+    readonly agentId: string
+
+    readonly evaluationId: string
+}
+
+/**
+ * Request parameters for latestEvaluation operation in AgentControllerApi.
+ */
+export interface AgentControllerApiLatestEvaluationRequest {
     readonly agentId: string
 }
 
@@ -2471,6 +4671,36 @@ export class AgentControllerApi extends BaseAPI {
 
     /**
      * 
+     * @param {AgentControllerApiEvaluateRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public evaluate(requestParameters: AgentControllerApiEvaluateRequest, options?: AxiosRequestConfig) {
+        return AgentControllerApiFp(this.configuration).evaluate(requestParameters.agentId, requestParameters.agentEvaluationRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AgentControllerApiEvaluationRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public evaluation(requestParameters: AgentControllerApiEvaluationRequest, options?: AxiosRequestConfig) {
+        return AgentControllerApiFp(this.configuration).evaluation(requestParameters.agentId, requestParameters.evaluationId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AgentControllerApiLatestEvaluationRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public latestEvaluation(requestParameters: AgentControllerApiLatestEvaluationRequest, options?: AxiosRequestConfig) {
+        return AgentControllerApiFp(this.configuration).latestEvaluation(requestParameters.agentId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -2496,6 +4726,54 @@ export class AgentControllerApi extends BaseAPI {
  */
 export const AgentGatewayControllerApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
+        /**
+         * 
+         * @param {string} deviceId 
+         * @param {string} commandId 
+         * @param {string} authorization 
+         * @param {CommandAckRequest} commandAckRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        ackCommand: async (deviceId: string, commandId: string, authorization: string, commandAckRequest: CommandAckRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'deviceId' is not null or undefined
+            assertParamExists('ackCommand', 'deviceId', deviceId)
+            // verify required parameter 'commandId' is not null or undefined
+            assertParamExists('ackCommand', 'commandId', commandId)
+            // verify required parameter 'authorization' is not null or undefined
+            assertParamExists('ackCommand', 'authorization', authorization)
+            // verify required parameter 'commandAckRequest' is not null or undefined
+            assertParamExists('ackCommand', 'commandAckRequest', commandAckRequest)
+            const localVarPath = `/agent-gateway/v1/devices/{deviceId}/commands/{commandId}/ack`
+                .replace('{deviceId}', encodeURIComponent(String(deviceId)))
+                .replace('{commandId}', encodeURIComponent(String(commandId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            if (authorization != null) {
+                localVarHeaderParameter['Authorization'] = String(authorization);
+            }
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(commandAckRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
         /**
          * 
          * @param {BootstrapDeviceRequest} bootstrapDeviceRequest 
@@ -2524,6 +4802,39 @@ export const AgentGatewayControllerApiAxiosParamCreator = function (configuratio
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
             localVarRequestOptions.data = serializeDataIfNeeded(bootstrapDeviceRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} claimToken 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        bootstrapClaimStatus: async (claimToken: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'claimToken' is not null or undefined
+            assertParamExists('bootstrapClaimStatus', 'claimToken', claimToken)
+            const localVarPath = `/agent-gateway/v1/devices/bootstrap/claims/{claimToken}`
+                .replace('{claimToken}', encodeURIComponent(String(claimToken)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -3010,6 +5321,21 @@ export const AgentGatewayControllerApiFp = function(configuration?: Configuratio
     return {
         /**
          * 
+         * @param {string} deviceId 
+         * @param {string} commandId 
+         * @param {string} authorization 
+         * @param {CommandAckRequest} commandAckRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async ackCommand(deviceId: string, commandId: string, authorization: string, commandAckRequest: CommandAckRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GatewayResponseCommandAckResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.ackCommand(deviceId, commandId, authorization, commandAckRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AgentGatewayControllerApi.ackCommand']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @param {BootstrapDeviceRequest} bootstrapDeviceRequest 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -3018,6 +5344,18 @@ export const AgentGatewayControllerApiFp = function(configuration?: Configuratio
             const localVarAxiosArgs = await localVarAxiosParamCreator.bootstrap(bootstrapDeviceRequest, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AgentGatewayControllerApi.bootstrap']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} claimToken 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async bootstrapClaimStatus(claimToken: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GatewayResponseBootstrapClaimStatusResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.bootstrapClaimStatus(claimToken, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AgentGatewayControllerApi.bootstrapClaimStatus']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -3174,12 +5512,30 @@ export const AgentGatewayControllerApiFactory = function (configuration?: Config
     return {
         /**
          * 
+         * @param {AgentGatewayControllerApiAckCommandRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        ackCommand(requestParameters: AgentGatewayControllerApiAckCommandRequest, options?: AxiosRequestConfig): AxiosPromise<GatewayResponseCommandAckResponse> {
+            return localVarFp.ackCommand(requestParameters.deviceId, requestParameters.commandId, requestParameters.authorization, requestParameters.commandAckRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @param {AgentGatewayControllerApiBootstrapRequest} requestParameters Request parameters.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
         bootstrap(requestParameters: AgentGatewayControllerApiBootstrapRequest, options?: AxiosRequestConfig): AxiosPromise<GatewayResponsePairDeviceResponse> {
             return localVarFp.bootstrap(requestParameters.bootstrapDeviceRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AgentGatewayControllerApiBootstrapClaimStatusRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        bootstrapClaimStatus(requestParameters: AgentGatewayControllerApiBootstrapClaimStatusRequest, options?: AxiosRequestConfig): AxiosPromise<GatewayResponseBootstrapClaimStatusResponse> {
+            return localVarFp.bootstrapClaimStatus(requestParameters.claimToken, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -3275,10 +5631,30 @@ export const AgentGatewayControllerApiFactory = function (configuration?: Config
 };
 
 /**
+ * Request parameters for ackCommand operation in AgentGatewayControllerApi.
+ */
+export interface AgentGatewayControllerApiAckCommandRequest {
+    readonly deviceId: string
+
+    readonly commandId: string
+
+    readonly authorization: string
+
+    readonly commandAckRequest: CommandAckRequest
+}
+
+/**
  * Request parameters for bootstrap operation in AgentGatewayControllerApi.
  */
 export interface AgentGatewayControllerApiBootstrapRequest {
     readonly bootstrapDeviceRequest: BootstrapDeviceRequest
+}
+
+/**
+ * Request parameters for bootstrapClaimStatus operation in AgentGatewayControllerApi.
+ */
+export interface AgentGatewayControllerApiBootstrapClaimStatusRequest {
+    readonly claimToken: string
 }
 
 /**
@@ -3403,12 +5779,32 @@ export interface AgentGatewayControllerApiUploadLogsRequest {
 export class AgentGatewayControllerApi extends BaseAPI {
     /**
      * 
+     * @param {AgentGatewayControllerApiAckCommandRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public ackCommand(requestParameters: AgentGatewayControllerApiAckCommandRequest, options?: AxiosRequestConfig) {
+        return AgentGatewayControllerApiFp(this.configuration).ackCommand(requestParameters.deviceId, requestParameters.commandId, requestParameters.authorization, requestParameters.commandAckRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @param {AgentGatewayControllerApiBootstrapRequest} requestParameters Request parameters.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
     public bootstrap(requestParameters: AgentGatewayControllerApiBootstrapRequest, options?: AxiosRequestConfig) {
         return AgentGatewayControllerApiFp(this.configuration).bootstrap(requestParameters.bootstrapDeviceRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AgentGatewayControllerApiBootstrapClaimStatusRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public bootstrapClaimStatus(requestParameters: AgentGatewayControllerApiBootstrapClaimStatusRequest, options?: AxiosRequestConfig) {
+        return AgentGatewayControllerApiFp(this.configuration).bootstrapClaimStatus(requestParameters.claimToken, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -3626,6 +6022,154 @@ export const AuthControllerApiAxiosParamCreator = function (configuration?: Conf
     return {
         /**
          * 
+         * @param {AdminLoginRequest} adminLoginRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        adminLogin: async (adminLoginRequest: AdminLoginRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'adminLoginRequest' is not null or undefined
+            assertParamExists('adminLogin', 'adminLoginRequest', adminLoginRequest)
+            const localVarPath = `/api/v1/auth/admin-login`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(adminLoginRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} authCode 
+         * @param {string} state 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        alipayLoginCallback: async (authCode: string, state: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'authCode' is not null or undefined
+            assertParamExists('alipayLoginCallback', 'authCode', authCode)
+            // verify required parameter 'state' is not null or undefined
+            assertParamExists('alipayLoginCallback', 'state', state)
+            const localVarPath = `/api/v1/auth/alipay/login-callback`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (authCode !== undefined) {
+                localVarQueryParameter['auth_code'] = authCode;
+            }
+
+            if (state !== undefined) {
+                localVarQueryParameter['state'] = state;
+            }
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} sessionId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        alipayLoginSession: async (sessionId: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'sessionId' is not null or undefined
+            assertParamExists('alipayLoginSession', 'sessionId', sessionId)
+            const localVarPath = `/api/v1/auth/alipay/login-sessions/{sessionId}`
+                .replace('{sessionId}', encodeURIComponent(String(sessionId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} sessionId 
+         * @param {AlipayLoginConfirmRequest} alipayLoginConfirmRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        confirmAlipayLoginSession: async (sessionId: string, alipayLoginConfirmRequest: AlipayLoginConfirmRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'sessionId' is not null or undefined
+            assertParamExists('confirmAlipayLoginSession', 'sessionId', sessionId)
+            // verify required parameter 'alipayLoginConfirmRequest' is not null or undefined
+            assertParamExists('confirmAlipayLoginSession', 'alipayLoginConfirmRequest', alipayLoginConfirmRequest)
+            const localVarPath = `/api/v1/auth/alipay/login-sessions/{sessionId}/confirm`
+                .replace('{sessionId}', encodeURIComponent(String(sessionId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(alipayLoginConfirmRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @param {string} sessionId 
          * @param {WechatScanConfirmRequest} wechatScanConfirmRequest 
          * @param {*} [options] Override http request option.
@@ -3656,6 +6200,35 @@ export const AuthControllerApiAxiosParamCreator = function (configuration?: Conf
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
             localVarRequestOptions.data = serializeDataIfNeeded(wechatScanConfirmRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createAlipayLoginSession: async (options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/v1/auth/alipay/login-sessions`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -3819,6 +6392,117 @@ export const AuthControllerApiAxiosParamCreator = function (configuration?: Conf
         },
         /**
          * 
+         * @param {SmsCodeRequest} smsCodeRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        sendSmsCode: async (smsCodeRequest: SmsCodeRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'smsCodeRequest' is not null or undefined
+            assertParamExists('sendSmsCode', 'smsCodeRequest', smsCodeRequest)
+            const localVarPath = `/api/v1/auth/sms-codes`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(smsCodeRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {SmsLoginRequest} smsLoginRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        smsLogin: async (smsLoginRequest: SmsLoginRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'smsLoginRequest' is not null or undefined
+            assertParamExists('smsLogin', 'smsLoginRequest', smsLoginRequest)
+            const localVarPath = `/api/v1/auth/sms-login`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(smsLoginRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} code 
+         * @param {string} state 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        wechatScanCallback: async (code: string, state: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'code' is not null or undefined
+            assertParamExists('wechatScanCallback', 'code', code)
+            // verify required parameter 'state' is not null or undefined
+            assertParamExists('wechatScanCallback', 'state', state)
+            const localVarPath = `/api/v1/auth/wechat/scan-callback`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (code !== undefined) {
+                localVarQueryParameter['code'] = code;
+            }
+
+            if (state !== undefined) {
+                localVarQueryParameter['state'] = state;
+            }
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @param {string} sessionId 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -3861,6 +6545,56 @@ export const AuthControllerApiFp = function(configuration?: Configuration) {
     return {
         /**
          * 
+         * @param {AdminLoginRequest} adminLoginRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async adminLogin(adminLoginRequest: AdminLoginRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseAuthTokenResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.adminLogin(adminLoginRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AuthControllerApi.adminLogin']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} authCode 
+         * @param {string} state 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async alipayLoginCallback(authCode: string, state: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseAlipayLoginStatusResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.alipayLoginCallback(authCode, state, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AuthControllerApi.alipayLoginCallback']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} sessionId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async alipayLoginSession(sessionId: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseAlipayLoginStatusResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.alipayLoginSession(sessionId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AuthControllerApi.alipayLoginSession']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} sessionId 
+         * @param {AlipayLoginConfirmRequest} alipayLoginConfirmRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async confirmAlipayLoginSession(sessionId: string, alipayLoginConfirmRequest: AlipayLoginConfirmRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseAlipayLoginStatusResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.confirmAlipayLoginSession(sessionId, alipayLoginConfirmRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AuthControllerApi.confirmAlipayLoginSession']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @param {string} sessionId 
          * @param {WechatScanConfirmRequest} wechatScanConfirmRequest 
          * @param {*} [options] Override http request option.
@@ -3870,6 +6604,17 @@ export const AuthControllerApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.confirmWechatScanSession(sessionId, wechatScanConfirmRequest, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AuthControllerApi.confirmWechatScanSession']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async createAlipayLoginSession(options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseAlipayLoginSessionResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.createAlipayLoginSession(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AuthControllerApi.createAlipayLoginSession']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -3931,6 +6676,43 @@ export const AuthControllerApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @param {SmsCodeRequest} smsCodeRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async sendSmsCode(smsCodeRequest: SmsCodeRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseSmsCodeResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.sendSmsCode(smsCodeRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AuthControllerApi.sendSmsCode']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {SmsLoginRequest} smsLoginRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async smsLogin(smsLoginRequest: SmsLoginRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseAuthTokenResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.smsLogin(smsLoginRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AuthControllerApi.smsLogin']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} code 
+         * @param {string} state 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async wechatScanCallback(code: string, state: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseWechatScanStatusResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.wechatScanCallback(code, state, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AuthControllerApi.wechatScanCallback']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @param {string} sessionId 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -3952,12 +6734,56 @@ export const AuthControllerApiFactory = function (configuration?: Configuration,
     return {
         /**
          * 
+         * @param {AuthControllerApiAdminLoginRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        adminLogin(requestParameters: AuthControllerApiAdminLoginRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseAuthTokenResponse> {
+            return localVarFp.adminLogin(requestParameters.adminLoginRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AuthControllerApiAlipayLoginCallbackRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        alipayLoginCallback(requestParameters: AuthControllerApiAlipayLoginCallbackRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseAlipayLoginStatusResponse> {
+            return localVarFp.alipayLoginCallback(requestParameters.authCode, requestParameters.state, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AuthControllerApiAlipayLoginSessionRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        alipayLoginSession(requestParameters: AuthControllerApiAlipayLoginSessionRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseAlipayLoginStatusResponse> {
+            return localVarFp.alipayLoginSession(requestParameters.sessionId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AuthControllerApiConfirmAlipayLoginSessionRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        confirmAlipayLoginSession(requestParameters: AuthControllerApiConfirmAlipayLoginSessionRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseAlipayLoginStatusResponse> {
+            return localVarFp.confirmAlipayLoginSession(requestParameters.sessionId, requestParameters.alipayLoginConfirmRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @param {AuthControllerApiConfirmWechatScanSessionRequest} requestParameters Request parameters.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
         confirmWechatScanSession(requestParameters: AuthControllerApiConfirmWechatScanSessionRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseWechatScanStatusResponse> {
             return localVarFp.confirmWechatScanSession(requestParameters.sessionId, requestParameters.wechatScanConfirmRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createAlipayLoginSession(options?: AxiosRequestConfig): AxiosPromise<ApiResponseAlipayLoginSessionResponse> {
+            return localVarFp.createAlipayLoginSession(options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -4003,6 +6829,33 @@ export const AuthControllerApiFactory = function (configuration?: Configuration,
         },
         /**
          * 
+         * @param {AuthControllerApiSendSmsCodeRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        sendSmsCode(requestParameters: AuthControllerApiSendSmsCodeRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseSmsCodeResponse> {
+            return localVarFp.sendSmsCode(requestParameters.smsCodeRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AuthControllerApiSmsLoginRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        smsLogin(requestParameters: AuthControllerApiSmsLoginRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseAuthTokenResponse> {
+            return localVarFp.smsLogin(requestParameters.smsLoginRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {AuthControllerApiWechatScanCallbackRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        wechatScanCallback(requestParameters: AuthControllerApiWechatScanCallbackRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseWechatScanStatusResponse> {
+            return localVarFp.wechatScanCallback(requestParameters.code, requestParameters.state, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @param {AuthControllerApiWechatScanSessionRequest} requestParameters Request parameters.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -4012,6 +6865,38 @@ export const AuthControllerApiFactory = function (configuration?: Configuration,
         },
     };
 };
+
+/**
+ * Request parameters for adminLogin operation in AuthControllerApi.
+ */
+export interface AuthControllerApiAdminLoginRequest {
+    readonly adminLoginRequest: AdminLoginRequest
+}
+
+/**
+ * Request parameters for alipayLoginCallback operation in AuthControllerApi.
+ */
+export interface AuthControllerApiAlipayLoginCallbackRequest {
+    readonly authCode: string
+
+    readonly state: string
+}
+
+/**
+ * Request parameters for alipayLoginSession operation in AuthControllerApi.
+ */
+export interface AuthControllerApiAlipayLoginSessionRequest {
+    readonly sessionId: string
+}
+
+/**
+ * Request parameters for confirmAlipayLoginSession operation in AuthControllerApi.
+ */
+export interface AuthControllerApiConfirmAlipayLoginSessionRequest {
+    readonly sessionId: string
+
+    readonly alipayLoginConfirmRequest: AlipayLoginConfirmRequest
+}
 
 /**
  * Request parameters for confirmWechatScanSession operation in AuthControllerApi.
@@ -4037,6 +6922,29 @@ export interface AuthControllerApiMockLoginRequest {
 }
 
 /**
+ * Request parameters for sendSmsCode operation in AuthControllerApi.
+ */
+export interface AuthControllerApiSendSmsCodeRequest {
+    readonly smsCodeRequest: SmsCodeRequest
+}
+
+/**
+ * Request parameters for smsLogin operation in AuthControllerApi.
+ */
+export interface AuthControllerApiSmsLoginRequest {
+    readonly smsLoginRequest: SmsLoginRequest
+}
+
+/**
+ * Request parameters for wechatScanCallback operation in AuthControllerApi.
+ */
+export interface AuthControllerApiWechatScanCallbackRequest {
+    readonly code: string
+
+    readonly state: string
+}
+
+/**
  * Request parameters for wechatScanSession operation in AuthControllerApi.
  */
 export interface AuthControllerApiWechatScanSessionRequest {
@@ -4049,12 +6957,61 @@ export interface AuthControllerApiWechatScanSessionRequest {
 export class AuthControllerApi extends BaseAPI {
     /**
      * 
+     * @param {AuthControllerApiAdminLoginRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public adminLogin(requestParameters: AuthControllerApiAdminLoginRequest, options?: AxiosRequestConfig) {
+        return AuthControllerApiFp(this.configuration).adminLogin(requestParameters.adminLoginRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AuthControllerApiAlipayLoginCallbackRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public alipayLoginCallback(requestParameters: AuthControllerApiAlipayLoginCallbackRequest, options?: AxiosRequestConfig) {
+        return AuthControllerApiFp(this.configuration).alipayLoginCallback(requestParameters.authCode, requestParameters.state, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AuthControllerApiAlipayLoginSessionRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public alipayLoginSession(requestParameters: AuthControllerApiAlipayLoginSessionRequest, options?: AxiosRequestConfig) {
+        return AuthControllerApiFp(this.configuration).alipayLoginSession(requestParameters.sessionId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AuthControllerApiConfirmAlipayLoginSessionRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public confirmAlipayLoginSession(requestParameters: AuthControllerApiConfirmAlipayLoginSessionRequest, options?: AxiosRequestConfig) {
+        return AuthControllerApiFp(this.configuration).confirmAlipayLoginSession(requestParameters.sessionId, requestParameters.alipayLoginConfirmRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @param {AuthControllerApiConfirmWechatScanSessionRequest} requestParameters Request parameters.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
     public confirmWechatScanSession(requestParameters: AuthControllerApiConfirmWechatScanSessionRequest, options?: AxiosRequestConfig) {
         return AuthControllerApiFp(this.configuration).confirmWechatScanSession(requestParameters.sessionId, requestParameters.wechatScanConfirmRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public createAlipayLoginSession(options?: AxiosRequestConfig) {
+        return AuthControllerApiFp(this.configuration).createAlipayLoginSession(options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -4102,6 +7059,36 @@ export class AuthControllerApi extends BaseAPI {
      */
     public mockLogin(requestParameters: AuthControllerApiMockLoginRequest, options?: AxiosRequestConfig) {
         return AuthControllerApiFp(this.configuration).mockLogin(requestParameters.mockLoginRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AuthControllerApiSendSmsCodeRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public sendSmsCode(requestParameters: AuthControllerApiSendSmsCodeRequest, options?: AxiosRequestConfig) {
+        return AuthControllerApiFp(this.configuration).sendSmsCode(requestParameters.smsCodeRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AuthControllerApiSmsLoginRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public smsLogin(requestParameters: AuthControllerApiSmsLoginRequest, options?: AxiosRequestConfig) {
+        return AuthControllerApiFp(this.configuration).smsLogin(requestParameters.smsLoginRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AuthControllerApiWechatScanCallbackRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public wechatScanCallback(requestParameters: AuthControllerApiWechatScanCallbackRequest, options?: AxiosRequestConfig) {
+        return AuthControllerApiFp(this.configuration).wechatScanCallback(requestParameters.code, requestParameters.state, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -4208,10 +7195,513 @@ export class EarningsControllerApi extends BaseAPI {
 
 
 /**
+ * LocalAgentClaimControllerApi - axios parameter creator
+ */
+export const LocalAgentClaimControllerApiAxiosParamCreator = function (configuration?: Configuration) {
+    return {
+        /**
+         * 
+         * @param {string} claimToken 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        claim: async (claimToken: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'claimToken' is not null or undefined
+            assertParamExists('claim', 'claimToken', claimToken)
+            const localVarPath = `/api/v1/local-agent/claims/{claimToken}/claim`
+                .replace('{claimToken}', encodeURIComponent(String(claimToken)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} claimToken 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        preview: async (claimToken: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'claimToken' is not null or undefined
+            assertParamExists('preview', 'claimToken', claimToken)
+            const localVarPath = `/api/v1/local-agent/claims/{claimToken}`
+                .replace('{claimToken}', encodeURIComponent(String(claimToken)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+    }
+};
+
+/**
+ * LocalAgentClaimControllerApi - functional programming interface
+ */
+export const LocalAgentClaimControllerApiFp = function(configuration?: Configuration) {
+    const localVarAxiosParamCreator = LocalAgentClaimControllerApiAxiosParamCreator(configuration)
+    return {
+        /**
+         * 
+         * @param {string} claimToken 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async claim(claimToken: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseClaimConfirmResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.claim(claimToken, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['LocalAgentClaimControllerApi.claim']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} claimToken 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async preview(claimToken: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseClaimPreviewResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.preview(claimToken, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['LocalAgentClaimControllerApi.preview']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+    }
+};
+
+/**
+ * LocalAgentClaimControllerApi - factory interface
+ */
+export const LocalAgentClaimControllerApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
+    const localVarFp = LocalAgentClaimControllerApiFp(configuration)
+    return {
+        /**
+         * 
+         * @param {LocalAgentClaimControllerApiClaimRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        claim(requestParameters: LocalAgentClaimControllerApiClaimRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseClaimConfirmResponse> {
+            return localVarFp.claim(requestParameters.claimToken, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {LocalAgentClaimControllerApiPreviewRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        preview(requestParameters: LocalAgentClaimControllerApiPreviewRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseClaimPreviewResponse> {
+            return localVarFp.preview(requestParameters.claimToken, options).then((request) => request(axios, basePath));
+        },
+    };
+};
+
+/**
+ * Request parameters for claim operation in LocalAgentClaimControllerApi.
+ */
+export interface LocalAgentClaimControllerApiClaimRequest {
+    readonly claimToken: string
+}
+
+/**
+ * Request parameters for preview operation in LocalAgentClaimControllerApi.
+ */
+export interface LocalAgentClaimControllerApiPreviewRequest {
+    readonly claimToken: string
+}
+
+/**
+ * LocalAgentClaimControllerApi - object-oriented interface
+ */
+export class LocalAgentClaimControllerApi extends BaseAPI {
+    /**
+     * 
+     * @param {LocalAgentClaimControllerApiClaimRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public claim(requestParameters: LocalAgentClaimControllerApiClaimRequest, options?: AxiosRequestConfig) {
+        return LocalAgentClaimControllerApiFp(this.configuration).claim(requestParameters.claimToken, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {LocalAgentClaimControllerApiPreviewRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public preview(requestParameters: LocalAgentClaimControllerApiPreviewRequest, options?: AxiosRequestConfig) {
+        return LocalAgentClaimControllerApiFp(this.configuration).preview(requestParameters.claimToken, options).then((request) => request(this.axios, this.basePath));
+    }
+}
+
+
+
+/**
+ * LocalAgentClaimPageControllerApi - axios parameter creator
+ */
+export const LocalAgentClaimPageControllerApiAxiosParamCreator = function (configuration?: Configuration) {
+    return {
+        /**
+         * 
+         * @param {string} claimToken 
+         * @param {string} enrollmentToken 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        claimFromPage: async (claimToken: string, enrollmentToken: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'claimToken' is not null or undefined
+            assertParamExists('claimFromPage', 'claimToken', claimToken)
+            // verify required parameter 'enrollmentToken' is not null or undefined
+            assertParamExists('claimFromPage', 'enrollmentToken', enrollmentToken)
+            const localVarPath = `/local-agent/claim`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (claimToken !== undefined) {
+                localVarQueryParameter['claimToken'] = claimToken;
+            }
+
+            if (enrollmentToken !== undefined) {
+                localVarQueryParameter['enrollmentToken'] = enrollmentToken;
+            }
+
+            localVarHeaderParameter['Accept'] = 'text/html,*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} [claimToken] 
+         * @param {string} [token] 
+         * @param {string} [enrollmentToken] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        claimPage: async (claimToken?: string, token?: string, enrollmentToken?: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/local-agent/claim`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (claimToken !== undefined) {
+                localVarQueryParameter['claimToken'] = claimToken;
+            }
+
+            if (token !== undefined) {
+                localVarQueryParameter['token'] = token;
+            }
+
+            if (enrollmentToken !== undefined) {
+                localVarQueryParameter['enrollmentToken'] = enrollmentToken;
+            }
+
+            localVarHeaderParameter['Accept'] = 'text/html,*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+    }
+};
+
+/**
+ * LocalAgentClaimPageControllerApi - functional programming interface
+ */
+export const LocalAgentClaimPageControllerApiFp = function(configuration?: Configuration) {
+    const localVarAxiosParamCreator = LocalAgentClaimPageControllerApiAxiosParamCreator(configuration)
+    return {
+        /**
+         * 
+         * @param {string} claimToken 
+         * @param {string} enrollmentToken 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async claimFromPage(claimToken: string, enrollmentToken: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.claimFromPage(claimToken, enrollmentToken, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['LocalAgentClaimPageControllerApi.claimFromPage']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} [claimToken] 
+         * @param {string} [token] 
+         * @param {string} [enrollmentToken] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async claimPage(claimToken?: string, token?: string, enrollmentToken?: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.claimPage(claimToken, token, enrollmentToken, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['LocalAgentClaimPageControllerApi.claimPage']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+    }
+};
+
+/**
+ * LocalAgentClaimPageControllerApi - factory interface
+ */
+export const LocalAgentClaimPageControllerApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
+    const localVarFp = LocalAgentClaimPageControllerApiFp(configuration)
+    return {
+        /**
+         * 
+         * @param {LocalAgentClaimPageControllerApiClaimFromPageRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        claimFromPage(requestParameters: LocalAgentClaimPageControllerApiClaimFromPageRequest, options?: AxiosRequestConfig): AxiosPromise<string> {
+            return localVarFp.claimFromPage(requestParameters.claimToken, requestParameters.enrollmentToken, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {LocalAgentClaimPageControllerApiClaimPageRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        claimPage(requestParameters: LocalAgentClaimPageControllerApiClaimPageRequest = {}, options?: AxiosRequestConfig): AxiosPromise<string> {
+            return localVarFp.claimPage(requestParameters.claimToken, requestParameters.token, requestParameters.enrollmentToken, options).then((request) => request(axios, basePath));
+        },
+    };
+};
+
+/**
+ * Request parameters for claimFromPage operation in LocalAgentClaimPageControllerApi.
+ */
+export interface LocalAgentClaimPageControllerApiClaimFromPageRequest {
+    readonly claimToken: string
+
+    readonly enrollmentToken: string
+}
+
+/**
+ * Request parameters for claimPage operation in LocalAgentClaimPageControllerApi.
+ */
+export interface LocalAgentClaimPageControllerApiClaimPageRequest {
+    readonly claimToken?: string
+
+    readonly token?: string
+
+    readonly enrollmentToken?: string
+}
+
+/**
+ * LocalAgentClaimPageControllerApi - object-oriented interface
+ */
+export class LocalAgentClaimPageControllerApi extends BaseAPI {
+    /**
+     * 
+     * @param {LocalAgentClaimPageControllerApiClaimFromPageRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public claimFromPage(requestParameters: LocalAgentClaimPageControllerApiClaimFromPageRequest, options?: AxiosRequestConfig) {
+        return LocalAgentClaimPageControllerApiFp(this.configuration).claimFromPage(requestParameters.claimToken, requestParameters.enrollmentToken, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {LocalAgentClaimPageControllerApiClaimPageRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public claimPage(requestParameters: LocalAgentClaimPageControllerApiClaimPageRequest = {}, options?: AxiosRequestConfig) {
+        return LocalAgentClaimPageControllerApiFp(this.configuration).claimPage(requestParameters.claimToken, requestParameters.token, requestParameters.enrollmentToken, options).then((request) => request(this.axios, this.basePath));
+    }
+}
+
+
+
+/**
+ * LocalAgentEnrollmentControllerApi - axios parameter creator
+ */
+export const LocalAgentEnrollmentControllerApiAxiosParamCreator = function (configuration?: Configuration) {
+    return {
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createEnrollment: async (options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/v1/local-agent/enrollments`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+    }
+};
+
+/**
+ * LocalAgentEnrollmentControllerApi - functional programming interface
+ */
+export const LocalAgentEnrollmentControllerApiFp = function(configuration?: Configuration) {
+    const localVarAxiosParamCreator = LocalAgentEnrollmentControllerApiAxiosParamCreator(configuration)
+    return {
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async createEnrollment(options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseEnrollmentTokenResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.createEnrollment(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['LocalAgentEnrollmentControllerApi.createEnrollment']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+    }
+};
+
+/**
+ * LocalAgentEnrollmentControllerApi - factory interface
+ */
+export const LocalAgentEnrollmentControllerApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
+    const localVarFp = LocalAgentEnrollmentControllerApiFp(configuration)
+    return {
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createEnrollment(options?: AxiosRequestConfig): AxiosPromise<ApiResponseEnrollmentTokenResponse> {
+            return localVarFp.createEnrollment(options).then((request) => request(axios, basePath));
+        },
+    };
+};
+
+/**
+ * LocalAgentEnrollmentControllerApi - object-oriented interface
+ */
+export class LocalAgentEnrollmentControllerApi extends BaseAPI {
+    /**
+     * 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public createEnrollment(options?: AxiosRequestConfig) {
+        return LocalAgentEnrollmentControllerApiFp(this.configuration).createEnrollment(options).then((request) => request(this.axios, this.basePath));
+    }
+}
+
+
+
+/**
  * MyTaskControllerApi - axios parameter creator
  */
 export const MyTaskControllerApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
+        /**
+         * 
+         * @param {string} executionId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        detail2: async (executionId: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'executionId' is not null or undefined
+            assertParamExists('detail2', 'executionId', executionId)
+            const localVarPath = `/api/v1/my-tasks/{executionId}`
+                .replace('{executionId}', encodeURIComponent(String(executionId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
         /**
          * 
          * @param {*} [options] Override http request option.
@@ -4285,10 +7775,22 @@ export const MyTaskControllerApiFp = function(configuration?: Configuration) {
     return {
         /**
          * 
+         * @param {string} executionId 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async list(options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseListTaskExecution>> {
+        async detail2(executionId: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseMyTaskExecutionDetail>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.detail2(executionId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['MyTaskControllerApi.detail2']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async list(options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseListMyTaskExecutionDetail>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.list(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['MyTaskControllerApi.list']?.[localVarOperationServerIndex]?.url;
@@ -4317,10 +7819,19 @@ export const MyTaskControllerApiFactory = function (configuration?: Configuratio
     return {
         /**
          * 
+         * @param {MyTaskControllerApiDetail2Request} requestParameters Request parameters.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        list(options?: AxiosRequestConfig): AxiosPromise<ApiResponseListTaskExecution> {
+        detail2(requestParameters: MyTaskControllerApiDetail2Request, options?: AxiosRequestConfig): AxiosPromise<ApiResponseMyTaskExecutionDetail> {
+            return localVarFp.detail2(requestParameters.executionId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        list(options?: AxiosRequestConfig): AxiosPromise<ApiResponseListMyTaskExecutionDetail> {
             return localVarFp.list(options).then((request) => request(axios, basePath));
         },
         /**
@@ -4336,6 +7847,13 @@ export const MyTaskControllerApiFactory = function (configuration?: Configuratio
 };
 
 /**
+ * Request parameters for detail2 operation in MyTaskControllerApi.
+ */
+export interface MyTaskControllerApiDetail2Request {
+    readonly executionId: string
+}
+
+/**
  * Request parameters for rerun operation in MyTaskControllerApi.
  */
 export interface MyTaskControllerApiRerunRequest {
@@ -4346,6 +7864,16 @@ export interface MyTaskControllerApiRerunRequest {
  * MyTaskControllerApi - object-oriented interface
  */
 export class MyTaskControllerApi extends BaseAPI {
+    /**
+     * 
+     * @param {MyTaskControllerApiDetail2Request} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public detail2(requestParameters: MyTaskControllerApiDetail2Request, options?: AxiosRequestConfig) {
+        return MyTaskControllerApiFp(this.configuration).detail2(requestParameters.executionId, options).then((request) => request(this.axios, this.basePath));
+    }
+
     /**
      * 
      * @param {*} [options] Override http request option.
@@ -4412,9 +7940,9 @@ export const TaskControllerApiAxiosParamCreator = function (configuration?: Conf
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        detail: async (id: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+        detail1: async (id: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
-            assertParamExists('detail', 'id', id)
+            assertParamExists('detail1', 'id', id)
             const localVarPath = `/api/v1/tasks/{id}`
                 .replace('{id}', encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -4495,10 +8023,10 @@ export const TaskControllerApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async detail(id: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseTaskEntity>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.detail(id, options);
+        async detail1(id: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseTaskEntity>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.detail1(id, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['TaskControllerApi.detail']?.[localVarOperationServerIndex]?.url;
+            const localVarOperationServerBasePath = operationServerMap['TaskControllerApi.detail1']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -4532,12 +8060,12 @@ export const TaskControllerApiFactory = function (configuration?: Configuration,
         },
         /**
          * 
-         * @param {TaskControllerApiDetailRequest} requestParameters Request parameters.
+         * @param {TaskControllerApiDetail1Request} requestParameters Request parameters.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        detail(requestParameters: TaskControllerApiDetailRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseTaskEntity> {
-            return localVarFp.detail(requestParameters.id, options).then((request) => request(axios, basePath));
+        detail1(requestParameters: TaskControllerApiDetail1Request, options?: AxiosRequestConfig): AxiosPromise<ApiResponseTaskEntity> {
+            return localVarFp.detail1(requestParameters.id, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -4558,9 +8086,9 @@ export interface TaskControllerApiAcceptRequest {
 }
 
 /**
- * Request parameters for detail operation in TaskControllerApi.
+ * Request parameters for detail1 operation in TaskControllerApi.
  */
-export interface TaskControllerApiDetailRequest {
+export interface TaskControllerApiDetail1Request {
     readonly id: string
 }
 
@@ -4580,12 +8108,12 @@ export class TaskControllerApi extends BaseAPI {
 
     /**
      * 
-     * @param {TaskControllerApiDetailRequest} requestParameters Request parameters.
+     * @param {TaskControllerApiDetail1Request} requestParameters Request parameters.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public detail(requestParameters: TaskControllerApiDetailRequest, options?: AxiosRequestConfig) {
-        return TaskControllerApiFp(this.configuration).detail(requestParameters.id, options).then((request) => request(this.axios, this.basePath));
+    public detail1(requestParameters: TaskControllerApiDetail1Request, options?: AxiosRequestConfig) {
+        return TaskControllerApiFp(this.configuration).detail1(requestParameters.id, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

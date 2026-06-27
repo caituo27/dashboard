@@ -76,15 +76,18 @@ export function MetricCard({
   title,
   value,
   caption,
-  icon
+  icon,
+  onClick,
+  active = false
 }: {
   title: string;
   value: ReactNode;
   caption?: string;
   icon?: ReactNode;
+  onClick?: () => void;
+  active?: boolean;
 }) {
-  return (
-    <Surface tight className="p-4">
+  const content = (
       <div className="flex items-start gap-3">
         <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#e7f7f2] text-accent">
           {icon ?? <CircleDollarSign size={19} />}
@@ -95,6 +98,19 @@ export function MetricCard({
           {caption && <p className="mt-1 text-xs text-ink-soft">{caption}</p>}
         </div>
       </div>
+  );
+
+  if (onClick) {
+    return (
+      <button type="button" className={`sprix-card-tight sprix-metric-action p-4 ${active ? "is-active" : ""}`} onClick={onClick}>
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <Surface tight className="p-4">
+      {content}
     </Surface>
   );
 }

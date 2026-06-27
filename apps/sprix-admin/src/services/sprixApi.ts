@@ -157,6 +157,14 @@ export async function authenticateAdmin(account: string, password: string) {
   return token;
 }
 
+export async function logoutAdmin() {
+  try {
+    await http.post<unknown, boolean>("/api/v1/auth/logout", {});
+  } finally {
+    localStorage.removeItem(TOKEN_KEY);
+  }
+}
+
 export async function readRemoteTaskCenterSnapshot(): Promise<AdminTaskCenterSnapshot> {
   const [taskSummaries, acceptanceReviews, appealsResponse] = await Promise.all([
     http.get<unknown, RemoteAdminTaskSummary[]>("/api/v1/admin/tasks/summaries"),

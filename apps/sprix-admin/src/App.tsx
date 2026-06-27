@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Navigate, Route, BrowserRouter as Router, Routes, useLocation } from "react-router-dom";
 import type { ReactNode } from "react";
 import { AdminLoginPage, hasAdminToken } from "./admin/AdminLoginPage";
-import { AdminAppealCenter, AdminAppealDetail, AdminFundCenter, AdminTaskCenter, AdminTaskDetail, AdminTaskForm } from "./admin/AdminPages";
+import { AdminAcceptanceCenter, AdminAcceptanceDetail, AdminAppealCenter, AdminAppealDetail, AdminFundCenter, AdminTaskCenter, AdminTaskDetail, AdminTaskForm } from "./admin/AdminPages";
 import { AdminShell } from "./components/Layout";
 
 const queryClient = new QueryClient();
@@ -34,6 +34,7 @@ function AdminRoutes() {
   const location = useLocation();
   const title = useMemo(() => {
     if (location.pathname.includes("/appeals")) return "申诉处理中心";
+    if (location.pathname.includes("/acceptance")) return "平台验收中心";
     if (location.pathname.includes("/funds")) return "资金管理中心";
     if (location.pathname.match(/^\/tasks\/[^/]+\/edit$/)) return "编辑任务";
     if (location.pathname.includes("/tasks/new")) return "发布新任务";
@@ -49,6 +50,8 @@ function AdminRoutes() {
         <Route path="tasks/new" element={<AdminTaskForm />} />
         <Route path="tasks/:id/edit" element={<AdminTaskForm />} />
         <Route path="tasks/:id" element={<AdminTaskDetail />} />
+        <Route path="acceptance" element={<AdminAcceptanceCenter />} />
+        <Route path="acceptance/:executionId" element={<AdminAcceptanceDetail />} />
         <Route path="appeals" element={<AdminAppealCenter />} />
         <Route path="appeals/:id" element={<AdminAppealDetail />} />
         <Route path="funds/*" element={<AdminFundCenter />} />

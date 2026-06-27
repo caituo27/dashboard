@@ -11,6 +11,7 @@ import {
   type AppealRecord,
   type AuthTokenResponse,
   type FaceVerificationSession,
+  type MyTaskExecutionDetail,
   type TaskEntity,
   type TaskExecution,
   type UserAccount,
@@ -349,7 +350,7 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
   const agents = listValue<RemoteAgentProfileResponse>(agentsResponse).map(mapAgent);
   const taskById = new Map(tasks.map((task) => [task.id, task]));
   const agentById = new Map(agents.map((agent) => [agent.id, agent]));
-  const myTasks = listValue<TaskExecution>(myTasksResponse).map((item) => mapMyTask(item, taskById, agentById));
+  const myTasks = listValue<MyTaskExecutionDetail>(myTasksResponse).map((item) => mapMyTask(item, taskById, agentById));
   const withdrawableAmount = withdrawableResponse;
 
   return {
@@ -670,18 +671,18 @@ function normalizeEvaluationStatus(status?: string | null): AgentEvaluationStatu
   return "running";
 }
 
-function mapMyTask(record: TaskExecution, taskById: Map<string, Task>, agentById: Map<string, Agent>): MyTask {
+function mapMyTask(record: MyTaskExecutionDetail, taskById: Map<string, Task>, agentById: Map<string, Agent>): MyTask {
   const task = taskById.get(record.taskId ?? "");
   const agent = agentById.get(record.agentId ?? "");
   return {
     id: record.id ?? "",
     taskId: record.taskId ?? "",
-    title: task?.title ?? "",
-    category: task?.category ?? "",
-    reward: task?.reward ?? 0,
+    title: task?.title ?? record.task?.title ?? "",
+    category: task?.category ?? record.task?.category ?? "",
+    reward: task?.reward ?? record.task?.reward ?? 0,
     status: mapMyTaskStatus(record.status),
     agentId: record.agentId ?? "",
-    agentName: agent?.name ?? "",
+    agentName: agent?.name ?? record.agent?.name ?? "",
     startedAt: formatDateTime(record.startedAt ?? record.createdAt),
     completedAt: formatDateTime(record.completedAt),
     currentNode: mapCurrentNode(record.currentNode),

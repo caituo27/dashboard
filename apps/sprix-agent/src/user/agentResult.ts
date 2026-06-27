@@ -83,6 +83,11 @@ export function getAgentAbilityResult(agent?: Agent): AgentAbilityResult {
   };
 }
 
+export function hasPendingAgentEvaluation(agent?: Pick<Agent, "evaluation"> | null) {
+  const status = agent?.evaluation?.status ?? agent?.evaluation?.result.status;
+  return status === "running" || status === "judging";
+}
+
 export function getCurrentAgentScoreMetric(agent?: Agent) {
   return scoreText(agent?.score);
 }
