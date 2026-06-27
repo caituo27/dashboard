@@ -10,7 +10,8 @@ const mocks = vi.hoisted(() => ({
   settlements: vi.fn(),
   tasks: vi.fn(),
   withdrawals: vi.fn(),
-  get: vi.fn()
+  get: vi.fn(),
+  post: vi.fn()
 }));
 
 vi.mock("../apis/sprix", () => ({
@@ -29,7 +30,8 @@ vi.mock("../apis/sprix", () => ({
 
 vi.mock("../utils/http", () => ({
   http: {
-    get: mocks.get
+    get: mocks.get,
+    post: mocks.post
   }
 }));
 
@@ -43,6 +45,9 @@ describe("sprix admin api", () => {
     mocks.tasks.mockRejectedValue(new Error("task list endpoint should not be used by the task center"));
     mocks.appeals.mockResolvedValue([{ id: "appeal-1" }]);
     mocks.get.mockImplementation((url: string) => {
+      if (url === "/api/v1/admin/tasks/acceptance-reviews") {
+        return Promise.resolve([]);
+      }
       if (url !== "/api/v1/admin/tasks/summaries") {
         throw new Error(`unexpected detail request: ${url}`);
       }
@@ -65,6 +70,7 @@ describe("sprix admin api", () => {
           },
           executionTotal: 3,
           runningExecutionCount: 1,
+          reviewingExecutionCount: 0,
           completedExecutionCount: 1,
           terminatedExecutionCount: 1
         }
@@ -78,7 +84,63 @@ describe("sprix admin api", () => {
     expect(snapshot.tasks[0].executionTotal).toBe(3);
     expect(snapshot.adminExecutionRecords).toEqual({});
     expect(mocks.tasks).not.toHaveBeenCalled();
-    expect(mocks.get).toHaveBeenCalledTimes(1);
+    expect(mocks.get).toHaveBeenCalledTimes(2);
+  });
+
+  it("maps pending platform acceptance reviews into the task center", async () => {
+    const { readRemoteTaskCenterSnapshot } = await import("./sprixApi");
+    mocks.appeals.mockResolvedValue([]);
+    mocks.get.mockImplementation((url: string) => {
+      if (url === "/api/v1/admin/tasks/acceptance-reviews") {
+        return Promise.resolve([
+          {
+            executionId: "execution-review-1",
+            taskId: "task-1",
+            taskTitle: "Task one",
+            taskCategory: "Research",
+            userName: "Xiaoxiao",
+            userPhone: "13800008624",
+            agentName: "Codex Agent",
+            agentScore: 88,
+            acceptanceStatus: "passed",
+            acceptanceScore: 91,
+            acceptanceSummary: "Agent acceptance passed",
+            acceptanceIssues: "[\"manual spot check\"]",
+            currentNode: "platform_reviewing",
+            progress: "95%",
+            submittedAt: "2026-06-27T12:00:00"
+          }
+        ]);
+      }
+      return Promise.resolve([
+        {
+          task: {
+            id: "task-1",
+            title: "Task one",
+            category: "Research",
+            sourceName: "Sprix",
+            sourceType: "PLATFORM",
+            reward: 100,
+            status: "PUBLISHED"
+          },
+          executionTotal: 1,
+          reviewingExecutionCount: 1
+        }
+      ]);
+    });
+
+    const snapshot = await readRemoteTaskCenterSnapshot();
+
+    expect(snapshot.tasks[0].reviewingExecutionCount).toBe(1);
+    expect(snapshot.acceptanceReviews[0]).toMatchObject({
+      executionId: "execution-review-1",
+      taskTitle: "Task one",
+      agentScore: "88/100",
+      acceptanceStatus: "Agent 评分通过",
+      acceptanceScore: "91/100",
+      acceptanceIssues: "manual spot check",
+      currentNode: "平台审核中"
+    });
   });
 
   it("maps task detail operation logs from the backend", async () => {
@@ -194,7 +256,9 @@ describe("sprix admin api", () => {
   it("does not invent task copy when admin task summary fields are missing", async () => {
     const { readRemoteTaskCenterSnapshot } = await import("./sprixApi");
     mocks.appeals.mockResolvedValue([]);
-    mocks.get.mockResolvedValue([{ task: { id: "task-1", reward: 100 } }]);
+    mocks.get.mockImplementation((url: string) => (url === "/api/v1/admin/tasks/acceptance-reviews"
+      ? Promise.resolve([])
+      : Promise.resolve([{ task: { id: "task-1", reward: 100 } }])));
 
     const snapshot = await readRemoteTaskCenterSnapshot();
 
@@ -213,16 +277,18 @@ describe("sprix admin api", () => {
   it("preserves backend offline reason instead of inventing a manual-offline reason", async () => {
     const { readRemoteTaskCenterSnapshot } = await import("./sprixApi");
     mocks.appeals.mockResolvedValue([]);
-    mocks.get.mockResolvedValue([
-      {
-        task: {
-          id: "task-1",
-          reward: 100,
-          status: "OFFLINE",
-          offlineReason: "MAINTENANCE_WINDOW"
+    mocks.get.mockImplementation((url: string) => (url === "/api/v1/admin/tasks/acceptance-reviews"
+      ? Promise.resolve([])
+      : Promise.resolve([
+        {
+          task: {
+            id: "task-1",
+            reward: 100,
+            status: "OFFLINE",
+            offlineReason: "MAINTENANCE_WINDOW"
+          }
         }
-      }
-    ]);
+      ])));
 
     const snapshot = await readRemoteTaskCenterSnapshot();
 

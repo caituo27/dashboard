@@ -58,6 +58,35 @@ export type SmsCodeResponse = {
   resendIntervalSeconds: number;
 };
 
+export type AlipayBindSession = {
+  sessionId: string;
+  qrPayload: string;
+  expiresInSeconds: number;
+  pollIntervalMs: number;
+};
+
+export type AlipayBindStatus = {
+  sessionId: string;
+  status: string;
+  expiresInSeconds: number;
+  withdrawalAccount?: WithdrawalAccount | null;
+  completed: boolean;
+};
+
+type RemoteAlipayBindSession = {
+  sessionId?: string;
+  qrPayload?: string;
+  expiresInSeconds?: number;
+  pollIntervalSeconds?: number;
+};
+
+type RemoteAlipayBindStatus = {
+  sessionId?: string;
+  status?: string;
+  expiresInSeconds?: number;
+  withdrawalAccount?: WithdrawalAccount | null;
+};
+
 const tagText: Record<string, string> = {
   "software-development": "软件开发",
   "web-generation": "网页生成",
@@ -170,11 +199,12 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
 
   if (!token) return { tasks };
 
-  const [accountResponse, agentsResponse, myTasksResponse, withdrawableResponse] = await Promise.all([
+  const [accountResponse, agentsResponse, myTasksResponse, withdrawableResponse, withdrawalAccountResponse] = await Promise.all([
     accountApi.current(),
     agentApi.list1(),
     myTaskApi.list(),
-    earningsApi.withdrawable()
+    earningsApi.withdrawable(),
+    http.get<unknown, WithdrawalAccount | null>("/api/v1/account/withdrawal-account")
   ]);
 
   const account = accountResponse;
@@ -190,6 +220,7 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
     myTasks,
     account: {
       ...(account ? mapAccount(account) : {}),
+      ...mapWithdrawalAccountState(withdrawalAccountResponse),
       isLoggedIn: true,
       ...(typeof withdrawableAmount === "number" ? { withdrawableAmount } : {})
     }
@@ -234,6 +265,34 @@ export async function bindRemoteWithdrawalAccount(account: string, verifiedName:
     }
   });
   return requireValue<WithdrawalAccount>(response, "绑定收款账户失败");
+}
+
+export async function createRemoteAlipayBindSession(verifiedName: string): Promise<AlipayBindSession> {
+  const response = await http.post<unknown, RemoteAlipayBindSession>("/api/v1/account/alipay-bind-sessions", { verifiedName });
+  const session = requireValue<RemoteAlipayBindSession>(response, "支付宝绑定二维码不可用");
+  if (!session.sessionId || !session.qrPayload) {
+    throw new Error("支付宝绑定二维码不可用");
+  }
+
+  return {
+    sessionId: session.sessionId,
+    qrPayload: session.qrPayload,
+    expiresInSeconds: session.expiresInSeconds ?? 0,
+    pollIntervalMs: Math.max(session.pollIntervalSeconds ?? 2, 1) * 1000
+  };
+}
+
+export async function readRemoteAlipayBindStatus(sessionId: string): Promise<AlipayBindStatus> {
+  const response = await http.get<unknown, RemoteAlipayBindStatus>(`/api/v1/account/alipay-bind-sessions/${encodeURIComponent(sessionId)}`);
+  const status = requireValue<RemoteAlipayBindStatus>(response, "支付宝绑定状态不可用");
+  const normalizedStatus = status.status ?? "PENDING";
+  return {
+    sessionId: status.sessionId ?? sessionId,
+    status: normalizedStatus,
+    expiresInSeconds: status.expiresInSeconds ?? 0,
+    withdrawalAccount: status.withdrawalAccount,
+    completed: normalizedStatus === "COMPLETED" && Boolean(status.withdrawalAccount)
+  };
 }
 
 export async function applyRemoteWithdrawal(amount: number): Promise<WithdrawalRecord> {
@@ -289,6 +348,24 @@ function mapAccount(account: UserAccount): Partial<SprixState["account"]> {
     realPersonVerified: Boolean(account.realPersonVerified),
     freelancerAgreementSigned: Boolean(account.freelancerAgreementSigned),
     withdrawableAmount: account.withdrawableAmount ?? 0
+  };
+}
+
+export function mapWithdrawalAccountState(account?: WithdrawalAccount | null): Partial<SprixState["account"]> {
+  if (!account) {
+    return {
+      alipayBound: false,
+      alipayAccountMasked: "",
+      alipayRealNameMatched: false,
+      withdrawAccountStatus: "未绑定"
+    };
+  }
+
+  return {
+    alipayBound: true,
+    alipayAccountMasked: account.alipayAccount ?? "",
+    alipayRealNameMatched: Boolean(account.realNameMatched),
+    withdrawAccountStatus: account.realNameMatched ? "可用" : "需更换"
   };
 }
 
@@ -374,6 +451,7 @@ function mapAgentStatus(status?: string): Agent["status"] {
 }
 
 function mapMyTaskStatus(status?: string): MyTaskStatus {
+  if (status === "PLATFORM_REVIEWING") return "待平台审核";
   if (status === "TERMINATED") return "已终止";
   if (status === "ACCEPTANCE_FAILED") return "验收未通过";
   if (status === "SETTLING") return "结算中";
@@ -427,8 +505,13 @@ function mapOfflineReason(reason?: string) {
 function mapCurrentNode(node?: string) {
   const nodes: Record<string, string> = {
     PLATFORM_ACCEPTANCE: "平台验收",
+    PLATFORM_REVIEWING: "平台审核中",
+    platform_reviewing: "平台审核中",
+    platform_rejected: "平台审核不通过",
+    reward_recording: "报酬记录中",
     SETTLEMENT: "报酬入账",
     GENERATING: "生成结果",
+    GENERATING_RESULT: "生成结果",
     QUALITY_CHECK: "质量检查"
   };
   return node ? nodes[node] ?? node : "执行中";

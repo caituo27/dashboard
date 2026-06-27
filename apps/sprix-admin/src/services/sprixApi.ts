@@ -19,6 +19,7 @@ import type {
   FundException,
   FundFlow,
   Payout,
+  ReviewingExecution,
   RunningExecution,
   Settlement,
   SettlementStatus,
@@ -52,6 +53,7 @@ export type UpsertAdminTaskPayload = {
 export type AdminTaskCenterSnapshot = {
   tasks: Task[];
   adminExecutionRecords: AdminExecutionRecords;
+  acceptanceReviews: ReviewingExecution[];
   appealCount: number;
 };
 
@@ -88,6 +90,7 @@ type RemoteAdminTaskSummary = {
   task: TaskEntity;
   executionTotal?: number;
   runningExecutionCount?: number;
+  reviewingExecutionCount?: number;
   completedExecutionCount?: number;
   terminatedExecutionCount?: number;
 };
@@ -108,6 +111,26 @@ type RemoteAdminExecutionRow = {
   startedAt?: string;
   updatedAt?: string;
   completedAt?: string;
+};
+
+type RemoteAcceptanceReviewRow = {
+  executionId?: string;
+  taskId?: string;
+  taskTitle?: string;
+  taskCategory?: string;
+  userName?: string;
+  userPhone?: string;
+  agentName?: string;
+  agentScore?: number | null;
+  acceptanceStatus?: string;
+  acceptanceScore?: number | null;
+  acceptanceSummary?: string;
+  acceptanceIssues?: string;
+  currentNode?: string;
+  progress?: string;
+  submittedAt?: string;
+  startedAt?: string;
+  updatedAt?: string;
 };
 
 type RemoteAdminAppealDetail = {
@@ -137,14 +160,16 @@ export async function authenticateAdmin(identity: string, code: string) {
 }
 
 export async function readRemoteTaskCenterSnapshot(): Promise<AdminTaskCenterSnapshot> {
-  const [taskSummaries, appealsResponse] = await Promise.all([
+  const [taskSummaries, acceptanceReviews, appealsResponse] = await Promise.all([
     http.get<unknown, RemoteAdminTaskSummary[]>("/api/v1/admin/tasks/summaries"),
+    readRemoteAcceptanceReviews(),
     adminAppealApi.appeals()
   ]);
   const tasks = listValue<RemoteAdminTaskSummary>(taskSummaries).map(mapTaskSummary);
   return {
     tasks,
     adminExecutionRecords: {},
+    acceptanceReviews,
     appealCount: listValue<AppealRecord>(appealsResponse).length
   };
 }
@@ -229,6 +254,19 @@ export async function markRemotePayoutExceptionHandled(withdrawalId: string, rea
   return adminFundsApi.markPayoutExceptionHandled({ withdrawalId, withdrawalReviewRequest: { reason } });
 }
 
+export async function readRemoteAcceptanceReviews(): Promise<ReviewingExecution[]> {
+  const response = await http.get<unknown, RemoteAcceptanceReviewRow[]>("/api/v1/admin/tasks/acceptance-reviews");
+  return listValue<RemoteAcceptanceReviewRow>(response).map(mapAcceptanceReview);
+}
+
+export async function approveRemoteAcceptanceReview(executionId: string) {
+  return http.post<unknown, unknown>(`/api/v1/admin/tasks/executions/${encodeURIComponent(executionId)}/acceptance/approve`, {});
+}
+
+export async function rejectRemoteAcceptanceReview(executionId: string, reason: string) {
+  return http.post<unknown, unknown>(`/api/v1/admin/tasks/executions/${encodeURIComponent(executionId)}/acceptance/reject`, { reason });
+}
+
 function requireValue<T>(value: T | undefined, fallbackMessage: string): T {
   if (value == null) throw new Error(fallbackMessage);
   return value;
@@ -273,6 +311,7 @@ function mapTaskSummary(summary: RemoteAdminTaskSummary): Task {
     ...mapTask(requireObject(summary.task, "task")),
     executionTotal: numberValue(summary.executionTotal),
     runningExecutionCount: numberValue(summary.runningExecutionCount),
+    reviewingExecutionCount: numberValue(summary.reviewingExecutionCount),
     completedExecutionCount: numberValue(summary.completedExecutionCount),
     terminatedExecutionCount: numberValue(summary.terminatedExecutionCount)
   };
@@ -280,6 +319,7 @@ function mapTaskSummary(summary: RemoteAdminTaskSummary): Task {
 
 function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionRecords[string] {
   const running: RunningExecution[] = [];
+  const reviewing: ReviewingExecution[] = [];
   const terminated: TerminatedExecution[] = [];
   const completed: CompletedExecution[] = [];
 
@@ -307,6 +347,21 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
         progress: row.progress ?? "-",
         startedAt: formatDateTime(row.startedAt)
       });
+    } else if (row.executionStatus === "PLATFORM_REVIEWING") {
+      reviewing.push({
+        executionId: requireText(row.executionId, "executionId"),
+        userName: row.userName ?? "-",
+        phone: row.userPhone ?? "-",
+        agentName: row.agentName ?? "-",
+        agentScore: row.agentScore == null ? "-" : `${row.agentScore}/100`,
+        acceptanceStatus: "待平台审核",
+        acceptanceScore: "-",
+        acceptanceSummary: "-",
+        acceptanceIssues: "-",
+        currentNode: mapCurrentNode(row.currentNode),
+        progress: row.progress ?? "-",
+        submittedAt: formatDateTime(row.completedAt ?? row.updatedAt)
+      });
     } else {
       completed.push({
         executionId: row.executionId,
@@ -323,7 +378,28 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
     }
   }
 
-  return { running, terminated, completed };
+  return { running, reviewing, terminated, completed };
+}
+
+function mapAcceptanceReview(row: RemoteAcceptanceReviewRow): ReviewingExecution {
+  const executionId = requireText(row.executionId, "executionId");
+  return {
+    executionId,
+    taskId: row.taskId,
+    taskTitle: row.taskTitle,
+    taskCategory: row.taskCategory,
+    userName: row.userName ?? "-",
+    phone: row.userPhone ?? "-",
+    agentName: row.agentName ?? "-",
+    agentScore: row.agentScore == null ? "-" : `${row.agentScore}/100`,
+    acceptanceStatus: mapAcceptanceStatus(row.acceptanceStatus),
+    acceptanceScore: row.acceptanceScore == null ? "-" : `${row.acceptanceScore}/100`,
+    acceptanceSummary: row.acceptanceSummary || "-",
+    acceptanceIssues: mapAcceptanceIssues(row.acceptanceIssues),
+    currentNode: mapCurrentNode(row.currentNode),
+    progress: row.progress ?? "-",
+    submittedAt: formatDateTime(row.submittedAt ?? row.updatedAt ?? row.startedAt)
+  };
 }
 
 function mapOperationLog(log: RemoteAuditLog): AdminOperationLog {
@@ -501,6 +577,10 @@ function mapOfflineReason(reason?: string) {
 function mapCurrentNode(node?: string) {
   const nodes: Record<string, string> = {
     PLATFORM_ACCEPTANCE: "平台验收",
+    PLATFORM_REVIEWING: "平台审核中",
+    platform_reviewing: "平台审核中",
+    platform_rejected: "平台审核不通过",
+    reward_recording: "报酬记录中",
     SETTLEMENT: "报酬入账",
     GENERATING: "生成结果",
     GENERATING_RESULT: "生成结果",
@@ -513,6 +593,7 @@ function mapFlowType(type?: string) {
   const types: Record<string, string> = {
     TASK_SETTLEMENT_INCOME: "任务结算入账",
     SETTLEMENT_POSTED: "任务结算入账",
+    PLATFORM_REVIEW_APPROVED_SETTLEMENT: "平台审核通过结算入账",
     APPEAL_APPROVED_SETTLEMENT: "申诉通过结算入账",
     WITHDRAWAL_REVIEWING: "提现申请处理中",
     WITHDRAWAL_PAID: "提现打款完成",
@@ -523,6 +604,28 @@ function mapFlowType(type?: string) {
     WITHDRAWAL_EXCEPTION_HANDLED: "异常处理"
   };
   return type ? types[type] ?? type : "-";
+}
+
+function mapAcceptanceStatus(status?: string) {
+  if (status === "passed") return "Agent 评分通过";
+  if (status === "failed") return "Agent 评分不通过";
+  return "待平台审核";
+}
+
+function mapAcceptanceIssues(value?: string) {
+  if (!value) return "-";
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (Array.isArray(parsed)) {
+      return parsed
+        .map((item) => (typeof item === "string" ? item : JSON.stringify(item)))
+        .filter(Boolean)
+        .join("；") || "无";
+    }
+  } catch {
+    return value;
+  }
+  return value;
 }
 
 function readString(source: unknown, key: string) {

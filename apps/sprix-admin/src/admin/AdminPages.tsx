@@ -5,8 +5,9 @@ import type { ColumnsType } from "antd/es/table";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { CircleDollarSign, ClipboardList, ShieldCheck } from "lucide-react";
-import type { AdminAppeal, AdminOperationLog, CompletedExecution, FundException, Payout, RunningExecution, Task, TerminatedExecution, Withdrawal } from "../types";
+import type { AdminAppeal, AdminOperationLog, CompletedExecution, FundException, Payout, ReviewingExecution, RunningExecution, Task, TerminatedExecution, Withdrawal } from "../types";
 import {
+  approveRemoteAcceptanceReview,
   approveRemoteAppeal,
   approveRemoteWithdrawal,
   markRemotePayoutExceptionHandled,
@@ -17,6 +18,7 @@ import {
   readRemoteFunds,
   readRemoteTaskCenterSnapshot,
   readRemoteTaskDetail,
+  rejectRemoteAcceptanceReview,
   rejectRemoteAppeal,
   rejectRemoteWithdrawal,
   returnRemoteWithdrawalForReview,
@@ -50,6 +52,7 @@ function getFundExceptionBackendId(record: Pick<FundException, "backendId" | "wi
 
 export function AdminTaskCenter() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const taskCenterQuery = useQuery({
     queryKey: ["sprix-admin", "task-center"],
     queryFn: readRemoteTaskCenterSnapshot,
@@ -63,6 +66,7 @@ export function AdminTaskCenter() {
     return <Surface className="p-8">任务数据加载失败：{messageText}</Surface>;
   }
   const tasks = taskCenterQuery.data?.tasks ?? [];
+  const acceptanceReviews = taskCenterQuery.data?.acceptanceReviews ?? [];
   const appealCount = taskCenterQuery.data?.appealCount ?? 0;
   const visibleTasks = tasks.filter((task) => {
     if (task.taskStatus === "已删除") return false;
@@ -72,6 +76,40 @@ export function AdminTaskCenter() {
     return `${task.title}${task.category}${task.sourceType}`.includes(query);
   });
   const executionCount = tasks.reduce((sum, task) => sum + (task.executionTotal ?? 0), 0);
+  const reviewCount = acceptanceReviews.length;
+  const approveAcceptanceReview = (record: ReviewingExecution) => {
+    Modal.confirm({
+      title: "确认平台审核通过",
+      content: "审核通过后将生成结算记录，后续仍需在资金中心执行结算入账。",
+      okText: "审核通过",
+      onOk: async () => {
+        try {
+          await approveRemoteAcceptanceReview(record.executionId);
+          await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+          message.success("平台审核已通过，任务进入结算中");
+        } catch (error) {
+          message.error(error instanceof Error ? `审核通过失败：${error.message}` : "审核通过失败");
+        }
+      }
+    });
+  };
+  const rejectAcceptanceReview = (record: ReviewingExecution) => {
+    Modal.confirm({
+      title: "确认平台审核不通过",
+      content: "审核不通过后，用户任务将变为验收未通过，并可按现有规则发起申诉。",
+      okText: "审核不通过",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await rejectRemoteAcceptanceReview(record.executionId, "平台人工复核不通过");
+          await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+          message.success("已处理为平台审核不通过");
+        } catch (error) {
+          message.error(error instanceof Error ? `审核驳回失败：${error.message}` : "审核驳回失败");
+        }
+      }
+    });
+  };
   const taskColumns: ColumnsType<Task> = [
     {
       title: "任务",
@@ -96,6 +134,7 @@ export function AdminTaskCenter() {
       render: (_, task) => `${task.remainingSlots}/${task.totalSlots}`
     },
     { title: "执行记录", dataIndex: "executionTotal", width: 110, render: (value) => value ?? 0 },
+    { title: "待审核", dataIndex: "reviewingExecutionCount", width: 100, render: (value) => value ?? 0 },
     { title: "发布时间", dataIndex: "publishedAt", width: 160 },
     {
       title: "备注",
@@ -134,11 +173,12 @@ export function AdminTaskCenter() {
         subtitle="集中查看任务发布状态、执行记录、申诉数量和任务操作。"
         actions={<PendingTaskWriteButton action={getAdminTaskWriteAction("publish")} primary />}
       />
-      <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         <MetricCard title="全部任务" value={tasks.filter((task) => task.taskStatus !== "已删除").length} icon={<ClipboardList size={19} />} />
         <MetricCard title="已发布任务" value={tasks.filter((task) => task.taskStatus === "已发布").length} />
         <MetricCard title="已下线任务" value={tasks.filter((task) => task.taskStatus === "已下线").length} />
         <MetricCard title="执行记录" value={executionCount} icon={primitiveIcons.clock} />
+        <MetricCard title="待平台审核" value={reviewCount} icon={<ShieldCheck size={19} />} />
         <MetricCard title="申诉记录" value={appealCount} icon={<ShieldCheck size={19} />} />
       </div>
       <Surface className="sprix-table-card p-4">
@@ -160,6 +200,16 @@ export function AdminTaskCenter() {
           onRow={(task) => ({ onClick: () => navigate(`/tasks/${task.id}`) })}
         />
       </Surface>
+      <Surface className="sprix-table-card mt-4 p-4">
+        <h3 className="sprix-section-title">平台验收审核</h3>
+        <p className="mt-1 text-sm text-ink-soft">Local Agent 完成评分后，需在这里人工复核，通过后才会生成结算记录。</p>
+        <AcceptanceReviewTable
+          data={acceptanceReviews}
+          showTask
+          onApprove={approveAcceptanceReview}
+          onReject={rejectAcceptanceReview}
+        />
+      </Surface>
     </>
   );
 }
@@ -172,6 +222,60 @@ function PendingTaskWriteButton({ action, primary = false }: { action: AdminTask
         {action.label}
       </ButtonComponent>
     </Tooltip>
+  );
+}
+
+function AcceptanceReviewTable({
+  data,
+  showTask = false,
+  onApprove,
+  onReject
+}: {
+  data: ReviewingExecution[];
+  showTask?: boolean;
+  onApprove: (record: ReviewingExecution) => void;
+  onReject: (record: ReviewingExecution) => void;
+}) {
+  const columns: ColumnsType<ReviewingExecution> = [
+    ...(showTask
+      ? [
+          { title: "关联任务", dataIndex: "taskTitle", width: 260 },
+          { title: "任务分类", dataIndex: "taskCategory", width: 130 }
+        ] satisfies ColumnsType<ReviewingExecution>
+      : []),
+    { title: "executionId", dataIndex: "executionId", width: 280 },
+    { title: "执行用户", dataIndex: "userName", width: 130 },
+    { title: "手机号", dataIndex: "phone", width: 140 },
+    { title: "执行 Agent", dataIndex: "agentName", width: 160 },
+    { title: "Agent 综合评分", dataIndex: "agentScore", width: 130 },
+    { title: "验收状态", dataIndex: "acceptanceStatus", width: 140, render: (value) => <StatusTag status={value} /> },
+    { title: "验收评分", dataIndex: "acceptanceScore", width: 110 },
+    { title: "验收摘要", dataIndex: "acceptanceSummary", width: 240 },
+    { title: "问题记录", dataIndex: "acceptanceIssues", width: 240 },
+    { title: "当前节点", dataIndex: "currentNode", width: 130 },
+    { title: "提交时间", dataIndex: "submittedAt", width: 160 },
+    {
+      title: "操作",
+      fixed: "right",
+      width: 170,
+      render: (_, record) => (
+        <div className="flex flex-wrap gap-1">
+          <Button type="link" onClick={() => onApprove(record)}>通过</Button>
+          <Button type="link" danger onClick={() => onReject(record)}>不通过</Button>
+        </div>
+      )
+    }
+  ];
+  return (
+    <Table
+      className="mt-4"
+      rowKey="executionId"
+      dataSource={data}
+      columns={columns}
+      pagination={{ pageSize: 6 }}
+      locale={{ emptyText: "暂无待平台审核记录" }}
+      scroll={{ x: showTask ? 2100 : 1700 }}
+    />
   );
 }
 
@@ -340,6 +444,7 @@ export function AdminTaskDetail() {
         <div className="mt-3 grid gap-3 md:grid-cols-4">
           {[
             ["执行中", records?.running.length ?? 0],
+            ["待平台审核", records?.reviewing.length ?? 0],
             ["已终止", records?.terminated.length ?? 0],
             ["已完成", records?.completed.length ?? 0],
             ["申诉记录", records?.completed.filter((item) => item.appealStatus !== "无申诉").length ?? 0]
@@ -393,12 +498,48 @@ function AdminExecutionRecords({
 }: {
   records?: {
     running: RunningExecution[];
+    reviewing: ReviewingExecution[];
     terminated: TerminatedExecution[];
     completed: CompletedExecution[];
   };
 }) {
+  const queryClient = useQueryClient();
+  const approveAcceptanceReview = (record: ReviewingExecution) => {
+    Modal.confirm({
+      title: "确认平台审核通过",
+      content: "审核通过后将生成结算记录，后续仍需在资金中心执行结算入账。",
+      okText: "审核通过",
+      onOk: async () => {
+        try {
+          await approveRemoteAcceptanceReview(record.executionId);
+          await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+          message.success("平台审核已通过，任务进入结算中");
+        } catch (error) {
+          message.error(error instanceof Error ? `审核通过失败：${error.message}` : "审核通过失败");
+        }
+      }
+    });
+  };
+  const rejectAcceptanceReview = (record: ReviewingExecution) => {
+    Modal.confirm({
+      title: "确认平台审核不通过",
+      content: "审核不通过后，用户任务将变为验收未通过，并可按现有规则发起申诉。",
+      okText: "审核不通过",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await rejectRemoteAcceptanceReview(record.executionId, "平台人工复核不通过");
+          await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+          message.success("已处理为平台审核不通过");
+        } catch (error) {
+          message.error(error instanceof Error ? `审核驳回失败：${error.message}` : "审核驳回失败");
+        }
+      }
+    });
+  };
   const allRecords = [
     ...(records?.running ?? []).map((item) => ({ ...item, status: "执行中", time: item.startedAt })),
+    ...(records?.reviewing ?? []).map((item) => ({ ...item, status: "待平台审核", time: item.submittedAt })),
     ...(records?.terminated ?? []).map((item) => ({ ...item, status: "已终止", time: item.terminatedAt })),
     ...(records?.completed ?? []).map((item) => ({ ...item, status: item.acceptanceStatus, time: item.completedAt }))
   ];
@@ -466,6 +607,17 @@ function AdminExecutionRecords({
             key: "running",
             label: "执行中",
             children: <Table rowKey={(record) => record.executionId ?? record.startedAt} columns={runningColumns} dataSource={records?.running ?? []} pagination={false} locale={{ emptyText: "暂无执行中记录" }} scroll={{ x: 1160 }} />
+          },
+          {
+            key: "reviewing",
+            label: "待平台审核",
+            children: (
+              <AcceptanceReviewTable
+                data={records?.reviewing ?? []}
+                onApprove={approveAcceptanceReview}
+                onReject={rejectAcceptanceReview}
+              />
+            )
           },
           {
             key: "terminated",

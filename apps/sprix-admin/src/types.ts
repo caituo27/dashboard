@@ -85,6 +85,7 @@ export type Task = {
   acceptanceResult: string;
   executionTotal?: number;
   runningExecutionCount?: number;
+  reviewingExecutionCount?: number;
   completedExecutionCount?: number;
   terminatedExecutionCount?: number;
 };
@@ -132,6 +133,24 @@ export type TerminatedExecution = {
   terminatedAt: string;
 };
 
+export type ReviewingExecution = {
+  executionId: string;
+  taskId?: string;
+  taskTitle?: string;
+  taskCategory?: string;
+  userName: string;
+  phone: string;
+  agentName: string;
+  agentScore: string;
+  acceptanceStatus: string;
+  acceptanceScore: string;
+  acceptanceSummary: string;
+  acceptanceIssues: string;
+  currentNode: string;
+  progress: string;
+  submittedAt: string;
+};
+
 export type CompletedExecution = {
   executionId?: string;
   executionIndex?: number;
@@ -149,6 +168,7 @@ export type AdminExecutionRecords = Record<
   string,
   {
     running: RunningExecution[];
+    reviewing: ReviewingExecution[];
     terminated: TerminatedExecution[];
     completed: CompletedExecution[];
   }

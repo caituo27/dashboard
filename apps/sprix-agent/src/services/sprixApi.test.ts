@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { accountApiMock, agentApiMock, authApiMock, earningsApiMock, httpPostMock, myTaskApiMock, taskApiMock } = vi.hoisted(() => ({
+const { accountApiMock, agentApiMock, authApiMock, earningsApiMock, httpGetMock, httpPostMock, myTaskApiMock, taskApiMock } = vi.hoisted(() => ({
   accountApiMock: {
     current: vi.fn()
   },
@@ -16,6 +16,7 @@ const { accountApiMock, agentApiMock, authApiMock, earningsApiMock, httpPostMock
   earningsApiMock: {
     withdrawable: vi.fn()
   },
+  httpGetMock: vi.fn(),
   httpPostMock: vi.fn(),
   myTaskApiMock: {
     list: vi.fn()
@@ -27,6 +28,7 @@ const { accountApiMock, agentApiMock, authApiMock, earningsApiMock, httpPostMock
 
 vi.mock("../utils/http", () => ({
   http: {
+    get: httpGetMock,
     post: httpPostMock
   }
 }));
@@ -56,6 +58,7 @@ describe("Sprix API WeChat login adapter", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    httpGetMock.mockResolvedValue(null);
   });
 
   it("creates a QR login session from the backend scan session", async () => {
