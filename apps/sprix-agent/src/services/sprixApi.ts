@@ -158,10 +158,16 @@ type RemoteAgentEvaluation = {
   agentId?: string | null;
   localAgentId?: string | null;
   status?: string | null;
+  mode?: string | null;
+  overallScore?: number | null;
+  dimensions?: Record<string, RemoteAgentEvaluationDimension | null> | null;
+  summary?: string | null;
+  improvements?: string[] | null;
   questions?: string[] | null;
   steps?: RemoteAgentEvaluationStep[] | null;
   transcript?: RemoteAgentEvaluationTranscriptItem[] | null;
   result?: RemoteAgentEvaluationResult | null;
+  error?: string | null;
   startedAt?: string | null;
   completedAt?: string | null;
   createdAt?: string | null;
@@ -276,8 +282,8 @@ export type LocalAgentEnrollment = {
 };
 
 export async function createLocalAgentEnrollment(claimToken: string): Promise<LocalAgentEnrollment> {
-  const response = await http.post("/api/v1/local-agent/enrollments", { claimToken });
-  const enrollment = requireValue(response as unknown as LocalAgentEnrollment | undefined, "本机 Agent 连接凭证获取失败");
+  const response = await http.post<unknown, LocalAgentEnrollment | undefined>("/api/v1/local-agent/enrollments", { claimToken });
+  const enrollment = requireValue(response, "本机 Agent 连接凭证获取失败");
 
   if (!enrollment.enrollmentToken) {
     throw new Error("本机 Agent 连接凭证获取失败");
@@ -556,7 +562,7 @@ function mapAgent(agent: RemoteAgentProfileResponse): Agent {
 }
 
 function normalizeOptionalAgentEvaluation(evaluation?: RemoteAgentEvaluation | null) {
-  if (!evaluation?.evaluationId) return undefined;
+  if (!evaluation?.evaluationId && !evaluation?.status && !evaluation?.result?.status) return undefined;
   return normalizeAgentEvaluation(evaluation);
 }
 
@@ -564,6 +570,17 @@ function normalizeAgentEvaluation(evaluation: RemoteAgentEvaluation): AgentEvalu
   const status = normalizeEvaluationStatus(evaluation.status ?? evaluation.result?.status);
   const steps = normalizeEvaluationSteps(evaluation.steps);
   const transcript = normalizeEvaluationTranscript(evaluation.transcript);
+  const resultPayload = evaluation.result ?? {
+    status: evaluation.status,
+    mode: evaluation.mode,
+    overallScore: evaluation.overallScore,
+    dimensions: evaluation.dimensions,
+    summary: evaluation.summary,
+    improvements: evaluation.improvements,
+    steps: evaluation.steps,
+    transcript: evaluation.transcript,
+    error: evaluation.error
+  };
   return {
     evaluationId: evaluation.evaluationId ?? "",
     agentId: evaluation.agentId ?? "",
@@ -572,7 +589,7 @@ function normalizeAgentEvaluation(evaluation: RemoteAgentEvaluation): AgentEvalu
     questions: listValue(evaluation.questions).filter(Boolean),
     steps,
     transcript,
-    result: normalizeEvaluationResult(evaluation.result, status, steps, transcript),
+    result: normalizeEvaluationResult(resultPayload, status, steps, transcript),
     startedAt: evaluation.startedAt ?? "",
     completedAt: evaluation.completedAt ?? null,
     createdAt: evaluation.createdAt ?? "",

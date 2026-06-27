@@ -52,6 +52,34 @@ function showRequestError(error: unknown, fallback: string, prefix = "") {
   message.error(error instanceof Error ? `${prefix}${error.message}` : fallback);
 }
 
+const activeAgentEvaluationStatuses: ReadonlySet<AgentEvaluation["status"]> = new Set(["running", "judging"]);
+
+const agentEvaluationStatusLabels: Record<AgentEvaluation["status"], string> = {
+  running: "能力画像生成中",
+  judging: "能力画像评分中",
+  completed: "能力画像已生成",
+  failed: "测评失败"
+};
+
+const agentEvaluationActionLabels: Record<AgentEvaluation["status"], string> = {
+  running: "查看进度",
+  judging: "查看进度",
+  completed: "查看结果",
+  failed: "重新评测"
+};
+
+function isAgentEvaluationActive(evaluation?: AgentEvaluation) {
+  return evaluation ? activeAgentEvaluationStatuses.has(evaluation.status) : false;
+}
+
+function getAgentEvaluationStatusLabel(evaluation?: AgentEvaluation) {
+  return evaluation ? agentEvaluationStatusLabels[evaluation.status] : "未测评";
+}
+
+function getAgentEvaluationActionLabel(agent: Agent) {
+  return agent.evaluation ? agentEvaluationActionLabels[agent.evaluation.status] : "开始评测";
+}
+
 export function LandingPage({ openLogin }: UserPageProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -263,6 +291,10 @@ export function TaskDetailPage({ openLogin }: UserPageProps) {
           message.success("接单成功，任务已进入执行中");
           navigate("/agent/my-tasks");
         } catch (error) {
+          if (!(error instanceof Error) && !isGlobalAuthError(error)) {
+            showRequestError(error, "接单失败", "接单失败：");
+            return;
+          }
           showRequestError(error, "接单失败", "接单失败：");
         }
       }
@@ -336,6 +368,22 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
     const refreshedAgents = await readRemoteAgents();
     mergeRemoteState({ agents: refreshedAgents });
   }, [mergeRemoteState]);
+  const activeEvaluationKey = useMemo(
+    () =>
+      agents
+        .filter((agent) => isAgentEvaluationActive(agent.evaluation))
+        .map((agent) => `${agent.id}:${agent.evaluation?.status}`)
+        .join("|"),
+    [agents]
+  );
+
+  useEffect(() => {
+    if (!account.isLoggedIn || !activeEvaluationKey) return;
+    const poll = window.setInterval(() => {
+      void refreshAgents().catch(() => undefined);
+    }, 3_000);
+    return () => window.clearInterval(poll);
+  }, [account.isLoggedIn, activeEvaluationKey, refreshAgents]);
 
   const setCurrent = async (agent: Agent) => {
     if (!account.isLoggedIn) {
@@ -361,7 +409,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
     }
   };
 
-  const startAgentEvaluation = async (agent: Agent) => {
+  const openAgentEvaluation = async (agent: Agent) => {
     if (!account.isLoggedIn) {
       openLogin();
       return;
@@ -372,15 +420,20 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
     setEvaluationError(undefined);
     setEvaluationLoading(true);
     try {
-      const started = await startRemoteAgentEvaluation(agent.id);
-      setEvaluation(started);
+      const nextEvaluation = agent.evaluation && agent.evaluation.status !== "failed"
+        ? await readLatestRemoteAgentEvaluation(agent.id)
+        : await startRemoteAgentEvaluation(agent.id);
+      setEvaluation(nextEvaluation);
       if (current?.id === agent.id) {
-        setCurrentEvaluation(started);
+        setCurrentEvaluation(nextEvaluation);
       }
-      message.success("评测已开始");
+      await refreshAgents();
+      if (!agent.evaluation || agent.evaluation.status === "failed") {
+        message.success("评测已开始");
+      }
     } catch (error) {
-      setEvaluationError(error instanceof Error ? error.message : "评测启动失败");
-      showRequestError(error, "评测启动失败", "评测启动失败：");
+      setEvaluationError(error instanceof Error ? error.message : "评测操作失败");
+      showRequestError(error, "评测操作失败", "评测操作失败：");
     } finally {
       setEvaluationLoading(false);
     }
@@ -416,7 +469,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   }, [current?.id, evaluation, evaluationAgent, refreshAgents]);
 
   useEffect(() => {
-    if (!account.isLoggedIn || !current?.id || current.evaluation?.result.status === "completed") {
+    if (!account.isLoggedIn || !current?.id || current.evaluation?.result?.status === "completed") {
       setCurrentEvaluation(undefined);
       return;
     }
@@ -438,7 +491,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
     return () => {
       cancelled = true;
     };
-  }, [account.isLoggedIn, current?.id, current?.lastEvaluatedAt, current?.evaluation?.result.status]);
+  }, [account.isLoggedIn, current?.id, current?.lastEvaluatedAt, current?.evaluation?.result?.status]);
 
   const closeEvaluation = () => {
     setEvaluationModalOpen(false);
@@ -466,12 +519,12 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
           agent.role === "当前执行 Agent" ? (
             <>
               <SecondaryButton disabled>当前执行 Agent</SecondaryButton>
-              <ActionButton onClick={() => startAgentEvaluation(agent)}>开始评测</ActionButton>
+              <ActionButton onClick={() => openAgentEvaluation(agent)}>{getAgentEvaluationActionLabel(agent)}</ActionButton>
             </>
           ) : (
             <>
               <ActionButton onClick={() => setCurrent(agent)}>设为当前执行 Agent</ActionButton>
-              <SecondaryButton onClick={() => startAgentEvaluation(agent)}>开始评测</SecondaryButton>
+              <SecondaryButton onClick={() => openAgentEvaluation(agent)}>{getAgentEvaluationActionLabel(agent)}</SecondaryButton>
             </>
           )
         }
@@ -486,7 +539,7 @@ function isEvaluationTerminal(status: AgentEvaluation["status"]) {
 }
 
 function isCompletedAgentEvaluation(evaluation: AgentEvaluation) {
-  return evaluation.status === "completed" || evaluation.result.status === "completed";
+  return evaluation.status === "completed" || evaluation.result?.status === "completed";
 }
 
 function evaluationDimensions(result: AgentEvaluation["result"]) {
@@ -581,9 +634,9 @@ function AgentEvaluationModal({
         <div className="sprix-evaluation-footer">
           <span className={status === "running" || status === "judging" ? "is-active" : ""}>
             {status === "judging"
-              ? "正在生成测评结果"
+              ? "正在生成测评结果，关闭弹框不会取消后端任务"
               : status === "running"
-                ? `逐题向 ${agent?.name ?? "Agent"} 提问中，请稍候`
+                ? `逐题向 ${agent?.name ?? "Agent"} 提问中，关闭弹框不会取消后端任务`
                 : status === "failed"
                   ? "测评失败"
                   : "测评完成"}
@@ -635,7 +688,7 @@ function AgentEvaluationModal({
 function CurrentAgentCard({ agent }: { agent?: Agent }) {
   const summary = agent ? getAgentAdmissionSummary(agent) : undefined;
   const tagLabels = summary ? getAgentTagLabels(summary.tags) : [];
-  const evaluationResult = agent?.evaluation?.result.status === "completed" ? agent.evaluation.result : undefined;
+  const evaluationResult = agent?.evaluation?.result?.status === "completed" ? agent.evaluation.result : undefined;
   return (
     <Surface className="sprix-current-agent-card sprix-agent-profile-card p-6">
       {summary ? (
@@ -680,13 +733,14 @@ function CurrentAgentCard({ agent }: { agent?: Agent }) {
 function AbilityProfile({ agent, embedded = false, showScore = true }: { agent?: Agent; embedded?: boolean; showScore?: boolean }) {
   const ability = getAgentAbilityResult(agent);
   const summary = agent ? getAgentAdmissionSummary(agent) : undefined;
-  const evaluationResult = agent?.evaluation?.result.status === "completed" ? agent.evaluation.result : undefined;
+  const evaluationResult = agent?.evaluation?.result?.status === "completed" ? agent.evaluation.result : undefined;
   const dimensions = evaluationResult ? evaluationDimensions(evaluationResult) : [];
   const isAbilityPending = !evaluationResult && hasPendingAgentEvaluation(agent);
   const content = (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-lg font-semibold">能力画像</h3>
+        {agent?.evaluation && <StatusTag status={getAgentEvaluationStatusLabel(agent.evaluation)} />}
       </div>
       <p className="mt-3 text-sm leading-6 text-ink-soft">最近评测：{summary?.lastEvaluatedAt ?? "-"}</p>
       {evaluationResult ? (
@@ -786,7 +840,7 @@ function AgentList({
       ) : (
         <div className="space-y-3">
           {agents.map((agent) => {
-            const completedEvaluation = agent.evaluation?.result.status === "completed" ? agent.evaluation.result : undefined;
+            const completedEvaluation = agent.evaluation?.result?.status === "completed" ? agent.evaluation.result : undefined;
             return (
               <div key={agent.id} className="flex flex-col gap-4 rounded-[18px] border border-line bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex gap-4">
@@ -794,6 +848,7 @@ function AgentList({
                     <div className="flex flex-wrap items-center gap-2">
                       <h4 className="text-lg font-semibold">{agent.name}</h4>
                       <StatusTag status={agent.status} />
+                      {agent.evaluation && <StatusTag status={getAgentEvaluationStatusLabel(agent.evaluation)} />}
                     </div>
                     <p className="mt-1 text-sm text-ink-soft">
                       {completedEvaluation ? `综合评分：${scoreText(completedEvaluation.overallScore)} · ` : ""}当前角色：{agent.role} · 最近评测时间：{agent.lastEvaluatedAt}
@@ -840,6 +895,10 @@ export function MyTasksPage({ openLogin, openAppeal }: UserPageProps) {
           await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
           message.success("已重新生成执行记录");
         } catch (error) {
+          if (!(error instanceof Error) && !isGlobalAuthError(error)) {
+            showRequestError(error, "重新执行失败", "重新执行失败：");
+            return;
+          }
           showRequestError(error, "重新执行失败", "重新执行失败：");
         }
       }
@@ -1080,6 +1139,10 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
 
                     message.warning(startState.message);
                   } catch (error) {
+                    if (!(error instanceof Error) && !isGlobalAuthError(error)) {
+                      showRequestError(error, "实人认证初始化失败", "实人认证初始化失败：");
+                      return;
+                    }
                     showRequestError(error, "实人认证初始化失败", "实人认证初始化失败：");
                   } finally {
                     setSubmitting(false);
@@ -1114,6 +1177,10 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
                     setStep(2);
                     message.success("接单资格已开通");
                   } catch (error) {
+                    if (!(error instanceof Error) && !isGlobalAuthError(error)) {
+                      showRequestError(error, "协议签署失败", "协议签署失败：");
+                      return;
+                    }
                     showRequestError(error, "协议签署失败", "协议签署失败：");
                   } finally {
                     setSubmitting(false);

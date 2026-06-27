@@ -54,12 +54,31 @@ export function getAgentTagLabels(tags: string[]) {
 }
 
 export function getAgentAbilityResult(agent?: Agent): AgentAbilityResult {
-  if (agent?.evaluation?.result.status === "completed" && Object.keys(agent.evaluation.result.dimensions).length > 0) {
+  const evaluationResult = agent?.evaluation?.result;
+  const evaluationStatus = evaluationResult?.status ?? agent?.evaluation?.status;
+
+  if (evaluationStatus === "running" || evaluationStatus === "judging") {
+    return {
+      kind: "empty",
+      title: "能力画像生成中",
+      description: "后端评测任务仍在执行或评分，关闭页面不会取消任务。"
+    };
+  }
+
+  if (evaluationStatus === "failed") {
+    return {
+      kind: "empty",
+      title: "测评失败，可重新评测",
+      description: evaluationResult?.error || "本次评测未完成，可以从 Agent 列表重新发起。"
+    };
+  }
+
+  if (evaluationStatus === "completed" && evaluationResult && Object.keys(evaluationResult.dimensions).length > 0) {
     return {
       kind: "profile",
       rows: Object.entries(evaluationDimensionLabels).map(([key, label]) => ({
         label,
-        value: agent.evaluation?.result.dimensions[key]?.score ?? 0
+        value: evaluationResult.dimensions[key]?.score ?? 0
       }))
     };
   }
@@ -84,7 +103,7 @@ export function getAgentAbilityResult(agent?: Agent): AgentAbilityResult {
 }
 
 export function hasPendingAgentEvaluation(agent?: Pick<Agent, "evaluation"> | null) {
-  const status = agent?.evaluation?.status ?? agent?.evaluation?.result.status;
+  const status = agent?.evaluation?.status ?? agent?.evaluation?.result?.status;
   return status === "running" || status === "judging";
 }
 
