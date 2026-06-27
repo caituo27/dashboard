@@ -2,35 +2,30 @@ import { describe, expect, it } from "vitest";
 import { getAdminTaskWriteAction } from "./adminTaskActions";
 
 describe("admin task write actions", () => {
-  it("marks task publish as backend-pending until the Swagger write endpoint exists", () => {
+  it("enables task publish after the Swagger write endpoint is available", () => {
     expect(getAdminTaskWriteAction("publish")).toEqual({
-      label: "发布任务（待接口）",
-      disabled: true,
-      reason: "后台任务发布接口待正式接入，当前 Swagger 仅提供任务查询接口"
+      kind: "publish",
+      label: "发布任务"
     });
   });
 
-  it("marks task mutation actions as backend-pending", () => {
+  it("enables task mutation actions from the backend dev Swagger", () => {
     expect(["edit", "offline", "republish", "delete"].map((action) => getAdminTaskWriteAction(action))).toEqual([
       {
-        label: "保存修改（待接口）",
-        disabled: true,
-        reason: "后台任务编辑接口待正式接入，前端不调用未确认写入路径"
+        kind: "edit",
+        label: "保存修改"
       },
       {
-        label: "下线（待接口）",
-        disabled: true,
-        reason: "后台任务下线接口待正式接入，前端不调用未确认写入路径"
+        kind: "offline",
+        label: "下线"
       },
       {
-        label: "重新发布（待接口）",
-        disabled: true,
-        reason: "后台任务重新发布接口待正式接入，前端不调用未确认写入路径"
+        kind: "republish",
+        label: "重新发布"
       },
       {
-        label: "删除（待接口）",
-        disabled: true,
-        reason: "后台任务删除接口待正式接入，前端不调用未确认写入路径",
+        kind: "delete",
+        label: "删除",
         danger: true
       }
     ]);
