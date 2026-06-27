@@ -56,7 +56,7 @@ pnpm build
 
 ## CNB 流水线发布
 
-仓库根目录的 `.cnb.yml` 会在代码推送后构建两个前端包，并通过 rsync 直接同步到服务器站点目录：
+仓库根目录的 `.cnb.yml` 会在 tag 推送后构建两个前端包，并通过 rsync 直接同步到服务器站点目录：
 
 - `apps/sprix-agent/dist` -> C 端站点目录
 - `apps/sprix-admin/dist` -> 管理后台站点目录
@@ -87,6 +87,13 @@ VITE_LOCAL_AGENT_CLAIM_BASE_URL=http://42.194.150.73:8084
 ```
 
 `VITE_LOCAL_AGENT_CLAIM_BASE_URL` 用于从前端 `/local-agent/claim` 跳转到后端完成设备绑定；不配置时，生产环境默认跳转到 `http://42.194.150.73:8084`，避免回到 8081 前端 SPA。
+
+发布时推送 tag 触发部署，例如：
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
 
 ## 已实现页面
 

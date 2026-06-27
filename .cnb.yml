@@ -1,5 +1,5 @@
 $:
-  push:
+  tag_push:
     - imports:
         - https://cnb.cool/yztx_qxun/QXunSecurityCenter/-/blob/main/env.prod.yml
       docker:
