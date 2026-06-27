@@ -204,7 +204,7 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
     agentApi.list1(),
     myTaskApi.list(),
     earningsApi.withdrawable(),
-    http.get<unknown, WithdrawalAccount | null>("/api/v1/account/withdrawal-account")
+    readWithdrawalAccountSafely()
   ]);
 
   const account = accountResponse;
@@ -225,6 +225,14 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
       ...(typeof withdrawableAmount === "number" ? { withdrawableAmount } : {})
     }
   };
+}
+
+async function readWithdrawalAccountSafely() {
+  try {
+    return await http.get<unknown, WithdrawalAccount | null>("/api/v1/account/withdrawal-account");
+  } catch {
+    return null;
+  }
 }
 
 export async function connectRemoteAgent(agentId: string): Promise<Agent | undefined> {

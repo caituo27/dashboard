@@ -200,6 +200,24 @@ describe("Sprix API WeChat login adapter", () => {
     expect(snapshot.account?.nickname).toBe("");
   });
 
+  it("keeps the logged-in snapshot usable when withdrawal account lookup fails", async () => {
+    localStorage.setItem("sprix-auth-token", "token-1");
+    taskApiMock.market.mockResolvedValue([]);
+    accountApiMock.current.mockResolvedValue({ nickname: "用户", phone: "13800008624" });
+    agentApiMock.list1.mockResolvedValue([]);
+    myTaskApiMock.list.mockResolvedValue([]);
+    earningsApiMock.withdrawable.mockResolvedValue(0);
+    httpGetMock.mockRejectedValue(new Error("Server error"));
+
+    const snapshot = await readAgentSnapshot();
+
+    expect(snapshot.account).toMatchObject({
+      isLoggedIn: true,
+      nickname: "用户",
+      alipayBound: false
+    });
+  });
+
   it("does not invent a withdrawal arrival time when the backend omits it", () => {
     expect(
       mapRemoteWithdrawal({
