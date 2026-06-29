@@ -10,19 +10,11 @@ export type UserAdmissionState =
       reason: string;
     };
 
-export function getCurrentExecutionAgent(agents: Agent[]) {
-  return agents.find((agent) => agent.role === "当前执行 Agent");
-}
-
-export function getConnectedAgent(agents: Agent[]) {
-  return agents.find((agent) => agent.status === "已连接" || agent.status === "可用");
-}
-
 export function canVisitAgentCenterBeforeAdmission(pathname: string) {
   return pathname.replace(/\/+$/, "") === "/agent/center";
 }
 
-export function getUserAdmissionState(account: Pick<Account, "isLoggedIn">, agents: Agent[]): UserAdmissionState {
+export function getUserAdmissionState(account: Pick<Account, "isLoggedIn">, currentAgent?: Agent): UserAdmissionState {
   if (!account.isLoggedIn) {
     return {
       allowed: false,
@@ -30,17 +22,15 @@ export function getUserAdmissionState(account: Pick<Account, "isLoggedIn">, agen
     };
   }
 
-  const connectedCurrentAgent = agents.find((agent) => agent.role === "当前执行 Agent" && (agent.status === "已连接" || agent.status === "可用"));
-  const connectedAgent = connectedCurrentAgent ?? getConnectedAgent(agents);
-  if (!connectedAgent) {
+  if (!currentAgent || currentAgent.status === "离线") {
     return {
       allowed: false,
-      reason: "请先安装并启动本地 Agent"
+      reason: "请先设置当前执行 Agent"
     };
   }
 
   return {
     allowed: true,
-    currentAgent: connectedAgent
+    currentAgent
   };
 }

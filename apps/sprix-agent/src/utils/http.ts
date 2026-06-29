@@ -1,5 +1,11 @@
 import axios, { type AxiosResponse } from "axios";
 
+declare module "axios" {
+  export interface AxiosRequestConfig {
+    suppressGlobalAuth?: boolean;
+  }
+}
+
 const DEFAULT_API_BASE_URL = "/sprix-api";
 
 const ERROR_MESSAGES: Record<number, string> = {
@@ -28,11 +34,16 @@ export class GlobalAuthError extends Error {
   readonly globalAuth = true;
 }
 
+let lastAuthRequestAt = 0;
+
 export function isGlobalAuthError(error: unknown): error is GlobalAuthError {
   return error instanceof GlobalAuthError || (typeof error === "object" && error !== null && (error as { globalAuth?: unknown }).globalAuth === true);
 }
 
 function requestLogin(message: string) {
+  const now = Date.now();
+  if (now - lastAuthRequestAt < 1200) return;
+  lastAuthRequestAt = now;
   localStorage.removeItem("sprix-auth-token");
   window.dispatchEvent(new CustomEvent("sprix-auth-required", { detail: { message } }));
 }
@@ -56,6 +67,9 @@ http.interceptors.response.use(
       if (body.success === false) {
         if (body.code === "UNAUTHENTICATED") {
           const message = body.message ?? "登录已过期，请重新登录";
+          if (response.config.suppressGlobalAuth) {
+            throw new Error(message);
+          }
           requestLogin(message);
           throw new GlobalAuthError(message);
         }
@@ -73,6 +87,9 @@ http.interceptors.response.use(
     window.dispatchEvent(new CustomEvent("sprix-api-error", { detail: { status, message } }));
 
     if (status === 401) {
+      if (error.config?.suppressGlobalAuth) {
+        return Promise.reject(new Error(message));
+      }
       requestLogin(message);
       return Promise.reject(new GlobalAuthError(message));
     }

@@ -15,17 +15,18 @@ export function getPayoutRecordState(payouts: Payout[]): PayoutRecordState {
 
   return {
     kind: "empty",
-    title: "暂无提现记录",
-    description: "任务完成并通过平台验收后，系统会自动打款；后端返回记录后将在这里展示。"
+    title: "暂无打款记录",
+    description: "任务完成并通过平台验收后，平台将按规则自动打款。"
   };
 }
 
 export function getPayoutAccountText(account: Account) {
-  if (account.alipayAccountMasked) return `收款账户：${account.alipayAccountMasked}`;
+  if (account.alipayVerifiedName) return `收款人：${account.alipayVerifiedName}`;
+  if (account.alipayBound) return "收款账户已绑定";
   if (account.maskedPhone) return `收款用户：${account.maskedPhone}`;
-  return "收款信息以后端记录为准。";
+  return "收款信息待确认。";
 }
 
 export function getPayoutPageSubtitle() {
-  return "查看提现记录、到账状态和预计到账时间。";
+  return "查看打款记录、到账状态和预计到账时间。";
 }

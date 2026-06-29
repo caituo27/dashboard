@@ -35,6 +35,7 @@ export type Account = {
   freelancerAgreementSigned: boolean;
   alipayBound: boolean;
   alipayAccountMasked: string;
+  alipayVerifiedName: string;
   alipayRealNameMatched: boolean;
   withdrawAccountStatus: "未绑定" | "可用" | "需更换";
   withdrawableAmount: number;
@@ -287,9 +288,16 @@ export type FundFlow = {
   remark: string;
 };
 
+export type PlatformOverview = {
+  agentCount: number | null;
+  taskCount: number | null;
+};
+
 export type SprixState = {
   account: Account;
+  platformOverview: PlatformOverview;
   agents: Agent[];
+  currentAgent?: Agent;
   tasks: Task[];
   myTasks: MyTask[];
   adminExecutionRecords: AdminExecutionRecords;

@@ -5,6 +5,7 @@ import {
   AuthControllerApiFactory,
   EarningsControllerApiFactory,
   MyTaskControllerApiFactory,
+  PlatformControllerApiFactory,
   TaskControllerApiFactory,
   type AgentProfileResponse,
   type AgentEvaluationDetailResponse,
@@ -17,6 +18,7 @@ import {
   type FaceVerificationSession,
   type MyTaskExecutionDetail,
   type SmartAcceptResponse,
+  type PlatformOverview as RemotePlatformOverview,
   type TaskEntity,
   type TaskExecution,
   type TaskRecommendationResponse,
@@ -37,6 +39,7 @@ import type {
   AppealStatus,
   MyTask,
   MyTaskStatus,
+  PlatformOverview,
   SettlementStatus,
   SprixState,
   Task,
@@ -66,6 +69,7 @@ const appealApi = AppealControllerApiFactory(undefined, API_BASE_URL, http);
 const authApi = AuthControllerApiFactory(undefined, API_BASE_URL, http);
 const earningsApi = EarningsControllerApiFactory(undefined, API_BASE_URL, http);
 const myTaskApi = MyTaskControllerApiFactory(undefined, API_BASE_URL, http);
+const platformApi = PlatformControllerApiFactory(undefined, API_BASE_URL, http);
 const taskApi = TaskControllerApiFactory(undefined, API_BASE_URL, http);
 
 export type WechatLoginSession = {
@@ -315,24 +319,25 @@ export function resolveLocalAgentClaimBaseUrlForRuntime(configuredBaseUrl: strin
 }
 
 export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
+  const [tasksResponse, platformOverview] = await Promise.all([
+    optionalSnapshotRequest(() => taskApi.market(), []),
+    optionalSnapshotRequest(() => readPlatformOverview(), { agentCount: null, taskCount: null })
+  ]);
+  let tasks = listValue<TaskEntity>(tasksResponse).map(mapTask);
   const token = localStorage.getItem(TOKEN_KEY);
 
-  if (!token) {
-    const tasksResponse = await optionalSnapshotRequest(() => taskApi.market(), []);
-    const tasks = listValue<TaskEntity>(tasksResponse).map(mapTask);
-    return { tasks, account: { isLoggedIn: false } };
-  }
+  if (!token) return { tasks, platformOverview, account: { isLoggedIn: false } };
 
   const recommendationResponse = await optionalSnapshotRequest(() => taskApi.recommendations(), []);
-  let tasks = listValue<TaskRecommendationResponse>(recommendationResponse).map(mapTaskRecommendation);
-  if (tasks.length === 0) {
-    const tasksResponse = await optionalSnapshotRequest(() => taskApi.market(), []);
-    tasks = listValue<TaskEntity>(tasksResponse).map(mapTask);
+  const recommendedTasks = listValue<TaskRecommendationResponse>(recommendationResponse).map(mapTaskRecommendation);
+  if (recommendedTasks.length > 0) {
+    tasks = recommendedTasks;
   }
 
   const accountResponse = await accountApi.current();
-  const [agentsResponse, myTasksResponse, withdrawableResponse, withdrawalAccountResponse] = await Promise.all([
+  const [agentsResponse, currentAgentResponse, myTasksResponse, withdrawableResponse, withdrawalAccountResponse] = await Promise.all([
     optionalSnapshotRequest(() => agentApi.list1(), []),
+    optionalSnapshotRequest(() => readCurrentRemoteAgent(), undefined),
     optionalSnapshotRequest(() => myTaskApi.list(), []),
     optionalSnapshotRequest<number | undefined>(() => earningsApi.withdrawable(), undefined),
     optionalSnapshotRequest<WithdrawalAccount | undefined>(() => accountApi.currentWithdrawalAccount(), undefined)
@@ -340,6 +345,7 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
 
   const account = accountResponse;
   const agents = listValue<RemoteAgentProfileResponse>(agentsResponse).map(mapAgent);
+  const currentAgent = currentAgentResponse;
   const taskById = new Map(tasks.map((task) => [task.id, task]));
   const agentById = new Map(agents.map((agent) => [agent.id, agent]));
   const myTasks = listValue<MyTaskExecutionDetail>(myTasksResponse).map((item) => mapMyTask(item, taskById, agentById));
@@ -347,7 +353,9 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
 
   return {
     tasks,
+    platformOverview,
     agents,
+    currentAgent,
     myTasks,
     account: {
       ...(account ? mapAccount(account) : {}),
@@ -355,6 +363,14 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
       isLoggedIn: true,
       ...(typeof withdrawableAmount === "number" ? { withdrawableAmount } : {})
     }
+  };
+}
+
+export async function readPlatformOverview(): Promise<PlatformOverview> {
+  const overview = requireValue<RemotePlatformOverview>(await platformApi.overview({ suppressGlobalAuth: true }), "平台统计不可用");
+  return {
+    agentCount: typeof overview?.agentCount === "number" ? overview.agentCount : null,
+    taskCount: typeof overview?.taskCount === "number" ? overview.taskCount : null
   };
 }
 
@@ -375,6 +391,11 @@ export async function connectRemoteAgent(agentId: string): Promise<Agent | undef
 export async function readRemoteAgents(): Promise<Agent[]> {
   const response = await agentApi.list1();
   return listValue<RemoteAgentProfileResponse>(response).map(mapAgent);
+}
+
+export async function readCurrentRemoteAgent(): Promise<Agent | undefined> {
+  const response = await agentApi.currentAgent();
+  return response ? mapAgent(response) : undefined;
 }
 
 export async function disconnectRemoteAgent(agentId: string): Promise<Agent | undefined> {
@@ -528,6 +549,7 @@ export function mapWithdrawalAccountState(account?: WithdrawalAccount | null): P
     return {
       alipayBound: false,
       alipayAccountMasked: "",
+      alipayVerifiedName: "",
       alipayRealNameMatched: false,
       withdrawAccountStatus: "未绑定"
     };
@@ -536,6 +558,7 @@ export function mapWithdrawalAccountState(account?: WithdrawalAccount | null): P
   return {
     alipayBound: true,
     alipayAccountMasked: account.alipayAccount ?? "",
+    alipayVerifiedName: account.verifiedName ?? "",
     alipayRealNameMatched: Boolean(account.realNameMatched),
     withdrawAccountStatus: account.realNameMatched ? "可用" : "需更换"
   };

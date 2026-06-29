@@ -19,11 +19,17 @@ export function createInitialSprixState(): SprixState {
       freelancerAgreementSigned: false,
       alipayBound: false,
       alipayAccountMasked: "",
+      alipayVerifiedName: "",
       alipayRealNameMatched: false,
       withdrawAccountStatus: "未绑定",
       withdrawableAmount: 0
     },
+    platformOverview: {
+      agentCount: null,
+      taskCount: null
+    },
     agents: [],
+    currentAgent: undefined,
     tasks: [],
     myTasks: [],
     adminExecutionRecords: {},
@@ -45,6 +51,8 @@ export function logOut(state: SprixState): SprixState {
       ...empty.account,
       isLoggedIn: false
     },
+    currentAgent: undefined,
+    agents: [],
     tasks: state.tasks
   };
 }

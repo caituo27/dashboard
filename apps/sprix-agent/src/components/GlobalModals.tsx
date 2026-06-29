@@ -8,7 +8,7 @@ import { getAccountEditActions, getAccountProfileRows } from "../user/accountVie
 import { showRequestError } from "./requestErrors";
 
 export { BindAlipayModal } from "./BindAlipayModal";
-export { LoginRegisterModal } from "./LoginRegisterModal";
+export { AuthModal } from "../auth/AuthModal";
 
 type ModalState = {
   login: boolean;

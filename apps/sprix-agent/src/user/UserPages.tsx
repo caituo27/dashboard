@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Modal, Progress, Segmented, Steps, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { Bot, BrainCircuit, Download, PlugZap, UsersRound } from "lucide-react";
+import { Bot, BrainCircuit, PlugZap, UsersRound } from "lucide-react";
 import type { FaceVerificationSession } from "../apis/sprix";
 import type { Account, Agent, AgentEvaluation, MyTask, Task } from "../types";
 import { useSprixStore } from "../store/sprixStore";
@@ -13,6 +13,7 @@ import {
   initializeRemoteFaceVerification,
   readLatestRemoteAgentEvaluation,
   markRemoteCurrentAgent,
+  readCurrentRemoteAgent,
   readRemoteAgents,
   readRemoteAgentEvaluation,
   rerunRemoteTask,
@@ -23,7 +24,6 @@ import {
 import { ActionButton, EmptyState, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface } from "../components/Primitives";
 import { compactText, currency, scoreText } from "../utils/format";
 import { isGlobalAuthError } from "../utils/http";
-import { getConnectedAgent, getCurrentExecutionAgent, getUserAdmissionState } from "./admission";
 import { QrPayloadBox } from "../components/QrSession";
 import { getAgentAbilityResult, getAgentAdmissionSummary, getAgentTagLabels, hasPendingAgentEvaluation } from "./agentResult";
 import { getPayoutAccountText, getPayoutPageSubtitle, getPayoutRecordState } from "./earningsView";
@@ -31,7 +31,6 @@ import { getExecutionArtifactsState, getExecutionBackendPendingSections, getExec
 import { getQualificationRecordRows } from "./qualificationView";
 import { getRecommendationPanelState, getSmartAcceptMessage } from "./recommendationView";
 import { getEstimatedTokenField } from "./tokenEstimateView";
-import { checkLocalAgentHealth } from "./localAgentConnect";
 import {
   getAgreementSignButtonText,
   getMyTaskActions,
@@ -39,8 +38,6 @@ import {
   getQualificationSuccessAction,
   getTaskAcceptGate
 } from "./userFlowRules";
-
-const CLIENT_DOWNLOAD_URL = "https://cnb.cool/yztx_qxun/LocalCLIAgentRelease/-/git/raw/main/LocalCLIAgent.pkg";
 
 const evaluationDimensionLabels: Record<string, string> = {
   clarity: "表达清晰",
@@ -110,155 +107,15 @@ function useRerunTask() {
   );
 }
 
-export function LandingPage({ openLogin }: UserPageProps) {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const queryClient = useQueryClient();
-  const account = useSprixStore((state) => state.account);
-  const agents = useSprixStore((state) => state.agents);
-  const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
-  const admission = getUserAdmissionState(account, agents);
-  const hasConnectedAgent = Boolean(getConnectedAgent(agents));
-  const admissionState = location.state as { admissionReason?: string; openLogin?: boolean } | null;
-  const admissionReason = admissionState?.admissionReason;
-  const shouldOpenLogin = Boolean(admissionState?.openLogin);
-  const handledAdmissionReasonKey = useRef<string>();
-  const handledAdmissionLoginKey = useRef<string>();
-  const autoEnteredAgentCenterRef = useRef(false);
-  const [checkingLocalAgent, setCheckingLocalAgent] = useState(false);
-
-  useEffect(() => {
-    if (!admissionReason) return;
-    if (shouldOpenLogin && admissionReason === "请先登录") return;
-    const reasonKey = `${location.key}:${admissionReason}`;
-    if (handledAdmissionReasonKey.current === reasonKey) return;
-    handledAdmissionReasonKey.current = reasonKey;
-    message.warning(admissionReason);
-  }, [admissionReason, location.key, shouldOpenLogin]);
-
-  useEffect(() => {
-    if (!shouldOpenLogin || account.isLoggedIn || handledAdmissionLoginKey.current === location.key) return;
-    handledAdmissionLoginKey.current = location.key;
-    openLogin();
-  }, [account.isLoggedIn, location.key, openLogin, shouldOpenLogin]);
-
-  useEffect(() => {
-    if (!admission.allowed || autoEnteredAgentCenterRef.current) return;
-    autoEnteredAgentCenterRef.current = true;
-    navigate("/agent/center");
-  }, [admission.allowed, navigate]);
-
-  useEffect(() => {
-    if (!account.isLoggedIn || hasConnectedAgent) return;
-    let cancelled = false;
-
-    const refreshAgents = async () => {
-      try {
-        const refreshedAgents = await readRemoteAgents();
-        if (!cancelled) {
-          mergeRemoteState({ agents: refreshedAgents });
-        }
-      } catch {
-        // Keep the landing page quiet while waiting for Local Agent enrollment to complete.
-      }
-    };
-
-    void refreshAgents();
-    const poll = window.setInterval(refreshAgents, 3_000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(poll);
-    };
-  }, [account.isLoggedIn, hasConnectedAgent, mergeRemoteState]);
-
-  const startConnect = async () => {
-    if (!account.isLoggedIn) {
-      openLogin();
-      return;
-    }
-
-    setCheckingLocalAgent(true);
-    const result = await checkLocalAgentHealth();
-
-    if (result.kind === "running") {
-      await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
-      setCheckingLocalAgent(false);
-      message.success(`已检测到本机 LocalCLIAgent${result.version ? ` ${result.version}` : ""} 正在运行，正在进入 Agent 中心。`);
-      navigate("/agent/center");
-      return;
-    }
-
-    setCheckingLocalAgent(false);
-    Modal.warning({
-      title: "未检测到本机 LocalCLIAgent",
-      content: "请确认客户端已安装并正在运行。如果还没有安装，请点击“下载客户端”。",
-      okText: "知道了"
-    });
-  };
-
-  return (
-    <main className="sprix-landing">
-      <section className="sprix-landing-inner">
-        <div className="sprix-page-hero">
-          <div className="sprix-hero-kicker">Sprix AI</div>
-          <h1 className="sprix-title sprix-hero-title">让你的 Agent 自动帮你赚钱</h1>
-          <p className="sprix-hero-subtitle">
-            连接当前设备上的 LocalCLIAgent；连接成功后即可进入任务市场接单执行。
-          </p>
-          <div className="sprix-hero-actions">
-            {admission.allowed ? (
-              <ActionButton icon={<PlugZap size={16} />} onClick={() => navigate("/agent/center")}>
-                进入 Agent 中心
-              </ActionButton>
-            ) : account.isLoggedIn ? (
-              <>
-                <ActionButton icon={<PlugZap size={16} />} loading={checkingLocalAgent} onClick={startConnect}>
-                  连接本地 Agent
-                </ActionButton>
-                <SecondaryButton href={CLIENT_DOWNLOAD_URL} target="_blank" rel="noreferrer" icon={<Download size={16} />}>
-                  下载客户端
-                </SecondaryButton>
-              </>
-            ) : (
-              <>
-                <ActionButton icon={<PlugZap size={16} />} loading={checkingLocalAgent} onClick={startConnect}>
-                  登录后连接 Agent
-                </ActionButton>
-                <SecondaryButton href={CLIENT_DOWNLOAD_URL} target="_blank" rel="noreferrer" icon={<Download size={16} />}>
-                  下载客户端
-                </SecondaryButton>
-              </>
-            )}
-          </div>
-        </div>
-        <div className="sprix-platform-metrics">
-          <PlatformMetricCard label="平台 Agent 数量" value="-" />
-          <PlatformMetricCard label="平台任务总量" value="-" />
-        </div>
-      </section>
-    </main>
-  );
-}
-
-function PlatformMetricCard({ label, value }: { label: string; value: string }) {
-  return (
-    <Surface className="sprix-platform-metric-card">
-      <strong>{value}</strong>
-      <span>{label}</span>
-    </Surface>
-  );
-}
-
 export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<UserPageProps> = {}) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const tasks = useSprixStore((state) => state.tasks);
   const myTasks = useSprixStore((state) => state.myTasks);
   const account = useSprixStore((state) => state.account);
-  const agents = useSprixStore((state) => state.agents);
   const [smartAccepting, setSmartAccepting] = useState(false);
   const [smartAcceptMessage, setSmartAcceptMessage] = useState<string>();
-  const currentAgent = getCurrentExecutionAgent(agents);
+  const currentAgent = useSprixStore((state) => state.currentAgent);
   const availableTasks = useMemo(() => tasks.filter((task) => task.taskStatus === "已发布"), [tasks]);
   const recommendationState = useMemo(
     () =>
@@ -438,8 +295,7 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
   const queryClient = useQueryClient();
   const task = useSprixStore((state) => state.tasks.find((item) => item.id === id));
   const account = useSprixStore((state) => state.account);
-  const agents = useSprixStore((state) => state.agents);
-  const currentAgent = getCurrentExecutionAgent(agents);
+  const currentAgent = useSprixStore((state) => state.currentAgent);
   const executionAgentName = currentAgent?.name;
   const estimatedToken = getEstimatedTokenField();
 
@@ -558,10 +414,15 @@ function getInitialQualificationStep(account: Account) {
 }
 
 export function AgentCenterPage({ openLogin }: UserPageProps) {
+  const location = useLocation();
   const account = useSprixStore((state) => state.account);
   const agents = useSprixStore((state) => state.agents);
+  const currentAgent = useSprixStore((state) => state.currentAgent);
   const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
-  const current = getCurrentExecutionAgent(agents);
+  const current = currentAgent;
+  const evaluationIntent = location.state as { evaluateAgentId?: string } | null;
+  const handledEvaluationIntentRef = useRef<string>();
+  const autoSetCurrentAgentIdRef = useRef<string>();
   const [evaluationAgent, setEvaluationAgent] = useState<Agent | null>(null);
   const [evaluation, setEvaluation] = useState<AgentEvaluation | undefined>();
   const [evaluationModalOpen, setEvaluationModalOpen] = useState(false);
@@ -571,8 +432,8 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   const currentWithEvaluation = currentEvaluation && current ? { ...current, evaluation: currentEvaluation, score: currentEvaluation.result.overallScore ?? current.score } : current;
 
   const refreshAgents = useCallback(async () => {
-    const refreshedAgents = await readRemoteAgents();
-    mergeRemoteState({ agents: refreshedAgents });
+    const [refreshedAgents, refreshedCurrentAgent] = await Promise.all([readRemoteAgents(), readCurrentRemoteAgent()]);
+    mergeRemoteState({ agents: refreshedAgents, currentAgent: refreshedCurrentAgent });
   }, [mergeRemoteState]);
 
   const setCurrent = async (agent: Agent) => {
@@ -586,8 +447,9 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         message.warning("请先完成该 Agent 测评后再设为当前执行 Agent");
         return;
       }
-      await markRemoteCurrentAgent(agent.id);
+      const updatedCurrentAgent = await markRemoteCurrentAgent(agent.id);
       setCurrentEvaluation(undefined);
+      mergeRemoteState({ currentAgent: updatedCurrentAgent });
       await refreshAgents();
       message.success("已设置当前执行 Agent");
     } catch (error) {
@@ -599,10 +461,26 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
     }
   };
 
-  const openAgentEvaluation = async (agent: Agent) => {
+  const markCurrentAfterCompletedEvaluation = async (agent: Agent, nextEvaluation: AgentEvaluation) => {
+    if (autoSetCurrentAgentIdRef.current !== agent.id || !isCompletedAgentEvaluation(nextEvaluation)) return;
+    try {
+      const updatedCurrentAgent = await markRemoteCurrentAgent(agent.id);
+      mergeRemoteState({ currentAgent: updatedCurrentAgent });
+      autoSetCurrentAgentIdRef.current = undefined;
+      await refreshAgents();
+      message.success("测评完成，已设置当前执行 Agent");
+    } catch (error) {
+      showRequestError(error, "设置当前执行 Agent 失败", "设置当前执行 Agent 失败：");
+    }
+  };
+
+  const openAgentEvaluation = async (agent: Agent, setCurrentAfterCompletion = false) => {
     if (!account.isLoggedIn) {
       openLogin();
       return;
+    }
+    if (setCurrentAfterCompletion) {
+      autoSetCurrentAgentIdRef.current = agent.id;
     }
     setEvaluationAgent(agent);
     setEvaluation(undefined);
@@ -628,6 +506,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         setCurrentEvaluation(nextEvaluation);
       }
       await refreshAgents();
+      await markCurrentAfterCompletedEvaluation(agent, nextEvaluation);
       if (!agent.evaluation || agent.evaluation.status === "failed" || nextEvaluation.status === "running") {
         message.success("评测已开始");
       }
@@ -653,6 +532,12 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         }
         if (isEvaluationTerminal(next.status)) {
           window.clearInterval(poll);
+          if (next.status === "failed") {
+            autoSetCurrentAgentIdRef.current = undefined;
+          }
+          if (next.status === "completed") {
+            await markCurrentAfterCompletedEvaluation(evaluationAgent, next);
+          }
           void refreshAgents();
         }
       } catch (error) {
@@ -667,6 +552,15 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       window.clearInterval(poll);
     };
   }, [current?.id, evaluation, evaluationAgent, refreshAgents]);
+
+  useEffect(() => {
+    const evaluateAgentId = evaluationIntent?.evaluateAgentId;
+    if (!account.isLoggedIn || !evaluateAgentId || handledEvaluationIntentRef.current === evaluateAgentId) return;
+    const agent = agents.find((item) => item.id === evaluateAgentId);
+    if (!agent) return;
+    handledEvaluationIntentRef.current = evaluateAgentId;
+    void openAgentEvaluation(agent, true);
+  }, [account.isLoggedIn, agents, evaluationIntent?.evaluateAgentId]);
 
   useEffect(() => {
     if (!account.isLoggedIn || !current?.id || current.evaluation?.result?.status === "completed") {

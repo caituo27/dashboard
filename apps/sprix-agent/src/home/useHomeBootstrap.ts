@@ -1,16 +1,15 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { readAgentSnapshot } from "./sprixApi";
+import { readAgentSnapshot } from "../services/sprixApi";
 import { useSprixStore } from "../store/sprixStore";
 
-export function useRemoteSprixBootstrap(enabled = true) {
+export function useHomeBootstrap() {
   const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
-  const snapshotQuery = useQuery({
-    queryKey: ["sprix-agent", "snapshot"],
+  const query = useQuery({
+    queryKey: ["sprix-agent", "home-bootstrap"],
     queryFn: readAgentSnapshot,
-    enabled,
     retry: 1,
-    staleTime: 10_000,
+    staleTime: 30_000,
     refetchInterval: false,
     refetchOnMount: "always",
     refetchOnReconnect: false,
@@ -18,10 +17,10 @@ export function useRemoteSprixBootstrap(enabled = true) {
   });
 
   useEffect(() => {
-    if (enabled && snapshotQuery.data) {
-      mergeRemoteState(snapshotQuery.data);
+    if (query.data) {
+      mergeRemoteState(query.data);
     }
-  }, [enabled, mergeRemoteState, snapshotQuery.data]);
+  }, [mergeRemoteState, query.data]);
 
-  return snapshotQuery;
+  return query;
 }

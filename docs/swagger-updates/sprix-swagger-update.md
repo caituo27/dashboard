@@ -7,9 +7,15 @@
 - Swagger UI: http://42.194.150.73:8084/swagger-ui/index.html
 - Swagger JSON: http://42.194.150.73:8084/v3/api-docs
 - 生成范围: `apps/sprix-agent/src/apis/sprix`, `apps/sprix-admin/src/apis/sprix`
-- 是否有生成 diff: 有，本次新增支付宝登录/绑定、后台登录、Agent 评测、验收审核、支付宝打款/查询、我的任务详情等接口与 DTO。
+- 是否有生成 diff: 2026-06-29 有 `api.ts` 注释空白格式 diff，但 Swagger JSON 无 diff，接口合同无变化。2026-06-27 曾新增支付宝登录/绑定、后台登录、Agent 评测、验收审核、支付宝打款/查询、我的任务详情等接口与 DTO。
 
 ## 接口变化
+
+- 2026-06-29:
+  - Added:
+    - 用户端平台统计接口：`GET /api/v1/platform/overview`，返回 `agentCount`、`taskCount`，用于首页“平台 Agent 数量 / 平台任务总量”。
+  - Removed: 无。
+  - Changed: 无破坏性变更。
 
 - Added:
   - 用户端：微信扫码登录会话创建、状态轮询、扫码确认接口：
@@ -55,6 +61,7 @@
 ## 需要更新的前端交互
 
 - Agent 端任务市场、任务详情、我的任务、Agent 中心、账户资质、提现和申诉需要优先读取真实接口。
+- Agent 端首页统计卡片需要读取 `GET /api/v1/platform/overview`，不再前端硬编码横杠或自行兜底计算。
 - Agent 端登录弹窗的“微信扫码登录”需要生成后端扫码会话、展示 `qrPayload` 二维码，并轮询状态；后端返回 token 后写入现有登录态并刷新 `sprix-agent` 远端快照。
 - Agent 端登录弹窗的“支付宝扫码登录”需要生成后端支付宝登录会话、展示 `qrPayload` 二维码，并轮询状态；后端返回 token 后写入现有登录态并刷新 `sprix-agent` 远端快照。
 - Agent 端支付宝收款账户绑定需要生成后端支付宝授权会话，后端回调完成后写入提现账户和支付宝身份绑定。
@@ -71,6 +78,7 @@
   - `apps/sprix-admin/src/services/sprixApi.ts`
   - 本次已将支付宝登录/绑定、收款账户查询、Agent 评测、后台登录、任务管理写操作、验收审核、支付宝打款/查询从手写 HTTP 切换为生成客户端调用。
   - 2026-06-29：`apps/sprix-agent/src/services/sprixApi.ts` 将 `initializeRemoteFaceVerification`、`completeRemoteFaceVerification`、`signRemoteFreelancerAgreement` 接到 `AccountController` 真实接口。
+  - 2026-06-29：`apps/sprix-agent/src/services/sprixApi.ts` 接入 `PlatformControllerApi.overview`，首页统计改读后端平台统计接口。
 - Login:
   - `apps/sprix-agent/src/components/GlobalModals.tsx` 接入真实微信扫码登录：创建扫码会话、展示二维码、轮询状态、token 落入 `sprix-auth-token`。
   - `apps/sprix-agent/src/components/LoginRegisterModal.tsx` 接入支付宝扫码登录，并保留微信扫码和手机号验证码登录。
@@ -98,6 +106,9 @@
 
 ## 验证
 
+- 2026-06-29 `npx qxun-api-generator` in `apps/sprix-agent/src/apis`: 通过。
+- 2026-06-29 `npx qxun-api-generator` in `apps/sprix-admin/src/apis`: 通过。
+- 2026-06-29 `git diff -w --stat -- apps/sprix-agent/src/apis/sprix/api.ts apps/sprix-admin/src/apis/sprix/api.ts apps/sprix-agent/src/apis/_swaggers/sprix.json apps/sprix-admin/src/apis/_swaggers/sprix.json`: 无输出，确认无接口合同变化。
 - `npx qxun-api-generator` in `apps/sprix-agent/src/apis`: 通过。
 - `npx qxun-api-generator` in `apps/sprix-admin/src/apis`: 通过。
 - `curl -X POST http://42.194.150.73:8084/api/v1/auth/wechat/scan-sessions`: 通过，返回 `qrPayload` 和 `pollIntervalSeconds`。

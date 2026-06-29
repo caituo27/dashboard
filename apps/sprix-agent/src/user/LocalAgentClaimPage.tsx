@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, Result, Spin, message } from "antd";
 import { useSearchParams } from "react-router-dom";
-import { LoginRegisterModal } from "../components/GlobalModals";
+import { AuthModal } from "../auth/AuthModal";
 import { buildLocalAgentClaimUrl, createLocalAgentEnrollment, hasStoredAuthToken } from "../services/sprixApi";
 import { isGlobalAuthError } from "../utils/http";
 import { getLocalAgentClaimReturnState } from "./localAgentClaimView";
@@ -131,10 +131,10 @@ export function LocalAgentClaimPage() {
         </div>
       </section>
 
-      <LoginRegisterModal
+      <AuthModal
         open={loginOpen}
         onClose={() => setLoginOpen(false)}
-        afterLogin={() => {
+        onLoginSuccess={() => {
           setLoginOpen(false);
           void startEnrollment();
         }}

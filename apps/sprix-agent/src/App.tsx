@@ -6,16 +6,15 @@ import {
   AccountModal,
   AgreementModal,
   AppealModal,
+  AuthModal,
   BindAlipayModal,
   ContactModal,
-  LoginRegisterModal,
   useGlobalModalState
 } from "./components/GlobalModals";
 import { UserShell } from "./components/Layout";
 import {
   AgentCenterPage,
   EarningsPage,
-  LandingPage,
   MyTaskDetailPage,
   MyTasksPage,
   QualificationPage,
@@ -24,16 +23,18 @@ import {
   TaskMarketPage
 } from "./user/UserPages";
 import { LocalAgentClaimPage } from "./user/LocalAgentClaimPage";
+import { HomePage } from "./home/HomePage";
 import { useRemoteSprixBootstrap } from "./services/useRemoteSprixBootstrap";
+import { logoutConsumer } from "./services/sprixApi";
 import { useSprixStore } from "./store/sprixStore";
 import { canVisitAgentCenterBeforeAdmission, getUserAdmissionState } from "./user/admission";
+import { isGlobalAuthError } from "./utils/http";
 
 const queryClient = new QueryClient();
 
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <RemoteSprixBridge />
       <Router>
         <ConsumerAppRoutes />
       </Router>
@@ -41,8 +42,8 @@ export default function App() {
   );
 }
 
-function RemoteSprixBridge() {
-  useRemoteSprixBootstrap();
+function RemoteSprixBridge({ enabled }: { enabled: boolean }) {
+  useRemoteSprixBootstrap(enabled);
   return null;
 }
 
@@ -60,7 +61,7 @@ function ConsumerAppRoutes() {
   const title = useMemo(() => {
     if (location.pathname.includes("/agent/center")) return "Agent 中心";
     if (location.pathname.includes("/agent/my-tasks")) return "我的任务";
-    if (location.pathname.includes("/agent/earnings")) return "提现记录";
+    if (location.pathname.includes("/agent/earnings")) return "打款记录";
     if (location.pathname.includes("/agent/qualification")) return "接单资格";
     if (location.pathname.includes("/agent/task/")) return "任务详情";
     return "任务市场";
@@ -76,8 +77,23 @@ function ConsumerAppRoutes() {
     open("bindAlipay");
   };
 
+  const handleLogout = async () => {
+    try {
+      await logoutConsumer();
+    } catch (error) {
+      if (isGlobalAuthError(error)) return;
+    } finally {
+      logout();
+      queryClient.removeQueries({ queryKey: ["sprix-agent"] });
+      closeAll();
+      navigate("/");
+      message.success("已退出登录");
+    }
+  };
+
   useEffect(() => {
-    const handleAuthRequired = () => {
+    const handleAuthRequired = (event: Event) => {
+      localStorage.removeItem("sprix-auth-token");
       logout();
       queryClient.removeQueries({ queryKey: ["sprix-agent"] });
       setAfterLogin(undefined);
@@ -86,13 +102,16 @@ function ConsumerAppRoutes() {
       setQualificationOpen(false);
       setAppealExecutionId(null);
       closeAll();
-      open("login");
-      navigate("/", { replace: true, state: { admissionReason: "登录已过期，请重新登录", openLogin: true } });
+      const message =
+        event instanceof CustomEvent && typeof event.detail?.message === "string" && event.detail.message.trim()
+          ? event.detail.message
+          : "登录已过期，请重新登录";
+      navigate("/", { replace: true, state: { admissionReason: message } });
     };
 
     window.addEventListener("sprix-auth-required", handleAuthRequired);
     return () => window.removeEventListener("sprix-auth-required", handleAuthRequired);
-  }, [closeAll, logout, navigate, open]);
+  }, [closeAll, logout, navigate]);
 
   const userPageProps = {
     openLogin,
@@ -109,8 +128,9 @@ function ConsumerAppRoutes() {
 
   return (
     <>
+      <RemoteSprixBridge enabled={location.pathname.startsWith("/agent")} />
       <Routes>
-        <Route path="/" element={<LandingPage {...userPageProps} />} />
+        <Route path="/" element={<HomePage openLogin={openLogin} onLogout={handleLogout} />} />
         <Route path="/local-agent/claim" element={<LocalAgentClaimPage />} />
         <Route
           path="/agent/*"
@@ -131,10 +151,10 @@ function ConsumerAppRoutes() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
-      <LoginRegisterModal
+      <AuthModal
         open={modal.login}
         onClose={() => close("login")}
-        afterLogin={() => {
+        onLoginSuccess={() => {
           afterLogin?.();
           setAfterLogin(undefined);
         }}
@@ -181,16 +201,16 @@ function ConsumerAppRoutes() {
 function AdmissionGate({ children }: { children: ReactNode }) {
   const location = useLocation();
   const account = useSprixStore((state) => state.account);
-  const agents = useSprixStore((state) => state.agents);
+  const currentAgent = useSprixStore((state) => state.currentAgent);
 
-  const admission = getUserAdmissionState(account, agents);
+  const admission = getUserAdmissionState(account, currentAgent);
 
   if (account.isLoggedIn && canVisitAgentCenterBeforeAdmission(location.pathname)) {
     return <>{children}</>;
   }
 
   if (!admission.allowed) {
-    return <Navigate to="/" replace state={{ admissionReason: admission.reason, from: location.pathname, openLogin: !account.isLoggedIn }} />;
+    return <Navigate to="/" replace state={{ admissionReason: admission.reason, from: location.pathname }} />;
   }
 
   return <>{children}</>;

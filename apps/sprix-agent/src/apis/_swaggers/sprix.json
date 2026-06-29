@@ -3939,6 +3939,66 @@
           }
         }
       }
+    },
+    "/api/v1/agents/current": {
+      "get": {
+        "tags": [
+          "agent-controller"
+        ],
+        "operationId": "currentAgent",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAgentProfileResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/platform/overview": {
+      "get": {
+        "tags": [
+          "platform-controller"
+        ],
+        "operationId": "overview",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePlatformOverview"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -7308,6 +7368,36 @@
           },
           "data": {
             "$ref": "#/components/schemas/BootstrapClaimStatusResponse"
+          }
+        }
+      },
+      "ApiResponsePlatformOverview": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PlatformOverview"
+          }
+        }
+      },
+      "PlatformOverview": {
+        "type": "object",
+        "properties": {
+          "agentCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "taskCount": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       }
