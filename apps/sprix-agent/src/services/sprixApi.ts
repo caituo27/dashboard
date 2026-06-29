@@ -446,7 +446,13 @@ export async function readRemoteAlipayBindStatus(sessionId: string): Promise<Ali
 
 export async function initializeRemoteFaceVerification(): Promise<FaceVerificationSession> {
   const response = await accountApi.initializeFaceVerification();
-  return requireValue<FaceVerificationSession>(response, "实人认证初始化失败");
+  return requireValue<FaceVerificationSession>(response, "支付宝人脸核验初始化失败");
+}
+
+export async function completeRemoteFaceVerification(): Promise<Partial<SprixState["account"]>> {
+  const response = await accountApi.completeRealPersonVerification();
+  const account = requireValue<UserAccount>(response, "支付宝人脸核验确认失败");
+  return mapAccount(account);
 }
 
 export async function completeRemoteRealPersonVerification(): Promise<Partial<SprixState["account"]>> {
@@ -456,7 +462,8 @@ export async function completeRemoteRealPersonVerification(): Promise<Partial<Sp
 
 export async function signRemoteFreelancerAgreement(): Promise<Partial<SprixState["account"]>> {
   const response = await accountApi.signFreelancerAgreement();
-  return mapAccount(requireValue<UserAccount>(response, "签署协议失败"));
+  const account = requireValue<UserAccount>(response, "协议签署失败");
+  return mapAccount(account);
 }
 
 export function mapRemoteWithdrawal(record: WithdrawalRecord): Withdrawal {

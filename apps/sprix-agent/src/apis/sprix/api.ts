@@ -25,7 +25,7 @@ import type { RequestArgs } from './base';
 import { BASE_PATH, COLLECTION_FORMATS, BaseAPI, RequiredError, operationServerMap } from './base';
 
 export interface AcceptanceReviewRequest {
-    'reason'?: string;
+    'reason': string;
 }
 export interface AcceptanceReviewRow {
     'executionId'?: string;
@@ -129,6 +129,12 @@ export interface AdminTaskSummary {
     'completedExecutionCount'?: number;
     'terminatedExecutionCount'?: number;
 }
+export interface AgentCareerProfileResponse {
+    'roleCode'?: string;
+    'roleName'?: string;
+    'confidence'?: number;
+    'reason'?: string;
+}
 export interface AgentEvaluationDetailResponse {
     'evaluationId'?: string;
     'agentId'?: string;
@@ -155,6 +161,7 @@ export interface AgentEvaluationResponse {
     'mode'?: string;
     'overallScore'?: number;
     'dimensions'?: { [key: string]: AgentEvaluationDimensionResponse; };
+    'careerProfile'?: AgentCareerProfileResponse;
     'summary'?: string;
     'improvements'?: Array<string>;
     'steps'?: Array<{ [key: string]: any; }>;
@@ -489,6 +496,7 @@ export interface ArtifactSnapshot {
     'sizeBytes'?: number;
     'sha256'?: string;
     'localRelativePath'?: string;
+    'downloadUrl'?: string;
     'receivedAt'?: string;
 }
 export interface ArtifactUploadResponse {
@@ -555,7 +563,10 @@ export interface BootstrapDeviceRequest {
 }
 export interface BulkWithdrawalRequest {
     'withdrawalIds': Array<string>;
-    'reason'?: string;
+}
+export interface BulkWithdrawalReviewRequest {
+    'withdrawalIds': Array<string>;
+    'reason': string;
 }
 export interface ClaimConfirmResponse {
     'status'?: string;
@@ -607,6 +618,21 @@ export interface EventsBatchRequest {
 export interface EventsBatchResponse {
     'acceptedIds'?: Array<string>;
     'rejected'?: Array<RejectedEvent>;
+}
+export interface ExecutionHistorySnapshot {
+    'id'?: string;
+    'agentId'?: string;
+    'status'?: string;
+    'appealStatus'?: string;
+    'settlementStatus'?: string;
+    'currentNode'?: string;
+    'progress'?: string;
+    'startedAt'?: string;
+    'completedAt'?: string;
+    'terminationReason'?: string;
+    'createdAt'?: string;
+    'updatedAt'?: string;
+    'current'?: boolean;
 }
 export interface FaceVerificationSession {
     'certifyId'?: string;
@@ -735,10 +761,6 @@ export interface LogsUploadResponse {
     'logId'?: string;
     'receivedAt'?: string;
 }
-export interface MockLoginRequest {
-    'email'?: string;
-    'code': string;
-}
 export interface MyTaskExecutionDetail {
     'id'?: string;
     'createdAt'?: string;
@@ -759,6 +781,8 @@ export interface MyTaskExecutionDetail {
     'output'?: OutputSnapshot;
     'artifacts'?: Array<ArtifactSnapshot>;
     'acceptance'?: AcceptanceSnapshot;
+    'historyExecutions'?: Array<ExecutionHistorySnapshot>;
+    'timeline'?: Array<TimelineEventSnapshot>;
 }
 export interface NetworkAddress {
     'name'?: string;
@@ -955,7 +979,19 @@ export interface TaskSnapshot {
     'publishedAt'?: string;
 }
 export interface TaskStateRequest {
-    'reason'?: string;
+    'reason': string;
+}
+export interface TimelineEventSnapshot {
+    'eventId'?: string;
+    'eventType'?: string;
+    'eventTimestamp'?: string;
+    'status'?: string;
+    'currentNode'?: string;
+    'currentNodeLabel'?: string;
+    'progress'?: string;
+    'message'?: string;
+    'payload'?: string;
+    'receivedAt'?: string;
 }
 export interface UnbindRequest {
     'reason'?: string;
@@ -1065,7 +1101,7 @@ export enum WithdrawalRecordStatusEnum {
 }
 
 export interface WithdrawalReviewRequest {
-    'reason'?: string;
+    'reason': string;
 }
 
 /**
@@ -2163,13 +2199,15 @@ export const AdminFundsControllerApiAxiosParamCreator = function (configuration?
         /**
          *
          * @param {string} withdrawalId
-         * @param {WithdrawalReviewRequest} [withdrawalReviewRequest]
+         * @param {WithdrawalReviewRequest} withdrawalReviewRequest
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        markPayoutExceptionHandled: async (withdrawalId: string, withdrawalReviewRequest?: WithdrawalReviewRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+        markPayoutExceptionHandled: async (withdrawalId: string, withdrawalReviewRequest: WithdrawalReviewRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'withdrawalId' is not null or undefined
             assertParamExists('markPayoutExceptionHandled', 'withdrawalId', withdrawalId)
+            // verify required parameter 'withdrawalReviewRequest' is not null or undefined
+            assertParamExists('markPayoutExceptionHandled', 'withdrawalReviewRequest', withdrawalReviewRequest)
             const localVarPath = `/api/v1/admin/funds/withdrawals/{withdrawalId}/exception-handled`
                 .replace('{withdrawalId}', encodeURIComponent(String(withdrawalId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -2298,13 +2336,13 @@ export const AdminFundsControllerApiAxiosParamCreator = function (configuration?
         },
         /**
          *
-         * @param {BulkWithdrawalRequest} bulkWithdrawalRequest
+         * @param {BulkWithdrawalReviewRequest} bulkWithdrawalReviewRequest
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        markWithdrawalsPayoutFailed: async (bulkWithdrawalRequest: BulkWithdrawalRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'bulkWithdrawalRequest' is not null or undefined
-            assertParamExists('markWithdrawalsPayoutFailed', 'bulkWithdrawalRequest', bulkWithdrawalRequest)
+        markWithdrawalsPayoutFailed: async (bulkWithdrawalReviewRequest: BulkWithdrawalReviewRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'bulkWithdrawalReviewRequest' is not null or undefined
+            assertParamExists('markWithdrawalsPayoutFailed', 'bulkWithdrawalReviewRequest', bulkWithdrawalReviewRequest)
             const localVarPath = `/api/v1/admin/funds/withdrawals/bulk-payout-failed`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2323,7 +2361,7 @@ export const AdminFundsControllerApiAxiosParamCreator = function (configuration?
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(bulkWithdrawalRequest, localVarRequestOptions, configuration)
+            localVarRequestOptions.data = serializeDataIfNeeded(bulkWithdrawalReviewRequest, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -2490,13 +2528,15 @@ export const AdminFundsControllerApiAxiosParamCreator = function (configuration?
         /**
          *
          * @param {string} withdrawalId
-         * @param {WithdrawalReviewRequest} [withdrawalReviewRequest]
+         * @param {WithdrawalReviewRequest} withdrawalReviewRequest
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        rejectWithdrawal: async (withdrawalId: string, withdrawalReviewRequest?: WithdrawalReviewRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+        rejectWithdrawal: async (withdrawalId: string, withdrawalReviewRequest: WithdrawalReviewRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'withdrawalId' is not null or undefined
             assertParamExists('rejectWithdrawal', 'withdrawalId', withdrawalId)
+            // verify required parameter 'withdrawalReviewRequest' is not null or undefined
+            assertParamExists('rejectWithdrawal', 'withdrawalReviewRequest', withdrawalReviewRequest)
             const localVarPath = `/api/v1/admin/funds/withdrawals/{withdrawalId}/reject`
                 .replace('{withdrawalId}', encodeURIComponent(String(withdrawalId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -2525,13 +2565,13 @@ export const AdminFundsControllerApiAxiosParamCreator = function (configuration?
         },
         /**
          *
-         * @param {BulkWithdrawalRequest} bulkWithdrawalRequest
+         * @param {BulkWithdrawalReviewRequest} bulkWithdrawalReviewRequest
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        rejectWithdrawals: async (bulkWithdrawalRequest: BulkWithdrawalRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'bulkWithdrawalRequest' is not null or undefined
-            assertParamExists('rejectWithdrawals', 'bulkWithdrawalRequest', bulkWithdrawalRequest)
+        rejectWithdrawals: async (bulkWithdrawalReviewRequest: BulkWithdrawalReviewRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'bulkWithdrawalReviewRequest' is not null or undefined
+            assertParamExists('rejectWithdrawals', 'bulkWithdrawalReviewRequest', bulkWithdrawalReviewRequest)
             const localVarPath = `/api/v1/admin/funds/withdrawals/bulk-reject`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2550,7 +2590,7 @@ export const AdminFundsControllerApiAxiosParamCreator = function (configuration?
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(bulkWithdrawalRequest, localVarRequestOptions, configuration)
+            localVarRequestOptions.data = serializeDataIfNeeded(bulkWithdrawalReviewRequest, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -2560,13 +2600,15 @@ export const AdminFundsControllerApiAxiosParamCreator = function (configuration?
         /**
          *
          * @param {string} withdrawalId
-         * @param {WithdrawalReviewRequest} [withdrawalReviewRequest]
+         * @param {WithdrawalReviewRequest} withdrawalReviewRequest
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        returnWithdrawalForReview: async (withdrawalId: string, withdrawalReviewRequest?: WithdrawalReviewRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+        returnWithdrawalForReview: async (withdrawalId: string, withdrawalReviewRequest: WithdrawalReviewRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'withdrawalId' is not null or undefined
             assertParamExists('returnWithdrawalForReview', 'withdrawalId', withdrawalId)
+            // verify required parameter 'withdrawalReviewRequest' is not null or undefined
+            assertParamExists('returnWithdrawalForReview', 'withdrawalReviewRequest', withdrawalReviewRequest)
             const localVarPath = `/api/v1/admin/funds/withdrawals/{withdrawalId}/return-review`
                 .replace('{withdrawalId}', encodeURIComponent(String(withdrawalId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -2698,11 +2740,11 @@ export const AdminFundsControllerApiFp = function(configuration?: Configuration)
         /**
          *
          * @param {string} withdrawalId
-         * @param {WithdrawalReviewRequest} [withdrawalReviewRequest]
+         * @param {WithdrawalReviewRequest} withdrawalReviewRequest
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async markPayoutExceptionHandled(withdrawalId: string, withdrawalReviewRequest?: WithdrawalReviewRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseWithdrawalRecord>> {
+        async markPayoutExceptionHandled(withdrawalId: string, withdrawalReviewRequest: WithdrawalReviewRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseWithdrawalRecord>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.markPayoutExceptionHandled(withdrawalId, withdrawalReviewRequest, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AdminFundsControllerApi.markPayoutExceptionHandled']?.[localVarOperationServerIndex]?.url;
@@ -2746,12 +2788,12 @@ export const AdminFundsControllerApiFp = function(configuration?: Configuration)
         },
         /**
          *
-         * @param {BulkWithdrawalRequest} bulkWithdrawalRequest
+         * @param {BulkWithdrawalReviewRequest} bulkWithdrawalReviewRequest
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async markWithdrawalsPayoutFailed(bulkWithdrawalRequest: BulkWithdrawalRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseListWithdrawalRecord>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.markWithdrawalsPayoutFailed(bulkWithdrawalRequest, options);
+        async markWithdrawalsPayoutFailed(bulkWithdrawalReviewRequest: BulkWithdrawalReviewRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseListWithdrawalRecord>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.markWithdrawalsPayoutFailed(bulkWithdrawalReviewRequest, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AdminFundsControllerApi.markWithdrawalsPayoutFailed']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -2817,11 +2859,11 @@ export const AdminFundsControllerApiFp = function(configuration?: Configuration)
         /**
          *
          * @param {string} withdrawalId
-         * @param {WithdrawalReviewRequest} [withdrawalReviewRequest]
+         * @param {WithdrawalReviewRequest} withdrawalReviewRequest
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async rejectWithdrawal(withdrawalId: string, withdrawalReviewRequest?: WithdrawalReviewRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseWithdrawalRecord>> {
+        async rejectWithdrawal(withdrawalId: string, withdrawalReviewRequest: WithdrawalReviewRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseWithdrawalRecord>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.rejectWithdrawal(withdrawalId, withdrawalReviewRequest, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AdminFundsControllerApi.rejectWithdrawal']?.[localVarOperationServerIndex]?.url;
@@ -2829,12 +2871,12 @@ export const AdminFundsControllerApiFp = function(configuration?: Configuration)
         },
         /**
          *
-         * @param {BulkWithdrawalRequest} bulkWithdrawalRequest
+         * @param {BulkWithdrawalReviewRequest} bulkWithdrawalReviewRequest
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async rejectWithdrawals(bulkWithdrawalRequest: BulkWithdrawalRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseListWithdrawalRecord>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.rejectWithdrawals(bulkWithdrawalRequest, options);
+        async rejectWithdrawals(bulkWithdrawalReviewRequest: BulkWithdrawalReviewRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseListWithdrawalRecord>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.rejectWithdrawals(bulkWithdrawalReviewRequest, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AdminFundsControllerApi.rejectWithdrawals']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -2842,11 +2884,11 @@ export const AdminFundsControllerApiFp = function(configuration?: Configuration)
         /**
          *
          * @param {string} withdrawalId
-         * @param {WithdrawalReviewRequest} [withdrawalReviewRequest]
+         * @param {WithdrawalReviewRequest} withdrawalReviewRequest
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async returnWithdrawalForReview(withdrawalId: string, withdrawalReviewRequest?: WithdrawalReviewRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseWithdrawalRecord>> {
+        async returnWithdrawalForReview(withdrawalId: string, withdrawalReviewRequest: WithdrawalReviewRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseWithdrawalRecord>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.returnWithdrawalForReview(withdrawalId, withdrawalReviewRequest, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AdminFundsControllerApi.returnWithdrawalForReview']?.[localVarOperationServerIndex]?.url;
@@ -2952,7 +2994,7 @@ export const AdminFundsControllerApiFactory = function (configuration?: Configur
          * @throws {RequiredError}
          */
         markWithdrawalsPayoutFailed(requestParameters: AdminFundsControllerApiMarkWithdrawalsPayoutFailedRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseListWithdrawalRecord> {
-            return localVarFp.markWithdrawalsPayoutFailed(requestParameters.bulkWithdrawalRequest, options).then((request) => request(axios, basePath));
+            return localVarFp.markWithdrawalsPayoutFailed(requestParameters.bulkWithdrawalReviewRequest, options).then((request) => request(axios, basePath));
         },
         /**
          *
@@ -3013,7 +3055,7 @@ export const AdminFundsControllerApiFactory = function (configuration?: Configur
          * @throws {RequiredError}
          */
         rejectWithdrawals(requestParameters: AdminFundsControllerApiRejectWithdrawalsRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseListWithdrawalRecord> {
-            return localVarFp.rejectWithdrawals(requestParameters.bulkWithdrawalRequest, options).then((request) => request(axios, basePath));
+            return localVarFp.rejectWithdrawals(requestParameters.bulkWithdrawalReviewRequest, options).then((request) => request(axios, basePath));
         },
         /**
          *
@@ -3063,7 +3105,7 @@ export interface AdminFundsControllerApiApproveWithdrawalsRequest {
 export interface AdminFundsControllerApiMarkPayoutExceptionHandledRequest {
     readonly withdrawalId: string
 
-    readonly withdrawalReviewRequest?: WithdrawalReviewRequest
+    readonly withdrawalReviewRequest: WithdrawalReviewRequest
 }
 
 /**
@@ -3091,7 +3133,7 @@ export interface AdminFundsControllerApiMarkWithdrawalsPaidRequest {
  * Request parameters for markWithdrawalsPayoutFailed operation in AdminFundsControllerApi.
  */
 export interface AdminFundsControllerApiMarkWithdrawalsPayoutFailedRequest {
-    readonly bulkWithdrawalRequest: BulkWithdrawalRequest
+    readonly bulkWithdrawalReviewRequest: BulkWithdrawalReviewRequest
 }
 
 /**
@@ -3121,14 +3163,14 @@ export interface AdminFundsControllerApiQueryWithdrawalPayoutRequest {
 export interface AdminFundsControllerApiRejectWithdrawalRequest {
     readonly withdrawalId: string
 
-    readonly withdrawalReviewRequest?: WithdrawalReviewRequest
+    readonly withdrawalReviewRequest: WithdrawalReviewRequest
 }
 
 /**
  * Request parameters for rejectWithdrawals operation in AdminFundsControllerApi.
  */
 export interface AdminFundsControllerApiRejectWithdrawalsRequest {
-    readonly bulkWithdrawalRequest: BulkWithdrawalRequest
+    readonly bulkWithdrawalReviewRequest: BulkWithdrawalReviewRequest
 }
 
 /**
@@ -3137,7 +3179,7 @@ export interface AdminFundsControllerApiRejectWithdrawalsRequest {
 export interface AdminFundsControllerApiReturnWithdrawalForReviewRequest {
     readonly withdrawalId: string
 
-    readonly withdrawalReviewRequest?: WithdrawalReviewRequest
+    readonly withdrawalReviewRequest: WithdrawalReviewRequest
 }
 
 /**
@@ -3220,7 +3262,7 @@ export class AdminFundsControllerApi extends BaseAPI {
      * @throws {RequiredError}
      */
     public markWithdrawalsPayoutFailed(requestParameters: AdminFundsControllerApiMarkWithdrawalsPayoutFailedRequest, options?: AxiosRequestConfig) {
-        return AdminFundsControllerApiFp(this.configuration).markWithdrawalsPayoutFailed(requestParameters.bulkWithdrawalRequest, options).then((request) => request(this.axios, this.basePath));
+        return AdminFundsControllerApiFp(this.configuration).markWithdrawalsPayoutFailed(requestParameters.bulkWithdrawalReviewRequest, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -3288,7 +3330,7 @@ export class AdminFundsControllerApi extends BaseAPI {
      * @throws {RequiredError}
      */
     public rejectWithdrawals(requestParameters: AdminFundsControllerApiRejectWithdrawalsRequest, options?: AxiosRequestConfig) {
-        return AdminFundsControllerApiFp(this.configuration).rejectWithdrawals(requestParameters.bulkWithdrawalRequest, options).then((request) => request(this.axios, this.basePath));
+        return AdminFundsControllerApiFp(this.configuration).rejectWithdrawals(requestParameters.bulkWithdrawalReviewRequest, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -3330,13 +3372,15 @@ export const AdminTaskControllerApiAxiosParamCreator = function (configuration?:
         /**
          *
          * @param {string} taskId
-         * @param {TaskStateRequest} [taskStateRequest]
+         * @param {TaskStateRequest} taskStateRequest
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        _delete: async (taskId: string, taskStateRequest?: TaskStateRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+        _delete: async (taskId: string, taskStateRequest: TaskStateRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'taskId' is not null or undefined
             assertParamExists('_delete', 'taskId', taskId)
+            // verify required parameter 'taskStateRequest' is not null or undefined
+            assertParamExists('_delete', 'taskStateRequest', taskStateRequest)
             const localVarPath = `/api/v1/admin/tasks/{taskId}`
                 .replace('{taskId}', encodeURIComponent(String(taskId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -3528,13 +3572,15 @@ export const AdminTaskControllerApiAxiosParamCreator = function (configuration?:
         /**
          *
          * @param {string} taskId
-         * @param {TaskStateRequest} [taskStateRequest]
+         * @param {TaskStateRequest} taskStateRequest
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        offline: async (taskId: string, taskStateRequest?: TaskStateRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+        offline: async (taskId: string, taskStateRequest: TaskStateRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'taskId' is not null or undefined
             assertParamExists('offline', 'taskId', taskId)
+            // verify required parameter 'taskStateRequest' is not null or undefined
+            assertParamExists('offline', 'taskStateRequest', taskStateRequest)
             const localVarPath = `/api/v1/admin/tasks/{taskId}/offline`
                 .replace('{taskId}', encodeURIComponent(String(taskId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -3564,13 +3610,15 @@ export const AdminTaskControllerApiAxiosParamCreator = function (configuration?:
         /**
          *
          * @param {string} executionId
-         * @param {AcceptanceReviewRequest} [acceptanceReviewRequest]
+         * @param {AcceptanceReviewRequest} acceptanceReviewRequest
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        rejectAcceptanceReview: async (executionId: string, acceptanceReviewRequest?: AcceptanceReviewRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+        rejectAcceptanceReview: async (executionId: string, acceptanceReviewRequest: AcceptanceReviewRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'executionId' is not null or undefined
             assertParamExists('rejectAcceptanceReview', 'executionId', executionId)
+            // verify required parameter 'acceptanceReviewRequest' is not null or undefined
+            assertParamExists('rejectAcceptanceReview', 'acceptanceReviewRequest', acceptanceReviewRequest)
             const localVarPath = `/api/v1/admin/tasks/executions/{executionId}/acceptance/reject`
                 .replace('{executionId}', encodeURIComponent(String(executionId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -3738,11 +3786,11 @@ export const AdminTaskControllerApiFp = function(configuration?: Configuration) 
         /**
          *
          * @param {string} taskId
-         * @param {TaskStateRequest} [taskStateRequest]
+         * @param {TaskStateRequest} taskStateRequest
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async _delete(taskId: string, taskStateRequest?: TaskStateRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseTaskEntity>> {
+        async _delete(taskId: string, taskStateRequest: TaskStateRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseTaskEntity>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator._delete(taskId, taskStateRequest, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AdminTaskControllerApi._delete']?.[localVarOperationServerIndex]?.url;
@@ -3810,11 +3858,11 @@ export const AdminTaskControllerApiFp = function(configuration?: Configuration) 
         /**
          *
          * @param {string} taskId
-         * @param {TaskStateRequest} [taskStateRequest]
+         * @param {TaskStateRequest} taskStateRequest
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async offline(taskId: string, taskStateRequest?: TaskStateRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseTaskEntity>> {
+        async offline(taskId: string, taskStateRequest: TaskStateRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseTaskEntity>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.offline(taskId, taskStateRequest, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AdminTaskControllerApi.offline']?.[localVarOperationServerIndex]?.url;
@@ -3823,11 +3871,11 @@ export const AdminTaskControllerApiFp = function(configuration?: Configuration) 
         /**
          *
          * @param {string} executionId
-         * @param {AcceptanceReviewRequest} [acceptanceReviewRequest]
+         * @param {AcceptanceReviewRequest} acceptanceReviewRequest
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async rejectAcceptanceReview(executionId: string, acceptanceReviewRequest?: AcceptanceReviewRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseTaskExecution>> {
+        async rejectAcceptanceReview(executionId: string, acceptanceReviewRequest: AcceptanceReviewRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseTaskExecution>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.rejectAcceptanceReview(executionId, acceptanceReviewRequest, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AdminTaskControllerApi.rejectAcceptanceReview']?.[localVarOperationServerIndex]?.url;
@@ -4003,7 +4051,7 @@ export const AdminTaskControllerApiFactory = function (configuration?: Configura
 export interface AdminTaskControllerApiDeleteRequest {
     readonly taskId: string
 
-    readonly taskStateRequest?: TaskStateRequest
+    readonly taskStateRequest: TaskStateRequest
 }
 
 /**
@@ -4040,7 +4088,7 @@ export interface AdminTaskControllerApiExecutionsRequest {
 export interface AdminTaskControllerApiOfflineRequest {
     readonly taskId: string
 
-    readonly taskStateRequest?: TaskStateRequest
+    readonly taskStateRequest: TaskStateRequest
 }
 
 /**
@@ -4049,7 +4097,7 @@ export interface AdminTaskControllerApiOfflineRequest {
 export interface AdminTaskControllerApiRejectAcceptanceReviewRequest {
     readonly executionId: string
 
-    readonly acceptanceReviewRequest?: AcceptanceReviewRequest
+    readonly acceptanceReviewRequest: AcceptanceReviewRequest
 }
 
 /**
@@ -4266,13 +4314,15 @@ export const AgentControllerApiAxiosParamCreator = function (configuration?: Con
         /**
          *
          * @param {string} agentId
-         * @param {AgentEvaluationRequest} [agentEvaluationRequest]
+         * @param {AgentEvaluationRequest} agentEvaluationRequest
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        evaluate: async (agentId: string, agentEvaluationRequest?: AgentEvaluationRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+        evaluate: async (agentId: string, agentEvaluationRequest: AgentEvaluationRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'agentId' is not null or undefined
             assertParamExists('evaluate', 'agentId', agentId)
+            // verify required parameter 'agentEvaluationRequest' is not null or undefined
+            assertParamExists('evaluate', 'agentEvaluationRequest', agentEvaluationRequest)
             const localVarPath = `/api/v1/agents/{agentId}/evaluate`
                 .replace('{agentId}', encodeURIComponent(String(agentId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -4467,11 +4517,11 @@ export const AgentControllerApiFp = function(configuration?: Configuration) {
         /**
          *
          * @param {string} agentId
-         * @param {AgentEvaluationRequest} [agentEvaluationRequest]
+         * @param {AgentEvaluationRequest} agentEvaluationRequest
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async evaluate(agentId: string, agentEvaluationRequest?: AgentEvaluationRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseAgentEvaluationDetailResponse>> {
+        async evaluate(agentId: string, agentEvaluationRequest: AgentEvaluationRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseAgentEvaluationDetailResponse>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.evaluate(agentId, agentEvaluationRequest, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AgentControllerApi.evaluate']?.[localVarOperationServerIndex]?.url;
@@ -4619,7 +4669,7 @@ export interface AgentControllerApiDisconnectRequest {
 export interface AgentControllerApiEvaluateRequest {
     readonly agentId: string
 
-    readonly agentEvaluationRequest?: AgentEvaluationRequest
+    readonly agentEvaluationRequest: AgentEvaluationRequest
 }
 
 /**
@@ -6324,74 +6374,6 @@ export const AuthControllerApiAxiosParamCreator = function (configuration?: Conf
         },
         /**
          *
-         * @param {MockLoginRequest} mockLoginRequest
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        mockAdminLogin: async (mockLoginRequest: MockLoginRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'mockLoginRequest' is not null or undefined
-            assertParamExists('mockAdminLogin', 'mockLoginRequest', mockLoginRequest)
-            const localVarPath = `/api/v1/auth/mock-admin-login`;
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-            localVarHeaderParameter['Accept'] = '*/*';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(mockLoginRequest, localVarRequestOptions, configuration)
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         *
-         * @param {MockLoginRequest} mockLoginRequest
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        mockLogin: async (mockLoginRequest: MockLoginRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'mockLoginRequest' is not null or undefined
-            assertParamExists('mockLogin', 'mockLoginRequest', mockLoginRequest)
-            const localVarPath = `/api/v1/auth/mock-login`;
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-            localVarHeaderParameter['Accept'] = '*/*';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(mockLoginRequest, localVarRequestOptions, configuration)
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         *
          * @param {SmsCodeRequest} smsCodeRequest
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -6652,30 +6634,6 @@ export const AuthControllerApiFp = function(configuration?: Configuration) {
         },
         /**
          *
-         * @param {MockLoginRequest} mockLoginRequest
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async mockAdminLogin(mockLoginRequest: MockLoginRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseAuthTokenResponse>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.mockAdminLogin(mockLoginRequest, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['AuthControllerApi.mockAdminLogin']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         *
-         * @param {MockLoginRequest} mockLoginRequest
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async mockLogin(mockLoginRequest: MockLoginRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseAuthTokenResponse>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.mockLogin(mockLoginRequest, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['AuthControllerApi.mockLogin']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         *
          * @param {SmsCodeRequest} smsCodeRequest
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -6811,24 +6769,6 @@ export const AuthControllerApiFactory = function (configuration?: Configuration,
         },
         /**
          *
-         * @param {AuthControllerApiMockAdminLoginRequest} requestParameters Request parameters.
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        mockAdminLogin(requestParameters: AuthControllerApiMockAdminLoginRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseAuthTokenResponse> {
-            return localVarFp.mockAdminLogin(requestParameters.mockLoginRequest, options).then((request) => request(axios, basePath));
-        },
-        /**
-         *
-         * @param {AuthControllerApiMockLoginRequest} requestParameters Request parameters.
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        mockLogin(requestParameters: AuthControllerApiMockLoginRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseAuthTokenResponse> {
-            return localVarFp.mockLogin(requestParameters.mockLoginRequest, options).then((request) => request(axios, basePath));
-        },
-        /**
-         *
          * @param {AuthControllerApiSendSmsCodeRequest} requestParameters Request parameters.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -6905,20 +6845,6 @@ export interface AuthControllerApiConfirmWechatScanSessionRequest {
     readonly sessionId: string
 
     readonly wechatScanConfirmRequest: WechatScanConfirmRequest
-}
-
-/**
- * Request parameters for mockAdminLogin operation in AuthControllerApi.
- */
-export interface AuthControllerApiMockAdminLoginRequest {
-    readonly mockLoginRequest: MockLoginRequest
-}
-
-/**
- * Request parameters for mockLogin operation in AuthControllerApi.
- */
-export interface AuthControllerApiMockLoginRequest {
-    readonly mockLoginRequest: MockLoginRequest
 }
 
 /**
@@ -7039,26 +6965,6 @@ export class AuthControllerApi extends BaseAPI {
      */
     public me(options?: AxiosRequestConfig) {
         return AuthControllerApiFp(this.configuration).me(options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     *
-     * @param {AuthControllerApiMockAdminLoginRequest} requestParameters Request parameters.
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    public mockAdminLogin(requestParameters: AuthControllerApiMockAdminLoginRequest, options?: AxiosRequestConfig) {
-        return AuthControllerApiFp(this.configuration).mockAdminLogin(requestParameters.mockLoginRequest, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     *
-     * @param {AuthControllerApiMockLoginRequest} requestParameters Request parameters.
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     */
-    public mockLogin(requestParameters: AuthControllerApiMockLoginRequest, options?: AxiosRequestConfig) {
-        return AuthControllerApiFp(this.configuration).mockLogin(requestParameters.mockLoginRequest, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -7420,12 +7326,11 @@ export const LocalAgentClaimPageControllerApiAxiosParamCreator = function (confi
         /**
          *
          * @param {string} [claimToken]
-         * @param {string} [token]
          * @param {string} [enrollmentToken]
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        claimPage: async (claimToken?: string, token?: string, enrollmentToken?: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+        claimPage: async (claimToken?: string, enrollmentToken?: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/local-agent/claim`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -7440,10 +7345,6 @@ export const LocalAgentClaimPageControllerApiAxiosParamCreator = function (confi
 
             if (claimToken !== undefined) {
                 localVarQueryParameter['claimToken'] = claimToken;
-            }
-
-            if (token !== undefined) {
-                localVarQueryParameter['token'] = token;
             }
 
             if (enrollmentToken !== undefined) {
@@ -7486,13 +7387,12 @@ export const LocalAgentClaimPageControllerApiFp = function(configuration?: Confi
         /**
          *
          * @param {string} [claimToken]
-         * @param {string} [token]
          * @param {string} [enrollmentToken]
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async claimPage(claimToken?: string, token?: string, enrollmentToken?: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.claimPage(claimToken, token, enrollmentToken, options);
+        async claimPage(claimToken?: string, enrollmentToken?: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.claimPage(claimToken, enrollmentToken, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['LocalAgentClaimPageControllerApi.claimPage']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -7522,7 +7422,7 @@ export const LocalAgentClaimPageControllerApiFactory = function (configuration?:
          * @throws {RequiredError}
          */
         claimPage(requestParameters: LocalAgentClaimPageControllerApiClaimPageRequest = {}, options?: AxiosRequestConfig): AxiosPromise<string> {
-            return localVarFp.claimPage(requestParameters.claimToken, requestParameters.token, requestParameters.enrollmentToken, options).then((request) => request(axios, basePath));
+            return localVarFp.claimPage(requestParameters.claimToken, requestParameters.enrollmentToken, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -7541,8 +7441,6 @@ export interface LocalAgentClaimPageControllerApiClaimFromPageRequest {
  */
 export interface LocalAgentClaimPageControllerApiClaimPageRequest {
     readonly claimToken?: string
-
-    readonly token?: string
 
     readonly enrollmentToken?: string
 }
@@ -7568,7 +7466,7 @@ export class LocalAgentClaimPageControllerApi extends BaseAPI {
      * @throws {RequiredError}
      */
     public claimPage(requestParameters: LocalAgentClaimPageControllerApiClaimPageRequest = {}, options?: AxiosRequestConfig) {
-        return LocalAgentClaimPageControllerApiFp(this.configuration).claimPage(requestParameters.claimToken, requestParameters.token, requestParameters.enrollmentToken, options).then((request) => request(this.axios, this.basePath));
+        return LocalAgentClaimPageControllerApiFp(this.configuration).claimPage(requestParameters.claimToken, requestParameters.enrollmentToken, options).then((request) => request(this.axios, this.basePath));
     }
 }
 
@@ -7704,6 +7602,43 @@ export const MyTaskControllerApiAxiosParamCreator = function (configuration?: Co
         },
         /**
          *
+         * @param {string} executionId
+         * @param {string} fileId
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        downloadArtifact: async (executionId: string, fileId: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'executionId' is not null or undefined
+            assertParamExists('downloadArtifact', 'executionId', executionId)
+            // verify required parameter 'fileId' is not null or undefined
+            assertParamExists('downloadArtifact', 'fileId', fileId)
+            const localVarPath = `/api/v1/my-tasks/{executionId}/artifacts/{fileId}/download`
+                .replace('{executionId}', encodeURIComponent(String(executionId)))
+                .replace('{fileId}', encodeURIComponent(String(fileId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         *
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -7787,6 +7722,19 @@ export const MyTaskControllerApiFp = function(configuration?: Configuration) {
         },
         /**
          *
+         * @param {string} executionId
+         * @param {string} fileId
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async downloadArtifact(executionId: string, fileId: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<File>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.downloadArtifact(executionId, fileId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['MyTaskControllerApi.downloadArtifact']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         *
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -7828,6 +7776,15 @@ export const MyTaskControllerApiFactory = function (configuration?: Configuratio
         },
         /**
          *
+         * @param {MyTaskControllerApiDownloadArtifactRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        downloadArtifact(requestParameters: MyTaskControllerApiDownloadArtifactRequest, options?: AxiosRequestConfig): AxiosPromise<File> {
+            return localVarFp.downloadArtifact(requestParameters.executionId, requestParameters.fileId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         *
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -7854,6 +7811,15 @@ export interface MyTaskControllerApiDetail2Request {
 }
 
 /**
+ * Request parameters for downloadArtifact operation in MyTaskControllerApi.
+ */
+export interface MyTaskControllerApiDownloadArtifactRequest {
+    readonly executionId: string
+
+    readonly fileId: string
+}
+
+/**
  * Request parameters for rerun operation in MyTaskControllerApi.
  */
 export interface MyTaskControllerApiRerunRequest {
@@ -7872,6 +7838,16 @@ export class MyTaskControllerApi extends BaseAPI {
      */
     public detail2(requestParameters: MyTaskControllerApiDetail2Request, options?: AxiosRequestConfig) {
         return MyTaskControllerApiFp(this.configuration).detail2(requestParameters.executionId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     *
+     * @param {MyTaskControllerApiDownloadArtifactRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public downloadArtifact(requestParameters: MyTaskControllerApiDownloadArtifactRequest, options?: AxiosRequestConfig) {
+        return MyTaskControllerApiFp(this.configuration).downloadArtifact(requestParameters.executionId, requestParameters.fileId, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

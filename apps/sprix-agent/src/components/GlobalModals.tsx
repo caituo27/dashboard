@@ -84,7 +84,7 @@ export function AccountModal({
   const profileRows = getAccountProfileRows(account);
   const editActions = getAccountEditActions();
   return (
-    <Modal title="账户信息" open={open} onCancel={onClose} footer={<ActionButton onClick={onClose}>关闭</ActionButton>}>
+    <Modal title="账户信息" open={open} onCancel={onClose} footer={<ActionButton onClick={onClose}>关闭</ActionButton>} width={620}>
       <div className="grid gap-3 text-sm">
         {profileRows.map((row) => (
           <InfoRow key={row.label} label={row.label} value={row.label === "接单资格" ? <StatusTag status={row.value} /> : row.value} />
@@ -121,9 +121,11 @@ export function AccountModal({
 
 function InfoRow({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="flex items-center justify-between rounded-2xl bg-[#fafafa] px-4 py-3">
+    <div className="grid grid-cols-[88px_minmax(0,1fr)] items-center gap-3 rounded-2xl bg-[#fafafa] px-4 py-3 sm:grid-cols-[112px_minmax(0,1fr)]">
       <span className="text-ink-soft">{label}</span>
-      <span className="font-medium text-ink">{value}</span>
+      <div className="min-w-0 justify-self-end break-words text-right font-medium text-ink [overflow-wrap:anywhere]">
+        {value}
+      </div>
     </div>
   );
 }

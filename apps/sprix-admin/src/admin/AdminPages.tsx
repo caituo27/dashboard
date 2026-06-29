@@ -68,6 +68,8 @@ function showRequestError(error: unknown, fallback: string, prefix = "") {
   message.error(error instanceof Error ? `${prefix}${error.message}` : fallback);
 }
 
+const taskCategoryOptions = ["等待产品输入"].map((value) => ({ value, label: value }));
+
 export function AdminTaskCenter() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -100,6 +102,7 @@ export function AdminTaskCenter() {
     setKeyword("");
   };
   const refreshTasks = () => queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+  const editTaskFromListAction = { ...getAdminTaskWriteAction("edit"), label: "编辑" };
   const runTaskAction = async (action: () => Promise<unknown>, successText: string) => {
     try {
       await action();
@@ -181,7 +184,7 @@ export function AdminTaskCenter() {
       width: 280,
       render: (_, task) => (
         <div className="sprix-task-action-group" onClick={(event) => event.stopPropagation()}>
-          <TaskWriteButton action={getAdminTaskWriteAction("edit")} onClick={() => confirmTaskAction(task, getAdminTaskWriteAction("edit"))} />
+          <TaskWriteButton action={editTaskFromListAction} onClick={() => confirmTaskAction(task, editTaskFromListAction)} />
           {task.taskStatus === "已发布" ? (
             <>
               <TaskWriteButton action={getAdminTaskWriteAction("offline")} onClick={() => confirmTaskAction(task, getAdminTaskWriteAction("offline"))} />
@@ -598,8 +601,8 @@ export function AdminTaskForm() {
             <Form.Item label="任务名称" name="title" rules={[{ required: true, message: "请输入任务名称" }]}>
               <Input />
             </Form.Item>
-            <Form.Item label="任务分类" name="category" rules={[{ required: true, message: "请选择任务分类" }]}>
-              <Select options={["数据处理", "市场研究", "HR 招聘", "金融资讯"].map((value) => ({ value, label: value }))} />
+            <Form.Item label="任务类型" name="category" rules={[{ required: true, message: "请选择任务类型" }]}>
+              <Select placeholder="等待产品输入" options={taskCategoryOptions} />
             </Form.Item>
             <Form.Item label="任务来源类型" name="sourceType" rules={[{ required: true, message: "请输入任务来源类型" }]}>
               <Input />

@@ -3,11 +3,11 @@ import { currency } from "../utils/format";
 import { getEstimatedTokenField } from "./tokenEstimateView";
 
 const processingAppealStatuses = new Set(["申诉处理中", "待处理", "处理中", "需补充材料"]);
-const acceptQualificationMessage = "首次接单前，需要先完成支付宝人脸核验并签署《自由职业者服务框架协议》。";
+const taskAcceptQualificationMessage = "首次接单前，请先完成支付宝人脸核验并同意《自由职业者服务框架协议》。";
 
 type TaskAcceptAccount = Pick<Account, "isLoggedIn" | "qualificationStatus" | "realPersonVerified" | "freelancerAgreementSigned">;
 type TaskAcceptAgent = Pick<Agent, "id"> | undefined;
-type TaskAcceptTask = Pick<Task, "taskStatus" | "remainingSlots">;
+type TaskAcceptTask = Pick<Task, "id" | "taskStatus" | "remainingSlots">;
 
 export type TaskAcceptGate =
   | {
@@ -15,6 +15,7 @@ export type TaskAcceptGate =
     }
   | {
       kind: "qualification";
+      path: string;
       message: string;
     }
   | {
@@ -30,8 +31,37 @@ export type TaskAcceptGate =
       kind: "ready";
     };
 
-export function hasTaskAcceptQualification(account: TaskAcceptAccount) {
+export type TaskAcceptQualificationGate =
+  | {
+      allowed: true;
+    }
+  | {
+      allowed: false;
+      path: string;
+      message: string;
+    };
+
+export function isTaskAcceptQualificationReady(
+  account: Pick<Account, "qualificationStatus" | "realPersonVerified" | "freelancerAgreementSigned">
+) {
   return account.qualificationStatus === "已开通" && account.realPersonVerified && account.freelancerAgreementSigned;
+}
+
+export function getTaskAcceptQualificationGate(
+  account: Pick<Account, "qualificationStatus" | "realPersonVerified" | "freelancerAgreementSigned">,
+  taskId: string
+): TaskAcceptQualificationGate {
+  if (isTaskAcceptQualificationReady(account)) {
+    return {
+      allowed: true
+    };
+  }
+
+  return {
+    allowed: false,
+    path: `/agent/qualification?task=${encodeURIComponent(taskId)}`,
+    message: taskAcceptQualificationMessage
+  };
 }
 
 export function getTaskAcceptGate(account: TaskAcceptAccount, currentAgent: TaskAcceptAgent, task: TaskAcceptTask): TaskAcceptGate {
@@ -39,10 +69,12 @@ export function getTaskAcceptGate(account: TaskAcceptAccount, currentAgent: Task
     return { kind: "login" };
   }
 
-  if (!hasTaskAcceptQualification(account)) {
+  const qualificationGate = getTaskAcceptQualificationGate(account, task.id);
+  if (!qualificationGate.allowed) {
     return {
       kind: "qualification",
-      message: acceptQualificationMessage
+      path: qualificationGate.path,
+      message: qualificationGate.message
     };
   }
 
@@ -62,6 +94,14 @@ export function getTaskAcceptGate(account: TaskAcceptAccount, currentAgent: Task
   }
 
   return { kind: "ready" };
+}
+
+export function getAgreementSignButtonText(secondsRemaining: number) {
+  if (secondsRemaining > 0) {
+    return `请阅读 ${secondsRemaining} 秒后签署`;
+  }
+
+  return "同意并签署";
 }
 
 export function getQualificationSuccessAction(search: string) {

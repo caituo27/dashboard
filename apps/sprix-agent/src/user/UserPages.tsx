@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Modal, Progress, Segmented, Steps, message } from "antd";
+import { Modal, Progress, Segmented, Steps, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Bot, BrainCircuit, Download, PlugZap, UsersRound } from "lucide-react";
-import type { Agent, AgentEvaluation, MyTask, Task } from "../types";
+import type { FaceVerificationSession } from "../apis/sprix";
+import type { Account, Agent, AgentEvaluation, MyTask, Task } from "../types";
 import { useSprixStore } from "../store/sprixStore";
 import {
   acceptRemoteTask,
-  completeRemoteRealPersonVerification,
+  completeRemoteFaceVerification,
   DEFAULT_AGENT_EVALUATION_QUESTIONS,
   initializeRemoteFaceVerification,
   readLatestRemoteAgentEvaluation,
@@ -22,16 +23,23 @@ import { ActionButton, EmptyState, MetricCard, PageHeader, SecondaryButton, Soft
 import { compactText, currency, scoreText } from "../utils/format";
 import { isGlobalAuthError } from "../utils/http";
 import { getConnectedAgent, getCurrentExecutionAgent, getUserAdmissionState } from "./admission";
+import { QrPayloadBox } from "../components/QrSession";
 import { getAgentAbilityResult, getAgentAdmissionSummary, getAgentTagLabels, hasPendingAgentEvaluation } from "./agentResult";
 import { getPayoutAccountText, getPayoutPageSubtitle, getPayoutRecordState } from "./earningsView";
 import { getExecutionArtifactsState, getExecutionBackendPendingSections, getExecutionRequirementText, getExecutionReviewState } from "./executionDetailView";
-import { getFaceVerificationStartState, getQualificationRecordRows, getQualificationStep } from "./qualificationView";
-import { getRecommendationPendingState } from "./recommendationView";
+import { getQualificationRecordRows } from "./qualificationView";
+import { getRecommendationPendingState, SMART_ACCEPT_THRESHOLD } from "./recommendationView";
 import { getEstimatedTokenField } from "./tokenEstimateView";
-import { getMyTaskActions, getMyTaskMetaItems, getQualificationSuccessAction, getTaskAcceptGate } from "./userFlowRules";
+import { checkLocalAgentHealth } from "./localAgentConnect";
+import {
+  getAgreementSignButtonText,
+  getMyTaskActions,
+  getMyTaskMetaItems,
+  getQualificationSuccessAction,
+  getTaskAcceptGate
+} from "./userFlowRules";
 
 const CLIENT_DOWNLOAD_URL = "https://cnb.cool/yztx_qxun/LocalCLIAgentRelease/-/git/raw/main/LocalCLIAgent.pkg";
-const FACE_VERIFICATION_STARTED_KEY = "sprix.faceVerification.started";
 
 const evaluationDimensionLabels: Record<string, string> = {
   clarity: "表达清晰",
@@ -52,18 +60,6 @@ type UserPageProps = {
 function showRequestError(error: unknown, fallback: string, prefix = "") {
   if (isGlobalAuthError(error)) return;
   message.error(error instanceof Error ? `${prefix}${error.message}` : fallback);
-}
-
-function readFaceVerificationStarted() {
-  return window.sessionStorage.getItem(FACE_VERIFICATION_STARTED_KEY) === "true";
-}
-
-function writeFaceVerificationStarted(started: boolean) {
-  if (started) {
-    window.sessionStorage.setItem(FACE_VERIFICATION_STARTED_KEY, "true");
-    return;
-  }
-  window.sessionStorage.removeItem(FACE_VERIFICATION_STARTED_KEY);
 }
 
 const agentEvaluationStatusLabels: Record<AgentEvaluation["status"], string> = {
@@ -116,6 +112,7 @@ function useRerunTask() {
 export function LandingPage({ openLogin }: UserPageProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const account = useSprixStore((state) => state.account);
   const agents = useSprixStore((state) => state.agents);
   const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
@@ -127,6 +124,7 @@ export function LandingPage({ openLogin }: UserPageProps) {
   const handledAdmissionReasonKey = useRef<string>();
   const handledAdmissionLoginKey = useRef<string>();
   const autoEnteredAgentCenterRef = useRef(false);
+  const [checkingLocalAgent, setCheckingLocalAgent] = useState(false);
 
   useEffect(() => {
     if (!admissionReason) return;
@@ -172,6 +170,31 @@ export function LandingPage({ openLogin }: UserPageProps) {
     };
   }, [account.isLoggedIn, hasConnectedAgent, mergeRemoteState]);
 
+  const startConnect = async () => {
+    if (!account.isLoggedIn) {
+      openLogin();
+      return;
+    }
+
+    setCheckingLocalAgent(true);
+    const result = await checkLocalAgentHealth();
+
+    if (result.kind === "running") {
+      await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
+      setCheckingLocalAgent(false);
+      message.success(`已检测到本机 LocalCLIAgent${result.version ? ` ${result.version}` : ""} 正在运行，正在进入 Agent 中心。`);
+      navigate("/agent/center");
+      return;
+    }
+
+    setCheckingLocalAgent(false);
+    Modal.warning({
+      title: "未检测到本机 LocalCLIAgent",
+      content: "请确认客户端已安装并正在运行。如果还没有安装，请点击“下载客户端”。",
+      okText: "知道了"
+    });
+  };
+
   return (
     <main className="sprix-landing">
       <section className="sprix-landing-inner">
@@ -179,7 +202,7 @@ export function LandingPage({ openLogin }: UserPageProps) {
           <div className="sprix-hero-kicker">Sprix AI</div>
           <h1 className="sprix-title sprix-hero-title">让你的 Agent 自动帮你赚钱</h1>
           <p className="sprix-hero-subtitle">
-            安装并启动本地 Agent，系统会自动完成连接；连接成功后即可进入任务市场接单执行。
+            连接当前设备上的 LocalCLIAgent；连接成功后即可进入任务市场接单执行。
           </p>
           <div className="sprix-hero-actions">
             {admission.allowed ? (
@@ -187,13 +210,18 @@ export function LandingPage({ openLogin }: UserPageProps) {
                 进入 Agent 中心
               </ActionButton>
             ) : account.isLoggedIn ? (
-              <ActionButton className="sprix-agent-download-cta" href={CLIENT_DOWNLOAD_URL} target="_blank" rel="noreferrer" icon={<Download size={20} />}>
-                下载并安装本地 Agent
-              </ActionButton>
+              <>
+                <ActionButton icon={<PlugZap size={16} />} loading={checkingLocalAgent} onClick={startConnect}>
+                  连接本地 Agent
+                </ActionButton>
+                <SecondaryButton href={CLIENT_DOWNLOAD_URL} target="_blank" rel="noreferrer" icon={<Download size={16} />}>
+                  下载客户端
+                </SecondaryButton>
+              </>
             ) : (
               <>
-                <ActionButton icon={<PlugZap size={16} />} onClick={openLogin}>
-                  登录 / 注册
+                <ActionButton icon={<PlugZap size={16} />} loading={checkingLocalAgent} onClick={startConnect}>
+                  登录后连接 Agent
                 </ActionButton>
                 <SecondaryButton href={CLIENT_DOWNLOAD_URL} target="_blank" rel="noreferrer" icon={<Download size={16} />}>
                   下载客户端
@@ -222,13 +250,15 @@ function PlatformMetricCard({ label, value }: { label: string; value: string }) 
 
 export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<UserPageProps> = {}) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const tasks = useSprixStore((state) => state.tasks);
   const myTasks = useSprixStore((state) => state.myTasks);
   const account = useSprixStore((state) => state.account);
   const agents = useSprixStore((state) => state.agents);
   const currentAgent = getCurrentExecutionAgent(agents);
   const availableTasks = useMemo(() => tasks.filter((task) => task.taskStatus === "已发布"), [tasks]);
-  const recommendationState = getRecommendationPendingState();
+  const smartAcceptTasks = useMemo(() => availableTasks.filter((task) => task.agentMatchScore > SMART_ACCEPT_THRESHOLD), [availableTasks]);
+  const recommendationState = getRecommendationPendingState(smartAcceptTasks.length);
 
   const handleAccept = (task: Task) => {
     const gate = getTaskAcceptGate(account, currentAgent, task);
@@ -238,7 +268,11 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
     }
     if (gate.kind === "qualification") {
       message.warning(gate.message);
-      openQualificationPrompt?.(task.id);
+      if (openQualificationPrompt) {
+        openQualificationPrompt(task.id);
+      } else {
+        navigate(gate.path);
+      }
       return;
     }
     if (gate.kind === "current-agent") {
@@ -250,7 +284,39 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
       message.warning(gate.message);
       return;
     }
-    navigate(`/agent/task/${task.id}`);
+
+    Modal.confirm({
+      title: "确认接单",
+      content:
+        "确认接单后，平台将使用当前执行 Agent 立即执行该任务。执行期间请保持 Agent 连接，若连接断开或切换 Agent，本次执行将终止并需要重新执行。",
+      okText: "确认接单",
+      cancelText: "取消",
+      onOk: async () => {
+        try {
+          await acceptRemoteTask(task.id);
+          await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
+          message.success("接单成功，已回到任务市场");
+          navigate("/agent/market", { replace: true });
+        } catch (error) {
+          showRequestError(error, "接单失败", "接单失败：");
+        }
+      }
+    });
+  };
+
+  const handleSmartAccept = () => {
+    if (!currentAgent) {
+      message.warning("请先设置当前执行 Agent");
+      navigate("/agent/center");
+      return;
+    }
+    if (smartAcceptTasks.length === 0) {
+      message.info(
+        `智能接单已开启，仅匹配度大于 ${SMART_ACCEPT_THRESHOLD}% 的任务会自动接取，当前暂无命中任务。`
+      );
+      return;
+    }
+    message.info(`智能接单已开启，当前命中 ${smartAcceptTasks.length} 个任务。`);
   };
 
   return (
@@ -271,13 +337,16 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
             <h2 className="text-lg font-semibold text-ink">{recommendationState.title}</h2>
             <p className="mt-2 text-sm leading-7 text-ink-soft">{recommendationState.description}</p>
           </div>
-          <div className="grid min-w-[280px] gap-2 sm:grid-cols-3">
-            {recommendationState.metrics.map((item) => (
-              <div key={item.label} className="rounded-2xl bg-[#fafafa] px-4 py-3 text-sm">
-                <span className="block text-ink-soft">{item.label}</span>
-                <b className="text-ink">{item.value}</b>
-              </div>
-            ))}
+          <div className="flex flex-col gap-3 lg:items-end">
+            <div className="grid min-w-[280px] gap-2 sm:grid-cols-3">
+              {recommendationState.metrics.map((item) => (
+                <div key={item.label} className="rounded-2xl bg-[#fafafa] px-4 py-3 text-sm">
+                  <span className="block text-ink-soft">{item.label}</span>
+                  <b className="text-ink">{item.value}</b>
+                </div>
+              ))}
+            </div>
+            <ActionButton onClick={handleSmartAccept}>智能接单</ActionButton>
           </div>
         </div>
       </Surface>
@@ -350,6 +419,7 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
       message.warning(gate.message);
       return;
     }
+
     Modal.confirm({
       title: "确认接单",
       content: "确认接单后，平台将使用当前执行 Agent 立即执行该任务。执行期间请保持 Agent 连接，若连接断开或切换 Agent，本次执行将终止并需要重新执行。",
@@ -359,13 +429,9 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
         try {
           await acceptRemoteTask(task.id);
           await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
-          message.success("接单成功，任务已进入执行中");
-          navigate("/agent/my-tasks");
+          message.success("接单成功，已回到任务市场");
+          navigate("/agent/market", { replace: true });
         } catch (error) {
-          if (!(error instanceof Error) && !isGlobalAuthError(error)) {
-            showRequestError(error, "接单失败", "接单失败：");
-            return;
-          }
           showRequestError(error, "接单失败", "接单失败：");
         }
       }
@@ -399,9 +465,6 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
           <Surface className="p-5">
             <h3 className="text-lg font-semibold">接单确认</h3>
             <div className="mt-4 space-y-3 text-sm text-ink-soft">
-              <p className="flex items-center justify-between gap-3">接单资格：<StatusTag status={account.qualificationStatus} /></p>
-              <p>支付宝人脸核验：<b className="text-ink">{account.realPersonVerified ? "已完成" : "未完成"}</b></p>
-              <p>服务协议：<b className="text-ink">{account.freelancerAgreementSigned ? "已签署" : "未签署"}</b></p>
               <p>当前执行 Agent：<b className="text-ink">{executionAgentName ?? "未设置"}</b></p>
               <p>当前连接状态：{currentAgent ? "后端已连接" : "未连接"}</p>
               <p>接单后将立即进入执行中。</p>
@@ -423,6 +486,18 @@ function InfoBlock({ title, body }: { title: string; body: string }) {
       <p className="mt-3 text-[15px] leading-8 text-ink-soft">{body}</p>
     </Surface>
   );
+}
+
+function getInitialQualificationStep(account: Account) {
+  if (account.qualificationStatus === "已开通" && account.realPersonVerified && account.freelancerAgreementSigned) {
+    return 2;
+  }
+
+  if (account.realPersonVerified) {
+    return 1;
+  }
+
+  return 0;
 }
 
 export function AgentCenterPage({ openLogin }: UserPageProps) {
@@ -1157,42 +1232,84 @@ export function EarningsPage({ openLogin, openBindAlipay }: UserPageProps) {
 export function QualificationPage({ openBindAlipay }: UserPageProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const queryClient = useQueryClient();
   const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
   const account = useSprixStore((state) => state.account);
-  const [checked, setChecked] = useState(false);
-  const [signed, setSigned] = useState(false);
-  const [step, setStep] = useState(() => getQualificationStep(account));
-  const [faceVerificationStarted, setFaceVerificationStarted] = useState(readFaceVerificationStarted);
+  const [step, setStep] = useState(getInitialQualificationStep(account));
   const [submitting, setSubmitting] = useState(false);
+  const [faceVerificationSession, setFaceVerificationSession] = useState<FaceVerificationSession>();
+  const [faceVerificationOpen, setFaceVerificationOpen] = useState(false);
+  const [agreementOpen, setAgreementOpen] = useState(false);
+  const [agreementSecondsRemaining, setAgreementSecondsRemaining] = useState(10);
   const successAction = getQualificationSuccessAction(location.search);
   const qualificationRows = getQualificationRecordRows(account);
 
   useEffect(() => {
-    setStep(getQualificationStep(account));
-  }, [account.realPersonVerified, account.freelancerAgreementSigned]);
-
-  const handleConfirmRealPersonVerification = async () => {
-    if (!faceVerificationStarted) {
-      message.warning("请先发起支付宝人脸核验");
-      return;
+    if (step === 1 && !account.freelancerAgreementSigned) {
+      setAgreementOpen(true);
     }
+  }, [account.freelancerAgreementSigned, step]);
+
+  useEffect(() => {
+    if (!agreementOpen) return;
+
+    setAgreementSecondsRemaining(10);
+    const intervalId = window.setInterval(() => {
+      setAgreementSecondsRemaining((seconds) => Math.max(seconds - 1, 0));
+    }, 1_000);
+
+    return () => window.clearInterval(intervalId);
+  }, [agreementOpen]);
+
+  const openFaceVerification = async () => {
     setSubmitting(true);
     try {
-      const accountPatch = await completeRemoteRealPersonVerification();
-      const nextAccount = { ...account, ...accountPatch };
-      mergeRemoteState({ account: accountPatch });
-      await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
-      writeFaceVerificationStarted(false);
-      setFaceVerificationStarted(false);
-      setStep(getQualificationStep(nextAccount));
-      message.success("支付宝人脸核验已完成，请继续签署服务协议");
+      const verificationSession = await initializeRemoteFaceVerification();
+      setFaceVerificationSession(verificationSession);
+      setFaceVerificationOpen(true);
     } catch (error) {
       if (!(error instanceof Error) && !isGlobalAuthError(error)) {
-        showRequestError(error, "实人认证状态确认失败", "实人认证状态确认失败：");
+        showRequestError(error, "实人认证初始化失败", "实人认证初始化失败：");
         return;
       }
-      showRequestError(error, "实人认证状态确认失败", "实人认证状态确认失败：");
+      showRequestError(error, "实人认证初始化失败", "实人认证初始化失败：");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const completeFaceVerification = async () => {
+    setSubmitting(true);
+    try {
+      const accountPatch = await completeRemoteFaceVerification();
+      mergeRemoteState({ account: accountPatch });
+      setFaceVerificationOpen(false);
+      setStep(1);
+      message.success("支付宝人脸核验已完成");
+    } catch (error) {
+      if (!(error instanceof Error) && !isGlobalAuthError(error)) {
+        showRequestError(error, "支付宝人脸核验确认失败", "支付宝人脸核验确认失败：");
+        return;
+      }
+      showRequestError(error, "支付宝人脸核验确认失败", "支付宝人脸核验确认失败：");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const signAgreement = async () => {
+    setSubmitting(true);
+    try {
+      const accountPatch = await signRemoteFreelancerAgreement();
+      mergeRemoteState({ account: accountPatch });
+      setAgreementOpen(false);
+      setStep(2);
+      message.success("接单资格已开通");
+    } catch (error) {
+      if (!(error instanceof Error) && !isGlobalAuthError(error)) {
+        showRequestError(error, "协议签署失败", "协议签署失败：");
+        return;
+      }
+      showRequestError(error, "协议签署失败", "协议签署失败：");
     } finally {
       setSubmitting(false);
     }
@@ -1200,99 +1317,46 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
 
   return (
     <>
-      <PageHeader title="开通接单资格" subtitle="先完成支付宝人脸核验，再签署自由职业者服务框架协议。两步完成后才能接单，可提前绑定本人支付宝用于平台自动打款。" />
+      <PageHeader
+        title="开通接单资格"
+        subtitle="首次接单前需完成支付宝人脸核验，并同意《自由职业者服务框架协议》。"
+      />
       <Surface className="mb-5 p-6">
-        <Steps current={step} items={["支付宝人脸核验", "签署服务协议", "开通成功"].map((title) => ({ title }))} />
+        <Steps current={step} items={["支付宝人脸核验", "同意服务协议", "开通成功"].map((title) => ({ title }))} />
         <div className="mt-8 rounded-[22px] bg-[#fafafa] p-5">
           {step === 0 && (
             <>
               <h3 className="text-lg font-semibold">支付宝人脸核验</h3>
-              <p className="mt-2 text-sm leading-7 text-ink-soft">用于确认接单服务主体，保障任务执行、收益归属和争议处理准确性。完成支付宝核验并返回本页后，再确认状态进入协议签署。</p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <SecondaryButton onClick={() => setChecked((value) => !value)}>
-                  {checked ? "已同意认证信息处理确认" : "同意认证信息处理确认"}
-                </SecondaryButton>
-                <ActionButton
-                  disabled={!checked || submitting}
-                  loading={submitting}
-                  onClick={async () => {
-                    setSubmitting(true);
-                    try {
-                      const verificationSession = await initializeRemoteFaceVerification();
-                      const startState = getFaceVerificationStartState(verificationSession);
-
-                      if (startState.kind === "redirect") {
-                        writeFaceVerificationStarted(true);
-                        setFaceVerificationStarted(true);
-                        message.info(startState.message);
-                        window.location.assign(startState.url);
-                        return;
-                      }
-
-                      message.warning(startState.message);
-                    } catch (error) {
-                      if (!(error instanceof Error) && !isGlobalAuthError(error)) {
-                        showRequestError(error, "实人认证初始化失败", "实人认证初始化失败：");
-                        return;
-                      }
-                      showRequestError(error, "实人认证初始化失败", "实人认证初始化失败：");
-                    } finally {
-                      setSubmitting(false);
-                    }
-                  }}
-                >
-                  开始支付宝人脸核验
-                </ActionButton>
-                <SecondaryButton disabled={!faceVerificationStarted || submitting} onClick={handleConfirmRealPersonVerification}>
-                  我已完成核验
-                </SecondaryButton>
-              </div>
+              <p className="mt-2 text-sm leading-7 text-ink-soft">
+                用于确认接单服务主体，保障任务执行、收益归属和争议处理准确性。请使用支付宝扫码完成核验，完成后返回本页确认结果。
+              </p>
+              <ActionButton
+                className="mt-4"
+                disabled={submitting}
+                loading={submitting}
+                onClick={openFaceVerification}
+              >
+                开始支付宝人脸核验
+              </ActionButton>
             </>
           )}
           {step === 1 && (
             <>
               <h3 className="text-lg font-semibold">签署《自由职业者服务框架协议》</h3>
-              <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-ink-soft">
-                <li>用户以自由职业者身份接取平台任务</li>
-                <li>用户确认任务交付、验收、结算、申诉等平台规则</li>
-                <li>用户确认收款支付宝需与实人认证主体一致</li>
-              </ul>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <SecondaryButton onClick={() => setSigned((value) => !value)}>
-                  {signed ? "已确认签署" : "确认阅读并同意协议"}
-                </SecondaryButton>
-                <ActionButton
-                  disabled={!account.realPersonVerified || !signed || submitting}
-                  loading={submitting}
-                  onClick={async () => {
-                    setSubmitting(true);
-                    try {
-                      const accountPatch = await signRemoteFreelancerAgreement();
-                      const nextAccount = { ...account, ...accountPatch };
-                      mergeRemoteState({ account: accountPatch });
-                      await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
-                      setStep(getQualificationStep(nextAccount));
-                      message.success("接单资格已开通");
-                    } catch (error) {
-                      if (!(error instanceof Error) && !isGlobalAuthError(error)) {
-                        showRequestError(error, "协议签署失败", "协议签署失败：");
-                        return;
-                      }
-                      showRequestError(error, "协议签署失败", "协议签署失败：");
-                    } finally {
-                      setSubmitting(false);
-                    }
-                  }}
-                >
-                  确认签署
-                </ActionButton>
-              </div>
+              <ActionButton
+                className="mt-4"
+                onClick={() => setAgreementOpen(true)}
+              >
+                阅读并签署协议
+              </ActionButton>
             </>
           )}
           {step === 2 && (
             <>
               <h3 className="text-lg font-semibold">接单资格已开通</h3>
-              <p className="mt-2 text-sm leading-7 text-ink-soft">你已完成支付宝人脸核验和服务协议签署，可以接取平台任务。可提前绑定与认证主体一致的本人支付宝账户用于自动打款。</p>
+              <p className="mt-2 text-sm leading-7 text-ink-soft">
+                你已完成支付宝人脸核验和服务协议签署，可以接取平台任务。可提前绑定与认证主体一致的本人支付宝账户用于自动打款。
+              </p>
               <div className="mt-5 flex flex-wrap gap-2">
                 <ActionButton onClick={() => navigate(successAction.path)}>{successAction.label}</ActionButton>
                 {successAction.path !== "/agent/market" && <SecondaryButton href="/agent/market">去任务市场</SecondaryButton>}
@@ -1302,9 +1366,23 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
           )}
         </div>
       </Surface>
+      <FaceVerificationModal
+        open={faceVerificationOpen}
+        session={faceVerificationSession}
+        submitting={submitting}
+        onClose={() => setFaceVerificationOpen(false)}
+        onComplete={completeFaceVerification}
+      />
+      <FreelancerAgreementModal
+        open={agreementOpen}
+        secondsRemaining={agreementSecondsRemaining}
+        submitting={submitting}
+        onClose={() => setAgreementOpen(false)}
+        onSign={signAgreement}
+      />
       <Surface className="p-6">
         <h3 className="text-lg font-semibold text-ink">接单资格记录</h3>
-        <p className="mt-2 text-sm leading-7 text-ink-soft">当前只展示账户接口已返回的资格状态。接单必须同时满足支付宝人脸核验已完成、服务协议已签署和接单资格已开通。</p>
+        <p className="mt-2 text-sm leading-7 text-ink-soft">当前只展示账户接口已返回的资格状态。认证主体、认证时间、协议版本和签署时间等待后端记录接口。</p>
         <div className="mt-5 grid gap-3 md:grid-cols-2">
           {qualificationRows.map((row) => (
             <div key={row.label} className="flex items-center justify-between rounded-2xl bg-[#fafafa] px-4 py-3 text-sm">
@@ -1315,6 +1393,111 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
         </div>
       </Surface>
     </>
+  );
+}
+
+function FaceVerificationModal({
+  open,
+  session,
+  submitting,
+  onClose,
+  onComplete
+}: {
+  open: boolean;
+  session?: FaceVerificationSession;
+  submitting: boolean;
+  onClose: () => void;
+  onComplete: () => void | Promise<void>;
+}) {
+  const qrValue = session?.webUrl;
+
+  return (
+    <Modal
+      title="实名认证"
+      open={open}
+      onCancel={onClose}
+      footer={null}
+      width={520}
+    >
+      <div className="grid justify-items-center gap-5 pb-2 pt-4">
+        <p className="m-0 text-center text-sm leading-6 text-ink-soft">请使用支付宝进行扫码完成认证。</p>
+        <QrPayloadBox value={qrValue} placeholder="支付宝认证二维码生成中" />
+        <ActionButton block disabled={!qrValue || submitting} loading={submitting} onClick={onComplete}>
+          完成
+        </ActionButton>
+      </div>
+    </Modal>
+  );
+}
+
+const placeholderAgreementSections = [
+  {
+    title: "一、服务身份",
+    body: "用户以自由职业者身份在 Sprix 平台接取任务，并确认任务执行、交付、验收和结算行为均由本人授权的 Agent 或本人操作完成。"
+  },
+  {
+    title: "二、任务交付与验收",
+    body: "用户应根据任务说明、交付标准和验收标准完成交付。平台可依据任务要求进行自动或人工验收，并展示验收结果。"
+  },
+  {
+    title: "三、收益结算",
+    body: "任务验收通过后，平台按页面展示的任务奖励进入结算流程。提现、打款、实名一致性校验和异常处理以后续平台规则及真实接口结果为准。"
+  },
+  {
+    title: "四、争议与申诉",
+    body: "如用户对验收结果、结算状态或任务处理存在异议，可按平台提供的申诉入口提交说明，平台将根据任务记录和交付证据处理。"
+  },
+  {
+    title: "五、占位说明",
+    body: "当前展示的是协议占位摘要；签署动作已接后端接口，正式协议全文、版本号、签署记录和配置来源将在后端或法务文本完成后替换。"
+  }
+];
+
+function FreelancerAgreementModal({
+  open,
+  secondsRemaining,
+  submitting,
+  onClose,
+  onSign
+}: {
+  open: boolean;
+  secondsRemaining: number;
+  submitting: boolean;
+  onClose: () => void;
+  onSign: () => void;
+}) {
+  const canSign = secondsRemaining <= 0;
+
+  return (
+    <Modal
+      title="自由职业者服务框架协议"
+      open={open}
+      onCancel={onClose}
+      footer={null}
+      width={640}
+      styles={{ body: { maxHeight: "calc(100vh - 160px)", overflowY: "auto" } }}
+    >
+      <div className="space-y-4 text-sm leading-7 text-ink-soft">
+        <section className="rounded-2xl bg-[#fff7e8] px-4 py-3">
+          <h3 className="font-semibold text-ink">正式协议全文待接入</h3>
+          <p>以下为占位协议内容。请阅读满 10 秒后签署；签署动作会提交后端，后续将替换为正式协议全文。</p>
+        </section>
+        {placeholderAgreementSections.map((section) => (
+          <section key={section.title} className="rounded-2xl bg-[#fafafa] px-4 py-3">
+            <h3 className="font-semibold text-ink">{section.title}</h3>
+            <p className="mt-1">{section.body}</p>
+          </section>
+        ))}
+        <ActionButton
+          block
+          disabled={!canSign || submitting}
+          loading={submitting}
+          onClick={onSign}
+        >
+          {getAgreementSignButtonText(secondsRemaining)}
+        </ActionButton>
+      </div>
+    </Modal>
   );
 }
 
@@ -1330,7 +1513,9 @@ export function QualificationPromptModal({
   const navigate = useNavigate();
   return (
     <Modal title="开通接单资格" open={open} onCancel={onClose} footer={null}>
-      <p className="text-sm leading-7 text-ink-soft">首次接单前，需要先完成支付宝人脸核验，再签署《自由职业者服务框架协议》。</p>
+      <p className="text-sm leading-7 text-ink-soft">
+        首次接单前，需要先完成支付宝人脸核验，再同意《自由职业者服务框架协议》。
+      </p>
       <div className="mt-5 flex gap-2">
         <ActionButton
           onClick={() => {

@@ -34,7 +34,7 @@ export function getQualificationStep(account: Pick<Account, "realPersonVerified"
 export function getQualificationRecordRows(account: Account): QualificationRecordRow[] {
   return [
     { label: "接单资格", value: account.qualificationStatus },
-    { label: "实人认证", value: account.realPersonVerified ? "已完成" : "未完成" },
+    { label: "支付宝人脸核验", value: account.realPersonVerified ? "已完成" : "未完成" },
     { label: "服务协议", value: account.freelancerAgreementSigned ? "已签署" : "未签署" },
     { label: "认证主体", value: pending },
     { label: "认证时间", value: pending },
@@ -50,12 +50,12 @@ export function getFaceVerificationStartState(session: FaceVerificationSession |
     return {
       kind: "redirect",
       url: webUrl,
-      message: "请在打开的实人认证页面完成认证，完成后返回 Sprix 查看资格状态。"
+      message: "请在打开的支付宝人脸核验页面完成认证，完成后返回 Sprix 查看资格状态。"
     };
   }
 
   return {
     kind: "pending",
-    message: "实人认证页面地址待后端返回，前端不会直接标记认证成功。"
+    message: "支付宝人脸核验页面地址待后端返回。"
   };
 }
