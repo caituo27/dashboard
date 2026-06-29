@@ -1,14 +1,9 @@
 import { Input, Modal } from "antd";
-
-export type SmsSafetyChallenge = {
-  left: number;
-  right: number;
-  answer: string;
-};
+import type { SafetyChallenge } from "../services/sprixApi";
 
 type SafetyChallengeModalProps = {
   open: boolean;
-  challenge: SmsSafetyChallenge;
+  challenge?: SafetyChallenge;
   answer: string;
   error: string;
   confirmLoading: boolean;
@@ -16,12 +11,6 @@ type SafetyChallengeModalProps = {
   onConfirm: () => void;
   onCancel: () => void;
 };
-
-export function createSmsSafetyChallenge(): SmsSafetyChallenge {
-  const left = 2 + Math.floor(Math.random() * 8);
-  const right = 1 + Math.floor(Math.random() * 9);
-  return { left, right, answer: String(left + right) };
-}
 
 export function SafetyChallengeModal({
   open,
@@ -44,10 +33,14 @@ export function SafetyChallengeModal({
       onOk={onConfirm}
       onCancel={onCancel}
     >
-      <p className="mb-4 text-sm leading-6 text-ink-soft">请完成安全验证后发送验证码</p>
+      <p className="mb-4 text-sm leading-6 text-ink-soft">请输入图中字符后发送短信验证码</p>
+      {challenge?.imageBase64 && (
+        <div className="mb-3 flex h-14 items-center justify-center rounded-md border border-line bg-white">
+          <img src={challenge.imageBase64} alt="安全验证码" className="h-12 max-w-full" />
+        </div>
+      )}
       <Input
-        placeholder="请输入计算结果"
-        prefix={`${challenge.left} + ${challenge.right} =`}
+        placeholder="请输入图中验证码"
         value={answer}
         status={error ? "error" : undefined}
         onChange={(event) => onAnswerChange(event.target.value)}

@@ -23,6 +23,7 @@ export function useQrLoginSession({ provider, active, onAuthenticated }: UseQrLo
   const [session, setSession] = useState<QrLoginSession>();
   const [status, setStatus] = useState("WAITING");
   const [expiresInSeconds, setExpiresInSeconds] = useState(0);
+  const [bindTicket, setBindTicket] = useState<string>();
 
   const start = useCallback(async () => {
     if (!active) return;
@@ -32,6 +33,7 @@ export function useQrLoginSession({ provider, active, onAuthenticated }: UseQrLo
       setSession(nextSession);
       setStatus("PENDING");
       setExpiresInSeconds(nextSession.expiresInSeconds);
+      setBindTicket(undefined);
     } catch (error) {
       setStatus("ERROR");
       showRequestError(error, provider === "alipay" ? "支付宝登录失败" : "微信登录失败", provider === "alipay" ? "支付宝登录失败：" : "微信登录失败：");
@@ -46,6 +48,7 @@ export function useQrLoginSession({ provider, active, onAuthenticated }: UseQrLo
       setSession(undefined);
       setStatus("WAITING");
       setExpiresInSeconds(0);
+      setBindTicket(undefined);
       return;
     }
     if (!session && !loading) {
@@ -65,8 +68,12 @@ export function useQrLoginSession({ provider, active, onAuthenticated }: UseQrLo
         if (cancelled) return;
         setStatus(nextStatus.status);
         setExpiresInSeconds(nextStatus.expiresInSeconds);
+        setBindTicket(nextStatus.bindTicket);
         if (nextStatus.authenticated) {
           await onAuthenticated();
+          return;
+        }
+        if (nextStatus.phoneBindRequired && nextStatus.bindTicket) {
           return;
         }
         if (nextStatus.expiresInSeconds <= 0 || nextStatus.status.toUpperCase() === "EXPIRED") {
@@ -95,5 +102,5 @@ export function useQrLoginSession({ provider, active, onAuthenticated }: UseQrLo
     };
   }, [active, onAuthenticated, provider, session, start]);
 
-  return { loading, session, status, expiresInSeconds };
+  return { loading, session, status, expiresInSeconds, bindTicket };
 }

@@ -1,5 +1,6 @@
 import { QrPayloadBox } from "../components/QrSession";
 import { getQrLoginStatusText, type QrLoginProvider } from "./authTypes";
+import { PhoneBindPanel } from "./PhoneBindPanel";
 import { useQrLoginSession } from "./useQrLoginSession";
 
 type QrLoginPanelProps = {
@@ -9,8 +10,12 @@ type QrLoginPanelProps = {
 };
 
 export function QrLoginPanel({ provider, active, onAuthenticated }: QrLoginPanelProps) {
-  const { loading, session, status, expiresInSeconds } = useQrLoginSession({ provider, active, onAuthenticated });
+  const { loading, session, status, expiresInSeconds, bindTicket } = useQrLoginSession({ provider, active, onAuthenticated });
   const statusText = getQrLoginStatusText(provider, status, expiresInSeconds, Boolean(session));
+
+  if (bindTicket) {
+    return <PhoneBindPanel provider={provider} bindTicket={bindTicket} onAuthenticated={onAuthenticated} />;
+  }
 
   return (
     <div className="grid justify-items-center gap-5 pb-4 pt-8">

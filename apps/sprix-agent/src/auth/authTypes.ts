@@ -12,6 +12,7 @@ export function getQrLoginStatusText(provider: QrLoginProvider, status: string, 
   if (isSessionExpired(status, expiresInSeconds)) return "二维码已更新，请重新扫码";
   const normalizedStatus = status.toUpperCase();
   if (provider === "wechat" && normalizedStatus === "SCANNED") return "已扫码，请在微信中确认登录";
+  if (normalizedStatus === "PHONE_BIND_REQUIRED") return "验证成功，请继续绑定手机号";
   if (normalizedStatus === "CONFIRMED") return "登录确认中";
   return provider === "alipay" ? "请使用支付宝扫码授权，确认后会自动进入平台" : "请使用微信扫码，确认后会自动进入平台";
 }

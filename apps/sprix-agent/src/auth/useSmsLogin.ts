@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { Form, message } from "antd";
-import { authenticateConsumer, sendSmsCode } from "../services/sprixApi";
+import { authenticateConsumer, createSafetyChallenge, sendSmsCode, type SafetyChallenge } from "../services/sprixApi";
 import { showRequestError } from "../components/requestErrors";
-import { createSmsSafetyChallenge, type SmsSafetyChallenge } from "./SafetyChallengeModal";
 
 export type PhoneLoginForm = {
   phone: string;
@@ -20,7 +19,7 @@ export function useSmsLogin({ active, onAuthenticated }: UseSmsLoginOptions) {
   const [sending, setSending] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [submitting, setSubmitting] = useState(false);
-  const [challenge, setChallenge] = useState<SmsSafetyChallenge>(createSmsSafetyChallenge);
+  const [challenge, setChallenge] = useState<SafetyChallenge>();
   const [challengeOpen, setChallengeOpen] = useState(false);
   const [challengeAnswer, setChallengeAnswer] = useState("");
   const [challengeError, setChallengeError] = useState("");
@@ -37,7 +36,7 @@ export function useSmsLogin({ active, onAuthenticated }: UseSmsLoginOptions) {
     setSending(false);
     setSubmitting(false);
     setChallengeOpen(false);
-    setChallenge(createSmsSafetyChallenge());
+    setChallenge(undefined);
     setChallengeAnswer("");
     setChallengeError("");
     setPendingPhone("");
@@ -47,26 +46,38 @@ export function useSmsLogin({ active, onAuthenticated }: UseSmsLoginOptions) {
     try {
       const { phone } = await form.validateFields(["phone"]);
       setPendingPhone(phone);
-      setChallenge(createSmsSafetyChallenge());
+      setSending(true);
+      const nextChallenge = await createSafetyChallenge("SMS_LOGIN");
+      setChallenge(nextChallenge);
       setChallengeAnswer("");
       setChallengeError("");
       setChallengeOpen(true);
     } catch (error) {
       if (error && typeof error === "object" && "errorFields" in error) return;
       showRequestError(error, "验证码发送失败", "验证码发送失败：");
+    } finally {
+      setSending(false);
     }
   };
 
   const confirmChallenge = async () => {
-    if (challengeAnswer.trim() !== challenge.answer) {
-      setChallengeError("安全验证不正确");
+    if (!challenge) {
+      setChallengeError("请重新获取安全验证码");
+      return;
+    }
+    if (!challengeAnswer.trim()) {
+      setChallengeError("请输入验证码");
       return;
     }
     setChallengeError("");
     setSending(true);
     try {
       const phone = pendingPhone || form.getFieldValue("phone");
-      const result = await sendSmsCode(phone);
+      const result = await sendSmsCode({
+        mobile: phone,
+        challengeId: challenge.challengeId,
+        challengeAnswer
+      });
       setCountdown(Math.max(result.resendIntervalSeconds ?? 60, 1));
       setChallengeOpen(false);
       setChallengeAnswer("");

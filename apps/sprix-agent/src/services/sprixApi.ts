@@ -84,6 +84,9 @@ export type WechatLoginStatus = {
   status: string;
   expiresInSeconds: number;
   authenticated: boolean;
+  phoneBindRequired: boolean;
+  provider?: "ALIPAY" | "WECHAT";
+  bindTicket?: string;
 };
 
 export type AlipayLoginSession = {
@@ -98,12 +101,24 @@ export type AlipayLoginStatus = {
   status: string;
   expiresInSeconds: number;
   authenticated: boolean;
+  phoneBindRequired: boolean;
+  provider?: "ALIPAY" | "WECHAT";
+  bindTicket?: string;
 };
 
 export type SmsCodeResponse = {
   mobile: string;
   expiresInSeconds: number;
   resendIntervalSeconds: number;
+};
+
+export type SafetyChallengeScene = "SMS_LOGIN" | "PHONE_BIND";
+
+export type SafetyChallenge = {
+  challengeId: string;
+  challengeType: string;
+  imageBase64: string;
+  expiresInSeconds: number;
 };
 
 export type AlipayBindSession = {
@@ -193,8 +208,22 @@ const tagText: Record<string, string> = {
   "data-processing": "数据处理"
 };
 
-export async function sendSmsCode(mobile: string): Promise<SmsCodeResponse> {
-  const response = await http.post<unknown, SmsCodeResponse>("/api/v1/auth/sms-codes", { mobile });
+export async function createSafetyChallenge(scene: SafetyChallengeScene): Promise<SafetyChallenge> {
+  const response = await http.post<unknown, SafetyChallenge>("/api/v1/auth/safety-challenges", { scene });
+  return requireValue<SafetyChallenge>(response, "安全验证码不可用");
+}
+
+export async function sendSmsCode(input: {
+  mobile: string;
+  challengeId: string;
+  challengeAnswer: string;
+}): Promise<SmsCodeResponse> {
+  const response = await http.post<unknown, SmsCodeResponse>("/api/v1/auth/sms-codes", {
+    mobile: input.mobile,
+    scene: "LOGIN",
+    challengeId: input.challengeId,
+    challengeAnswer: input.challengeAnswer
+  });
   return requireValue<SmsCodeResponse>(response, "验证码发送失败");
 }
 
@@ -234,7 +263,10 @@ export async function readWechatLoginStatus(sessionId: string): Promise<WechatLo
     sessionId: scanStatus.sessionId ?? sessionId,
     status: scanStatus.status ?? "PENDING",
     expiresInSeconds: scanStatus.expiresInSeconds ?? 0,
-    authenticated: Boolean(token)
+    authenticated: Boolean(token),
+    phoneBindRequired: Boolean((scanStatus as WechatScanStatusResponse & { phoneBindRequired?: boolean }).phoneBindRequired),
+    provider: (scanStatus as WechatScanStatusResponse & { provider?: "ALIPAY" | "WECHAT" }).provider,
+    bindTicket: (scanStatus as WechatScanStatusResponse & { bindTicket?: string }).bindTicket
   };
 }
 
@@ -267,8 +299,28 @@ export async function readAlipayLoginStatus(sessionId: string): Promise<AlipayLo
     sessionId: loginStatus.sessionId ?? sessionId,
     status: loginStatus.status ?? "PENDING",
     expiresInSeconds: loginStatus.expiresInSeconds ?? 0,
-    authenticated: Boolean(token)
+    authenticated: Boolean(token),
+    phoneBindRequired: Boolean((loginStatus as AlipayLoginStatusResponse & { phoneBindRequired?: boolean }).phoneBindRequired),
+    provider: (loginStatus as AlipayLoginStatusResponse & { provider?: "ALIPAY" | "WECHAT" }).provider,
+    bindTicket: (loginStatus as AlipayLoginStatusResponse & { bindTicket?: string }).bindTicket
   };
+}
+
+export async function sendPhoneBindSmsCode(input: {
+  bindTicket: string;
+  mobile: string;
+  challengeId: string;
+  challengeAnswer: string;
+}): Promise<SmsCodeResponse> {
+  const response = await http.post<unknown, SmsCodeResponse>("/api/v1/auth/phone-bind/sms-codes", input);
+  return requireValue<SmsCodeResponse>(response, "验证码发送失败");
+}
+
+export async function confirmPhoneBind(input: { bindTicket: string; mobile: string; code: string }) {
+  const response = await http.post<unknown, AuthTokenResponse>("/api/v1/auth/phone-bind/confirm", input);
+  const token = requireValue<AuthTokenResponse>(response, "绑定手机号失败").token;
+  localStorage.setItem(TOKEN_KEY, token ?? "");
+  return token;
 }
 
 export async function logoutConsumer() {
@@ -534,12 +586,14 @@ function listValue<T>(value: T[] | undefined | null): T[] {
 }
 
 function mapAccount(account: UserAccount): Partial<SprixState["account"]> {
+  const accountWithPhone = account as UserAccount & { phoneVerified?: boolean | null };
+  const phoneVerified = accountWithPhone.phoneVerified === true;
   return {
     nickname: account.nickname ?? "",
     email: account.email ?? "",
     phone: account.phone ?? "",
-    maskedPhone: maskPhone(account.phone),
-    phoneVerified: Boolean(account.phone),
+    maskedPhone: phoneVerified ? maskPhone(account.phone) : "",
+    phoneVerified,
     qualificationStatus: mapQualificationStatus(account.qualificationStatus),
     realPersonVerified: Boolean(account.realPersonVerified),
     freelancerAgreementSigned: Boolean(account.freelancerAgreementSigned),
