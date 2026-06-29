@@ -325,6 +325,36 @@
         }
       }
     },
+    "/api/v1/tasks/smart-accept": {
+      "post": {
+        "tags": [
+          "task-controller"
+        ],
+        "operationId": "smartAccept",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSmartAcceptResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/my-tasks/{executionId}/rerun": {
       "post": {
         "tags": [
@@ -2748,6 +2778,36 @@
         }
       }
     },
+    "/api/v1/tasks/recommendations": {
+      "get": {
+        "tags": [
+          "task-controller"
+        ],
+        "operationId": "recommendations",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListTaskRecommendationResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/my-tasks": {
       "get": {
         "tags": [
@@ -4241,6 +4301,71 @@
           },
           "terminationReason": {
             "type": "string"
+          },
+          "matchScore": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "matchReason": {
+            "type": "string"
+          }
+        }
+      },
+      "ApiResponseSmartAcceptResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SmartAcceptResponse"
+          }
+        }
+      },
+      "SmartAcceptResponse": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "bestRecommendation": {
+            "$ref": "#/components/schemas/TaskRecommendationResponse"
+          },
+          "execution": {
+            "$ref": "#/components/schemas/TaskExecution"
+          }
+        }
+      },
+      "TaskRecommendationResponse": {
+        "type": "object",
+        "properties": {
+          "task": {
+            "$ref": "#/components/schemas/TaskEntity"
+          },
+          "matchScore": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "recommendedReason": {
+            "type": "string"
+          },
+          "matchAnalysis": {
+            "type": "string"
+          },
+          "suggestedTeam": {
+            "type": "string"
+          },
+          "autoAcceptEligible": {
+            "type": "boolean"
           }
         }
       },
@@ -4828,6 +4953,12 @@
           },
           "careerProfile": {
             "$ref": "#/components/schemas/AgentCareerProfileResponse"
+          },
+          "abilityTags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "summary": {
             "type": "string"
@@ -5982,6 +6113,26 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/TaskEntity"
+            }
+          }
+        }
+      },
+      "ApiResponseListTaskRecommendationResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskRecommendationResponse"
             }
           }
         }

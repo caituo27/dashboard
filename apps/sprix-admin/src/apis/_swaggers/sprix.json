@@ -123,7 +123,8 @@
                 "$ref": "#/components/schemas/TaskStateRequest"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -158,14 +159,6 @@
         "parameters": [
           {
             "name": "claimToken",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "token",
             "in": "query",
             "required": false,
             "schema": {
@@ -315,6 +308,36 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponseTaskExecution"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/smart-accept": {
+      "post": {
+        "tags": [
+          "task-controller"
+        ],
+        "operationId": "smartAccept",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSmartAcceptResponse"
                 }
               }
             }
@@ -604,86 +627,6 @@
         }
       }
     },
-    "/api/v1/auth/mock-login": {
-      "post": {
-        "tags": [
-          "auth-controller"
-        ],
-        "operationId": "mockLogin",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MockLoginRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponseAuthTokenResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponseObject"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/auth/mock-admin-login": {
-      "post": {
-        "tags": [
-          "auth-controller"
-        ],
-        "operationId": "mockAdminLogin",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MockLoginRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponseAuthTokenResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponseObject"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/auth/logout": {
       "post": {
         "tags": [
@@ -899,7 +842,8 @@
                 "$ref": "#/components/schemas/AgentEvaluationRequest"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -1181,7 +1125,8 @@
                 "$ref": "#/components/schemas/TaskStateRequest"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -1231,7 +1176,8 @@
                 "$ref": "#/components/schemas/AcceptanceReviewRequest"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -1322,7 +1268,8 @@
                 "$ref": "#/components/schemas/WithdrawalReviewRequest"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -1372,7 +1319,8 @@
                 "$ref": "#/components/schemas/WithdrawalReviewRequest"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -1586,7 +1534,8 @@
                 "$ref": "#/components/schemas/WithdrawalReviewRequest"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -1663,7 +1612,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BulkWithdrawalRequest"
+                "$ref": "#/components/schemas/BulkWithdrawalReviewRequest"
               }
             }
           },
@@ -1703,7 +1652,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BulkWithdrawalRequest"
+                "$ref": "#/components/schemas/BulkWithdrawalReviewRequest"
               }
             }
           },
@@ -2829,6 +2778,36 @@
         }
       }
     },
+    "/api/v1/tasks/recommendations": {
+      "get": {
+        "tags": [
+          "task-controller"
+        ],
+        "operationId": "recommendations",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListTaskRecommendationResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/my-tasks": {
       "get": {
         "tags": [
@@ -2883,6 +2862,56 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponseMyTaskExecutionDetail"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/my-tasks/{executionId}/artifacts/{fileId}/download": {
+      "get": {
+        "tags": [
+          "my-task-controller"
+        ],
+        "operationId": "downloadArtifact",
+        "parameters": [
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
                 }
               }
             }
@@ -4272,6 +4301,71 @@
           },
           "terminationReason": {
             "type": "string"
+          },
+          "matchScore": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "matchReason": {
+            "type": "string"
+          }
+        }
+      },
+      "ApiResponseSmartAcceptResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SmartAcceptResponse"
+          }
+        }
+      },
+      "SmartAcceptResponse": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "bestRecommendation": {
+            "$ref": "#/components/schemas/TaskRecommendationResponse"
+          },
+          "execution": {
+            "$ref": "#/components/schemas/TaskExecution"
+          }
+        }
+      },
+      "TaskRecommendationResponse": {
+        "type": "object",
+        "properties": {
+          "task": {
+            "$ref": "#/components/schemas/TaskEntity"
+          },
+          "matchScore": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "recommendedReason": {
+            "type": "string"
+          },
+          "matchAnalysis": {
+            "type": "string"
+          },
+          "suggestedTeam": {
+            "type": "string"
+          },
+          "autoAcceptEligible": {
+            "type": "boolean"
           }
         }
       },
@@ -4517,21 +4611,6 @@
           }
         }
       },
-      "MockLoginRequest": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string"
-          },
-          "code": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "required": [
-          "code"
-        ]
-      },
       "ApiResponseBoolean": {
         "type": "object",
         "properties": {
@@ -4767,6 +4846,24 @@
           }
         }
       },
+      "AgentCareerProfileResponse": {
+        "type": "object",
+        "properties": {
+          "roleCode": {
+            "type": "string"
+          },
+          "roleName": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
       "AgentEvaluationDetailResponse": {
         "type": "object",
         "properties": {
@@ -4852,6 +4949,15 @@
             "type": "object",
             "additionalProperties": {
               "$ref": "#/components/schemas/AgentEvaluationDimensionResponse"
+            }
+          },
+          "careerProfile": {
+            "$ref": "#/components/schemas/AgentCareerProfileResponse"
+          },
+          "abilityTags": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           },
           "summary": {
@@ -4975,27 +5081,39 @@
         "type": "object",
         "properties": {
           "reason": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           }
-        }
+        },
+        "required": [
+          "reason"
+        ]
       },
       "AcceptanceReviewRequest": {
         "type": "object",
         "properties": {
           "reason": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           }
-        }
+        },
+        "required": [
+          "reason"
+        ]
       },
       "WithdrawalReviewRequest": {
         "type": "object",
         "properties": {
           "reason": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           }
-        }
+        },
+        "required": [
+          "reason"
+        ]
       },
-      "BulkWithdrawalRequest": {
+      "BulkWithdrawalReviewRequest": {
         "type": "object",
         "properties": {
           "withdrawalIds": {
@@ -5006,10 +5124,12 @@
             }
           },
           "reason": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           }
         },
         "required": [
+          "reason",
           "withdrawalIds"
         ]
       },
@@ -5032,6 +5152,21 @@
             }
           }
         }
+      },
+      "BulkWithdrawalRequest": {
+        "type": "object",
+        "properties": {
+          "withdrawalIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "withdrawalIds"
+        ]
       },
       "ApiResponseSettlementRecord": {
         "type": "object",
@@ -5982,6 +6117,26 @@
           }
         }
       },
+      "ApiResponseListTaskRecommendationResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskRecommendationResponse"
+            }
+          }
+        }
+      },
       "AcceptanceSnapshot": {
         "type": "object",
         "properties": {
@@ -6107,9 +6262,62 @@
           "localRelativePath": {
             "type": "string"
           },
+          "downloadUrl": {
+            "type": "string"
+          },
           "receivedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "ExecutionHistorySnapshot": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "agentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "appealStatus": {
+            "type": "string"
+          },
+          "settlementStatus": {
+            "type": "string"
+          },
+          "currentNode": {
+            "type": "string"
+          },
+          "progress": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "terminationReason": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "current": {
+            "type": "boolean"
           }
         }
       },
@@ -6183,6 +6391,18 @@
           },
           "acceptance": {
             "$ref": "#/components/schemas/AcceptanceSnapshot"
+          },
+          "historyExecutions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExecutionHistorySnapshot"
+            }
+          },
+          "timeline": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimelineEventSnapshot"
+            }
           }
         }
       },
@@ -6282,6 +6502,42 @@
             "type": "string"
           },
           "publishedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TimelineEventSnapshot": {
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string"
+          },
+          "eventType": {
+            "type": "string"
+          },
+          "eventTimestamp": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "currentNode": {
+            "type": "string"
+          },
+          "currentNodeLabel": {
+            "type": "string"
+          },
+          "progress": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "payload": {
+            "type": "string"
+          },
+          "receivedAt": {
             "type": "string",
             "format": "date-time"
           }

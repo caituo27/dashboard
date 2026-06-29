@@ -162,6 +162,7 @@ export interface AgentEvaluationResponse {
     'overallScore'?: number;
     'dimensions'?: { [key: string]: AgentEvaluationDimensionResponse; };
     'careerProfile'?: AgentCareerProfileResponse;
+    'abilityTags'?: Array<string>;
     'summary'?: string;
     'improvements'?: Array<string>;
     'steps'?: Array<{ [key: string]: any; }>;
@@ -383,6 +384,12 @@ export interface ApiResponseListTaskExecution {
     'message'?: string;
     'data'?: Array<TaskExecution>;
 }
+export interface ApiResponseListTaskRecommendationResponse {
+    'success'?: boolean;
+    'code'?: string;
+    'message'?: string;
+    'data'?: Array<TaskRecommendationResponse>;
+}
 export interface ApiResponseListWithdrawalRecord {
     'success'?: boolean;
     'code'?: string;
@@ -406,6 +413,12 @@ export interface ApiResponseSettlementRecord {
     'code'?: string;
     'message'?: string;
     'data'?: SettlementRecord;
+}
+export interface ApiResponseSmartAcceptResponse {
+    'success'?: boolean;
+    'code'?: string;
+    'message'?: string;
+    'data'?: SmartAcceptResponse;
 }
 export interface ApiResponseSmsCodeResponse {
     'success'?: boolean;
@@ -879,6 +892,12 @@ export enum SettlementRecordStatusEnum {
     Exception = 'EXCEPTION'
 }
 
+export interface SmartAcceptResponse {
+    'accepted'?: boolean;
+    'message'?: string;
+    'bestRecommendation'?: TaskRecommendationResponse;
+    'execution'?: TaskExecution;
+}
 export interface SmsCodeRequest {
     'mobile'?: string;
 }
@@ -935,6 +954,8 @@ export interface TaskExecution {
     'startedAt'?: string;
     'completedAt'?: string;
     'terminationReason'?: string;
+    'matchScore'?: number;
+    'matchReason'?: string;
 }
 
 export enum TaskExecutionStatusEnum {
@@ -960,6 +981,14 @@ export enum TaskExecutionSettlementStatusEnum {
     Exception = 'EXCEPTION'
 }
 
+export interface TaskRecommendationResponse {
+    'task'?: TaskEntity;
+    'matchScore'?: number;
+    'recommendedReason'?: string;
+    'matchAnalysis'?: string;
+    'suggestedTeam'?: string;
+    'autoAcceptEligible'?: boolean;
+}
 export interface TaskSnapshot {
     'id'?: string;
     'createdAt'?: string;
@@ -7972,6 +8001,64 @@ export const TaskControllerApiAxiosParamCreator = function (configuration?: Conf
                 options: localVarRequestOptions,
             };
         },
+        /**
+         *
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        recommendations: async (options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/v1/tasks/recommendations`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         *
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        smartAccept: async (options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/v1/tasks/smart-accept`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
     }
 };
 
@@ -8016,6 +8103,28 @@ export const TaskControllerApiFp = function(configuration?: Configuration) {
             const localVarOperationServerBasePath = operationServerMap['TaskControllerApi.market']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
+        /**
+         *
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async recommendations(options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseListTaskRecommendationResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.recommendations(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TaskControllerApi.recommendations']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         *
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async smartAccept(options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseSmartAcceptResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.smartAccept(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TaskControllerApi.smartAccept']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
     }
 };
 
@@ -8050,6 +8159,22 @@ export const TaskControllerApiFactory = function (configuration?: Configuration,
          */
         market(options?: AxiosRequestConfig): AxiosPromise<ApiResponseListTaskEntity> {
             return localVarFp.market(options).then((request) => request(axios, basePath));
+        },
+        /**
+         *
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        recommendations(options?: AxiosRequestConfig): AxiosPromise<ApiResponseListTaskRecommendationResponse> {
+            return localVarFp.recommendations(options).then((request) => request(axios, basePath));
+        },
+        /**
+         *
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        smartAccept(options?: AxiosRequestConfig): AxiosPromise<ApiResponseSmartAcceptResponse> {
+            return localVarFp.smartAccept(options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -8099,6 +8224,24 @@ export class TaskControllerApi extends BaseAPI {
      */
     public market(options?: AxiosRequestConfig) {
         return TaskControllerApiFp(this.configuration).market(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     *
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public recommendations(options?: AxiosRequestConfig) {
+        return TaskControllerApiFp(this.configuration).recommendations(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     *
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public smartAccept(options?: AxiosRequestConfig) {
+        return TaskControllerApiFp(this.configuration).smartAccept(options).then((request) => request(this.axios, this.basePath));
     }
 }
 
@@ -8206,6 +8349,5 @@ export class WithdrawalControllerApi extends BaseAPI {
         return WithdrawalControllerApiFp(this.configuration).apply(requestParameters.applyWithdrawalRequest, options).then((request) => request(this.axios, this.basePath));
     }
 }
-
 
 

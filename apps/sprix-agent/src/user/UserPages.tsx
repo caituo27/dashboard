@@ -17,6 +17,7 @@ import {
   readRemoteAgentEvaluation,
   rerunRemoteTask,
   signRemoteFreelancerAgreement,
+  smartAcceptRemoteTask,
   startRemoteAgentEvaluation
 } from "../services/sprixApi";
 import { ActionButton, EmptyState, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface } from "../components/Primitives";
@@ -28,7 +29,7 @@ import { getAgentAbilityResult, getAgentAdmissionSummary, getAgentTagLabels, has
 import { getPayoutAccountText, getPayoutPageSubtitle, getPayoutRecordState } from "./earningsView";
 import { getExecutionArtifactsState, getExecutionBackendPendingSections, getExecutionRequirementText, getExecutionReviewState } from "./executionDetailView";
 import { getQualificationRecordRows } from "./qualificationView";
-import { getRecommendationPendingState, SMART_ACCEPT_THRESHOLD } from "./recommendationView";
+import { getRecommendationPanelState, getSmartAcceptMessage } from "./recommendationView";
 import { getEstimatedTokenField } from "./tokenEstimateView";
 import { checkLocalAgentHealth } from "./localAgentConnect";
 import {
@@ -255,10 +256,20 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
   const myTasks = useSprixStore((state) => state.myTasks);
   const account = useSprixStore((state) => state.account);
   const agents = useSprixStore((state) => state.agents);
+  const [smartAccepting, setSmartAccepting] = useState(false);
+  const [smartAcceptMessage, setSmartAcceptMessage] = useState<string>();
   const currentAgent = getCurrentExecutionAgent(agents);
   const availableTasks = useMemo(() => tasks.filter((task) => task.taskStatus === "已发布"), [tasks]);
-  const smartAcceptTasks = useMemo(() => availableTasks.filter((task) => task.agentMatchScore > SMART_ACCEPT_THRESHOLD), [availableTasks]);
-  const recommendationState = getRecommendationPendingState(smartAcceptTasks.length);
+  const recommendationState = useMemo(
+    () =>
+      getRecommendationPanelState({
+        tasks: availableTasks,
+        currentAgent,
+        isLoggedIn: account.isLoggedIn,
+        smartAcceptMessage
+      }),
+    [account.isLoggedIn, availableTasks, currentAgent, smartAcceptMessage]
+  );
 
   const handleAccept = (task: Task) => {
     const gate = getTaskAcceptGate(account, currentAgent, task);
@@ -304,19 +315,49 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
     });
   };
 
-  const handleSmartAccept = () => {
-    if (!currentAgent) {
-      message.warning("请先设置当前执行 Agent");
-      navigate("/agent/center");
+  const handleSmartAccept = async () => {
+    const bestTask = recommendationState.bestTask ?? availableTasks[0];
+    if (!bestTask) {
+      message.info("暂无可推荐任务");
       return;
     }
-    if (smartAcceptTasks.length === 0) {
-      message.info(
-        `智能接单已开启，仅匹配度大于 ${SMART_ACCEPT_THRESHOLD}% 的任务会自动接取，当前暂无命中任务。`
-      );
+    const gate = getTaskAcceptGate(account, currentAgent, bestTask);
+    if (gate.kind === "login") {
+      openLogin?.();
       return;
     }
-    message.info(`智能接单已开启，当前命中 ${smartAcceptTasks.length} 个任务。`);
+    if (gate.kind === "qualification") {
+      message.warning(gate.message);
+      openQualificationPrompt?.(bestTask.id);
+      return;
+    }
+    if (gate.kind === "current-agent") {
+      message.warning(gate.message);
+      navigate(gate.path);
+      return;
+    }
+    if (gate.kind === "task-unavailable") {
+      message.warning(gate.message);
+      return;
+    }
+
+    setSmartAccepting(true);
+    try {
+      const response = await smartAcceptRemoteTask();
+      const statusMessage = getSmartAcceptMessage(response.accepted, response.message);
+      setSmartAcceptMessage(response.accepted ? "已接单" : "未自动接单");
+      if (response.accepted) {
+        await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
+        message.success(statusMessage);
+        navigate("/agent/my-tasks");
+        return;
+      }
+      message.info(statusMessage);
+    } catch (error) {
+      showRequestError(error, "智能接单失败", "智能接单失败：");
+    } finally {
+      setSmartAccepting(false);
+    }
   };
 
   return (
@@ -336,6 +377,7 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
           <div>
             <h2 className="text-lg font-semibold text-ink">{recommendationState.title}</h2>
             <p className="mt-2 text-sm leading-7 text-ink-soft">{recommendationState.description}</p>
+            {recommendationState.bestReason && <p className="mt-2 text-sm leading-7 text-ink-soft">{recommendationState.bestReason}</p>}
           </div>
           <div className="flex flex-col gap-3 lg:items-end">
             <div className="grid min-w-[280px] gap-2 sm:grid-cols-3">
@@ -346,7 +388,9 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
                 </div>
               ))}
             </div>
-            <ActionButton onClick={handleSmartAccept}>智能接单</ActionButton>
+            <ActionButton loading={smartAccepting} icon={<PlugZap size={16} />} onClick={handleSmartAccept}>
+              智能接单
+            </ActionButton>
           </div>
         </div>
       </Surface>
@@ -363,15 +407,17 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
 function TaskCard({ task, onAccept }: { task: Task; onAccept: () => void }) {
   const estimatedToken = getEstimatedTokenField();
   return (
-    <Surface className="flex min-h-[286px] flex-col p-5">
+    <Surface className="flex min-h-[332px] flex-col p-5">
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <StatusTag status={task.taskStatus} />
         <SoftTag tone="neutral">{task.category}</SoftTag>
+        {task.agentMatchScore > 0 && <SoftTag>匹配 {task.agentMatchScore}%</SoftTag>}
       </div>
       <Link to={`/agent/task/${task.id}`} className="text-xl font-semibold leading-7 text-ink no-underline hover:text-accent">
         {task.title}
       </Link>
       <p className="mt-3 flex-1 text-sm leading-7 text-ink-soft">{compactText(task.cardSummary, 104)}</p>
+      {task.recommendedReason && <p className="mt-3 rounded-2xl bg-[#fafafa] p-3 text-sm leading-6 text-ink-soft">{task.recommendedReason}</p>}
       <div className="mt-4 grid gap-2 text-sm text-ink-soft">
         <span>奖励：<b className="text-ink">{currency(task.reward)}</b></span>
         <span>剩余名额：{task.remainingSlots}/{task.totalSlots}</span>
@@ -457,6 +503,17 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
           <InfoBlock title="验收标准" body={task.acceptanceCriteria} />
         </div>
         <aside className="space-y-5">
+          {task.agentMatchScore > 0 && (
+            <Surface className="p-5">
+              <h3 className="text-lg font-semibold">匹配推荐</h3>
+              <div className="mt-4 space-y-3 text-sm text-ink-soft">
+                <p className="flex items-center justify-between gap-3">匹配度：<b className="text-ink">{task.agentMatchScore}%</b></p>
+                <p>推荐团队：<b className="text-ink">{task.suggestedTeam || "当前执行 Agent"}</b></p>
+                <p>{task.recommendedReason}</p>
+                {task.matchAnalysis && <p>{task.matchAnalysis}</p>}
+              </div>
+            </Surface>
+          )}
           <Surface className="p-5">
             <h3 className="text-lg font-semibold">任务来源信息</h3>
             <p className="mt-3 text-sm leading-7 text-ink-soft">{task.sourceName}</p>

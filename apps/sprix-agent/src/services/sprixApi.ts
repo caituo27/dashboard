@@ -16,8 +16,10 @@ import {
   type AuthTokenResponse,
   type FaceVerificationSession,
   type MyTaskExecutionDetail,
+  type SmartAcceptResponse,
   type TaskEntity,
   type TaskExecution,
+  type TaskRecommendationResponse,
   type UserAccount,
   type WechatScanSessionResponse,
   type WechatScanStatusResponse,
@@ -313,11 +315,20 @@ export function resolveLocalAgentClaimBaseUrlForRuntime(configuredBaseUrl: strin
 }
 
 export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
-  const tasksResponse = await optionalSnapshotRequest(() => taskApi.market(), []);
-  const tasks = listValue<TaskEntity>(tasksResponse).map(mapTask);
   const token = localStorage.getItem(TOKEN_KEY);
 
-  if (!token) return { tasks, account: { isLoggedIn: false } };
+  if (!token) {
+    const tasksResponse = await optionalSnapshotRequest(() => taskApi.market(), []);
+    const tasks = listValue<TaskEntity>(tasksResponse).map(mapTask);
+    return { tasks, account: { isLoggedIn: false } };
+  }
+
+  const recommendationResponse = await optionalSnapshotRequest(() => taskApi.recommendations(), []);
+  let tasks = listValue<TaskRecommendationResponse>(recommendationResponse).map(mapTaskRecommendation);
+  if (tasks.length === 0) {
+    const tasksResponse = await optionalSnapshotRequest(() => taskApi.market(), []);
+    tasks = listValue<TaskEntity>(tasksResponse).map(mapTask);
+  }
 
   const accountResponse = await accountApi.current();
   const [agentsResponse, myTasksResponse, withdrawableResponse, withdrawalAccountResponse] = await Promise.all([
@@ -394,6 +405,11 @@ export async function readLatestRemoteAgentEvaluation(agentId: string): Promise<
 export async function acceptRemoteTask(taskId: string): Promise<TaskExecution> {
   const response = await taskApi.accept({ id: taskId });
   return requireValue<TaskExecution>(response, "接单失败");
+}
+
+export async function smartAcceptRemoteTask(): Promise<SmartAcceptResponse> {
+  const response = await taskApi.smartAccept();
+  return requireValue<SmartAcceptResponse>(response, "智能接单失败");
 }
 
 export async function rerunRemoteTask(executionId: string): Promise<TaskExecution> {
@@ -552,6 +568,19 @@ function mapTask(task: TaskEntity): Task {
     submittedFiles: [],
     resultFiles: [],
     acceptanceResult: ""
+  };
+}
+
+export function mapTaskRecommendation(recommendation: TaskRecommendationResponse): Task {
+  const task = mapTask(requireValue(recommendation.task, "推荐任务数据不可用"));
+  return {
+    ...task,
+    agentMatchScore: recommendation.matchScore ?? 0,
+    recommendedTaskType: task.category,
+    suggestedTeam: recommendation.suggestedTeam ?? "",
+    matchAnalysis: recommendation.matchAnalysis ?? "",
+    riskPrompt: recommendation.autoAcceptEligible ? "匹配度超过 95%，可触发智能接单。" : "匹配度未超过 95%，仅按评分推荐，不自动接单。",
+    recommendedReason: recommendation.recommendedReason ?? ""
   };
 }
 
