@@ -19,6 +19,18 @@ export type FaceVerificationStartState =
 
 const pending = "待后端返回";
 
+export type QualificationStep = 0 | 1 | 2;
+
+export function getQualificationStep(account: Pick<Account, "realPersonVerified" | "freelancerAgreementSigned">): QualificationStep {
+  if (!account.realPersonVerified) {
+    return 0;
+  }
+  if (!account.freelancerAgreementSigned) {
+    return 1;
+  }
+  return 2;
+}
+
 export function getQualificationRecordRows(account: Account): QualificationRecordRow[] {
   return [
     { label: "接单资格", value: account.qualificationStatus },

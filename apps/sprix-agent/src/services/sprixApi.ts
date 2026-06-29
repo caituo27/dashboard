@@ -449,6 +449,11 @@ export async function initializeRemoteFaceVerification(): Promise<FaceVerificati
   return requireValue<FaceVerificationSession>(response, "实人认证初始化失败");
 }
 
+export async function completeRemoteRealPersonVerification(): Promise<Partial<SprixState["account"]>> {
+  const response = await accountApi.completeRealPersonVerification();
+  return mapAccount(requireValue<UserAccount>(response, "实人认证状态确认失败"));
+}
+
 export async function signRemoteFreelancerAgreement(): Promise<Partial<SprixState["account"]>> {
   const response = await accountApi.signFreelancerAgreement();
   return mapAccount(requireValue<UserAccount>(response, "签署协议失败"));

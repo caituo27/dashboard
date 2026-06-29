@@ -1,8 +1,68 @@
-import type { MyTask } from "../types";
+import type { Account, Agent, MyTask, Task } from "../types";
 import { currency } from "../utils/format";
 import { getEstimatedTokenField } from "./tokenEstimateView";
 
 const processingAppealStatuses = new Set(["申诉处理中", "待处理", "处理中", "需补充材料"]);
+const acceptQualificationMessage = "首次接单前，需要先完成支付宝人脸核验并签署《自由职业者服务框架协议》。";
+
+type TaskAcceptAccount = Pick<Account, "isLoggedIn" | "qualificationStatus" | "realPersonVerified" | "freelancerAgreementSigned">;
+type TaskAcceptAgent = Pick<Agent, "id"> | undefined;
+type TaskAcceptTask = Pick<Task, "taskStatus" | "remainingSlots">;
+
+export type TaskAcceptGate =
+  | {
+      kind: "login";
+    }
+  | {
+      kind: "qualification";
+      message: string;
+    }
+  | {
+      kind: "current-agent";
+      message: string;
+      path: "/agent/center";
+    }
+  | {
+      kind: "task-unavailable";
+      message: string;
+    }
+  | {
+      kind: "ready";
+    };
+
+export function hasTaskAcceptQualification(account: TaskAcceptAccount) {
+  return account.qualificationStatus === "已开通" && account.realPersonVerified && account.freelancerAgreementSigned;
+}
+
+export function getTaskAcceptGate(account: TaskAcceptAccount, currentAgent: TaskAcceptAgent, task: TaskAcceptTask): TaskAcceptGate {
+  if (!account.isLoggedIn) {
+    return { kind: "login" };
+  }
+
+  if (!hasTaskAcceptQualification(account)) {
+    return {
+      kind: "qualification",
+      message: acceptQualificationMessage
+    };
+  }
+
+  if (!currentAgent) {
+    return {
+      kind: "current-agent",
+      message: "请先设置当前执行 Agent",
+      path: "/agent/center"
+    };
+  }
+
+  if (task.taskStatus !== "已发布" || task.remainingSlots <= 0) {
+    return {
+      kind: "task-unavailable",
+      message: "当前任务暂不可接单"
+    };
+  }
+
+  return { kind: "ready" };
+}
 
 export function getQualificationSuccessAction(search: string) {
   const sourceTaskId = new URLSearchParams(search).get("task")?.trim();
