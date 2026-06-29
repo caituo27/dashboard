@@ -9,11 +9,10 @@ import { useSprixStore } from "../store/sprixStore";
 import {
   acceptRemoteTask,
   completeRemoteFaceVerification,
-  DEFAULT_AGENT_EVALUATION_QUESTIONS,
+  getCurrentAgentFromAgents,
   initializeRemoteFaceVerification,
   readLatestRemoteAgentEvaluation,
   markRemoteCurrentAgent,
-  readCurrentRemoteAgent,
   readRemoteAgents,
   readRemoteAgentEvaluation,
   rerunRemoteTask,
@@ -22,6 +21,7 @@ import {
   startRemoteAgentEvaluation
 } from "../services/sprixApi";
 import { ActionButton, EmptyState, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface } from "../components/Primitives";
+import { AgentEvaluationProgressModal } from "../components/AgentEvaluationProgressModal";
 import { compactText, currency, scoreText } from "../utils/format";
 import { isGlobalAuthError } from "../utils/http";
 import { QrPayloadBox } from "../components/QrSession";
@@ -414,14 +414,11 @@ function getInitialQualificationStep(account: Account) {
 }
 
 export function AgentCenterPage({ openLogin }: UserPageProps) {
-  const location = useLocation();
   const account = useSprixStore((state) => state.account);
   const agents = useSprixStore((state) => state.agents);
   const currentAgent = useSprixStore((state) => state.currentAgent);
   const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
   const current = currentAgent;
-  const evaluationIntent = location.state as { evaluateAgentId?: string } | null;
-  const handledEvaluationIntentRef = useRef<string>();
   const autoSetCurrentAgentIdRef = useRef<string>();
   const [evaluationAgent, setEvaluationAgent] = useState<Agent | null>(null);
   const [evaluation, setEvaluation] = useState<AgentEvaluation | undefined>();
@@ -431,9 +428,9 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   const [evaluationError, setEvaluationError] = useState<string>();
   const currentWithEvaluation = currentEvaluation && current ? { ...current, evaluation: currentEvaluation, score: currentEvaluation.result.overallScore ?? current.score } : current;
 
-  const refreshAgents = useCallback(async () => {
-    const [refreshedAgents, refreshedCurrentAgent] = await Promise.all([readRemoteAgents(), readCurrentRemoteAgent()]);
-    mergeRemoteState({ agents: refreshedAgents, currentAgent: refreshedCurrentAgent });
+  const refreshAgents = useCallback(async (preferredCurrentAgent?: Agent) => {
+    const refreshedAgents = await readRemoteAgents();
+    mergeRemoteState({ agents: refreshedAgents, currentAgent: getCurrentAgentFromAgents(refreshedAgents) ?? preferredCurrentAgent });
   }, [mergeRemoteState]);
 
   const setCurrent = async (agent: Agent) => {
@@ -448,9 +445,10 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         return;
       }
       const updatedCurrentAgent = await markRemoteCurrentAgent(agent.id);
+      const preferredCurrentAgent = updatedCurrentAgent ?? { ...agent, role: "当前执行 Agent" as const };
       setCurrentEvaluation(undefined);
-      mergeRemoteState({ currentAgent: updatedCurrentAgent });
-      await refreshAgents();
+      mergeRemoteState({ currentAgent: preferredCurrentAgent });
+      await refreshAgents(preferredCurrentAgent);
       message.success("已设置当前执行 Agent");
     } catch (error) {
       if (error instanceof Error && error.message === "Agent evaluation not found") {
@@ -465,9 +463,10 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
     if (autoSetCurrentAgentIdRef.current !== agent.id || !isCompletedAgentEvaluation(nextEvaluation)) return;
     try {
       const updatedCurrentAgent = await markRemoteCurrentAgent(agent.id);
-      mergeRemoteState({ currentAgent: updatedCurrentAgent });
+      const preferredCurrentAgent = updatedCurrentAgent ?? { ...agent, role: "当前执行 Agent" as const };
+      mergeRemoteState({ currentAgent: preferredCurrentAgent });
       autoSetCurrentAgentIdRef.current = undefined;
-      await refreshAgents();
+      await refreshAgents(preferredCurrentAgent);
       message.success("测评完成，已设置当前执行 Agent");
     } catch (error) {
       showRequestError(error, "设置当前执行 Agent 失败", "设置当前执行 Agent 失败：");
@@ -554,15 +553,6 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   }, [current?.id, evaluation, evaluationAgent, refreshAgents]);
 
   useEffect(() => {
-    const evaluateAgentId = evaluationIntent?.evaluateAgentId;
-    if (!account.isLoggedIn || !evaluateAgentId || handledEvaluationIntentRef.current === evaluateAgentId) return;
-    const agent = agents.find((item) => item.id === evaluateAgentId);
-    if (!agent) return;
-    handledEvaluationIntentRef.current = evaluateAgentId;
-    void openAgentEvaluation(agent, true);
-  }, [account.isLoggedIn, agents, evaluationIntent?.evaluateAgentId]);
-
-  useEffect(() => {
     if (!account.isLoggedIn || !current?.id || current.evaluation?.result?.status === "completed") {
       setCurrentEvaluation(undefined);
       return;
@@ -623,7 +613,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
           )
         }
       />
-      <AgentEvaluationModal open={evaluationModalOpen} agent={evaluationAgent} evaluation={evaluation} loading={evaluationLoading} error={evaluationError} onClose={closeEvaluation} />
+      <AgentEvaluationProgressModal open={evaluationModalOpen} agent={evaluationAgent} evaluation={evaluation} loading={evaluationLoading} error={evaluationError} onClose={closeEvaluation} />
     </>
   );
 }
@@ -688,94 +678,6 @@ function EvaluationRadar({ result }: { result: AgentEvaluation["result"] }) {
         return <circle key={item.key} cx={x} cy={y} r="3.8" className="sprix-evaluation-radar-dot" />;
       })}
     </svg>
-  );
-}
-
-function AgentEvaluationModal({
-  open,
-  agent,
-  evaluation,
-  loading,
-  error,
-  onClose
-}: {
-  open: boolean;
-  agent: Agent | null;
-  evaluation?: AgentEvaluation;
-  loading: boolean;
-  error?: string;
-  onClose: () => void;
-}) {
-  const questions = evaluation?.questions.length ? evaluation.questions : DEFAULT_AGENT_EVALUATION_QUESTIONS;
-  const answeredCount = evaluation?.transcript.filter((item) => item.answer).length ?? 0;
-  const status = evaluation?.status ?? "running";
-  const result = evaluation?.result;
-  const activeQuestionIndex = status === "judging" || isEvaluationTerminal(status) ? -1 : Math.min(answeredCount, questions.length - 1);
-
-  return (
-    <Modal
-      title={
-        <div className="sprix-evaluation-title">
-          <span>面试 {agent?.name ?? "Agent"}</span>
-          {status === "running" && <span>{answeredCount}/{questions.length}</span>}
-        </div>
-      }
-      open={open && Boolean(agent)}
-      onCancel={onClose}
-      width={720}
-      className="sprix-evaluation-modal"
-      footer={
-        <div className="sprix-evaluation-footer">
-          <span className={status === "running" || status === "judging" ? "is-active" : ""}>
-            {status === "judging"
-              ? "正在生成测评结果，关闭弹框不会取消后端任务"
-              : status === "running"
-                ? `逐题向 ${agent?.name ?? "Agent"} 提问中，关闭弹框不会取消后端任务`
-                : status === "failed"
-                  ? "测评失败"
-                  : "测评完成"}
-          </span>
-          <ActionButton onClick={onClose}>关闭</ActionButton>
-        </div>
-      }
-    >
-      <div className="sprix-evaluation-shell">
-        {error && <p className="sprix-evaluation-error">{error}</p>}
-
-        <div className="sprix-evaluation-scroll">
-          {questions.map((question, index) => {
-            const transcript = evaluation?.transcript[index];
-            const answer = transcript?.answer;
-            const isActive = !answer && index === activeQuestionIndex;
-            const isQuestionLoading = isActive || (loading && index === 0);
-            return (
-              <div
-                key={`${question}-${index}`}
-                className={`sprix-evaluation-question ${answer ? "is-done" : ""} ${isQuestionLoading ? "is-active" : ""}`}
-                style={{ animationDelay: `${index * 38}ms` }}
-              >
-                <p className="sprix-evaluation-question-text">
-                  <span className={`sprix-evaluation-status-dot ${answer ? "is-done" : ""} ${isQuestionLoading ? "is-active" : ""}`} />
-                  <span className="sprix-evaluation-question-index">Q{index + 1}.</span>
-                  <span>{question}</span>
-                </p>
-                {!answer && <p className="sprix-evaluation-pending">{isQuestionLoading ? "提问中..." : "待提问..."}</p>}
-                {answer && <p className="sprix-evaluation-answer">{answer}</p>}
-              </div>
-            );
-          })}
-
-          {result?.status === "completed" && (
-            <div className="sprix-evaluation-result">
-              <strong>测评完成</strong>
-              <span>能力画像已更新，可在当前执行 Agent 的能力画像中查看六维结果。</span>
-            </div>
-          )}
-
-          {result?.status === "failed" && <p className="sprix-evaluation-error">{result.error ?? "评测失败"}</p>}
-        </div>
-      </div>
-    </Modal>
   );
 }
 
@@ -1154,8 +1056,7 @@ export function EarningsPage({ openLogin, openBindAlipay }: UserPageProps) {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <SoftTag>自动打款</SoftTag>
-            <h3 className="mt-3 text-xl font-semibold text-ink">提现记录</h3>
-            <p className="mt-2 text-sm text-ink-soft">{getPayoutAccountText(account)}</p>
+            <p className="mt-3 text-sm text-ink-soft">{getPayoutAccountText(account)}</p>
           </div>
           <SecondaryButton onClick={() => openBindAlipay()}>绑定支付宝</SecondaryButton>
         </div>

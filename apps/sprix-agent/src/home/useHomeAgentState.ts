@@ -9,7 +9,7 @@ export function useHomeAgentState(account: Account, agents: Agent[], currentAgen
       agents,
       currentAgent: undefined,
       canOpenAgentPicker: false,
-      primaryActionLabel: "登录后连接 Agent"
+      primaryActionLabel: "连接本地 Agent"
     };
   }
 

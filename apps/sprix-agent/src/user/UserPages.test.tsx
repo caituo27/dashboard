@@ -246,11 +246,11 @@ describe("HomePage agent module", () => {
     expect(screen.queryByText("Task market route")).toBeNull();
   });
 
-  it("uses download client as the logged-out homepage primary action", () => {
+  it("uses connect local Agent as the logged-out homepage primary action", () => {
     const { openLogin } = renderHomePage();
 
-    expect(screen.getByRole("link", { name: "下载客户端" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "登录后连接 Agent" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "下载客户端" })).toBeNull();
+    expect(screen.getByRole("button", { name: "连接本地 Agent" })).toBeTruthy();
     expect(screen.getByText("让你的 Agent 自动帮你赚钱")).toBeTruthy();
     expect(openLogin).not.toHaveBeenCalled();
   });

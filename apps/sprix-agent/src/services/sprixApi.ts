@@ -335,9 +335,8 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
   }
 
   const accountResponse = await accountApi.current();
-  const [agentsResponse, currentAgentResponse, myTasksResponse, withdrawableResponse, withdrawalAccountResponse] = await Promise.all([
+  const [agentsResponse, myTasksResponse, withdrawableResponse, withdrawalAccountResponse] = await Promise.all([
     optionalSnapshotRequest(() => agentApi.list1(), []),
-    optionalSnapshotRequest(() => readCurrentRemoteAgent(), undefined),
     optionalSnapshotRequest(() => myTaskApi.list(), []),
     optionalSnapshotRequest<number | undefined>(() => earningsApi.withdrawable(), undefined),
     optionalSnapshotRequest<WithdrawalAccount | undefined>(() => accountApi.currentWithdrawalAccount(), undefined)
@@ -345,7 +344,7 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
 
   const account = accountResponse;
   const agents = listValue<RemoteAgentProfileResponse>(agentsResponse).map(mapAgent);
-  const currentAgent = currentAgentResponse;
+  const currentAgent = getCurrentAgentFromAgents(agents);
   const taskById = new Map(tasks.map((task) => [task.id, task]));
   const agentById = new Map(agents.map((agent) => [agent.id, agent]));
   const myTasks = listValue<MyTaskExecutionDetail>(myTasksResponse).map((item) => mapMyTask(item, taskById, agentById));
@@ -396,6 +395,10 @@ export async function readRemoteAgents(): Promise<Agent[]> {
 export async function readCurrentRemoteAgent(): Promise<Agent | undefined> {
   const response = await agentApi.currentAgent();
   return response ? mapAgent(response) : undefined;
+}
+
+export function getCurrentAgentFromAgents(agents: Agent[]): Agent | undefined {
+  return agents.find((agent) => agent.role === "当前执行 Agent");
 }
 
 export async function disconnectRemoteAgent(agentId: string): Promise<Agent | undefined> {
