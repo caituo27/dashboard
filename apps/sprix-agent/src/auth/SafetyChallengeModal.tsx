@@ -1,5 +1,5 @@
 import { Button, Input, Modal } from "antd";
-import { useRef, type KeyboardEvent } from "react";
+import { useEffect, useRef, type KeyboardEvent } from "react";
 import type { SafetyChallenge } from "../services/sprixApi";
 import { verificationCodeMaxLength } from "./phoneValidation";
 
@@ -29,9 +29,22 @@ export function SafetyChallengeModal({
   onCancel
 }: SafetyChallengeModalProps) {
   const composingRef = useRef(false);
+  const compositionJustEndedRef = useRef(false);
+  const compositionEndTimerRef = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    return () => {
+      if (compositionEndTimerRef.current) {
+        window.clearTimeout(compositionEndTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    const isComposing = composingRef.current || event.nativeEvent.isComposing || event.keyCode === 229;
+    const isComposing = composingRef.current || compositionJustEndedRef.current || event.nativeEvent.isComposing || event.keyCode === 229;
+    if (event.key === "Enter" && compositionJustEndedRef.current) {
+      compositionJustEndedRef.current = false;
+    }
     if (event.key !== "Enter" || isComposing) return;
     onConfirm();
   };
@@ -70,6 +83,14 @@ export function SafetyChallengeModal({
         }}
         onCompositionEnd={() => {
           composingRef.current = false;
+          compositionJustEndedRef.current = true;
+          if (compositionEndTimerRef.current) {
+            window.clearTimeout(compositionEndTimerRef.current);
+          }
+          compositionEndTimerRef.current = window.setTimeout(() => {
+            compositionJustEndedRef.current = false;
+            compositionEndTimerRef.current = undefined;
+          }, 0);
         }}
         onKeyDown={handleKeyDown}
       />
