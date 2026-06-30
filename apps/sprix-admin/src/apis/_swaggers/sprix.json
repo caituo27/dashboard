@@ -627,6 +627,126 @@
         }
       }
     },
+    "/api/v1/auth/safety-challenges": {
+      "post": {
+        "tags": [
+          "auth-controller"
+        ],
+        "operationId": "createSafetyChallenge",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SafetyChallengeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSafetyChallengeResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/phone-bind/sms-codes": {
+      "post": {
+        "tags": [
+          "auth-controller"
+        ],
+        "operationId": "sendPhoneBindSmsCode",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneBindSmsCodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSmsCodeResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/phone-bind/confirm": {
+      "post": {
+        "tags": [
+          "auth-controller"
+        ],
+        "operationId": "confirmPhoneBind",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneBindConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAuthTokenResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/logout": {
       "post": {
         "tags": [
@@ -2808,6 +2928,36 @@
         }
       }
     },
+    "/api/v1/platform/overview": {
+      "get": {
+        "tags": [
+          "platform-controller"
+        ],
+        "operationId": "overview",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePlatformOverview"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/my-tasks": {
       "get": {
         "tags": [
@@ -3328,6 +3478,36 @@
         }
       }
     },
+    "/api/v1/agents/current": {
+      "get": {
+        "tags": [
+          "agent-controller"
+        ],
+        "operationId": "current",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAgentProfileResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/tasks/{taskId}/executions": {
       "get": {
         "tags": [
@@ -3524,7 +3704,7 @@
         "tags": [
           "admin-funds-controller"
         ],
-        "operationId": "overview",
+        "operationId": "overview_1",
         "responses": {
           "200": {
             "description": "OK",
@@ -3655,7 +3835,7 @@
         "tags": [
           "account-controller"
         ],
-        "operationId": "current",
+        "operationId": "current_1",
         "responses": {
           "200": {
             "description": "OK",
@@ -4534,6 +4714,19 @@
             "type": "integer",
             "format": "int32"
           },
+          "authenticated": {
+            "type": "boolean"
+          },
+          "phoneBindRequired": {
+            "type": "boolean"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "bindTicket": {
+            "type": "string",
+            "format": "uuid"
+          },
           "token": {
             "$ref": "#/components/schemas/AuthTokenResponse"
           }
@@ -4575,6 +4768,16 @@
           "mobile": {
             "type": "string",
             "pattern": "^1\\d{10}$"
+          },
+          "scene": {
+            "type": "string"
+          },
+          "challengeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "challengeAnswer": {
+            "type": "string"
           }
         }
       },
@@ -4610,6 +4813,97 @@
             "format": "int32"
           }
         }
+      },
+      "SafetyChallengeRequest": {
+        "type": "object",
+        "properties": {
+          "scene": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "scene"
+        ]
+      },
+      "ApiResponseSafetyChallengeResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SafetyChallengeResponse"
+          }
+        }
+      },
+      "SafetyChallengeResponse": {
+        "type": "object",
+        "properties": {
+          "challengeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "challengeType": {
+            "type": "string"
+          },
+          "imageBase64": {
+            "type": "string"
+          },
+          "expiresInSeconds": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "PhoneBindSmsCodeRequest": {
+        "type": "object",
+        "properties": {
+          "bindTicket": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mobile": {
+            "type": "string",
+            "pattern": "^1\\d{10}$"
+          },
+          "challengeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "challengeAnswer": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "bindTicket"
+        ]
+      },
+      "PhoneBindConfirmRequest": {
+        "type": "object",
+        "properties": {
+          "bindTicket": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mobile": {
+            "type": "string",
+            "pattern": "^1\\d{10}$"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{4,6}$"
+          }
+        },
+        "required": [
+          "bindTicket"
+        ]
       },
       "ApiResponseBoolean": {
         "type": "object",
@@ -4690,6 +4984,19 @@
           "expiresInSeconds": {
             "type": "integer",
             "format": "int32"
+          },
+          "authenticated": {
+            "type": "boolean"
+          },
+          "phoneBindRequired": {
+            "type": "boolean"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "bindTicket": {
+            "type": "string",
+            "format": "uuid"
           },
           "token": {
             "$ref": "#/components/schemas/AuthTokenResponse"
@@ -5358,6 +5665,9 @@
           },
           "phone": {
             "type": "string"
+          },
+          "phoneVerified": {
+            "type": "boolean"
           },
           "wechatOpenId": {
             "type": "string"
@@ -6134,6 +6444,36 @@
             "items": {
               "$ref": "#/components/schemas/TaskRecommendationResponse"
             }
+          }
+        }
+      },
+      "ApiResponsePlatformOverview": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PlatformOverview"
+          }
+        }
+      },
+      "PlatformOverview": {
+        "type": "object",
+        "properties": {
+          "agentCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "taskCount": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
