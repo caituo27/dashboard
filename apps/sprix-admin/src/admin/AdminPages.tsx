@@ -10,10 +10,14 @@ import {
   approveRemoteAcceptanceReview,
   approveRemoteAppeal,
   approveRemoteWithdrawal,
+  approveRemoteWithdrawals,
   createRemoteAdminTask,
   deleteRemoteAdminTask,
+  exportRemotePendingPayouts,
   markRemotePayoutExceptionHandled,
   markRemoteWithdrawalPayoutFailed,
+  markRemoteWithdrawalsPaid,
+  markRemoteWithdrawalsPayoutFailed,
   offlineRemoteAdminTask,
   payRemoteWithdrawal,
   postRemoteSettlement,
@@ -27,6 +31,7 @@ import {
   rejectRemoteAcceptanceReview,
   rejectRemoteAppeal,
   rejectRemoteWithdrawal,
+  rejectRemoteWithdrawals,
   republishRemoteAdminTask,
   returnRemoteWithdrawalForReview,
   startRemoteAppeal,
@@ -68,8 +73,40 @@ function showRequestError(error: unknown, fallback: string, prefix = "") {
   message.error(error instanceof Error ? `${prefix}${error.message}` : fallback);
 }
 
+function csvCell(value: unknown) {
+  const text = value == null ? "" : String(value);
+  return `"${text.replace(/"/g, "\"\"")}"`;
+}
+
+function downloadCsv(filename: string, rows: Array<Record<string, unknown>>) {
+  if (rows.length === 0) {
+    message.info("当前没有可导出的待打款记录");
+    return false;
+  }
+
+  const headers = Object.keys(rows[0]);
+  const content = [headers.map(csvCell).join(","), ...rows.map((row) => headers.map((header) => csvCell(row[header])).join(","))].join("\n");
+  const blob = new Blob([`\uFEFF${content}`], { type: "text/csv;charset=utf-8" });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  window.URL.revokeObjectURL(url);
+  return true;
+}
+
 const taskCategoryOptions = ["等待产品输入"].map((value) => ({ value, label: value }));
 const taskFormFields = ["title", "category", "sourceType", "description", "deliverables", "acceptanceCriteria", "reward", "totalSlots"] as const;
+const integerFieldRules = (label: string) => [
+  { required: true, message: `请输入${label}` },
+  {
+    validator: (_: unknown, value?: number | null) => {
+      if (value == null) return Promise.resolve();
+      return Number.isInteger(value) ? Promise.resolve() : Promise.reject(new Error(`${label}不能输入小数`));
+    }
+  }
+];
 
 function buildTaskFormInitialValues(task?: Task): Partial<UpsertAdminTaskPayload> {
   if (!task) return {};
@@ -135,7 +172,7 @@ export function AdminTaskCenter() {
     setKeyword("");
   };
   const refreshTasks = () => queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-  const editTaskFromListAction = { ...getAdminTaskWriteAction("edit"), label: "编辑" };
+  const editTaskFromListAction = getAdminTaskWriteAction("edit");
   const runTaskAction = async (action: () => Promise<unknown>, successText: string) => {
     try {
       await action();
@@ -519,6 +556,8 @@ function AcceptanceReviewTable({
     { title: "执行用户", dataIndex: "userName", width: 130, render: (value) => <EllipsisCell value={value} /> },
     { title: "手机号", dataIndex: "phone", width: 140, render: (value) => <EllipsisCell value={value} /> },
     { title: "执行 Agent", dataIndex: "agentName", width: 160, render: (value) => <EllipsisCell value={value} /> },
+    { title: "第几次执行", dataIndex: "executionIndex", width: 120, render: (value) => (value ? `第 ${value} 次` : "-") },
+    { title: "executionId", dataIndex: "executionId", width: 220, render: (value) => <EllipsisCell value={value ?? "-"} /> },
     { title: "Agent 综合评分", dataIndex: "agentScore", width: 130 },
     { title: "验收状态", dataIndex: "acceptanceStatus", width: 140, render: (value) => <StatusTag status={value} /> },
     { title: "验收评分", dataIndex: "acceptanceScore", width: 110 },
@@ -547,7 +586,7 @@ function AcceptanceReviewTable({
       columns={columns}
       pagination={{ pageSize: 6 }}
       locale={{ emptyText: "暂无待平台审核记录" }}
-      scroll={{ x: showTask ? 1860 : 1460 }}
+      scroll={{ x: showTask ? 2200 : 1800 }}
       rowClassName={onOpenDetail ? "cursor-pointer" : undefined}
       onRow={onOpenDetail ? (record) => ({ onClick: () => onOpenDetail(record) }) : undefined}
     />
@@ -654,11 +693,11 @@ export function AdminTaskForm() {
             </Form.Item>
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
-            <Form.Item label="任务奖励" name="reward" rules={[{ required: true, message: "请输入任务奖励" }]}>
-              <InputNumber min={1} className="w-full" />
+            <Form.Item label="任务奖励" name="reward" rules={integerFieldRules("任务奖励")}>
+              <InputNumber min={1} step={1} precision={0} className="w-full" />
             </Form.Item>
-            <Form.Item label="总名额" name="totalSlots" rules={[{ required: true, message: "请输入总名额" }]}>
-              <InputNumber min={1} className="w-full" />
+            <Form.Item label="总名额" name="totalSlots" rules={integerFieldRules("总名额")}>
+              <InputNumber min={1} step={1} precision={0} className="w-full" />
             </Form.Item>
           </div>
           <div className="mb-4 rounded-2xl bg-[#fafafa] p-4 text-sm leading-7 text-ink-soft">
@@ -827,20 +866,20 @@ function AdminExecutionRecords({
     ...(records?.completed ?? []).map((item) => ({ ...item, status: item.acceptanceStatus, time: item.completedAt }))
   ];
   const allColumns: ColumnsType<(typeof allRecords)[number]> = [
-    { title: "第几次执行", dataIndex: "executionIndex", render: (value) => (value ? `第 ${value} 次` : "-") },
-    { title: "executionId", dataIndex: "executionId", render: (value) => value ?? "-" },
     { title: "执行用户", dataIndex: "userName" },
     { title: "手机号", dataIndex: "phone" },
     { title: "执行 Agent", dataIndex: "agentName" },
+    { title: "第几次执行", dataIndex: "executionIndex", render: (value) => (value ? `第 ${value} 次` : "-") },
+    { title: "executionId", dataIndex: "executionId", render: (value) => value ?? "-" },
     { title: "执行状态", dataIndex: "status", render: (value) => <StatusTag status={value} /> },
     { title: "时间", dataIndex: "time" }
   ];
   const runningColumns: ColumnsType<RunningExecution> = [
-    { title: "第几次执行", dataIndex: "executionIndex", render: (value) => (value ? `第 ${value} 次` : "-") },
-    { title: "executionId", dataIndex: "executionId", render: (value) => value ?? "-" },
     { title: "执行用户", dataIndex: "userName" },
     { title: "手机号", dataIndex: "phone" },
     { title: "执行 Agent", dataIndex: "agentName" },
+    { title: "第几次执行", dataIndex: "executionIndex", render: (value) => (value ? `第 ${value} 次` : "-") },
+    { title: "executionId", dataIndex: "executionId", render: (value) => value ?? "-" },
     { title: "Agent 综合评分", dataIndex: "agentScore" },
     { title: "当前节点", dataIndex: "currentNode" },
     { title: "当前进度", dataIndex: "progress" },
@@ -848,22 +887,22 @@ function AdminExecutionRecords({
     { title: "操作", render: () => <PendingAdminActionButtons actions={getAdminExecutionRecordActions("running")} /> }
   ];
   const terminatedColumns: ColumnsType<TerminatedExecution> = [
-    { title: "第几次执行", dataIndex: "executionIndex", render: (value) => (value ? `第 ${value} 次` : "-") },
-    { title: "executionId", dataIndex: "executionId", render: (value) => value ?? "-" },
     { title: "执行用户", dataIndex: "userName" },
     { title: "手机号", dataIndex: "phone" },
     { title: "执行 Agent", dataIndex: "agentName" },
+    { title: "第几次执行", dataIndex: "executionIndex", render: (value) => (value ? `第 ${value} 次` : "-") },
+    { title: "executionId", dataIndex: "executionId", render: (value) => value ?? "-" },
     { title: "终止原因", dataIndex: "terminationReason" },
     { title: "终止节点", dataIndex: "terminatedNode" },
     { title: "终止时间", dataIndex: "terminatedAt" },
     { title: "操作", render: () => <PendingAdminActionButtons actions={getAdminExecutionRecordActions("terminated")} /> }
   ];
   const completedColumns: ColumnsType<CompletedExecution> = [
-    { title: "第几次执行", dataIndex: "executionIndex", render: (value) => (value ? `第 ${value} 次` : "-") },
-    { title: "executionId", dataIndex: "executionId", render: (value) => value ?? "-" },
     { title: "执行用户", dataIndex: "userName" },
     { title: "手机号", dataIndex: "phone" },
     { title: "执行 Agent", dataIndex: "agentName" },
+    { title: "第几次执行", dataIndex: "executionIndex", render: (value) => (value ? `第 ${value} 次` : "-") },
+    { title: "executionId", dataIndex: "executionId", render: (value) => value ?? "-" },
     { title: "验收状态", dataIndex: "acceptanceStatus", render: (value) => <StatusTag status={value} /> },
     { title: "综合评分", dataIndex: "score" },
     { title: "申诉状态", dataIndex: "appealStatus", render: (value) => <StatusTag status={value} /> },
@@ -1172,6 +1211,15 @@ export function AdminFundCenter() {
       showRequestError(error, "提现审核失败", "提现审核失败：");
     }
   };
+  const approveWithdrawals = async (records: Withdrawal[]) => {
+    try {
+      await approveRemoteWithdrawals(records.map(getWithdrawalBackendId));
+      await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+      message.success(`已批量通过 ${records.length} 条提现申请`);
+    } catch (error) {
+      showRequestError(error, "批量提现审核失败", "批量提现审核失败：");
+    }
+  };
   const rejectWithdrawal = async (record: Withdrawal) => {
     try {
       await rejectRemoteWithdrawal(getWithdrawalBackendId(record), "后台审核不通过");
@@ -1179,6 +1227,15 @@ export function AdminFundCenter() {
       message.success("已驳回提现申请");
     } catch (error) {
       showRequestError(error, "提现驳回失败", "提现驳回失败：");
+    }
+  };
+  const rejectWithdrawals = async (records: Withdrawal[]) => {
+    try {
+      await rejectRemoteWithdrawals(records.map(getWithdrawalBackendId), "后台批量审核不通过");
+      await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+      message.success(`已批量驳回 ${records.length} 条提现申请`);
+    } catch (error) {
+      showRequestError(error, "批量提现驳回失败", "批量提现驳回失败：");
     }
   };
   const postSettlement = (record: Settlement) => {
@@ -1240,6 +1297,48 @@ export function AdminFundCenter() {
       showRequestError(error, "打款失败标记提交失败", "打款失败标记提交失败：");
     }
   };
+  const markPayoutsPaid = async (records: Payout[]) => {
+    try {
+      await markRemoteWithdrawalsPaid(records.map(getWithdrawalBackendId));
+      await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+      message.success(`已批量标记 ${records.length} 条记录为已打款`);
+    } catch (error) {
+      showRequestError(error, "批量标记已打款失败", "批量标记已打款失败：");
+    }
+  };
+  const markPayoutsFailed = async (records: Payout[]) => {
+    try {
+      await markRemoteWithdrawalsPayoutFailed(records.map(getWithdrawalBackendId), "后台批量标记打款失败");
+      await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+      message.success(`已批量标记 ${records.length} 条记录为打款失败`);
+    } catch (error) {
+      showRequestError(error, "批量标记打款失败提交失败", "批量标记打款失败提交失败：");
+    }
+  };
+  const exportPayouts = async () => {
+    try {
+      const records = await exportRemotePendingPayouts();
+      const downloaded = downloadCsv(
+        `sprix-pending-payouts-${new Date().toISOString().slice(0, 10)}.csv`,
+        records.map((record) => ({
+          提现单号: record.withdrawalNo,
+          用户昵称: record.userName,
+          手机号: record.userPhone,
+          支付宝账户: record.alipayAccount,
+          打款金额: record.applyAmount,
+          预计到账时间: record.estimatedArrivalTime,
+          当前状态: record.withdrawStatus,
+          打款渠道: record.payoutProvider ?? "",
+          商户单号: record.payoutOutBizNo ?? "",
+          支付宝订单号: record.payoutOrderId ?? "",
+          支付宝状态: record.payoutStatus ?? ""
+        }))
+      );
+      if (downloaded) message.success("打款清单已导出");
+    } catch (error) {
+      showRequestError(error, "打款清单导出失败", "打款清单导出失败：");
+    }
+  };
   const markExceptionHandled = async (record: FundException) => {
     try {
       await markRemotePayoutExceptionHandled(getFundExceptionBackendId(record), "异常已处理，用户需更换收款账户");
@@ -1299,12 +1398,31 @@ export function AdminFundCenter() {
             {
               key: "withdrawals",
               label: "提现审核",
-              children: <WithdrawalTable data={withdrawals} onApproveWithdrawal={approveWithdrawal} onRejectWithdrawal={rejectWithdrawal} />
+              children: (
+                <WithdrawalTable
+                  data={withdrawals}
+                  onApproveWithdrawal={approveWithdrawal}
+                  onApproveWithdrawals={approveWithdrawals}
+                  onRejectWithdrawal={rejectWithdrawal}
+                  onRejectWithdrawals={rejectWithdrawals}
+                />
+              )
             },
             {
               key: "payouts",
               label: "待打款",
-              children: <PendingPayoutTable data={payouts} onPay={payPayout} onQuery={queryPayout} onReturnReview={returnPayoutForReview} onMarkFailed={markPayoutFailed} />
+              children: (
+                <PendingPayoutTable
+                  data={payouts}
+                  onExport={exportPayouts}
+                  onPay={payPayout}
+                  onQuery={queryPayout}
+                  onReturnReview={returnPayoutForReview}
+                  onMarkFailed={markPayoutFailed}
+                  onMarkPaidBatch={markPayoutsPaid}
+                  onMarkFailedBatch={markPayoutsFailed}
+                />
+              )
             },
             {
               key: "exceptions",
@@ -1380,15 +1498,28 @@ function PendingFundActionButton({ action }: { action: AdminPendingFundAction })
 function WithdrawalTable({
   data,
   onApproveWithdrawal,
-  onRejectWithdrawal
+  onApproveWithdrawals,
+  onRejectWithdrawal,
+  onRejectWithdrawals
 }: {
   data: Withdrawal[];
   onApproveWithdrawal: (withdrawal: Withdrawal) => Promise<void>;
+  onApproveWithdrawals: (withdrawals: Withdrawal[]) => Promise<void>;
   onRejectWithdrawal: (withdrawal: Withdrawal) => Promise<void>;
+  onRejectWithdrawals: (withdrawals: Withdrawal[]) => Promise<void>;
 }) {
   const [selectedKeys, setSelectedKeys] = useState<Key[]>([]);
   const selectedRecords = data.filter((item) => selectedKeys.includes(item.withdrawalNo));
-  const batchActions = getAdminWithdrawalBatchActions();
+  const batchActions = getAdminWithdrawalBatchActions({
+    approve: async () => {
+      await onApproveWithdrawals(selectedRecords);
+      setSelectedKeys([]);
+    },
+    reject: async () => {
+      await onRejectWithdrawals(selectedRecords);
+      setSelectedKeys([]);
+    }
+  });
   return (
     <>
       {selectedRecords.length > 0 && (
@@ -1435,26 +1566,41 @@ function WithdrawalTable({
 
 function PendingPayoutTable({
   data,
+  onExport,
   onPay,
   onQuery,
   onReturnReview,
-  onMarkFailed
+  onMarkFailed,
+  onMarkPaidBatch,
+  onMarkFailedBatch
 }: {
   data: Payout[];
+  onExport: () => Promise<void>;
   onPay: (payout: Payout) => void;
   onQuery: (payout: Payout) => Promise<void>;
   onReturnReview: (payout: Payout) => Promise<void>;
   onMarkFailed: (payout: Payout) => Promise<void>;
+  onMarkPaidBatch: (payouts: Payout[]) => Promise<void>;
+  onMarkFailedBatch: (payouts: Payout[]) => Promise<void>;
 }) {
   const [selectedKeys, setSelectedKeys] = useState<Key[]>([]);
   const selectedRecords = data.filter((item) => selectedKeys.includes(item.withdrawalNo));
   const exportAction = getAdminPayoutExportAction();
-  const batchActions = getAdminPayoutBatchActions();
+  const batchActions = getAdminPayoutBatchActions({
+    markPaid: async () => {
+      await onMarkPaidBatch(selectedRecords);
+      setSelectedKeys([]);
+    },
+    markFailed: async () => {
+      await onMarkFailedBatch(selectedRecords);
+      setSelectedKeys([]);
+    }
+  });
   return (
     <>
       <div className="mb-3 flex flex-col items-end gap-2">
-        <SecondaryButton disabled={exportAction.disabled}>{exportAction.label}</SecondaryButton>
-        <span className="text-xs text-ink-soft">{exportAction.reason}</span>
+        <SecondaryButton disabled={exportAction.disabled} onClick={onExport}>{exportAction.label}</SecondaryButton>
+        {exportAction.reason && <span className="text-xs text-ink-soft">{exportAction.reason}</span>}
       </div>
       {selectedRecords.length > 0 && (
         <BatchActionBar

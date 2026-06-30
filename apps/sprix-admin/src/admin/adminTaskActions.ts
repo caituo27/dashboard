@@ -19,7 +19,7 @@ export function getAdminTaskWriteAction(kind: AdminTaskWriteActionKind | string)
   if (kind === "edit") {
     return {
       kind: "edit",
-      label: "保存"
+      label: "编辑"
     };
   }
 

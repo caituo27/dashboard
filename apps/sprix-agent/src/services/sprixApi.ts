@@ -165,6 +165,13 @@ type RemoteAgentProfileResponse = AgentProfileResponse & {
   evaluation?: RemoteAgentEvaluation | null;
 };
 
+type RemoteAgentListResponse =
+  | RemoteAgentProfileResponse[]
+  | {
+      content?: RemoteAgentProfileResponse[] | null;
+      agents?: RemoteAgentProfileResponse[] | null;
+    };
+
 type RemoteAgentEvaluationDimension = {
   score?: number | null;
   comment?: string | null;
@@ -704,6 +711,11 @@ function listValue<T>(value: T[] | { content?: T[] | null } | undefined | null):
   if (Array.isArray(value)) return value;
   if (value && typeof value === "object" && Array.isArray(value.content)) return value.content;
   return [];
+}
+
+function agentListValue(value: RemoteAgentListResponse | undefined | null): RemoteAgentProfileResponse[] {
+  if (value && typeof value === "object" && !Array.isArray(value) && Array.isArray(value.agents)) return value.agents;
+  return listValue<RemoteAgentProfileResponse>(value);
 }
 
 function mapAccount(account: UserAccount): Partial<SprixState["account"]> {

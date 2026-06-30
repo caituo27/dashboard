@@ -1,5 +1,7 @@
 import { Button, Input, Modal } from "antd";
+import { useRef, type KeyboardEvent } from "react";
 import type { SafetyChallenge } from "../services/sprixApi";
+import { verificationCodeMaxLength } from "./phoneValidation";
 
 type SafetyChallengeModalProps = {
   open: boolean;
@@ -26,6 +28,14 @@ export function SafetyChallengeModal({
   onConfirm,
   onCancel
 }: SafetyChallengeModalProps) {
+  const composingRef = useRef(false);
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    const isComposing = composingRef.current || event.nativeEvent.isComposing || event.keyCode === 229;
+    if (event.key !== "Enter" || isComposing) return;
+    onConfirm();
+  };
+
   return (
     <Modal
       title="安全验证"
@@ -52,9 +62,16 @@ export function SafetyChallengeModal({
       <Input
         placeholder="请输入图中验证码"
         value={answer}
+        maxLength={verificationCodeMaxLength}
         status={error ? "error" : undefined}
         onChange={(event) => onAnswerChange(event.target.value)}
-        onPressEnter={onConfirm}
+        onCompositionStart={() => {
+          composingRef.current = true;
+        }}
+        onCompositionEnd={() => {
+          composingRef.current = false;
+        }}
+        onKeyDown={handleKeyDown}
       />
       {error && <p className="mb-0 mt-2 text-sm text-red-600">{error}</p>}
     </Modal>

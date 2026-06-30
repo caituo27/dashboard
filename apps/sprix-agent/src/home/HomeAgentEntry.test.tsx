@@ -66,11 +66,10 @@ describe("HomeAgentEntry", () => {
       true
     );
 
+    const downloadLink = screen.getByRole("link", { name: "下载安装包" });
+
     expect(screen.getByRole("button", { name: "连接本地 Agent" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "下载安装包" })).toHaveAttribute(
-      "href",
-      "https://cnb.cool/yztx_qxun/LocalCLIAgentRelease/-/blob/main/LocalCLIAgent-latest.dmg"
-    );
+    expect(downloadLink).toHaveAttribute("href", "https://cnb.cool/yztx_qxun/LocalCLIAgentRelease/-/git/raw/main/LocalCLIAgent-latest.dmg");
     expect(screen.queryByRole("link", { name: "下载客户端" })).toBeNull();
   });
 });

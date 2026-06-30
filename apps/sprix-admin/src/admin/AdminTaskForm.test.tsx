@@ -7,7 +7,9 @@ import { AdminTaskForm } from "./AdminPages";
 import type { AdminTaskDetailView } from "../services/sprixApi";
 
 const serviceMocks = vi.hoisted(() => ({
-  readRemoteTaskDetail: vi.fn()
+  readRemoteTaskDetail: vi.fn(),
+  createRemoteAdminTask: vi.fn(),
+  updateRemoteAdminTask: vi.fn()
 }));
 
 vi.mock("../services/sprixApi", async (importOriginal) => {
@@ -15,8 +17,8 @@ vi.mock("../services/sprixApi", async (importOriginal) => {
   return {
     ...actual,
     readRemoteTaskDetail: serviceMocks.readRemoteTaskDetail,
-    createRemoteAdminTask: vi.fn(),
-    updateRemoteAdminTask: vi.fn()
+    createRemoteAdminTask: serviceMocks.createRemoteAdminTask,
+    updateRemoteAdminTask: serviceMocks.updateRemoteAdminTask
   };
 });
 
@@ -99,6 +101,8 @@ describe("AdminTaskForm cancel confirmation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     serviceMocks.readRemoteTaskDetail.mockResolvedValue(taskDetail());
+    serviceMocks.createRemoteAdminTask.mockResolvedValue({});
+    serviceMocks.updateRemoteAdminTask.mockResolvedValue({});
     vi.spyOn(Modal, "confirm").mockReturnValue({ destroy: vi.fn(), update: vi.fn() });
   });
 
@@ -130,5 +134,19 @@ describe("AdminTaskForm cancel confirmation", () => {
 
     expect(Modal.confirm).toHaveBeenCalledWith(expect.objectContaining({ title: "当前填写内容尚未发布，取消后将不会保存。确认取消吗？" }));
     expect(screen.queryByText("task-center")).toBeNull();
+  });
+
+  it("rejects decimal reward and total slots values", async () => {
+    renderTaskForm("/tasks/task-1/edit");
+
+    const rewardInput = await screen.findByDisplayValue("100");
+    const totalSlotsInput = await screen.findByDisplayValue("2");
+    fireEvent.change(rewardInput, { target: { value: "100.5" } });
+    fireEvent.change(totalSlotsInput, { target: { value: "2.5" } });
+    fireEvent.click(screen.getByRole("button", { name: /编\s*辑/ }));
+
+    expect(await screen.findByText("任务奖励不能输入小数")).toBeTruthy();
+    expect(await screen.findByText("总名额不能输入小数")).toBeTruthy();
+    expect(serviceMocks.updateRemoteAdminTask).not.toHaveBeenCalled();
   });
 });

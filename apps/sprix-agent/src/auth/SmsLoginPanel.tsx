@@ -2,6 +2,7 @@ import { Button, Form, Input } from "antd";
 import { ActionButton } from "../components/Primitives";
 import { AgreementCheck } from "./AgreementCheck";
 import { SafetyChallengeModal } from "./SafetyChallengeModal";
+import { phoneNumberRules, smsCodeRules, verificationCodeMaxLength } from "./phoneValidation";
 import { useSmsLogin } from "./useSmsLogin";
 
 type SmsLoginPanelProps = {
@@ -15,12 +16,13 @@ export function SmsLoginPanel({ active, onAuthenticated }: SmsLoginPanelProps) {
   return (
     <>
       <Form form={sms.form} layout="vertical" onFinish={sms.submit} className="sprix-phone-login-form space-y-2 pt-4">
-        <Form.Item label="手机号" name="phone" rules={[{ required: true, message: "请输入手机号" }]}>
+        <Form.Item label="手机号" name="phone" rules={phoneNumberRules}>
           <Input placeholder="请输入手机号" />
         </Form.Item>
-        <Form.Item label="验证码" name="code" rules={[{ required: true, message: "请输入验证码" }]}>
+        <Form.Item label="验证码" name="code" rules={smsCodeRules}>
           <Input
             placeholder="请输入验证码"
+            maxLength={verificationCodeMaxLength}
             suffix={
               <Button type="link" loading={sms.sending} disabled={sms.countdown > 0} onClick={sms.requestCode}>
                 {sms.countdown > 0 ? `${sms.countdown}s 后重发` : "获取验证码"}

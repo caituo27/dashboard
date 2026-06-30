@@ -117,6 +117,7 @@ type RemoteAdminExecutionRow = {
 
 type RemoteAcceptanceReviewRow = {
   executionId?: string;
+  executionIndex?: number;
   taskId?: string;
   taskTitle?: string;
   taskCategory?: string;
@@ -269,8 +270,18 @@ export async function approveRemoteWithdrawal(withdrawalId: string) {
   return adminFundsApi.approveWithdrawal({ withdrawalId });
 }
 
+export async function approveRemoteWithdrawals(withdrawalIds: string[]): Promise<WithdrawalRecord[]> {
+  const response = await adminFundsApi.approveWithdrawals({ bulkWithdrawalRequest: { withdrawalIds } });
+  return listValue<WithdrawalRecord>(requireValue(response, "批量提现审核失败"));
+}
+
 export async function rejectRemoteWithdrawal(withdrawalId: string, reason: string) {
   return adminFundsApi.rejectWithdrawal({ withdrawalId, withdrawalReviewRequest: { reason } });
+}
+
+export async function rejectRemoteWithdrawals(withdrawalIds: string[], reason: string): Promise<WithdrawalRecord[]> {
+  const response = await adminFundsApi.rejectWithdrawals({ bulkWithdrawalReviewRequest: { withdrawalIds, reason } });
+  return listValue<WithdrawalRecord>(requireValue(response, "批量提现驳回失败"));
 }
 
 export async function postRemoteSettlement(settlementId: string) {
@@ -279,6 +290,11 @@ export async function postRemoteSettlement(settlementId: string) {
 
 export async function markRemoteWithdrawalPaid(withdrawalId: string) {
   return adminFundsApi.markWithdrawalPaid({ withdrawalId });
+}
+
+export async function markRemoteWithdrawalsPaid(withdrawalIds: string[]): Promise<WithdrawalRecord[]> {
+  const response = await adminFundsApi.markWithdrawalsPaid({ bulkWithdrawalRequest: { withdrawalIds } });
+  return listValue<WithdrawalRecord>(requireValue(response, "批量标记已打款失败"));
 }
 
 export async function payRemoteWithdrawal(withdrawalId: string): Promise<WithdrawalRecord> {
@@ -293,6 +309,16 @@ export async function queryRemoteWithdrawalPayout(withdrawalId: string): Promise
 
 export async function markRemoteWithdrawalPayoutFailed(withdrawalId: string) {
   return adminFundsApi.markWithdrawalPayoutFailed({ withdrawalId });
+}
+
+export async function markRemoteWithdrawalsPayoutFailed(withdrawalIds: string[], reason: string): Promise<WithdrawalRecord[]> {
+  const response = await adminFundsApi.markWithdrawalsPayoutFailed({ bulkWithdrawalReviewRequest: { withdrawalIds, reason } });
+  return listValue<WithdrawalRecord>(requireValue(response, "批量标记打款失败提交失败"));
+}
+
+export async function exportRemotePendingPayouts(): Promise<Withdrawal[]> {
+  const response = await adminFundsApi.pendingPayoutExport();
+  return listValue<WithdrawalRecord>(requireValue(response, "打款清单导出失败")).map(mapWithdrawal);
 }
 
 export async function returnRemoteWithdrawalForReview(withdrawalId: string, reason: string) {
@@ -399,6 +425,7 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
     } else if (row.executionStatus === "PLATFORM_REVIEWING") {
       reviewing.push({
         executionId: requireText(row.executionId, "executionId"),
+        executionIndex: row.executionIndex,
         userName: row.userName ?? "-",
         phone: row.userPhone ?? "-",
         agentName: row.agentName ?? "-",
@@ -434,6 +461,7 @@ function mapAcceptanceReview(row: RemoteAcceptanceReviewRow): ReviewingExecution
   const executionId = requireText(row.executionId, "executionId");
   return {
     executionId,
+    executionIndex: row.executionIndex,
     taskId: row.taskId,
     taskTitle: row.taskTitle,
     taskCategory: row.taskCategory,

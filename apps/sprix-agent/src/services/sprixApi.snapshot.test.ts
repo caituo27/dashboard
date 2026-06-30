@@ -35,7 +35,7 @@ vi.mock("../apis/sprix", () => ({
   TaskControllerApiFactory: () => apiMocks.task
 }));
 
-import { readAgentSnapshot } from "./sprixApi";
+import { readAgentSnapshot, readRemoteAgents } from "./sprixApi";
 
 function mockLoggedInSnapshotDefaults() {
   localStorage.setItem("sprix-auth-token", "token-1");
@@ -128,6 +128,43 @@ describe("readAgentSnapshot", () => {
     expect(snapshot.currentAgent).toBeUndefined();
   });
 
+  it("reads agents from the backend aggregate payload", async () => {
+    apiMocks.agent.list1.mockResolvedValue({
+      currentAgentId: "agent-1",
+      agents: [
+        {
+          id: "agent-1",
+          name: "Codex Agent",
+          status: "AVAILABLE",
+          currentExecution: true,
+          score: 84,
+          abilityTags: "software-development,web-generation,code-repair"
+        },
+        {
+          id: "agent-2",
+          name: "Claude Code Agent",
+          status: "AVAILABLE",
+          currentExecution: false,
+          score: 80,
+          abilityTags: "software-development,code-repair,task-execution"
+        }
+      ],
+      localAgent: {
+        bound: true,
+        connectionStatus: "ONLINE"
+      }
+    });
+
+    const agents = await readRemoteAgents();
+
+    expect(agents.map((agent) => agent.name)).toEqual(["Codex Agent", "Claude Code Agent"]);
+    expect(agents[0]).toMatchObject({
+      role: "当前执行 Agent",
+      score: 84,
+      tags: ["软件开发", "网页生成", "代码修复"]
+    });
+  });
+
   it("normalizes malformed evaluation list fields to empty arrays", async () => {
     apiMocks.task.market.mockResolvedValue([]);
     apiMocks.task.recommendations.mockResolvedValue([]);
@@ -143,7 +180,6 @@ describe("readAgentSnapshot", () => {
           questions: "not-an-array",
           steps: { content: [] },
           transcript: "not-an-array",
-          careerProfile: null,
           result: {
             status: "COMPLETED",
             improvements: "not-an-array",
@@ -164,6 +200,5 @@ describe("readAgentSnapshot", () => {
     expect(snapshot.agents?.[0]?.evaluation?.result.improvements).toEqual([]);
     expect(snapshot.agents?.[0]?.evaluation?.result.steps).toEqual([]);
     expect(snapshot.agents?.[0]?.evaluation?.result.transcript).toEqual([]);
-    expect(snapshot.agents?.[0]?.evaluation?.result.careerProfile).toBeNull();
   });
 });

@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthModal } from "../auth/AuthModal";
-import { createSafetyChallenge, readAlipayLoginStatus, sendSmsCode } from "../services/sprixApi";
+import { authenticateConsumer, createSafetyChallenge, readAlipayLoginStatus, sendSmsCode } from "../services/sprixApi";
 
 vi.mock("../services/sprixApi", () => ({
   authenticateConsumer: vi.fn(),
@@ -86,6 +86,7 @@ describe("AuthModal phone login", () => {
   });
 
   beforeEach(() => {
+    vi.mocked(authenticateConsumer).mockClear();
     vi.mocked(sendSmsCode).mockClear();
     vi.mocked(createSafetyChallenge).mockReset();
     vi.mocked(createSafetyChallenge).mockResolvedValue({
@@ -114,6 +115,20 @@ describe("AuthModal phone login", () => {
     expect(screen.getByAltText("安全验证码")).toBeTruthy();
   });
 
+  it("does not open the safety challenge when the phone number format is invalid", async () => {
+    renderLoginModal();
+
+    fireEvent.click(screen.getByRole("tab", { name: "手机号验证码" }));
+    fireEvent.change(screen.getByPlaceholderText("请输入手机号"), { target: { value: "12345" } });
+    fireEvent.click(screen.getByRole("button", { name: "获取验证码" }));
+
+    expect(await screen.findByText("请输入正确的手机号")).toBeTruthy();
+    await waitFor(() => {
+      expect(createSafetyChallenge).not.toHaveBeenCalled();
+    });
+    expect(screen.queryByText("请输入图中字符后发送短信验证码")).toBeNull();
+  });
+
   it("sends an SMS code with the server challenge answer", async () => {
     renderLoginModal();
 
@@ -131,6 +146,51 @@ describe("AuthModal phone login", () => {
         challengeId: "challenge-1",
         challengeAnswer: "a7K9"
       });
+    });
+  });
+
+  it("does not submit the safety challenge while IME composition is confirming text", async () => {
+    renderLoginModal();
+
+    fireEvent.click(screen.getByRole("tab", { name: "手机号验证码" }));
+    fireEvent.change(screen.getByPlaceholderText("请输入手机号"), { target: { value: "13812345678" } });
+    fireEvent.click(screen.getByRole("button", { name: "获取验证码" }));
+
+    await screen.findByText("请输入图中字符后发送短信验证码");
+    const challengeInput = screen.getByPlaceholderText("请输入图中验证码");
+    fireEvent.change(challengeInput, { target: { value: "a7K9" } });
+    fireEvent.compositionStart(challengeInput);
+    fireEvent.keyDown(challengeInput, { key: "Enter", code: "Enter" });
+
+    expect(sendSmsCode).not.toHaveBeenCalled();
+
+    fireEvent.compositionEnd(challengeInput);
+    fireEvent.keyDown(challengeInput, { key: "Enter", code: "Enter" });
+
+    await waitFor(() => {
+      expect(sendSmsCode).toHaveBeenCalledWith({
+        mobile: "13812345678",
+        challengeId: "challenge-1",
+        challengeAnswer: "a7K9"
+      });
+    });
+  });
+
+  it("limits login SMS verification code length before submitting", async () => {
+    renderLoginModal();
+
+    fireEvent.click(screen.getByRole("tab", { name: "手机号验证码" }));
+    fireEvent.change(screen.getByPlaceholderText("请输入手机号"), { target: { value: "13812345678" } });
+    const codeInput = screen.getByPlaceholderText("请输入验证码");
+
+    expect(codeInput.getAttribute("maxlength")).toBe("6");
+    fireEvent.change(codeInput, { target: { value: "1234567" } });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: "登录 / 注册" }));
+
+    expect(await screen.findByText("请输入 4-6 位数字验证码")).toBeTruthy();
+    await waitFor(() => {
+      expect(authenticateConsumer).not.toHaveBeenCalled();
     });
   });
 

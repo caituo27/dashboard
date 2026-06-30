@@ -1,8 +1,9 @@
 export type AdminPendingFundAction = {
   label: string;
-  disabled: true;
-  reason: string;
+  disabled?: boolean;
+  reason?: string;
   danger?: true;
+  onClick?: () => Promise<void>;
 };
 
 export function getAdminSettlementDetailAction(): AdminPendingFundAction {
@@ -15,43 +16,39 @@ export function getAdminSettlementDetailAction(): AdminPendingFundAction {
 
 export function getAdminPayoutExportAction(): AdminPendingFundAction {
   return {
-    label: "导出打款清单（待接口）",
-    disabled: true,
-    reason: "后台打款清单导出接口待接入，前端不生成正式打款文件"
+    label: "导出打款清单"
   };
 }
 
-export function getAdminWithdrawalBatchActions(): AdminPendingFundAction[] {
-  const reason = "后台批量提现审核接口待接入，前端不调用未确认的 bulk-approve/bulk-reject 路径";
-
+export function getAdminWithdrawalBatchActions(actions: {
+  approve: () => Promise<void>;
+  reject: () => Promise<void>;
+}): AdminPendingFundAction[] {
   return [
     {
-      label: "批量通过审核（待接口）",
-      disabled: true,
-      reason
+      label: "批量通过审核",
+      onClick: actions.approve
     },
     {
-      label: "批量驳回提现（待接口）",
-      disabled: true,
-      reason,
+      label: "批量驳回提现",
+      onClick: actions.reject,
       danger: true
     }
   ];
 }
 
-export function getAdminPayoutBatchActions(): AdminPendingFundAction[] {
-  const reason = "后台批量打款状态接口待接入，前端不调用未确认的 bulk-paid/bulk-payout-failed 路径";
-
+export function getAdminPayoutBatchActions(actions: {
+  markPaid: () => Promise<void>;
+  markFailed: () => Promise<void>;
+}): AdminPendingFundAction[] {
   return [
     {
-      label: "批量标记已打款（待接口）",
-      disabled: true,
-      reason
+      label: "批量标记已打款",
+      onClick: actions.markPaid
     },
     {
-      label: "批量标记打款失败（待接口）",
-      disabled: true,
-      reason,
+      label: "批量标记打款失败",
+      onClick: actions.markFailed,
       danger: true
     }
   ];

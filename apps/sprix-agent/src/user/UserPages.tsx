@@ -59,6 +59,8 @@ type UserPageProps = {
 
 type FaceVerificationFormValues = FaceVerificationIdentity;
 
+const FACE_VERIFICATION_POLL_INTERVAL_MS = 2_000;
+
 function showRequestError(error: unknown, fallback: string, prefix = "") {
   if (isGlobalAuthError(error)) return;
   message.error(error instanceof Error ? `${prefix}${error.message}` : fallback);
@@ -418,19 +420,6 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   const [evaluationLoading, setEvaluationLoading] = useState(false);
   const [evaluationError, setEvaluationError] = useState<string>();
   const currentWithEvaluation = currentEvaluation && current ? { ...current, evaluation: currentEvaluation, score: currentEvaluation.result.overallScore ?? current.score } : current;
-  const agentsWithCurrentEvaluation = useMemo(() => {
-    if (!currentEvaluation || !current?.id) return agents;
-    return agents.map((agent) =>
-      agent.id === current.id
-        ? {
-            ...agent,
-            evaluation: currentEvaluation,
-            score: currentEvaluation.result.overallScore ?? agent.score,
-            lastEvaluatedAt: currentWithEvaluation?.lastEvaluatedAt ?? agent.lastEvaluatedAt
-          }
-        : agent
-    );
-  }, [agents, current?.id, currentEvaluation, currentWithEvaluation?.lastEvaluatedAt]);
 
   const refreshAgents = useCallback(async (preferredCurrentAgent?: Agent) => {
     const [remoteAgents, refreshedCurrentAgent] = await Promise.all([
@@ -1029,6 +1018,8 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
   const [faceVerificationOpen, setFaceVerificationOpen] = useState(false);
   const [agreementOpen, setAgreementOpen] = useState(false);
   const [agreementSecondsRemaining, setAgreementSecondsRemaining] = useState(10);
+  const faceVerificationConfirmingRef = useRef(false);
+  const faceVerificationCompletedRef = useRef(false);
   const successAction = getQualificationSuccessAction(location.search);
   const qualificationRows = getQualificationRecordRows(account);
 
@@ -1049,6 +1040,59 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
     return () => window.clearInterval(intervalId);
   }, [agreementOpen]);
 
+  const applyCompletedFaceVerification = useCallback(
+    (accountPatch: Partial<Account>) => {
+      if (!accountPatch.realPersonVerified || faceVerificationCompletedRef.current) return false;
+
+      faceVerificationCompletedRef.current = true;
+      mergeRemoteState({ account: accountPatch });
+      setFaceVerificationOpen(false);
+      setStep(1);
+      message.success("支付宝人脸核验已完成");
+      return true;
+    },
+    [mergeRemoteState]
+  );
+
+  useEffect(() => {
+    if (!faceVerificationOpen || !faceVerificationSession?.webUrl) return;
+
+    let cancelled = false;
+    let timeoutId: number | undefined;
+
+    const pollFaceVerification = async () => {
+      if (faceVerificationConfirmingRef.current) {
+        if (!cancelled) {
+          timeoutId = window.setTimeout(pollFaceVerification, FACE_VERIFICATION_POLL_INTERVAL_MS);
+        }
+        return;
+      }
+
+      faceVerificationConfirmingRef.current = true;
+      try {
+        const accountPatch = await completeRemoteFaceVerification();
+        if (!cancelled && applyCompletedFaceVerification(accountPatch)) return;
+      } catch (error) {
+        if (isGlobalAuthError(error)) return;
+      } finally {
+        faceVerificationConfirmingRef.current = false;
+      }
+
+      if (!cancelled && !faceVerificationCompletedRef.current) {
+        timeoutId = window.setTimeout(pollFaceVerification, FACE_VERIFICATION_POLL_INTERVAL_MS);
+      }
+    };
+
+    timeoutId = window.setTimeout(pollFaceVerification, FACE_VERIFICATION_POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [applyCompletedFaceVerification, faceVerificationOpen, faceVerificationSession?.webUrl]);
+
   const openFaceVerification = async (values: FaceVerificationFormValues) => {
     setSubmitting(true);
     try {
@@ -1056,6 +1100,7 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
         realName: values.realName.trim(),
         idCardNo: values.idCardNo.trim()
       });
+      faceVerificationCompletedRef.current = false;
       setFaceVerificationSession(verificationSession);
       setFaceVerificationOpen(true);
     } catch (error) {
@@ -1070,13 +1115,15 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
   };
 
   const completeFaceVerification = async () => {
+    if (faceVerificationConfirmingRef.current) return;
+
     setSubmitting(true);
+    faceVerificationConfirmingRef.current = true;
     try {
       const accountPatch = await completeRemoteFaceVerification();
-      mergeRemoteState({ account: accountPatch });
-      setFaceVerificationOpen(false);
-      setStep(1);
-      message.success("支付宝人脸核验已完成");
+      if (!applyCompletedFaceVerification(accountPatch)) {
+        message.info("支付宝认证结果还未同步，请完成扫码后稍等");
+      }
     } catch (error) {
       if (!(error instanceof Error) && !isGlobalAuthError(error)) {
         showRequestError(error, "支付宝人脸核验确认失败", "支付宝人脸核验确认失败：");
@@ -1084,6 +1131,7 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
       }
       showRequestError(error, "支付宝人脸核验确认失败", "支付宝人脸核验确认失败：");
     } finally {
+      faceVerificationConfirmingRef.current = false;
       setSubmitting(false);
     }
   };

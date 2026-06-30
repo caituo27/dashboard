@@ -135,6 +135,7 @@ export type TerminatedExecution = {
 
 export type ReviewingExecution = {
   executionId: string;
+  executionIndex?: number;
   taskId?: string;
   taskTitle?: string;
   taskCategory?: string;

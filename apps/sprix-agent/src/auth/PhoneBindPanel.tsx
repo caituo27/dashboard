@@ -11,6 +11,7 @@ import {
 } from "../services/sprixApi";
 import { SafetyChallengeModal } from "./SafetyChallengeModal";
 import type { QrLoginProvider } from "./authTypes";
+import { phoneNumberRules, smsCodeRules, verificationCodeMaxLength } from "./phoneValidation";
 
 type PhoneBindForm = {
   phone: string;
@@ -124,13 +125,14 @@ export function PhoneBindPanel({ provider, bindTicket, onAuthenticated }: PhoneB
         </div>
       </div>
       <Form form={form} layout="vertical" onFinish={submit} className="sprix-phone-login-form space-y-2">
-        <Form.Item label="手机号" name="phone" rules={[{ required: true, message: "请输入手机号" }]}>
+        <Form.Item label="手机号" name="phone" rules={phoneNumberRules}>
           <Input size="large" placeholder="请输入手机号" />
         </Form.Item>
-        <Form.Item label="短信验证码" name="code" rules={[{ required: true, message: "请输入验证码" }]}>
+        <Form.Item label="短信验证码" name="code" rules={smsCodeRules}>
           <Input
             size="large"
             placeholder="请输入短信验证码"
+            maxLength={verificationCodeMaxLength}
             suffix={
               <Button type="link" loading={sending} disabled={countdown > 0} onClick={requestCode}>
                 {countdown > 0 ? `${countdown}s 后重发` : "获取验证码"}
