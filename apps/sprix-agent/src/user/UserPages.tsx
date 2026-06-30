@@ -25,6 +25,7 @@ import { ActionButton, EmptyState, MetricCard, PageHeader, SecondaryButton, Soft
 import { AgentEvaluationProgressModal } from "../components/AgentEvaluationProgressModal";
 import { compactText, currency, scoreText } from "../utils/format";
 import { isGlobalAuthError } from "../utils/http";
+import { getLocalAgentEmptyMessage } from "../home/localAgentInventory";
 import { QrPayloadBox } from "../components/QrSession";
 import { getAgentAbilityResult, getAgentAdmissionSummary, getAgentTagLabels, hasPendingAgentEvaluation } from "./agentResult";
 import { getPayoutAccountText, getPayoutPageSubtitle, getPayoutRecordState } from "./earningsView";
@@ -419,6 +420,7 @@ function getInitialQualificationStep(account: Account) {
 export function AgentCenterPage({ openLogin }: UserPageProps) {
   const account = useSprixStore((state) => state.account);
   const agents = useSprixStore((state) => state.agents);
+  const localAgent = useSprixStore((state) => state.localAgent);
   const currentAgent = useSprixStore((state) => state.currentAgent);
   const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
   const current = currentAgent;
@@ -445,11 +447,17 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   }, [agents, current?.id, currentEvaluation, currentWithEvaluation?.lastEvaluatedAt]);
 
   const refreshAgents = useCallback(async (preferredCurrentAgent?: Agent) => {
-    const [refreshedAgents, refreshedCurrentAgent] = await Promise.all([
+    const [remoteAgents, refreshedCurrentAgent] = await Promise.all([
       readRemoteAgents(),
       readCurrentRemoteAgent().catch(() => undefined)
     ]);
-    mergeRemoteState({ agents: refreshedAgents, currentAgent: refreshedCurrentAgent ?? preferredCurrentAgent });
+    const currentAgentFromList = remoteAgents.currentAgentId ? remoteAgents.agents.find((agent) => agent.id === remoteAgents.currentAgentId) : undefined;
+    mergeRemoteState({
+      agents: remoteAgents.agents,
+      localAgent: remoteAgents.localAgent,
+      currentAgentId: remoteAgents.currentAgentId,
+      currentAgent: refreshedCurrentAgent ?? preferredCurrentAgent ?? currentAgentFromList
+    });
   }, [mergeRemoteState]);
 
   const setCurrent = async (agent: Agent) => {
@@ -616,7 +624,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       <AgentList
         title="Agent 列表"
         agents={agentsWithCurrentEvaluation}
-        empty="暂无 Agent"
+        empty={getLocalAgentEmptyMessage(localAgent)}
         renderActions={(agent) =>
           agent.role === "当前执行 Agent" ? (
             <>

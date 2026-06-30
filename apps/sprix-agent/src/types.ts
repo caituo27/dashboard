@@ -2,6 +2,14 @@ export type TaskStatus = "已发布" | "已下线" | "已删除";
 export type OfflineReason = string;
 export type AgentStatus = "可用" | "已连接" | "离线";
 export type AgentRole = "当前执行 Agent" | "可用 Agent" | "离线 Agent";
+export type LocalAgentInventoryStatus =
+  | "UNKNOWN"
+  | "NOT_BOUND"
+  | "DEVICE_OFFLINE"
+  | "WAITING_INVENTORY"
+  | "INVENTORY_STALE"
+  | "NO_AVAILABLE_AGENT"
+  | "READY";
 export type AgentEvaluationStatus = "running" | "judging" | "completed" | "failed";
 export type MyTaskStatus = "执行中" | "待平台审核" | "已终止" | "验收未通过" | "结算中" | "已结算";
 export type AppealStatus =
@@ -108,6 +116,22 @@ export type Agent = {
   tags: string[];
   profile?: AgentProfile;
   evaluation?: AgentEvaluation;
+};
+
+export type LocalAgentDiagnostic = {
+  bound: boolean;
+  deviceId: string;
+  connectionStatus: string;
+  inventoryStatus: LocalAgentInventoryStatus;
+  reportedInventoryStatus: string;
+  inventoryUpdatedAt: string | null;
+  lastSeenAt: string | null;
+  lastWsConnectedAt: string | null;
+  lastWsDisconnectedAt: string | null;
+  totalAgentCount: number | null;
+  availableAgentCount: number | null;
+  reportedAgentIds: string[];
+  message: string;
 };
 
 export type Task = {
@@ -297,6 +321,8 @@ export type SprixState = {
   account: Account;
   platformOverview: PlatformOverview;
   agents: Agent[];
+  localAgent?: LocalAgentDiagnostic;
+  currentAgentId?: string | null;
   currentAgent?: Agent;
   tasks: Task[];
   myTasks: MyTask[];

@@ -1,12 +1,14 @@
-import type { Agent, Account } from "../types";
+import type { Agent, Account, LocalAgentDiagnostic } from "../types";
+import { getLocalAgentPrimaryActionLabel } from "./localAgentInventory";
 import type { HomeAgentStateResult } from "./homeTypes";
 
-export function useHomeAgentState(account: Account, agents: Agent[], currentAgent?: Agent): HomeAgentStateResult {
+export function useHomeAgentState(account: Account, agents: Agent[], currentAgent?: Agent, localAgent?: LocalAgentDiagnostic): HomeAgentStateResult {
   if (!account.isLoggedIn) {
     return {
       state: "guest",
       isLoggedIn: false,
       agents,
+      localAgent,
       currentAgent: undefined,
       canOpenAgentPicker: false,
       primaryActionLabel: "连接本地 Agent"
@@ -18,6 +20,7 @@ export function useHomeAgentState(account: Account, agents: Agent[], currentAgen
       state: "logged_in_with_current_agent",
       isLoggedIn: true,
       agents,
+      localAgent,
       currentAgent,
       canOpenAgentPicker: false,
       primaryActionLabel: "进入任务市场"
@@ -29,6 +32,7 @@ export function useHomeAgentState(account: Account, agents: Agent[], currentAgen
       state: "logged_in_with_agents_without_current",
       isLoggedIn: true,
       agents,
+      localAgent,
       currentAgent: undefined,
       canOpenAgentPicker: true,
       primaryActionLabel: "设置当前执行 Agent"
@@ -39,8 +43,9 @@ export function useHomeAgentState(account: Account, agents: Agent[], currentAgen
     state: "logged_in_without_agents",
     isLoggedIn: true,
     agents,
+    localAgent,
     currentAgent: undefined,
     canOpenAgentPicker: false,
-    primaryActionLabel: "连接本地 Agent"
+    primaryActionLabel: getLocalAgentPrimaryActionLabel(localAgent)
   };
 }

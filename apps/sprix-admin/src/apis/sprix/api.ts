@@ -173,6 +173,11 @@ export interface AgentEvaluationTranscriptItemResponse {
     'question'?: string;
     'answer'?: string;
 }
+export interface AgentListResponse {
+    'currentAgentId'?: string;
+    'agents'?: Array<AgentProfileResponse>;
+    'localAgent'?: LocalAgentDiagnosticResponse;
+}
 export interface AgentProfileResponse {
     'id'?: string;
     'createdAt'?: string;
@@ -249,6 +254,12 @@ export interface ApiResponseAgentEvaluationDetailResponse {
     'code'?: string;
     'message'?: string;
     'data'?: AgentEvaluationDetailResponse;
+}
+export interface ApiResponseAgentListResponse {
+    'success'?: boolean;
+    'code'?: string;
+    'message'?: string;
+    'data'?: AgentListResponse;
 }
 export interface ApiResponseAgentProfileResponse {
     'success'?: boolean;
@@ -345,12 +356,6 @@ export interface ApiResponseListAdminTaskSummary {
     'code'?: string;
     'message'?: string;
     'data'?: Array<AdminTaskSummary>;
-}
-export interface ApiResponseListAgentProfileResponse {
-    'success'?: boolean;
-    'code'?: string;
-    'message'?: string;
-    'data'?: Array<AgentProfileResponse>;
 }
 export interface ApiResponseListAppealRecord {
     'success'?: boolean;
@@ -778,6 +783,21 @@ export interface HeartbeatResponse {
 export interface InitializeFaceVerificationRequest {
     'realName': string;
     'idCardNo': string;
+}
+export interface LocalAgentDiagnosticResponse {
+    'bound'?: boolean;
+    'deviceId'?: string;
+    'connectionStatus'?: string;
+    'inventoryStatus'?: string;
+    'reportedInventoryStatus'?: string;
+    'inventoryUpdatedAt'?: string;
+    'lastSeenAt'?: string;
+    'lastWsConnectedAt'?: string;
+    'lastWsDisconnectedAt'?: string;
+    'totalAgentCount'?: number;
+    'availableAgentCount'?: number;
+    'reportedAgentIds'?: Array<string>;
+    'message'?: string;
 }
 export interface LogsUploadRequest {
     'localTaskId'?: string;
@@ -4693,7 +4713,7 @@ export const AgentControllerApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async list1(options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseListAgentProfileResponse>> {
+        async list1(options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseAgentListResponse>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.list1(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AgentControllerApi.list1']?.[localVarOperationServerIndex]?.url;
@@ -4778,7 +4798,7 @@ export const AgentControllerApiFactory = function (configuration?: Configuration
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        list1(options?: AxiosRequestConfig): AxiosPromise<ApiResponseListAgentProfileResponse> {
+        list1(options?: AxiosRequestConfig): AxiosPromise<ApiResponseAgentListResponse> {
             return localVarFp.list1(options).then((request) => request(axios, basePath));
         },
         /**

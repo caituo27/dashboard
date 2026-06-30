@@ -3380,7 +3380,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponseListAgentProfileResponse"
+                  "$ref": "#/components/schemas/ApiResponseAgentListResponse"
                 }
               }
             }
@@ -6987,7 +6987,25 @@
           }
         }
       },
-      "ApiResponseListAgentProfileResponse": {
+      "AgentListResponse": {
+        "type": "object",
+        "properties": {
+          "currentAgentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "agents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentProfileResponse"
+            }
+          },
+          "localAgent": {
+            "$ref": "#/components/schemas/LocalAgentDiagnosticResponse"
+          }
+        }
+      },
+      "ApiResponseAgentListResponse": {
         "type": "object",
         "properties": {
           "success": {
@@ -7000,10 +7018,60 @@
             "type": "string"
           },
           "data": {
+            "$ref": "#/components/schemas/AgentListResponse"
+          }
+        }
+      },
+      "LocalAgentDiagnosticResponse": {
+        "type": "object",
+        "properties": {
+          "bound": {
+            "type": "boolean"
+          },
+          "deviceId": {
+            "type": "string"
+          },
+          "connectionStatus": {
+            "type": "string"
+          },
+          "inventoryStatus": {
+            "type": "string"
+          },
+          "reportedInventoryStatus": {
+            "type": "string"
+          },
+          "inventoryUpdatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastSeenAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastWsConnectedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastWsDisconnectedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "totalAgentCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "availableAgentCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "reportedAgentIds": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/AgentProfileResponse"
+              "type": "string"
             }
+          },
+          "message": {
+            "type": "string"
           }
         }
       },

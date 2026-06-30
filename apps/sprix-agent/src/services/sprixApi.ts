@@ -7,6 +7,7 @@ import {
   MyTaskControllerApiFactory,
   PlatformControllerApiFactory,
   TaskControllerApiFactory,
+  type AgentListResponse,
   type AgentProfileResponse,
   type AgentEvaluationDetailResponse,
   type AlipayBindSessionResponse,
@@ -16,6 +17,7 @@ import {
   type AppealRecord,
   type AuthTokenResponse,
   type FaceVerificationSession,
+  type LocalAgentDiagnosticResponse,
   type MyTaskExecutionDetail,
   type SmartAcceptResponse,
   type PlatformOverview as RemotePlatformOverview,
@@ -37,6 +39,8 @@ import type {
   AgentEvaluationStep,
   AgentEvaluationTranscriptItem,
   AppealStatus,
+  LocalAgentDiagnostic,
+  LocalAgentInventoryStatus,
   MyTask,
   MyTaskStatus,
   PlatformOverview,
@@ -151,6 +155,12 @@ export type FaceVerificationIdentity = {
   readonly idCardNo: string;
 };
 
+export type RemoteAgentsResult = {
+  agents: Agent[];
+  localAgent?: LocalAgentDiagnostic;
+  currentAgentId: string | null;
+};
+
 type RemoteAgentProfileResponse = AgentProfileResponse & {
   evaluation?: RemoteAgentEvaluation | null;
 };
@@ -222,6 +232,15 @@ const tagText: Record<string, string> = {
   "fact-checking": "事实校验",
   "data-processing": "数据处理"
 };
+
+const localAgentInventoryStatuses = new Set<LocalAgentInventoryStatus>([
+  "NOT_BOUND",
+  "DEVICE_OFFLINE",
+  "WAITING_INVENTORY",
+  "INVENTORY_STALE",
+  "NO_AVAILABLE_AGENT",
+  "READY"
+]);
 
 export async function createSafetyChallenge(scene: SafetyChallengeScene): Promise<SafetyChallenge> {
   const response = await http.post<unknown, SafetyChallenge>("/api/v1/auth/safety-challenges", { scene });
@@ -443,7 +462,7 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
 
   const accountResponse = await accountApi.current1();
   const [agentsResponse, currentAgentResponse, myTasksResponse, withdrawableResponse, withdrawalAccountResponse] = await Promise.all([
-    optionalSnapshotRequest(() => agentApi.list1(), []),
+    optionalSnapshotRequest<AgentListResponse | RemoteAgentProfileResponse[] | undefined>(() => agentApi.list1(), undefined),
     optionalSnapshotRequest<AgentProfileResponse | undefined>(() => agentApi.current(), undefined),
     optionalSnapshotRequest(() => myTaskApi.list(), []),
     optionalSnapshotRequest<number | undefined>(() => earningsApi.withdrawable(), undefined),
@@ -451,8 +470,10 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
   ]);
 
   const account = accountResponse;
-  const agents = listValue<RemoteAgentProfileResponse>(agentsResponse).map(mapAgent);
-  const currentAgent = currentAgentResponse ? mapAgent(currentAgentResponse) : undefined;
+  const agentsResult = mapRemoteAgentsResult(agentsResponse);
+  const agents = agentsResult.agents;
+  const currentAgentFromList = agentsResult.currentAgentId ? agents.find((agent) => agent.id === agentsResult.currentAgentId) : undefined;
+  const currentAgent = currentAgentResponse ? mapAgent(currentAgentResponse) : currentAgentFromList;
   const taskById = new Map(tasks.map((task) => [task.id, task]));
   const agentById = new Map(agents.map((agent) => [agent.id, agent]));
   const myTasks = listValue<MyTaskExecutionDetail>(myTasksResponse).map((item) => mapMyTask(item, taskById, agentById));
@@ -462,6 +483,8 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
     tasks,
     platformOverview,
     agents,
+    localAgent: agentsResult.localAgent,
+    currentAgentId: agentsResult.currentAgentId,
     currentAgent,
     myTasks,
     account: {
@@ -495,9 +518,9 @@ export async function connectRemoteAgent(agentId: string): Promise<Agent | undef
   return response ? mapAgent(response) : undefined;
 }
 
-export async function readRemoteAgents(): Promise<Agent[]> {
+export async function readRemoteAgents(): Promise<RemoteAgentsResult> {
   const response = await agentApi.list1();
-  return listValue<RemoteAgentProfileResponse>(response).map(mapAgent);
+  return mapRemoteAgentsResult(requireValue<AgentListResponse | RemoteAgentProfileResponse[]>(response, "Agent 列表不可用"));
 }
 
 export async function readCurrentRemoteAgent(): Promise<Agent | undefined> {
@@ -716,6 +739,50 @@ export function mapTaskRecommendation(recommendation: TaskRecommendationResponse
     riskPrompt: recommendation.autoAcceptEligible ? "匹配度超过 95%，可触发智能接单。" : "匹配度未超过 95%，仅按评分推荐，不自动接单。",
     recommendedReason: recommendation.recommendedReason ?? ""
   };
+}
+
+function mapRemoteAgentsResult(response: AgentListResponse | RemoteAgentProfileResponse[] | undefined | null): RemoteAgentsResult {
+  if (Array.isArray(response)) {
+    return {
+      agents: response.map(mapAgent),
+      localAgent: undefined,
+      currentAgentId: null
+    };
+  }
+
+  const agents = listValue<RemoteAgentProfileResponse>(response?.agents).map(mapAgent);
+  return {
+    agents,
+    localAgent: mapLocalAgentDiagnostic(response?.localAgent),
+    currentAgentId: response?.currentAgentId ?? null
+  };
+}
+
+function mapLocalAgentDiagnostic(localAgent?: LocalAgentDiagnosticResponse | null): LocalAgentDiagnostic | undefined {
+  if (!localAgent) return undefined;
+  const inventoryStatus = normalizeLocalAgentInventoryStatus(localAgent.inventoryStatus);
+  return {
+    bound: localAgent.bound === true,
+    deviceId: localAgent.deviceId ?? "",
+    connectionStatus: localAgent.connectionStatus ?? "",
+    inventoryStatus,
+    reportedInventoryStatus: localAgent.reportedInventoryStatus ?? "",
+    inventoryUpdatedAt: localAgent.inventoryUpdatedAt ?? null,
+    lastSeenAt: localAgent.lastSeenAt ?? null,
+    lastWsConnectedAt: localAgent.lastWsConnectedAt ?? null,
+    lastWsDisconnectedAt: localAgent.lastWsDisconnectedAt ?? null,
+    totalAgentCount: localAgent.totalAgentCount ?? null,
+    availableAgentCount: localAgent.availableAgentCount ?? null,
+    reportedAgentIds: listValue(localAgent.reportedAgentIds).filter(Boolean),
+    message: localAgent.message ?? ""
+  };
+}
+
+function normalizeLocalAgentInventoryStatus(status?: string | null): LocalAgentInventoryStatus {
+  if (status && localAgentInventoryStatuses.has(status as LocalAgentInventoryStatus)) {
+    return status as LocalAgentInventoryStatus;
+  }
+  return "UNKNOWN";
 }
 
 function mapAgent(agent: RemoteAgentProfileResponse): Agent {

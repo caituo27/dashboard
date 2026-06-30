@@ -1,4 +1,4 @@
-import type { Agent } from "../types";
+import type { Agent, LocalAgentDiagnostic } from "../types";
 
 export type HomeAgentState =
   | "guest"
@@ -10,6 +10,7 @@ export type HomeAgentStateResult = {
   state: HomeAgentState;
   isLoggedIn: boolean;
   agents: Agent[];
+  localAgent?: LocalAgentDiagnostic;
   currentAgent?: Agent;
   canOpenAgentPicker: boolean;
   primaryActionLabel: string;

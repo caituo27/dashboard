@@ -44,10 +44,11 @@ export function HomePage({ openLogin, onLogout }: HomePageProps) {
   const navigate = useNavigate();
   const account = useSprixStore((state) => state.account);
   const agents = useSprixStore((state) => state.agents);
+  const localAgent = useSprixStore((state) => state.localAgent);
   const currentAgent = useSprixStore((state) => state.currentAgent);
   const platformOverview = useSprixStore((state) => state.platformOverview);
   const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
-  const homeState = useHomeAgentState(account, agents, currentAgent);
+  const homeState = useHomeAgentState(account, agents, currentAgent, localAgent);
   const autoSetCurrentAgentIdRef = useRef<string>();
   const [agentPickerOpen, setAgentPickerOpen] = useState(false);
   const [connectModalOpen, setConnectModalOpen] = useState(false);
@@ -60,11 +61,17 @@ export function HomePage({ openLogin, onLogout }: HomePageProps) {
   const availableAgents = useMemo(() => agents.filter((agent) => agent.status !== "离线"), [agents]);
 
   const refreshAgents = useCallback(async (preferredCurrentAgent?: Agent) => {
-    const [refreshedAgents, refreshedCurrentAgent] = await Promise.all([
+    const [remoteAgents, refreshedCurrentAgent] = await Promise.all([
       readRemoteAgents(),
       readCurrentRemoteAgent().catch(() => undefined)
     ]);
-    mergeRemoteState({ agents: refreshedAgents, currentAgent: refreshedCurrentAgent ?? preferredCurrentAgent });
+    const currentAgentFromList = remoteAgents.currentAgentId ? remoteAgents.agents.find((agent) => agent.id === remoteAgents.currentAgentId) : undefined;
+    mergeRemoteState({
+      agents: remoteAgents.agents,
+      localAgent: remoteAgents.localAgent,
+      currentAgentId: remoteAgents.currentAgentId,
+      currentAgent: refreshedCurrentAgent ?? preferredCurrentAgent ?? currentAgentFromList
+    });
   }, [mergeRemoteState]);
 
   const markCurrentAfterCompletedEvaluation = useCallback(

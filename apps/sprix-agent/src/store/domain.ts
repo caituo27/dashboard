@@ -29,6 +29,8 @@ export function createInitialSprixState(): SprixState {
       taskCount: null
     },
     agents: [],
+    localAgent: undefined,
+    currentAgentId: null,
     currentAgent: undefined,
     tasks: [],
     myTasks: [],
@@ -51,6 +53,8 @@ export function logOut(state: SprixState): SprixState {
       ...empty.account,
       isLoggedIn: false
     },
+    localAgent: undefined,
+    currentAgentId: null,
     currentAgent: undefined,
     agents: [],
     tasks: state.tasks

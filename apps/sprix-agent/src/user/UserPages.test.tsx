@@ -284,7 +284,7 @@ describe("HomePage agent module", () => {
     vi.mocked(sprixApi.connectRemoteAgent).mockResolvedValue(connectedAgent);
     vi.mocked(sprixApi.markRemoteCurrentAgent).mockResolvedValue(connectedAgent);
     vi.mocked(sprixApi.readCurrentRemoteAgent).mockResolvedValue(undefined);
-    vi.mocked(sprixApi.readRemoteAgents).mockResolvedValue([]);
+    vi.mocked(sprixApi.readRemoteAgents).mockResolvedValue({ agents: [], currentAgentId: null });
     vi.mocked(sprixApi.readLatestRemoteAgentEvaluation).mockRejectedValue(new Error("Agent evaluation not found"));
     vi.mocked(sprixApi.startRemoteAgentEvaluation).mockResolvedValue({
       evaluationId: "evaluation-1",
@@ -360,7 +360,7 @@ describe("HomePage agent module", () => {
 
   it("opens a single homepage setup flow and scans local agents before showing choices", async () => {
     const initialState = createInitialSprixState();
-    let resolveAgents: (agents: Agent[]) => void = () => undefined;
+    let resolveAgents: (result: Awaited<ReturnType<typeof sprixApi.readRemoteAgents>>) => void = () => undefined;
     vi.mocked(sprixApi.readRemoteAgents).mockReturnValue(
       new Promise((resolve) => {
         resolveAgents = resolve;
@@ -384,7 +384,7 @@ describe("HomePage agent module", () => {
     expect(screen.getByText("正在识别本地 Agent")).toBeTruthy();
 
     await act(async () => {
-      resolveAgents([availableAgent]);
+      resolveAgents({ agents: [availableAgent], currentAgentId: null });
     });
 
     expect(await screen.findByText("当前设备可连接 Agent")).toBeTruthy();
@@ -396,7 +396,7 @@ describe("HomePage agent module", () => {
   it("evaluates the selected homepage agent and shows the final score", async () => {
     const initialState = createInitialSprixState();
     let resolveEvaluation: (evaluation: typeof completedEvaluation) => void = () => undefined;
-    vi.mocked(sprixApi.readRemoteAgents).mockResolvedValue([availableAgent]);
+    vi.mocked(sprixApi.readRemoteAgents).mockResolvedValue({ agents: [availableAgent], currentAgentId: null });
     vi.mocked(sprixApi.startRemoteAgentEvaluation).mockReturnValue(
       new Promise((resolve) => {
         resolveEvaluation = resolve;
@@ -501,7 +501,7 @@ describe("HomePage agent module", () => {
       }
     };
     vi.mocked(sprixApi.readLatestRemoteAgentEvaluation).mockResolvedValue(runningEvaluation);
-    vi.mocked(sprixApi.readRemoteAgents).mockResolvedValue([{ ...connectedAgent, evaluation: runningEvaluation }]);
+    vi.mocked(sprixApi.readRemoteAgents).mockResolvedValue({ agents: [{ ...connectedAgent, evaluation: runningEvaluation }], currentAgentId: "agent-1" });
     useSprixStore.setState({
       account: {
         ...initialState.account,
@@ -564,7 +564,7 @@ describe("HomePage agent module", () => {
   it("marks the first successfully evaluated agent as current from Agent Center", async () => {
     const initialState = createInitialSprixState();
     vi.mocked(sprixApi.startRemoteAgentEvaluation).mockResolvedValue(completedEvaluation);
-    vi.mocked(sprixApi.readRemoteAgents).mockResolvedValue([connectedAgent]);
+    vi.mocked(sprixApi.readRemoteAgents).mockResolvedValue({ agents: [connectedAgent], currentAgentId: "agent-1" });
     useSprixStore.setState({
       account: {
         ...initialState.account,
