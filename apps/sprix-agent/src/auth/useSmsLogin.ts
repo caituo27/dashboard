@@ -17,6 +17,7 @@ export function useSmsLogin({ active, onAuthenticated }: UseSmsLoginOptions) {
   const [form] = Form.useForm<PhoneLoginForm>();
   const [agreed, setAgreed] = useState(false);
   const [sending, setSending] = useState(false);
+  const [challengeRefreshing, setChallengeRefreshing] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [challenge, setChallenge] = useState<SafetyChallenge>();
@@ -34,6 +35,7 @@ export function useSmsLogin({ active, onAuthenticated }: UseSmsLoginOptions) {
   useEffect(() => {
     if (active) return;
     setSending(false);
+    setChallengeRefreshing(false);
     setSubmitting(false);
     setChallengeOpen(false);
     setChallenge(undefined);
@@ -89,6 +91,20 @@ export function useSmsLogin({ active, onAuthenticated }: UseSmsLoginOptions) {
     }
   };
 
+  const refreshChallenge = async () => {
+    setChallengeRefreshing(true);
+    try {
+      const nextChallenge = await createSafetyChallenge("SMS_LOGIN");
+      setChallenge(nextChallenge);
+      setChallengeAnswer("");
+      setChallengeError("");
+    } catch (error) {
+      showRequestError(error, "验证码刷新失败", "验证码刷新失败：");
+    } finally {
+      setChallengeRefreshing(false);
+    }
+  };
+
   const submit = async (values?: Partial<PhoneLoginForm>) => {
     if (!agreed) {
       message.warning("请先阅读并同意用户协议和隐私协议");
@@ -131,7 +147,9 @@ export function useSmsLogin({ active, onAuthenticated }: UseSmsLoginOptions) {
     challengeOpen,
     challengeAnswer,
     challengeError,
+    challengeRefreshing,
     requestCode,
+    refreshChallenge,
     confirmChallenge,
     closeChallenge,
     updateChallengeAnswer,

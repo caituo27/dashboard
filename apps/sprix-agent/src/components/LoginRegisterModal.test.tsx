@@ -87,7 +87,13 @@ describe("AuthModal phone login", () => {
 
   beforeEach(() => {
     vi.mocked(sendSmsCode).mockClear();
-    vi.mocked(createSafetyChallenge).mockClear();
+    vi.mocked(createSafetyChallenge).mockReset();
+    vi.mocked(createSafetyChallenge).mockResolvedValue({
+      challengeId: "challenge-1",
+      challengeType: "IMAGE_ALPHANUMERIC",
+      imageBase64: "data:image/png;base64,abc",
+      expiresInSeconds: 120
+    });
     vi.mocked(readAlipayLoginStatus).mockReset();
   });
 
@@ -126,6 +132,37 @@ describe("AuthModal phone login", () => {
         challengeAnswer: "a7K9"
       });
     });
+  });
+
+  it("refreshes the safety challenge without closing the dialog", async () => {
+    vi.mocked(createSafetyChallenge)
+      .mockResolvedValueOnce({
+        challengeId: "challenge-1",
+        challengeType: "IMAGE_ALPHANUMERIC",
+        imageBase64: "data:image/png;base64,abc",
+        expiresInSeconds: 120
+      })
+      .mockResolvedValueOnce({
+        challengeId: "challenge-2",
+        challengeType: "IMAGE_ALPHANUMERIC",
+        imageBase64: "data:image/png;base64,def",
+        expiresInSeconds: 120
+      });
+    renderLoginModal();
+
+    fireEvent.click(screen.getByRole("tab", { name: "手机号验证码" }));
+    fireEvent.change(screen.getByPlaceholderText("请输入手机号"), { target: { value: "13812345678" } });
+    fireEvent.click(screen.getByRole("button", { name: "获取验证码" }));
+
+    expect((await screen.findByAltText("安全验证码")).getAttribute("src")).toBe("data:image/png;base64,abc");
+    fireEvent.change(screen.getByPlaceholderText("请输入图中验证码"), { target: { value: "a7K9" } });
+    fireEvent.click(screen.getByRole("button", { name: "刷新验证码" }));
+
+    await waitFor(() => {
+      expect(createSafetyChallenge).toHaveBeenCalledTimes(2);
+    });
+    expect(screen.getByAltText("安全验证码").getAttribute("src")).toBe("data:image/png;base64,def");
+    expect((screen.getByPlaceholderText("请输入图中验证码") as HTMLInputElement).value).toBe("");
   });
 
   it("shows phone binding when Alipay scan requires a verified phone", async () => {

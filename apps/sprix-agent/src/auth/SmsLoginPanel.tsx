@@ -41,7 +41,9 @@ export function SmsLoginPanel({ active, onAuthenticated }: SmsLoginPanelProps) {
         answer={sms.challengeAnswer}
         error={sms.challengeError}
         confirmLoading={sms.sending}
+        refreshLoading={sms.challengeRefreshing}
         onAnswerChange={sms.updateChallengeAnswer}
+        onRefresh={() => void sms.refreshChallenge()}
         onConfirm={() => void sms.confirmChallenge()}
         onCancel={sms.closeChallenge}
       />

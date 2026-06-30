@@ -26,6 +26,7 @@ type PhoneBindPanelProps = {
 export function PhoneBindPanel({ provider, bindTicket, onAuthenticated }: PhoneBindPanelProps) {
   const [form] = Form.useForm<PhoneBindForm>();
   const [sending, setSending] = useState(false);
+  const [challengeRefreshing, setChallengeRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [challenge, setChallenge] = useState<SafetyChallenge>();
@@ -86,6 +87,19 @@ export function PhoneBindPanel({ provider, bindTicket, onAuthenticated }: PhoneB
     }
   };
 
+  const refreshChallenge = async () => {
+    setChallengeRefreshing(true);
+    try {
+      setChallenge(await createSafetyChallenge("PHONE_BIND"));
+      setChallengeAnswer("");
+      setChallengeError("");
+    } catch (error) {
+      showRequestError(error, "验证码刷新失败", "验证码刷新失败：");
+    } finally {
+      setChallengeRefreshing(false);
+    }
+  };
+
   const submit = async (values: PhoneBindForm) => {
     setSubmitting(true);
     try {
@@ -134,10 +148,12 @@ export function PhoneBindPanel({ provider, bindTicket, onAuthenticated }: PhoneB
         answer={challengeAnswer}
         error={challengeError}
         confirmLoading={sending}
+        refreshLoading={challengeRefreshing}
         onAnswerChange={(value) => {
           setChallengeAnswer(value);
           setChallengeError("");
         }}
+        onRefresh={() => void refreshChallenge()}
         onConfirm={() => void confirmChallenge()}
         onCancel={() => {
           setChallengeOpen(false);

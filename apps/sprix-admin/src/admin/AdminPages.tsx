@@ -69,6 +69,30 @@ function showRequestError(error: unknown, fallback: string, prefix = "") {
 }
 
 const taskCategoryOptions = ["等待产品输入"].map((value) => ({ value, label: value }));
+const taskFormFields = ["title", "category", "sourceType", "description", "deliverables", "acceptanceCriteria", "reward", "totalSlots"] as const;
+
+function buildTaskFormInitialValues(task?: Task): Partial<UpsertAdminTaskPayload> {
+  if (!task) return {};
+  return {
+    title: task.title,
+    category: task.category,
+    sourceType: task.sourceType,
+    description: task.description,
+    deliverables: task.deliverables,
+    acceptanceCriteria: task.acceptanceCriteria,
+    reward: task.reward,
+    totalSlots: task.totalSlots
+  };
+}
+
+function normalizeTaskFormValue(value: unknown) {
+  if (value === undefined || value === null) return "";
+  return typeof value === "string" ? value.trim() : value;
+}
+
+function hasTaskFormChanges(currentValues: Partial<UpsertAdminTaskPayload>, initialValues: Partial<UpsertAdminTaskPayload>) {
+  return taskFormFields.some((field) => normalizeTaskFormValue(currentValues[field]) !== normalizeTaskFormValue(initialValues[field]));
+}
 
 export function AdminTaskCenter() {
   const navigate = useNavigate();
@@ -536,31 +560,11 @@ export function AdminTaskForm() {
   const isEdit = Boolean(editTaskId);
   const estimatedToken = getAdminEstimatedTokenField();
 
-  const initialValues: Partial<UpsertAdminTaskPayload> | undefined = editTask
-    ? {
-        title: editTask.title,
-        category: editTask.category,
-        sourceType: editTask.sourceType,
-        description: editTask.description,
-        deliverables: editTask.deliverables,
-        acceptanceCriteria: editTask.acceptanceCriteria,
-        reward: editTask.reward,
-        totalSlots: editTask.totalSlots
-      }
-    : undefined;
+  const initialValues = buildTaskFormInitialValues(editTask);
 
   useEffect(() => {
     if (!editTask) return;
-    form.setFieldsValue({
-      title: editTask.title,
-      category: editTask.category,
-      sourceType: editTask.sourceType,
-      description: editTask.description,
-      deliverables: editTask.deliverables,
-      acceptanceCriteria: editTask.acceptanceCriteria,
-      reward: editTask.reward,
-      totalSlots: editTask.totalSlots
-    });
+    form.setFieldsValue(buildTaskFormInitialValues(editTask));
   }, [editTask, form]);
 
   const writeAction = getAdminTaskWriteAction(isEdit ? "edit" : "publish");
@@ -578,6 +582,20 @@ export function AdminTaskForm() {
     } catch (error) {
       showRequestError(error, "任务保存失败");
     }
+  };
+  const returnToTaskCenter = () => navigate("/tasks");
+  const cancelTaskForm = () => {
+    const currentValues = form.getFieldsValue([...taskFormFields]);
+    if (!hasTaskFormChanges(currentValues, initialValues)) {
+      returnToTaskCenter();
+      return;
+    }
+    Modal.confirm({
+      title: "当前填写内容尚未发布，取消后将不会保存。确认取消吗？",
+      okText: "确认取消",
+      cancelText: "继续编辑",
+      onOk: returnToTaskCenter
+    });
   };
 
   if (editTaskId && editTaskQuery.isLoading) return <Surface className="p-8">任务详情加载中</Surface>;
@@ -634,16 +652,7 @@ export function AdminTaskForm() {
           </div>
           <div className="flex gap-2">
             <ActionButton htmlType="submit" disabled={writeAction.disabled}>{writeAction.label}</ActionButton>
-            <SecondaryButton
-              onClick={() =>
-                Modal.confirm({
-                  title: "当前填写内容尚未发布，取消后将不会保存。确认取消吗？",
-                  okText: "确认取消",
-                  cancelText: "继续编辑",
-                  onOk: () => navigate("/tasks")
-                })
-              }
-            >
+            <SecondaryButton onClick={cancelTaskForm}>
               取消
             </SecondaryButton>
           </div>

@@ -1,4 +1,4 @@
-import { Input, Modal } from "antd";
+import { Button, Input, Modal } from "antd";
 import type { SafetyChallenge } from "../services/sprixApi";
 
 type SafetyChallengeModalProps = {
@@ -7,7 +7,9 @@ type SafetyChallengeModalProps = {
   answer: string;
   error: string;
   confirmLoading: boolean;
+  refreshLoading: boolean;
   onAnswerChange: (value: string) => void;
+  onRefresh: () => void;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -18,7 +20,9 @@ export function SafetyChallengeModal({
   answer,
   error,
   confirmLoading,
+  refreshLoading,
   onAnswerChange,
+  onRefresh,
   onConfirm,
   onCancel
 }: SafetyChallengeModalProps) {
@@ -34,6 +38,12 @@ export function SafetyChallengeModal({
       onCancel={onCancel}
     >
       <p className="mb-4 text-sm leading-6 text-ink-soft">请输入图中字符后发送短信验证码</p>
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-sm text-ink-soft">图形验证码</span>
+        <Button type="link" size="small" loading={refreshLoading} onClick={onRefresh}>
+          刷新验证码
+        </Button>
+      </div>
       {challenge?.imageBase64 && (
         <div className="mb-3 flex h-14 items-center justify-center rounded-md border border-line bg-white">
           <img src={challenge.imageBase64} alt="安全验证码" className="h-12 max-w-full" />
