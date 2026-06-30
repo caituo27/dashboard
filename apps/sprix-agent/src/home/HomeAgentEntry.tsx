@@ -1,11 +1,10 @@
 import { Modal } from "antd";
 import { Download, PlugZap, RefreshCw } from "lucide-react";
+import { LOCAL_AGENT_DOWNLOAD_URL } from "../localAgentDownload";
 import { ActionButton, SecondaryButton } from "../components/Primitives";
 import { useAgentBindPolling } from "./useAgentBindPolling";
 import { getLocalAgentEmptyMessage } from "./localAgentInventory";
 import type { HomeAgentStateResult } from "./homeTypes";
-
-const CLIENT_DOWNLOAD_URL = "https://cnb.cool/yztx_qxun/LocalCLIAgentRelease/-/git/raw/main/LocalCLIAgent-latest.dmg";
 
 type HomeAgentEntryProps = {
   state: HomeAgentStateResult;
@@ -61,7 +60,7 @@ export function HomeAgentEntry({
             <ActionButton icon={<RefreshCw size={16} />} loading={bindPolling.recognizing} onClick={() => void bindPolling.start()}>
               {bindPolling.recognizing ? "检测中" : "我已安装，重新检测"}
             </ActionButton>
-            <SecondaryButton href={CLIENT_DOWNLOAD_URL} target="_blank" rel="noreferrer" icon={<Download size={16} />}>
+            <SecondaryButton href={LOCAL_AGENT_DOWNLOAD_URL} target="_blank" rel="noreferrer" icon={<Download size={16} />}>
               下载安装包
             </SecondaryButton>
           </div>

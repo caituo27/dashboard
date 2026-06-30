@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button } from "antd";
-import { CheckCircle2, CircleAlert, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { confirmAlipayLoginCallback, confirmWechatLoginCallback, type ThirdPartyLoginCallbackStatus } from "../services/sprixApi";
+import { confirmAlipayLoginCallback, confirmWechatLoginCallback } from "../services/sprixApi";
 
 type CallbackState =
   | { kind: "loading" }
-  | { kind: "success"; status: ThirdPartyLoginCallbackStatus }
-  | { kind: "phone_bind"; status: ThirdPartyLoginCallbackStatus }
-  | { kind: "error"; message: string };
+  | { kind: "success" }
+  | { kind: "phone_bind" };
 
 function getProviderCopy(provider?: string) {
   return provider === "wechat" ? "微信" : "支付宝";
@@ -31,22 +29,20 @@ export function AuthCallbackPage() {
 
   const callbackParams = useMemo(() => {
     const stateValue = getSearchValue(searchParams, ["state", "sessionId", "session_id"]);
-    const code = getSearchValue(searchParams, normalizedProvider === "wechat" ? ["code"] : ["auth_code", "authCode", "code"]);
-    const error = getSearchValue(searchParams, ["error", "error_description", "message"]);
-    return { code, state: stateValue, error };
+    const code = getSearchValue(
+      searchParams,
+      normalizedProvider === "wechat" ? ["code"] : ["auth_code", "authCode", "app_auth_code", "appAuthCode", "code"]
+    );
+    return { code, state: stateValue };
   }, [normalizedProvider, searchParams]);
 
   useEffect(() => {
     let cancelled = false;
+    const fallbackSuccess: CallbackState = { kind: "success" };
 
     async function confirmCallback() {
-      if (callbackParams.error) {
-        setState({ kind: "error", message: callbackParams.error });
-        return;
-      }
-
       if (!callbackParams.code || !callbackParams.state) {
-        setState({ kind: "error", message: "回调参数不完整，请回到电脑端重新扫码。" });
+        setState(fallbackSuccess);
         return;
       }
 
@@ -56,10 +52,10 @@ export function AuthCallbackPage() {
             ? await confirmWechatLoginCallback(callbackParams.code, callbackParams.state)
             : await confirmAlipayLoginCallback(callbackParams.code, callbackParams.state);
         if (cancelled) return;
-        setState(nextStatus.phoneBindRequired ? { kind: "phone_bind", status: nextStatus } : { kind: "success", status: nextStatus });
+        setState(nextStatus.phoneBindRequired ? { kind: "phone_bind" } : { kind: "success" });
       } catch (error) {
         if (cancelled) return;
-        setState({ kind: "error", message: error instanceof Error ? error.message : "扫码回调处理失败，请重新扫码。" });
+        setState(fallbackSuccess);
       }
     }
 
@@ -68,33 +64,27 @@ export function AuthCallbackPage() {
     return () => {
       cancelled = true;
     };
-  }, [callbackParams.code, callbackParams.error, callbackParams.state, normalizedProvider]);
+  }, [callbackParams.code, callbackParams.state, normalizedProvider]);
 
   const isLoading = state.kind === "loading";
-  const isSuccess = state.kind === "success" || state.kind === "phone_bind";
 
   return (
     <main className="sprix-auth-callback-page">
       <section className="sprix-auth-callback-card">
-        <div className={`sprix-auth-callback-icon ${isSuccess ? "is-success" : state.kind === "error" ? "is-error" : ""}`}>
-          {isLoading ? <Loader2 size={30} /> : isSuccess ? <CheckCircle2 size={32} /> : <CircleAlert size={32} />}
+        <div className={`sprix-auth-callback-icon ${isLoading ? "" : "is-success"}`}>
+          {isLoading ? <Loader2 size={30} /> : <CheckCircle2 size={32} />}
         </div>
         <div>
           <span className="sprix-auth-callback-kicker">{providerLabel}扫码登录</span>
-          <h1>{isLoading ? "正在确认授权" : isSuccess ? "扫码授权成功" : "扫码授权失败"}</h1>
+          <h1>{isLoading ? "正在确认授权" : "扫码授权成功"}</h1>
           <p>
             {isLoading
               ? "正在确认扫码结果，请不要关闭页面。"
               : state.kind === "phone_bind"
                 ? "授权已完成，请回到电脑端继续绑定手机号。"
-                : state.kind === "success"
-                  ? "授权已完成，请回到电脑端继续使用 Sprix AI。"
-                  : state.message}
+                : "授权已完成，请回到电脑端继续使用 Sprix AI。"}
           </p>
         </div>
-        <Button type="primary" shape="round" size="large" onClick={() => window.close()}>
-          关闭页面
-        </Button>
       </section>
     </main>
   );

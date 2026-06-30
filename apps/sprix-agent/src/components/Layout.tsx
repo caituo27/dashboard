@@ -8,6 +8,7 @@ import { ActionButton } from "./Primitives";
 import { userRoutes } from "../navigation";
 import { logoutConsumer } from "../services/sprixApi";
 import { isGlobalAuthError } from "../utils/http";
+import { LOCAL_AGENT_DOWNLOAD_URL } from "../localAgentDownload";
 
 function Sidebar({
   onOpenLogin,
@@ -101,6 +102,14 @@ function UserMenu({
                 { key: "account", label: "账户信息", onClick: onOpenAccount },
                 { key: "agreements", label: "相关协议", onClick: onOpenAgreements },
                 { key: "contact", label: "联系我们", onClick: onOpenContact },
+                {
+                  key: "clientUpdate",
+                  label: (
+                    <a href={LOCAL_AGENT_DOWNLOAD_URL} target="_blank" rel="noreferrer">
+                      下载插件
+                    </a>
+                  )
+                },
                 {
                   key: "logout",
                   label: "退出登录",
