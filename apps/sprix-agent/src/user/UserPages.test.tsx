@@ -3,7 +3,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { createInitialSprixState } from "../store/domain";
 import { useSprixStore } from "../store/sprixStore";
-import type { Agent } from "../types";
+import type { Agent, AgentEvaluation } from "../types";
 import * as sprixApi from "../services/sprixApi";
 import { HomePage } from "../home/HomePage";
 import { AgentCenterPage, EarningsPage, QualificationPage } from "./UserPages";
@@ -28,8 +28,10 @@ vi.mock("../services/sprixApi", async (importOriginal) => {
     ...actual,
     connectRemoteAgent: vi.fn(),
     markRemoteCurrentAgent: vi.fn(),
+    readCurrentRemoteAgent: vi.fn(),
     readRemoteAgents: vi.fn(),
     readRemoteAgentEvaluation: vi.fn(),
+    readLatestRemoteAgentEvaluation: vi.fn(),
     initializeRemoteFaceVerification: vi.fn(),
     startRemoteAgentEvaluation: vi.fn()
   };
@@ -75,6 +77,31 @@ const completedEvaluation = {
   },
   startedAt: "",
   completedAt: "",
+  createdAt: "",
+  updatedAt: ""
+};
+
+const runningEvaluation: AgentEvaluation = {
+  evaluationId: "evaluation-running-1",
+  agentId: "agent-1",
+  localAgentId: "local-agent-1",
+  status: "running",
+  questions: [],
+  steps: [],
+  transcript: [],
+  result: {
+    status: "running",
+    mode: "",
+    overallScore: null,
+    dimensions: {},
+    summary: "",
+    improvements: [],
+    steps: [],
+    transcript: [],
+    error: null
+  },
+  startedAt: "",
+  completedAt: null,
   createdAt: "",
   updatedAt: ""
 };
@@ -249,12 +276,16 @@ describe("HomePage agent module", () => {
     });
     vi.mocked(sprixApi.connectRemoteAgent).mockReset();
     vi.mocked(sprixApi.markRemoteCurrentAgent).mockReset();
+    vi.mocked(sprixApi.readCurrentRemoteAgent).mockReset();
     vi.mocked(sprixApi.readRemoteAgents).mockReset();
     vi.mocked(sprixApi.readRemoteAgentEvaluation).mockReset();
+    vi.mocked(sprixApi.readLatestRemoteAgentEvaluation).mockReset();
     vi.mocked(sprixApi.startRemoteAgentEvaluation).mockReset();
     vi.mocked(sprixApi.connectRemoteAgent).mockResolvedValue(connectedAgent);
     vi.mocked(sprixApi.markRemoteCurrentAgent).mockResolvedValue(connectedAgent);
+    vi.mocked(sprixApi.readCurrentRemoteAgent).mockResolvedValue(undefined);
     vi.mocked(sprixApi.readRemoteAgents).mockResolvedValue([]);
+    vi.mocked(sprixApi.readLatestRemoteAgentEvaluation).mockRejectedValue(new Error("Agent evaluation not found"));
     vi.mocked(sprixApi.startRemoteAgentEvaluation).mockResolvedValue({
       evaluationId: "evaluation-1",
       agentId: "agent-1",
@@ -453,6 +484,81 @@ describe("HomePage agent module", () => {
 
     expect(screen.getAllByRole("button", { name: "设置当前执行 Agent" }).length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "进入任务市场" })).toBeNull();
+  });
+
+  it("opens an existing running evaluation instead of starting a new one from Agent Center", async () => {
+    const initialState = createInitialSprixState();
+    const staleFailedAgent: Agent = {
+      ...connectedAgent,
+      evaluation: {
+        ...runningEvaluation,
+        status: "failed",
+        result: {
+          ...runningEvaluation.result,
+          status: "failed",
+          error: "old failed evaluation"
+        }
+      }
+    };
+    vi.mocked(sprixApi.readLatestRemoteAgentEvaluation).mockResolvedValue(runningEvaluation);
+    vi.mocked(sprixApi.readRemoteAgents).mockResolvedValue([{ ...connectedAgent, evaluation: runningEvaluation }]);
+    useSprixStore.setState({
+      account: {
+        ...initialState.account,
+        isLoggedIn: true
+      },
+      currentAgent: staleFailedAgent,
+      agents: [staleFailedAgent]
+    });
+
+    renderAgentCenterPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "重新评测" }));
+
+    await waitFor(() => expect(sprixApi.readLatestRemoteAgentEvaluation).toHaveBeenCalledWith("agent-1"));
+    expect(sprixApi.startRemoteAgentEvaluation).not.toHaveBeenCalled();
+    expect(await screen.findByText("生成 Agent 能力画像")).toBeTruthy();
+    expect(screen.getByText("处理中，关闭弹框不会取消后端任务")).toBeTruthy();
+  });
+
+  it("shows view progress in the Agent list when the current agent has a running latest evaluation", async () => {
+    const initialState = createInitialSprixState();
+    vi.mocked(sprixApi.readLatestRemoteAgentEvaluation).mockResolvedValue(runningEvaluation);
+    useSprixStore.setState({
+      account: {
+        ...initialState.account,
+        isLoggedIn: true
+      },
+      currentAgent: connectedAgent,
+      agents: [connectedAgent]
+    });
+
+    renderAgentCenterPage();
+
+    expect((await screen.findAllByText("能力画像生成中")).length).toBeGreaterThan(0);
+    expect(await screen.findByRole("button", { name: "查看进度" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "重新评测" })).toBeNull();
+  });
+
+  it("starts a new evaluation only when latest evaluation is not found", async () => {
+    const initialState = createInitialSprixState();
+    vi.mocked(sprixApi.startRemoteAgentEvaluation).mockResolvedValue(runningEvaluation);
+    useSprixStore.setState({
+      account: {
+        ...initialState.account,
+        isLoggedIn: true
+      },
+      currentAgent: connectedAgent,
+      agents: [connectedAgent]
+    });
+
+    renderAgentCenterPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "开始评测" }));
+
+    await waitFor(() => expect(sprixApi.readLatestRemoteAgentEvaluation).toHaveBeenCalledWith("agent-1"));
+    await waitFor(() => expect(sprixApi.startRemoteAgentEvaluation).toHaveBeenCalledWith("agent-1"));
+    expect(await screen.findByText("生成 Agent 能力画像")).toBeTruthy();
   });
 
   it("marks the first successfully evaluated agent as current from Agent Center", async () => {

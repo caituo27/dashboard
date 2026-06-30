@@ -430,6 +430,19 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   const [evaluationLoading, setEvaluationLoading] = useState(false);
   const [evaluationError, setEvaluationError] = useState<string>();
   const currentWithEvaluation = currentEvaluation && current ? { ...current, evaluation: currentEvaluation, score: currentEvaluation.result.overallScore ?? current.score } : current;
+  const agentsWithCurrentEvaluation = useMemo(() => {
+    if (!currentEvaluation || !current?.id) return agents;
+    return agents.map((agent) =>
+      agent.id === current.id
+        ? {
+            ...agent,
+            evaluation: currentEvaluation,
+            score: currentEvaluation.result.overallScore ?? agent.score,
+            lastEvaluatedAt: currentWithEvaluation?.lastEvaluatedAt ?? agent.lastEvaluatedAt
+          }
+        : agent
+    );
+  }, [agents, current?.id, currentEvaluation, currentWithEvaluation?.lastEvaluatedAt]);
 
   const refreshAgents = useCallback(async (preferredCurrentAgent?: Agent) => {
     const [refreshedAgents, refreshedCurrentAgent] = await Promise.all([
@@ -493,26 +506,25 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
     setEvaluationError(undefined);
     setEvaluationLoading(true);
     try {
-      let nextEvaluation: AgentEvaluation;
-      if (agent.evaluation && agent.evaluation.status !== "failed") {
-        try {
-          nextEvaluation = await readLatestRemoteAgentEvaluation(agent.id);
-        } catch (error) {
-          if (!(error instanceof Error && error.message === "Agent evaluation not found")) {
-            throw error;
-          }
-          nextEvaluation = await startRemoteAgentEvaluation(agent.id);
+      let latestEvaluation: AgentEvaluation | undefined;
+      try {
+        latestEvaluation = await readLatestRemoteAgentEvaluation(agent.id);
+      } catch (error) {
+        if (!isAgentEvaluationNotFound(error)) {
+          throw error;
         }
-      } else {
-        nextEvaluation = await startRemoteAgentEvaluation(agent.id);
       }
+      const shouldStartEvaluation = !hasReusableEvaluation(latestEvaluation);
+      const nextEvaluation = hasReusableEvaluation(latestEvaluation)
+        ? latestEvaluation
+        : await startRemoteAgentEvaluation(agent.id);
       setEvaluation(nextEvaluation);
       if (current?.id === agent.id) {
         setCurrentEvaluation(nextEvaluation);
       }
       await refreshAgents();
       await markCurrentAfterCompletedEvaluation(agent, nextEvaluation);
-      if (!agent.evaluation || agent.evaluation.status === "failed" || nextEvaluation.status === "running") {
+      if (shouldStartEvaluation && isEvaluationActive(nextEvaluation.status)) {
         message.success("评测已开始");
       }
     } catch (error) {
@@ -603,7 +615,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       </div>
       <AgentList
         title="Agent 列表"
-        agents={agents}
+        agents={agentsWithCurrentEvaluation}
         empty="暂无 Agent"
         renderActions={(agent) =>
           agent.role === "当前执行 Agent" ? (
@@ -628,8 +640,20 @@ function isEvaluationTerminal(status: AgentEvaluation["status"]) {
   return status === "completed" || status === "failed";
 }
 
+function isEvaluationActive(status: AgentEvaluation["status"]) {
+  return status === "running" || status === "judging";
+}
+
 function isCompletedAgentEvaluation(evaluation: AgentEvaluation) {
   return evaluation.status === "completed" || evaluation.result?.status === "completed";
+}
+
+function isAgentEvaluationNotFound(error: unknown) {
+  return error instanceof Error && error.message === "Agent evaluation not found";
+}
+
+function hasReusableEvaluation(evaluation: AgentEvaluation | undefined): evaluation is AgentEvaluation {
+  return Boolean(evaluation && evaluation.status !== "failed");
 }
 
 function evaluationDimensions(result: AgentEvaluation["result"]) {
