@@ -14,6 +14,7 @@
   --color-aurora-violet: #cebcff;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Instrument Serif", ui-serif, Georgia, serif;
+  --font-number: var(--font-sans);
   --radius-card: 22px;
   --shadow-soft: 0 18px 56px rgba(20, 20, 20, 0.055);
 }
@@ -258,6 +259,12 @@ select {
   text-align: center;
 }
 
+.sprix-detail-back-row {
+  display: flex;
+  justify-content: flex-start;
+  margin: 2px 0 18px;
+}
+
 .sprix-hero-kicker {
   display: inline-flex;
   align-items: center;
@@ -277,6 +284,25 @@ select {
   font-size: 52px;
   line-height: 1.05;
   text-wrap: balance;
+}
+
+.sprix-task-detail-title {
+  max-width: 1120px;
+  margin: 0;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 34px;
+  font-weight: 780;
+  letter-spacing: 0;
+  line-height: 1.22;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.sprix-number-text {
+  font-family: var(--font-number);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
 }
 
 .sprix-hero-subtitle {
@@ -345,6 +371,9 @@ select {
 }
 
 .sprix-platform-metric-card strong {
+  font-family: var(--font-number);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
   font-size: 40px;
   line-height: 1;
   font-weight: 800;
@@ -356,6 +385,16 @@ select {
   color: var(--color-ink-soft);
   font-size: 19px;
   line-height: 1.3;
+}
+
+.sprix-metric-card-value {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-family: var(--font-number);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-weight: 760;
+  letter-spacing: 0;
 }
 
 .sprix-home-fade-in {
@@ -443,6 +482,12 @@ select {
   color: var(--color-ink-soft);
   font-size: 13px;
   font-weight: 700;
+}
+
+.sprix-current-agent-meta > span:not(.ant-tag) {
+  font-family: var(--font-number);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
 }
 
 .sprix-current-agent-actions {
@@ -1221,8 +1266,11 @@ select {
     linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(231, 247, 242, 0.92)),
     radial-gradient(circle at 28% 20%, rgba(255, 183, 197, 0.42), transparent 48%);
   color: var(--color-ink);
-  font-family: var(--font-serif);
+  font-family: var(--font-number);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
   font-size: 32px;
+  font-weight: 750;
   line-height: 1;
   box-shadow: 0 16px 38px rgba(20, 20, 20, 0.07);
 }
@@ -1526,7 +1574,10 @@ select {
 
 .sprix-execution-hero-progress strong {
   color: var(--color-ink);
+  font-family: var(--font-number);
   font-size: 30px;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
   line-height: 1;
   font-weight: 800;
   letter-spacing: 0;
@@ -1550,6 +1601,20 @@ select {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
+}
+
+.sprix-execution-log {
+  max-height: 320px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  background: #fafafa;
+  padding: 14px;
+  color: var(--color-ink);
+  font-size: 12px;
+  line-height: 1.7;
 }
 
 .sprix-table-card .ant-table {
@@ -1981,7 +2046,10 @@ select {
 }
 
 .sprix-evaluation-result strong {
+  font-family: var(--font-number);
   font-size: 14px;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
 }
 
 .sprix-evaluation-result span {
@@ -2276,7 +2344,11 @@ select {
   display: block;
   margin-top: 6px;
   color: var(--color-accent);
+  font-family: var(--font-number);
   font-size: 38px;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-weight: 760;
   line-height: 1;
 }
 
@@ -2384,11 +2456,13 @@ select {
 }
 
 .sprix-agent-score-panel strong {
-  font-family: var(--font-serif);
+  font-family: var(--font-number);
   color: var(--color-ink);
   font-size: 56px;
-  font-weight: 500;
-  line-height: 0.95;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-weight: 720;
+  line-height: 1;
 }
 
 .sprix-agent-score-panel > span {
@@ -2441,17 +2515,48 @@ select {
 }
 
 .sprix-ability-score strong {
-  font-family: var(--font-serif);
+  font-family: var(--font-number);
   color: var(--color-ink);
   font-size: 56px;
-  font-weight: 500;
-  line-height: 0.95;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-weight: 720;
+  line-height: 1;
 }
 
 .sprix-ability-score > span {
   margin-top: 5px;
   color: var(--color-ink-soft);
   font-size: 13px;
+}
+
+.sprix-ability-career-block {
+  margin-bottom: 18px;
+}
+
+.sprix-ability-career-panel {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  max-width: 100%;
+  margin-bottom: 8px;
+  color: var(--color-ink);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.sprix-ability-career-panel strong {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+.sprix-ability-career-summary {
+  max-width: 980px;
+  margin: 0;
+  color: #333333;
+  font-size: 13px;
+  line-height: 1.75;
 }
 
 .sprix-evaluation-radar {
@@ -2598,7 +2703,10 @@ select {
 
 .sprix-ability-dimension-row strong {
   color: var(--color-ink);
+  font-family: var(--font-number);
   font-size: 13px;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
   text-align: right;
 }
 
@@ -2753,6 +2861,11 @@ select {
 
   .sprix-hero-title {
     font-size: 42px;
+  }
+
+  .sprix-task-detail-title {
+    font-size: 28px;
+    line-height: 1.28;
   }
 
   .sprix-platform-metrics {

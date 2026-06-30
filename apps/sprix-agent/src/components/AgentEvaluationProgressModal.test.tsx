@@ -27,6 +27,7 @@ const runningEvaluation: AgentEvaluation = {
     mode: "runtime_probe",
     overallScore: null,
     dimensions: {},
+    careerProfile: null,
     summary: "",
     improvements: [],
     steps: [],

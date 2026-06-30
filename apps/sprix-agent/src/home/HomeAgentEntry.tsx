@@ -5,7 +5,7 @@ import { useAgentBindPolling } from "./useAgentBindPolling";
 import { getLocalAgentEmptyMessage } from "./localAgentInventory";
 import type { HomeAgentStateResult } from "./homeTypes";
 
-const CLIENT_DOWNLOAD_URL = "https://cnb.cool/yztx_qxun/LocalCLIAgentRelease/-/git/raw/main/LocalCLIAgent.pkg";
+const CLIENT_DOWNLOAD_URL = "https://cnb.cool/yztx_qxun/LocalCLIAgentRelease/-/blob/main/LocalCLIAgent-latest.dmg";
 
 type HomeAgentEntryProps = {
   state: HomeAgentStateResult;

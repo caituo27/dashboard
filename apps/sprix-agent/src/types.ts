@@ -61,6 +61,13 @@ export type AgentEvaluationDimension = {
   comment: string;
 };
 
+export type AgentCareerProfile = {
+  roleCode: string;
+  roleName: string;
+  confidence: number | null;
+  reason: string;
+};
+
 export type AgentEvaluationStep = {
   key: string;
   label: string;
@@ -83,6 +90,7 @@ export type AgentEvaluationResult = {
   mode: string;
   overallScore: number | null;
   dimensions: Record<string, AgentEvaluationDimension>;
+  careerProfile: AgentCareerProfile | null;
   summary: string;
   improvements: string[];
   steps: AgentEvaluationStep[];

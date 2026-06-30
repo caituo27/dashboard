@@ -1,3 +1,5 @@
+# SprixPortal Agent Instructions
+
 ## 项目级验证覆盖规则
 
 - 默认不要运行测试命令，除非用户在当前回合明确要求。

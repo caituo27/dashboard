@@ -94,6 +94,15 @@ function hasTaskFormChanges(currentValues: Partial<UpsertAdminTaskPayload>, init
   return taskFormFields.some((field) => normalizeTaskFormValue(currentValues[field]) !== normalizeTaskFormValue(initialValues[field]));
 }
 
+export function getPublishTaskConfirmOptions(onConfirm: () => void | Promise<void>) {
+  return {
+    content: "确认发布后，该任务将在任务市场展示，用户可查看任务详情并接单。",
+    okText: "确认发布",
+    cancelText: "取消",
+    onOk: onConfirm
+  };
+}
+
 export function AdminTaskCenter() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -583,6 +592,13 @@ export function AdminTaskForm() {
       showRequestError(error, "任务保存失败");
     }
   };
+  const confirmAndSubmitTask = (values: UpsertAdminTaskPayload) => {
+    if (isEdit) {
+      void submitTask(values);
+      return;
+    }
+    Modal.confirm(getPublishTaskConfirmOptions(() => submitTask(values)));
+  };
   const returnToTaskCenter = () => navigate("/tasks");
   const cancelTaskForm = () => {
     const currentValues = form.getFieldsValue([...taskFormFields]);
@@ -613,7 +629,7 @@ export function AdminTaskForm() {
           form={form}
           layout="vertical"
           initialValues={initialValues}
-          onFinish={submitTask}
+          onFinish={confirmAndSubmitTask}
         >
           <div className="grid gap-4 lg:grid-cols-3">
             <Form.Item label="任务名称" name="title" rules={[{ required: true, message: "请输入任务名称" }]}>
@@ -680,6 +696,7 @@ export function AdminTaskDetail() {
   const records = taskDetailQuery.data?.records;
   const operationLogs = taskDetailQuery.data?.operationLogs ?? [];
   if (!task) return <Surface className="p-8">任务不存在</Surface>;
+  const estimatedToken = getAdminEstimatedTokenField();
   return (
     <>
       <PageHeader title={task.title} subtitle="查看任务配置、执行用户、Agent 记录和结算概览。" actions={<SecondaryButton href="/tasks">返回任务管理中心</SecondaryButton>} />
@@ -695,6 +712,7 @@ export function AdminTaskDetail() {
           <span>任务奖励：{currency(task.reward)}</span>
           <span>总名额：{task.totalSlots}</span>
           <span>剩余名额：{task.remainingSlots}</span>
+          <span>预计消耗Token：{estimatedToken.value}</span>
         </div>
       </Surface>
       <div className="mb-4 grid gap-4 xl:grid-cols-3">

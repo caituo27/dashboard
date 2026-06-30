@@ -170,6 +170,13 @@ type RemoteAgentEvaluationDimension = {
   comment?: string | null;
 };
 
+type RemoteAgentCareerProfile = {
+  roleCode?: string | null;
+  roleName?: string | null;
+  confidence?: number | null;
+  reason?: string | null;
+};
+
 type RemoteAgentEvaluationStep = {
   key?: string | null;
   label?: string | null;
@@ -192,6 +199,7 @@ type RemoteAgentEvaluationResult = {
   mode?: string | null;
   overallScore?: number | null;
   dimensions?: Record<string, RemoteAgentEvaluationDimension | null> | null;
+  careerProfile?: RemoteAgentCareerProfile | null;
   summary?: string | null;
   improvements?: string[] | null;
   steps?: RemoteAgentEvaluationStep[] | null;
@@ -207,6 +215,7 @@ type RemoteAgentEvaluation = {
   mode?: string | null;
   overallScore?: number | null;
   dimensions?: Record<string, RemoteAgentEvaluationDimension | null> | null;
+  careerProfile?: RemoteAgentCareerProfile | null;
   summary?: string | null;
   improvements?: string[] | null;
   questions?: string[] | null;
@@ -568,6 +577,21 @@ export async function rerunRemoteTask(executionId: string): Promise<TaskExecutio
   return requireValue<TaskExecution>(response, "重新执行失败");
 }
 
+export async function readRemoteMyTaskDetail(executionId: string): Promise<MyTaskExecutionDetail> {
+  const response = await myTaskApi.detail2({ executionId });
+  return requireValue<MyTaskExecutionDetail>(response, "任务执行详情不可用");
+}
+
+export function getMyTaskArtifactDownloadHref(executionId: string, fileId: string, downloadUrl?: string) {
+  if (downloadUrl) {
+    if (/^https?:\/\//.test(downloadUrl)) return downloadUrl;
+    if (downloadUrl.startsWith(API_BASE_URL)) return downloadUrl;
+    return `${API_BASE_URL}${downloadUrl.startsWith("/") ? downloadUrl : `/${downloadUrl}`}`;
+  }
+
+  return `${API_BASE_URL}/api/v1/my-tasks/${encodeURIComponent(executionId)}/artifacts/${encodeURIComponent(fileId)}/download`;
+}
+
 export async function submitRemoteAppeal(executionId: string, reason: string): Promise<AppealRecord> {
   const response = await appealApi.submit({ submitAppealRequest: { executionId, reason } });
   return requireValue<AppealRecord>(response, "申诉提交失败");
@@ -812,17 +836,23 @@ function normalizeAgentEvaluation(evaluation: RemoteAgentEvaluation): AgentEvalu
   const status = normalizeEvaluationStatus(evaluation.status ?? evaluation.result?.status);
   const steps = normalizeEvaluationSteps(evaluation.steps);
   const transcript = normalizeEvaluationTranscript(evaluation.transcript);
-  const resultPayload = evaluation.result ?? {
-    status: evaluation.status,
-    mode: evaluation.mode,
-    overallScore: evaluation.overallScore,
-    dimensions: evaluation.dimensions,
-    summary: evaluation.summary,
-    improvements: evaluation.improvements,
-    steps: evaluation.steps,
-    transcript: evaluation.transcript,
-    error: evaluation.error
-  };
+  const resultPayload = evaluation.result
+    ? {
+        ...evaluation.result,
+        careerProfile: evaluation.result.careerProfile ?? evaluation.careerProfile
+      }
+    : {
+        status: evaluation.status,
+        mode: evaluation.mode,
+        overallScore: evaluation.overallScore,
+        dimensions: evaluation.dimensions,
+        careerProfile: evaluation.careerProfile,
+        summary: evaluation.summary,
+        improvements: evaluation.improvements,
+        steps: evaluation.steps,
+        transcript: evaluation.transcript,
+        error: evaluation.error
+      };
   return {
     evaluationId: evaluation.evaluationId ?? "",
     agentId: evaluation.agentId ?? "",
@@ -852,11 +882,22 @@ function normalizeEvaluationResult(
     mode: result?.mode ?? "",
     overallScore: result?.overallScore ?? null,
     dimensions: normalizeEvaluationDimensions(result?.dimensions),
+    careerProfile: normalizeCareerProfile(result?.careerProfile),
     summary: result?.summary ?? "",
     improvements: listValue(result?.improvements).filter(Boolean),
     steps: steps.length > 0 ? steps : fallbackSteps,
     transcript: transcript.length > 0 ? transcript : fallbackTranscript,
     error: result?.error ?? null
+  };
+}
+
+function normalizeCareerProfile(profile?: RemoteAgentCareerProfile | null) {
+  if (!profile || typeof profile !== "object") return null;
+  return {
+    roleCode: profile.roleCode ?? "",
+    roleName: profile.roleName ?? "",
+    confidence: profile.confidence ?? null,
+    reason: profile.reason ?? ""
   };
 }
 

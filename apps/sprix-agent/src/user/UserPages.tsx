@@ -16,7 +16,6 @@ import {
   markRemoteCurrentAgent,
   readRemoteAgents,
   readRemoteAgentEvaluation,
-  rerunRemoteTask,
   signRemoteFreelancerAgreement,
   smartAcceptRemoteTask,
   startRemoteAgentEvaluation
@@ -29,7 +28,6 @@ import { getLocalAgentEmptyMessage } from "../home/localAgentInventory";
 import { QrPayloadBox } from "../components/QrSession";
 import { getAgentAbilityResult, getAgentAdmissionSummary, getAgentTagLabels, hasPendingAgentEvaluation } from "./agentResult";
 import { getPayoutAccountText, getPayoutPageSubtitle, getPayoutRecordState } from "./earningsView";
-import { getExecutionArtifactsState, getExecutionBackendPendingSections, getExecutionRequirementText, getExecutionReviewState } from "./executionDetailView";
 import { getQualificationRecordRows } from "./qualificationView";
 import { getRecommendationPanelState, getSmartAcceptMessage } from "./recommendationView";
 import { getEstimatedTokenField } from "./tokenEstimateView";
@@ -40,6 +38,8 @@ import {
   getQualificationSuccessAction,
   getTaskAcceptGate
 } from "./userFlowRules";
+import { useRerunTask } from "./useRerunTask";
+export { MyTaskDetailPage } from "./MyTaskDetailPage";
 
 const evaluationDimensionLabels: Record<string, string> = {
   clarity: "表达清晰",
@@ -84,31 +84,6 @@ function getAgentEvaluationStatusLabel(evaluation?: AgentEvaluation) {
 
 function getAgentEvaluationActionLabel(agent: Agent) {
   return agent.evaluation ? agentEvaluationActionLabels[agent.evaluation.status] : "开始评测";
-}
-
-function useRerunTask() {
-  const queryClient = useQueryClient();
-
-  return useCallback(
-    (executionId: string) => {
-      Modal.confirm({
-        title: "确认重新执行",
-        content: "重新执行会基于当前执行 Agent 创建新的执行记录，原执行记录会保留。",
-        okText: "确认重新执行",
-        cancelText: "取消",
-        onOk: async () => {
-          try {
-            await rerunRemoteTask(executionId);
-            await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
-            message.success("已重新生成执行记录");
-          } catch (error) {
-            showRequestError(error, "重新执行失败", "重新执行失败：");
-          }
-        }
-      });
-    },
-    [queryClient]
-  );
 }
 
 export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<UserPageProps> = {}) {
@@ -346,7 +321,18 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
 
   return (
     <>
-      <PageHeader title={task.title} subtitle={`${task.category} · ${task.sourceName} · 奖励 ${currency(task.reward)}`} />
+      <div className="sprix-detail-back-row">
+        <SecondaryButton href="/agent/market">返回任务列表</SecondaryButton>
+      </div>
+      <PageHeader
+        title={task.title}
+        titleClassName="sprix-task-detail-title"
+        subtitle={
+          <>
+            {task.category} · {task.sourceName} · 奖励 <span className="sprix-number-text">{currency(task.reward)}</span>
+          </>
+        }
+      />
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-5">
           <Surface className="p-6">
@@ -500,7 +486,10 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
     }
   };
 
-  const openAgentEvaluation = async (agent: Agent, setCurrentAfterCompletion = false) => {
+  const openAgentEvaluation = async (
+    agent: Agent,
+    { setCurrentAfterCompletion = false, forceStart = false }: { setCurrentAfterCompletion?: boolean; forceStart?: boolean } = {}
+  ) => {
     if (!account.isLoggedIn) {
       openLogin();
       return;
@@ -522,8 +511,8 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
           throw error;
         }
       }
-      const shouldStartEvaluation = !hasReusableEvaluation(latestEvaluation);
-      const nextEvaluation = hasReusableEvaluation(latestEvaluation)
+      const shouldStartEvaluation = forceStart || !hasReusableEvaluation(latestEvaluation);
+      const nextEvaluation = !forceStart && hasReusableEvaluation(latestEvaluation)
         ? latestEvaluation
         : await startRemoteAgentEvaluation(agent.id);
       setEvaluation(nextEvaluation);
@@ -625,19 +614,22 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         title="Agent 列表"
         agents={agentsWithCurrentEvaluation}
         empty={getLocalAgentEmptyMessage(localAgent)}
-        renderActions={(agent) =>
-          agent.role === "当前执行 Agent" ? (
+        renderActions={(agent) => {
+          const canRestartEvaluation = agent.evaluation && isCompletedAgentEvaluation(agent.evaluation);
+          return agent.role === "当前执行 Agent" ? (
             <>
               <SecondaryButton disabled>当前执行 Agent</SecondaryButton>
               <ActionButton onClick={() => openAgentEvaluation(agent)}>{getAgentEvaluationActionLabel(agent)}</ActionButton>
+              {canRestartEvaluation && <SecondaryButton onClick={() => openAgentEvaluation(agent, { forceStart: true })}>重新评测</SecondaryButton>}
             </>
           ) : (
             <>
               <ActionButton onClick={() => setCurrent(agent)}>设为当前执行 Agent</ActionButton>
               <SecondaryButton onClick={() => openAgentEvaluation(agent)}>{getAgentEvaluationActionLabel(agent)}</SecondaryButton>
+              {canRestartEvaluation && <SecondaryButton onClick={() => openAgentEvaluation(agent, { forceStart: true })}>重新评测</SecondaryButton>}
             </>
-          )
-        }
+          );
+        }}
       />
       <AgentEvaluationProgressModal open={evaluationModalOpen} agent={evaluationAgent} evaluation={evaluation} loading={evaluationLoading} error={evaluationError} onClose={closeEvaluation} />
     </>
@@ -769,9 +761,20 @@ function AbilityProfile({ agent, embedded = false, showScore = true }: { agent?:
   const summary = agent ? getAgentAdmissionSummary(agent) : undefined;
   const evaluationResult = agent?.evaluation?.result?.status === "completed" ? agent.evaluation.result : undefined;
   const dimensions = evaluationResult ? evaluationDimensions(evaluationResult) : [];
+  const careerRoleName = evaluationResult?.careerProfile?.roleName?.trim();
+  const careerSummary = careerRoleName ? evaluationResult?.summary?.trim() : "";
   const isAbilityPending = !evaluationResult && hasPendingAgentEvaluation(agent);
   const content = (
     <>
+      {careerRoleName && (
+        <div className="sprix-ability-career-block">
+          <div className="sprix-ability-career-panel">
+            <span>职位定位：</span>
+            <strong>{careerRoleName}</strong>
+          </div>
+          {careerSummary && <p className="sprix-ability-career-summary">{careerSummary}</p>}
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-lg font-semibold">能力画像</h3>
         {agent?.evaluation && <StatusTag status={getAgentEvaluationStatusLabel(agent.evaluation)} />}
@@ -801,7 +804,7 @@ function AbilityProfile({ agent, embedded = false, showScore = true }: { agent?:
                 </div>
               ))}
             </div>
-            {evaluationResult.summary && <p className="sprix-ability-summary">{evaluationResult.summary}</p>}
+            {evaluationResult.summary && !careerRoleName && <p className="sprix-ability-summary">{evaluationResult.summary}</p>}
             {evaluationResult.improvements.length > 0 && (
               <div className="sprix-ability-improvements">
                 {evaluationResult.improvements.map((item) => (
@@ -962,110 +965,6 @@ function MyTaskRow({ task, onAppeal, onRerun }: { task: MyTask; onAppeal: (execu
         {actions.terminateLabel && <SecondaryButton disabled={!actions.terminateEnabled}>{actions.terminateLabel}</SecondaryButton>}
         {actions.rerun && <SecondaryButton onClick={() => onRerun(task.id)}>重新执行</SecondaryButton>}
         <SecondaryButton href={`/agent/my-tasks/${task.id}`}>{actions.viewLabel}</SecondaryButton>
-      </div>
-    </div>
-  );
-}
-
-export function MyTaskDetailPage({ openAppeal }: Pick<UserPageProps, "openAppeal">) {
-  const { id } = useParams();
-  const task = useSprixStore((state) => state.myTasks.find((item) => item.id === id));
-  const base = useSprixStore((state) => state.tasks.find((item) => item.id === task?.taskId));
-  const rerunTask = useRerunTask();
-  if (!task || !base) return <EmptyState title="执行记录不存在" description="该任务记录暂不可访问" action={<SecondaryButton href="/agent/my-tasks">返回我的任务</SecondaryButton>} />;
-  const requirementText = getExecutionRequirementText(base);
-  const review = getExecutionReviewState(task, base);
-  const artifacts = getExecutionArtifactsState(base);
-  const pendingSections = getExecutionBackendPendingSections();
-  const actions = getMyTaskActions(task);
-  const taskActions = (
-    <div className="flex flex-wrap gap-2">
-      {actions.appealLabel && (
-        <ActionButton disabled={!actions.appealEnabled} onClick={() => actions.appealEnabled && openAppeal(task.id)}>
-          {actions.appealLabel}
-        </ActionButton>
-      )}
-      {actions.rerun && <SecondaryButton onClick={() => rerunTask(task.id)}>重新执行</SecondaryButton>}
-    </div>
-  );
-  return (
-    <div className="sprix-task-detail-page">
-      <div className="sprix-detail-toolbar">
-        <SecondaryButton href="/agent/my-tasks">返回我的任务</SecondaryButton>
-      </div>
-      <Surface className="sprix-execution-hero p-6">
-        <div className="min-w-0">
-          <div className="mb-3 flex flex-wrap gap-2">
-            <StatusTag status={task.status} />
-            {task.appealStatus && <StatusTag status={task.appealStatus} />}
-            <SoftTag>{task.currentNode}</SoftTag>
-          </div>
-          <h1 className="text-3xl font-semibold leading-tight text-ink">{task.title}</h1>
-          <p className="mt-3 text-sm leading-7 text-ink-soft">
-            {task.category} · {task.agentName} · {task.startedAt} · {currency(task.reward)}
-          </p>
-        </div>
-        <div className="sprix-execution-hero-progress">
-          <span>执行进度</span>
-          <strong>{task.progress || "-"}</strong>
-        </div>
-      </Surface>
-      <Surface className="sprix-execution-progress-card p-5">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-ink">执行流转</h2>
-            <p className="mt-1 text-sm text-ink-soft">平台按节点推进执行、质检、验收和入账。</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <SoftTag>{task.currentNode}</SoftTag>
-            <SoftTag tone="neutral">{task.progress}</SoftTag>
-            {(actions.appealLabel || actions.rerun) && taskActions}
-          </div>
-        </div>
-        <Steps
-          className="sprix-execution-steps mt-5"
-          current={task.status === "执行中" ? 2 : 5}
-          items={["已接单", "解析任务", "生成结果", "质量检查", "平台验收", "报酬入账"].map((title) => ({ title }))}
-        />
-      </Surface>
-      <div className="sprix-execution-content-grid">
-        <Surface className="p-6">
-          <h3 className="text-lg font-semibold text-ink">交付与验收</h3>
-          {review.kind === "content" ? (
-            <p className="mt-3 whitespace-pre-line text-[15px] leading-8 text-ink-soft">{review.body}</p>
-          ) : (
-            <InlineEmpty title={review.title} description={review.description} />
-          )}
-        </Surface>
-        <Surface className="p-6">
-          <h3 className="text-lg font-semibold text-ink">任务要求</h3>
-          {requirementText ? (
-            <p className="mt-3 whitespace-pre-line text-[15px] leading-8 text-ink-soft">{requirementText}</p>
-          ) : (
-            <InlineEmpty title="任务要求待后端返回" description="后端尚未返回任务描述、交付标准或验收标准。" />
-          )}
-        </Surface>
-        <Surface className="p-6">
-          <h3 className="text-lg font-semibold text-ink">执行文件</h3>
-          {artifacts.kind === "records" ? (
-            <div className="mt-4 space-y-2">
-              {artifacts.files.map((file) => (
-                <div key={file} className="rounded-2xl border border-line bg-white px-4 py-3 text-sm text-ink-soft">
-                  {file}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <InlineEmpty title={artifacts.title} description={artifacts.description} />
-          )}
-        </Surface>
-      </div>
-      <div className="mt-5 grid gap-5 xl:grid-cols-3">
-        {pendingSections.map((section) => (
-          <Surface key={section.title} className="p-6">
-            <InlineEmpty title={section.title} description={section.description} />
-          </Surface>
-        ))}
       </div>
     </div>
   );

@@ -143,6 +143,7 @@ describe("readAgentSnapshot", () => {
           questions: "not-an-array",
           steps: { content: [] },
           transcript: "not-an-array",
+          careerProfile: null,
           result: {
             status: "COMPLETED",
             improvements: "not-an-array",
@@ -163,5 +164,6 @@ describe("readAgentSnapshot", () => {
     expect(snapshot.agents?.[0]?.evaluation?.result.improvements).toEqual([]);
     expect(snapshot.agents?.[0]?.evaluation?.result.steps).toEqual([]);
     expect(snapshot.agents?.[0]?.evaluation?.result.transcript).toEqual([]);
+    expect(snapshot.agents?.[0]?.evaluation?.result.careerProfile).toBeNull();
   });
 });

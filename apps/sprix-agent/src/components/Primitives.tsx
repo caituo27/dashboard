@@ -7,17 +7,19 @@ export function PageHeader({
   title,
   subtitle,
   actions,
-  eyebrow = "Sprix AI"
+  eyebrow = "Sprix AI",
+  titleClassName
 }: {
   title: string;
-  subtitle?: string;
+  subtitle?: ReactNode;
   actions?: ReactNode;
   eyebrow?: string;
+  titleClassName?: string;
 }) {
   return (
     <div className="sprix-page-hero">
       <div className="sprix-hero-kicker">{eyebrow}</div>
-      <h1 className="sprix-title sprix-hero-title">{title}</h1>
+      <h1 className={titleClassName ?? "sprix-title sprix-hero-title"}>{title}</h1>
       {subtitle && <p className="sprix-hero-subtitle">{subtitle}</p>}
       {actions && <div className="sprix-hero-actions">{actions}</div>}
     </div>
@@ -89,7 +91,7 @@ export function MetricCard({
         </div>
         <div className="min-w-0">
           <p className="text-xs font-medium text-ink-soft">{title}</p>
-          <div className="sprix-title mt-1 text-4xl leading-none text-ink">{value}</div>
+          <div className="sprix-metric-card-value mt-1 text-4xl leading-none text-ink">{value}</div>
           {caption && <p className="mt-1 text-xs text-ink-soft">{caption}</p>}
         </div>
       </div>

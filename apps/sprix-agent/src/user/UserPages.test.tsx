@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { createInitialSprixState } from "../store/domain";
@@ -67,8 +67,9 @@ const completedEvaluation = {
   result: {
     status: "completed" as const,
     mode: "",
-    overallScore: 92,
+    overallScore: null,
     dimensions: {},
+    careerProfile: null,
     summary: "",
     improvements: [],
     steps: [],
@@ -94,6 +95,7 @@ const runningEvaluation: AgentEvaluation = {
     mode: "",
     overallScore: null,
     dimensions: {},
+    careerProfile: null,
     summary: "",
     improvements: [],
     steps: [],
@@ -299,6 +301,7 @@ describe("HomePage agent module", () => {
         mode: "",
         overallScore: null,
         dimensions: {},
+        careerProfile: null,
         summary: "",
         improvements: [],
         steps: [],
@@ -393,7 +396,7 @@ describe("HomePage agent module", () => {
     expect(sprixApi.readRemoteAgents).toHaveBeenCalled();
   });
 
-  it("evaluates the selected homepage agent and shows the final score", async () => {
+  it("evaluates the selected homepage agent and shows the empty final score", async () => {
     const initialState = createInitialSprixState();
     let resolveEvaluation: (evaluation: typeof completedEvaluation) => void = () => undefined;
     vi.mocked(sprixApi.readRemoteAgents).mockResolvedValue({ agents: [availableAgent], currentAgentId: null });
@@ -431,7 +434,7 @@ describe("HomePage agent module", () => {
 
     expect(await screen.findByText("Agent 评分已生成")).toBeTruthy();
     expect(screen.getByLabelText("评分结果动效")).toBeTruthy();
-    expect(screen.getByText("92")).toBeTruthy();
+    expect(screen.getByText("-")).toBeTruthy();
     expect(sprixApi.markRemoteCurrentAgent).toHaveBeenCalledWith("agent-1");
   });
 
@@ -538,6 +541,92 @@ describe("HomePage agent module", () => {
     expect((await screen.findAllByText("能力画像生成中")).length).toBeGreaterThan(0);
     expect(await screen.findByRole("button", { name: "查看进度" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "重新评测" })).toBeNull();
+  });
+
+  it("does not show a default career role name in a completed ability profile", () => {
+    const initialState = createInitialSprixState();
+    const evaluatedAgent: Agent = {
+      ...connectedAgent,
+      evaluation: completedEvaluation,
+      score: completedEvaluation.result.overallScore
+    };
+    useSprixStore.setState({
+      account: {
+        ...initialState.account,
+        isLoggedIn: true
+      },
+      currentAgent: evaluatedAgent,
+      agents: [evaluatedAgent]
+    });
+
+    renderAgentCenterPage();
+
+    expect(screen.queryByText("职位定位：")).toBeNull();
+    expect(screen.queryByText("通用编码助手")).toBeNull();
+  });
+
+  it("places the evaluation summary under the career role name", () => {
+    const initialState = createInitialSprixState();
+    const careerSummary = "该配置偏工程交付型，强调先理解、再最小改动、最后以证据验证结果。";
+    const evaluationWithCareer: AgentEvaluation = {
+      ...completedEvaluation,
+      result: {
+        ...completedEvaluation.result,
+        careerProfile: {
+          roleCode: "software_engineer",
+          roleName: "软件工程师",
+          confidence: 86,
+          reason: "工程交付能力较强。"
+        },
+        summary: careerSummary
+      }
+    };
+    const evaluatedAgent: Agent = {
+      ...connectedAgent,
+      evaluation: evaluationWithCareer,
+      score: evaluationWithCareer.result.overallScore
+    };
+    useSprixStore.setState({
+      account: {
+        ...initialState.account,
+        isLoggedIn: true
+      },
+      currentAgent: evaluatedAgent,
+      agents: [evaluatedAgent]
+    });
+
+    renderAgentCenterPage();
+
+    const careerBlock = screen.getByText("职位定位：").closest(".sprix-ability-career-block");
+    expect(careerBlock).toBeTruthy();
+    expect(within(careerBlock as HTMLElement).getByText("软件工程师")).toBeTruthy();
+    expect(within(careerBlock as HTMLElement).getByText(careerSummary)).toBeTruthy();
+    expect(document.querySelector(".sprix-ability-summary")).toBeNull();
+  });
+
+  it("allows a completed current agent evaluation to be restarted", async () => {
+    const initialState = createInitialSprixState();
+    const evaluatedAgent: Agent = {
+      ...connectedAgent,
+      evaluation: completedEvaluation,
+      score: completedEvaluation.result.overallScore
+    };
+    vi.mocked(sprixApi.readLatestRemoteAgentEvaluation).mockResolvedValue(completedEvaluation);
+    useSprixStore.setState({
+      account: {
+        ...initialState.account,
+        isLoggedIn: true
+      },
+      currentAgent: evaluatedAgent,
+      agents: [evaluatedAgent]
+    });
+
+    renderAgentCenterPage();
+
+    expect(screen.getByRole("button", { name: "查看结果" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "重新评测" }));
+
+    await waitFor(() => expect(sprixApi.startRemoteAgentEvaluation).toHaveBeenCalledWith("agent-1"));
   });
 
   it("starts a new evaluation only when latest evaluation is not found", async () => {
