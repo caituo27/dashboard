@@ -2101,15 +2101,6 @@ select {
   border-color: var(--color-line) !important;
 }
 
-.ant-btn-primary {
-  background: var(--color-pill);
-  box-shadow: none;
-}
-
-.ant-btn-primary:hover {
-  background: #2b2b2b !important;
-}
-
 .ant-modal-content,
 .ant-drawer-content {
   border-radius: 22px !important;
