@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Key } from "react";
+import type { Key, ReactNode } from "react";
 import { Button, Form, Input, InputNumber, Modal, Segmented, Select, Table, Tabs, Tooltip, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -71,6 +71,57 @@ function getFundExceptionBackendId(record: Pick<FundException, "backendId" | "wi
 function showRequestError(error: unknown, fallback: string, prefix = "") {
   if (isGlobalAuthError(error)) return;
   message.error(error instanceof Error ? `${prefix}${error.message}` : fallback);
+}
+
+function AdminDetailPage({ children }: { children: ReactNode }) {
+  return <div className="sprix-detail-page">{children}</div>;
+}
+
+function splitAdminDetailTitle(title: string) {
+  const tags: string[] = [];
+  let displayTitle = title.trim();
+  let match = displayTitle.match(/^\[([^\]]{1,48})\]/);
+  while (match) {
+    tags.push(match[1]);
+    displayTitle = displayTitle.slice(match[0].length).trim();
+    match = displayTitle.match(/^\[([^\]]{1,48})\]/);
+  }
+  return {
+    displayTitle: displayTitle || title,
+    tags
+  };
+}
+
+function AdminDetailHeading({
+  title,
+  subtitle,
+  eyebrow,
+  onBack
+}: {
+  title: string;
+  subtitle?: string;
+  eyebrow: string;
+  onBack: () => void;
+}) {
+  const { displayTitle, tags } = splitAdminDetailTitle(title);
+  return (
+    <div className="sprix-detail-heading">
+      <button className="sprix-detail-back" type="button" onClick={onBack} aria-label="返回">
+        <ArrowLeft size={16} />
+        <span>返回</span>
+      </button>
+      <div className="min-w-0">
+        <div className="sprix-detail-meta-row">
+          <div className="sprix-page-kicker">{eyebrow}</div>
+          {tags.map((tag, index) => (
+            <span key={`${tag}-${index}`} className="sprix-detail-chip">{tag}</span>
+          ))}
+        </div>
+        <h1 className="sprix-detail-title">{displayTitle}</h1>
+        {subtitle && <p className="sprix-page-subtitle">{subtitle}</p>}
+      </div>
+    </div>
+  );
 }
 
 function csvCell(value: unknown) {
@@ -209,7 +260,7 @@ export function AdminTaskCenter() {
     }
     Modal.confirm({
       title: "确认删除该任务？",
-      content: "删除后任务会被标记为已删除。",
+      content: "删除后，该任务将不再展示在任务列表默认视图中。若任务已有执行、验收、结算或申诉记录，相关记录将继续保留用于追溯。",
       okText: "确认删除",
       cancelText: "取消",
       okButtonProps: { danger: true },
@@ -386,24 +437,16 @@ export function AdminAcceptanceDetail() {
   const record = (acceptanceQuery.data ?? []).find((item) => item.executionId === executionId);
   if (!record) {
     return (
-      <>
-        <PageHeader title="验收详情" subtitle="当前执行记录已处理或不存在。" actions={<SecondaryButton href="/acceptance">返回平台验收中心</SecondaryButton>} />
+      <AdminDetailPage>
+        <AdminDetailHeading title="验收详情" subtitle="当前执行记录已处理或不存在。" eyebrow="平台验收中心" onBack={() => navigate("/acceptance")} />
         <Surface className="p-8 text-sm text-ink-soft">没有找到对应的待验收记录。</Surface>
-      </>
+      </AdminDetailPage>
     );
   }
 
   return (
-    <>
-      <div className="sprix-detail-heading">
-        <button className="sprix-detail-back" type="button" onClick={() => navigate("/acceptance")} aria-label="返回平台验收中心">
-          <ArrowLeft size={17} />
-        </button>
-        <div className="min-w-0">
-          <div className="sprix-page-kicker">平台验收中心</div>
-          <h1 className="sprix-detail-title">{record.taskTitle || "验收详情"}</h1>
-        </div>
-      </div>
+    <AdminDetailPage>
+      <AdminDetailHeading title={record.taskTitle || "验收详情"} eyebrow="平台验收中心" onBack={() => navigate("/acceptance")} />
       <div className="mb-4 grid gap-3 md:grid-cols-4">
         <MetricCard title="验收状态" value={<StatusTag status={record.acceptanceStatus} />} icon={<ShieldCheck size={19} />} />
         <MetricCard title="验收评分" value={record.acceptanceScore} />
@@ -444,7 +487,7 @@ export function AdminAcceptanceDetail() {
           <LongTextBlock title="问题记录" body={record.acceptanceIssues} />
         </Surface>
       </div>
-    </>
+    </AdminDetailPage>
   );
 }
 
@@ -513,9 +556,10 @@ function LongTextBlock({ title, body }: { title: string; body: string }) {
 
 function TaskWriteButton({ action, primary = false, onClick }: { action: AdminTaskWriteAction; primary?: boolean; onClick?: () => void }) {
   const ButtonComponent = primary ? ActionButton : SecondaryButton;
+  const label = action.kind === "edit" ? "编辑" : action.label;
   const button = (
     <ButtonComponent className={primary ? undefined : "sprix-task-action-button"} size={primary ? undefined : "small"} danger={action.danger} disabled={action.disabled} onClick={onClick}>
-      {action.label}
+      {label}
     </ButtonComponent>
   );
   if (!action.reason) return button;
@@ -721,6 +765,7 @@ export function AdminTaskForm() {
 
 export function AdminTaskDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const taskDetailQuery = useQuery({
     queryKey: ["sprix-admin", "task-detail", id],
     queryFn: () => readRemoteTaskDetail(id as string),
@@ -739,8 +784,8 @@ export function AdminTaskDetail() {
   if (!task) return <Surface className="p-8">任务不存在</Surface>;
   const estimatedToken = getAdminEstimatedTokenField();
   return (
-    <>
-      <PageHeader title={task.title} subtitle="查看任务配置、执行用户、Agent 记录和结算概览。" actions={<SecondaryButton href="/tasks">返回任务管理中心</SecondaryButton>} />
+    <AdminDetailPage>
+      <AdminDetailHeading title={task.title} subtitle="查看任务配置、执行用户、Agent 记录和结算概览。" eyebrow="任务管理中心" onBack={() => navigate("/tasks")} />
       <Surface className="mb-4 p-4">
         <div className="flex flex-wrap gap-2">
           <StatusTag status={task.taskStatus} />
@@ -780,7 +825,7 @@ export function AdminTaskDetail() {
           ))}
         </div>
       </Surface>
-    </>
+    </AdminDetailPage>
   );
 }
 
@@ -1118,8 +1163,8 @@ export function AdminAppealDetail() {
     appeal.acceptanceCriteria ? `验收标准：${appeal.acceptanceCriteria}` : ""
   ].filter(Boolean).join("。");
   return (
-    <>
-      <PageHeader title={appeal.appealNo} subtitle={subtitle} actions={<SecondaryButton href="/appeals">返回申诉处理中心</SecondaryButton>} />
+    <AdminDetailPage>
+      <AdminDetailHeading title={appeal.appealNo} subtitle={subtitle} eyebrow="申诉处理中心" onBack={() => navigate("/appeals")} />
       <div className="grid gap-4 xl:grid-cols-[1fr_380px]">
         <div className="space-y-4">
           <DetailBlock title="基本信息" body={baseInfo} />
@@ -1176,7 +1221,7 @@ export function AdminAppealDetail() {
           </div>
         </Surface>
       </div>
-    </>
+    </AdminDetailPage>
   );
 }
 
@@ -1369,23 +1414,24 @@ export function AdminFundCenter() {
               children: (
                 <Table
                   rowKey="settlementNo"
+                  tableLayout="fixed"
                   dataSource={settlements}
-                  scroll={{ x: 1410 }}
+                  scroll={{ x: 1500 }}
                   columns={[
-                    { title: "结算单号", dataIndex: "settlementNo", width: 128 },
-                    { title: "关联任务", dataIndex: "taskTitle", width: 220 },
-                    { title: "用户昵称", dataIndex: "userName", width: 112 },
-                    { title: "手机号", dataIndex: "userPhone", width: 112 },
-                    { title: "执行 Agent", dataIndex: "agentName", width: 120 },
+                    { title: "结算单号", dataIndex: "settlementNo", width: 150, render: (value) => <EllipsisCell value={value} /> },
+                    { title: "关联任务", dataIndex: "taskTitle", width: 260, render: (value) => <EllipsisCell value={value} /> },
+                    { title: "用户昵称", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
+                    { title: "手机号", dataIndex: "userPhone", width: 130, render: (value) => <EllipsisCell value={value} /> },
+                    { title: "执行 Agent", dataIndex: "agentName", width: 140, render: (value) => <EllipsisCell value={value} /> },
                     { title: "任务收入", dataIndex: "taskIncome", width: 96, render: currency },
                     { title: "平台服务费", dataIndex: "platformFee", width: 112, render: currency },
                     { title: "实际入账", dataIndex: "netIncome", width: 112, render: currency },
-                    { title: "结算状态", dataIndex: "settlementStatus", width: 112, render: (value) => <StatusTag status={value} /> },
-                    { title: "生成时间", dataIndex: "createdAt", width: 136 },
-                    { title: "入账时间", dataIndex: "paidAt", width: 128 },
+                    { title: "结算状态", dataIndex: "settlementStatus", width: 120, render: (value) => <StatusTag status={value} /> },
+                    { title: "生成时间", dataIndex: "createdAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
+                    { title: "入账时间", dataIndex: "paidAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
                     {
                       title: "操作",
-                      width: 112,
+                      width: 120,
                       fixed: "right",
                       render: (_, record) => (
                         record.settlementStatus === "结算中" ? (
@@ -1434,20 +1480,23 @@ export function AdminFundCenter() {
               children: (
                 <Table
                   rowKey="exceptionNo"
+                  tableLayout="fixed"
                   dataSource={exceptions}
-                  scroll={{ x: 980 }}
+                  scroll={{ x: 1260 }}
                   columns={[
-                    { title: "异常编号", dataIndex: "exceptionNo" },
-                    { title: "提现单号", dataIndex: "withdrawalNo" },
-                    { title: "用户昵称", dataIndex: "userName" },
-                    { title: "手机号", dataIndex: "userPhone" },
-                    { title: "支付宝账户", dataIndex: "alipayAccount" },
-                    { title: "异常类型", dataIndex: "exceptionType" },
-                    { title: "异常金额", dataIndex: "exceptionAmount", render: currency },
-                    { title: "当前状态", dataIndex: "currentStatus" },
-                    { title: "发生时间", dataIndex: "occurredAt" },
+                    { title: "异常编号", dataIndex: "exceptionNo", width: 150, render: (value) => <EllipsisCell value={value} /> },
+                    { title: "提现单号", dataIndex: "withdrawalNo", width: 220, render: (value) => <EllipsisCell value={value} /> },
+                    { title: "用户昵称", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
+                    { title: "手机号", dataIndex: "userPhone", width: 130, render: (value) => <EllipsisCell value={value} /> },
+                    { title: "支付宝账户", dataIndex: "alipayAccount", width: 260, render: (value) => <EllipsisCell value={value} /> },
+                    { title: "异常类型", dataIndex: "exceptionType", width: 120, render: (value) => <EllipsisCell value={value} /> },
+                    { title: "异常金额", dataIndex: "exceptionAmount", width: 110, render: currency },
+                    { title: "当前状态", dataIndex: "currentStatus", width: 120, render: (value) => <StatusTag status={value} /> },
+                    { title: "发生时间", dataIndex: "occurredAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
                     {
                       title: "操作",
+                      width: 120,
+                      fixed: "right",
                       render: (_, record) => (
                         <Button type="link" disabled={record.currentStatus === "已处理"} onClick={() => markExceptionHandled(record)}>
                           标记已处理
@@ -1464,20 +1513,21 @@ export function AdminFundCenter() {
               children: (
                 <Table
                   rowKey="flowNo"
+                  tableLayout="fixed"
                   dataSource={flows}
-                  scroll={{ x: 1180 }}
+                  scroll={{ x: 1520 }}
                   columns={[
-                    { title: "流水编号", dataIndex: "flowNo" },
-                    { title: "流水类型", dataIndex: "flowType" },
-                    { title: "关联用户", dataIndex: "userName" },
-                    { title: "关联任务", dataIndex: "taskTitle" },
-                    { title: "关联提现单", dataIndex: "withdrawalNo" },
-                    { title: "金额", dataIndex: "amount", render: currency },
-                    { title: "前状态", dataIndex: "beforeStatus" },
-                    { title: "后状态", dataIndex: "afterStatus" },
-                    { title: "操作人", dataIndex: "operator" },
-                    { title: "发生时间", dataIndex: "occurredAt" },
-                    { title: "备注", dataIndex: "remark" }
+                    { title: "流水编号", dataIndex: "flowNo", width: 180, render: (value) => <EllipsisCell value={value} /> },
+                    { title: "流水类型", dataIndex: "flowType", width: 130, render: (value) => <EllipsisCell value={value} /> },
+                    { title: "关联用户", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
+                    { title: "关联任务", dataIndex: "taskTitle", width: 260, render: (value) => <EllipsisCell value={value} /> },
+                    { title: "关联提现单", dataIndex: "withdrawalNo", width: 160, render: (value) => <EllipsisCell value={value} /> },
+                    { title: "金额", dataIndex: "amount", width: 100, render: currency },
+                    { title: "前状态", dataIndex: "beforeStatus", width: 140, render: (value) => <StatusTag status={value} /> },
+                    { title: "后状态", dataIndex: "afterStatus", width: 140, render: (value) => <StatusTag status={value} /> },
+                    { title: "操作人", dataIndex: "operator", width: 140, render: (value) => <EllipsisCell value={value} /> },
+                    { title: "发生时间", dataIndex: "occurredAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
+                    { title: "备注", dataIndex: "remark", width: 200, render: (value) => <EllipsisCell value={value} /> }
                   ]}
                 />
               )
@@ -1534,24 +1584,26 @@ function WithdrawalTable({
       )}
       <Table
         rowKey="withdrawalNo"
+        tableLayout="fixed"
         dataSource={data}
         rowSelection={{ selectedRowKeys: selectedKeys, onChange: setSelectedKeys }}
-        scroll={{ x: 1180 }}
+        scroll={{ x: 1560 }}
         columns={[
-          { title: "提现单号", dataIndex: "withdrawalNo" },
-          { title: "用户昵称", dataIndex: "userName" },
-          { title: "手机号", dataIndex: "userPhone" },
-          { title: "实人认证主体", dataIndex: "verifiedName" },
-          { title: "支付宝账户", dataIndex: "alipayAccount" },
-          { title: "收款账户状态", dataIndex: "realNameMatchStatus", render: (value) => <StatusTag status={value} /> },
-          { title: "可提现余额", dataIndex: "withdrawableBalance", render: currency },
-          { title: "申请提现金额", dataIndex: "applyAmount", render: currency },
-          { title: "预计到账时间", dataIndex: "estimatedArrivalTime" },
-          { title: "提现申请时间", dataIndex: "appliedAt" },
-          { title: "当前状态", dataIndex: "withdrawStatus", render: (value) => <StatusTag status={value} /> },
-          { title: "审核人", dataIndex: "reviewer" },
+          { title: "提现单号", dataIndex: "withdrawalNo", width: 220, render: (value) => <EllipsisCell value={value} /> },
+          { title: "用户昵称", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
+          { title: "手机号", dataIndex: "userPhone", width: 130, render: (value) => <EllipsisCell value={value} /> },
+          { title: "实人认证主体", dataIndex: "verifiedName", width: 140, render: (value) => <EllipsisCell value={value} /> },
+          { title: "支付宝账户", dataIndex: "alipayAccount", width: 260, render: (value) => <EllipsisCell value={value} /> },
+          { title: "收款账户状态", dataIndex: "realNameMatchStatus", width: 140, render: (value) => <StatusTag status={value} /> },
+          { title: "可提现余额", dataIndex: "withdrawableBalance", width: 110, render: currency },
+          { title: "申请提现金额", dataIndex: "applyAmount", width: 120, render: currency },
+          { title: "预计到账时间", dataIndex: "estimatedArrivalTime", width: 150, render: (value) => <EllipsisCell value={value} /> },
+          { title: "提现申请时间", dataIndex: "appliedAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
+          { title: "当前状态", dataIndex: "withdrawStatus", width: 120, render: (value) => <StatusTag status={value} /> },
+          { title: "审核人", dataIndex: "reviewer", width: 120, render: (value) => <EllipsisCell value={value} /> },
           {
             title: "操作",
+            width: 160,
             fixed: "right",
             render: (_, record) => (
               <div className="flex flex-wrap gap-1">
@@ -1614,27 +1666,29 @@ function PendingPayoutTable({
       )}
       <Table
         rowKey="withdrawalNo"
+        tableLayout="fixed"
         dataSource={data}
         rowSelection={{ selectedRowKeys: selectedKeys, onChange: setSelectedKeys }}
-        scroll={{ x: 1480 }}
+        scroll={{ x: 2100 }}
         columns={[
-          { title: "提现单号", dataIndex: "withdrawalNo" },
-          { title: "用户昵称", dataIndex: "userName" },
-          { title: "手机号", dataIndex: "userPhone" },
-          { title: "支付宝账户", dataIndex: "alipayAccount" },
-          { title: "打款金额", dataIndex: "payoutAmount", render: currency },
-          { title: "预计到账时间", dataIndex: "estimatedArrivalTime" },
-          { title: "审核通过时间", dataIndex: "approvedAt" },
-          { title: "打款渠道", dataIndex: "payoutProvider", render: (value) => value || "-" },
-          { title: "商户单号", dataIndex: "payoutOutBizNo", render: (value) => value || "-" },
-          { title: "支付宝订单号", dataIndex: "payoutOrderId", render: (value) => value || "-" },
-          { title: "支付宝状态", dataIndex: "payoutStatus", render: (value) => value || "-" },
-          { title: "发起时间", dataIndex: "payoutRequestedAt", render: (value) => value || "-" },
-          { title: "完成时间", dataIndex: "payoutCompletedAt", render: (value) => value || "-" },
-          { title: "最近查询", dataIndex: "payoutLastQueriedAt", render: (value) => value || "-" },
-          { title: "当前状态", dataIndex: "withdrawStatus", render: (value) => <StatusTag status={value} /> },
+          { title: "提现单号", dataIndex: "withdrawalNo", width: 240, render: (value) => <EllipsisCell value={value} /> },
+          { title: "用户昵称", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
+          { title: "手机号", dataIndex: "userPhone", width: 130, render: (value) => <EllipsisCell value={value} /> },
+          { title: "支付宝账户", dataIndex: "alipayAccount", width: 300, render: (value) => <EllipsisCell value={value} /> },
+          { title: "打款金额", dataIndex: "payoutAmount", width: 100, render: currency },
+          { title: "预计到账时间", dataIndex: "estimatedArrivalTime", width: 150, render: (value) => <EllipsisCell value={value} /> },
+          { title: "审核通过时间", dataIndex: "approvedAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
+          { title: "打款渠道", dataIndex: "payoutProvider", width: 120, render: (value) => <EllipsisCell value={value || "-"} /> },
+          { title: "商户单号", dataIndex: "payoutOutBizNo", width: 220, render: (value) => <EllipsisCell value={value || "-"} /> },
+          { title: "支付宝订单号", dataIndex: "payoutOrderId", width: 220, render: (value) => <EllipsisCell value={value || "-"} /> },
+          { title: "支付宝状态", dataIndex: "payoutStatus", width: 130, render: (value) => <EllipsisCell value={value || "-"} /> },
+          { title: "发起时间", dataIndex: "payoutRequestedAt", width: 150, render: (value) => <EllipsisCell value={value || "-"} /> },
+          { title: "完成时间", dataIndex: "payoutCompletedAt", width: 150, render: (value) => <EllipsisCell value={value || "-"} /> },
+          { title: "最近查询", dataIndex: "payoutLastQueriedAt", width: 150, render: (value) => <EllipsisCell value={value || "-"} /> },
+          { title: "当前状态", dataIndex: "withdrawStatus", width: 120, render: (value) => <StatusTag status={value} /> },
           {
             title: "操作",
+            width: 300,
             fixed: "right",
             render: (_, record) => (
               <div className="flex flex-wrap gap-1">

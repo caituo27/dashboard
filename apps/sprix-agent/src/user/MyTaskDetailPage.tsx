@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Collapse, Modal, Spin, message } from "antd";
 import type { CollapseProps } from "antd";
@@ -189,8 +189,7 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
 
       <div className="sprix-execution-detail-layout">
         <div className="sprix-execution-detail-main">
-          <div className="sprix-execution-main-grid">
-            <TaskRequirementSection detail={detail} />
+          <div className="sprix-execution-main-stack">
             <OutputSection detail={detail} />
             <ArtifactsSection executionId={detail.id ?? id} artifacts={detail.artifacts ?? []} />
             <AcceptanceSection
@@ -203,12 +202,11 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
                 ) : undefined
               }
             />
-            <div className="sprix-execution-main-wide">
-              <HistorySection detail={detail} />
-            </div>
+            <HistorySection detail={detail} />
           </div>
         </div>
-        <aside className="sprix-execution-timeline-sidebar">
+        <aside className="sprix-execution-side-rail">
+          <TaskRequirementSection detail={detail} />
           <TimelineSection detail={detail} />
         </aside>
       </div>
@@ -219,14 +217,14 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
 function TaskRequirementSection({ detail }: { detail: MyTaskExecutionDetail }) {
   const rows = getTaskRequirementRows(detail);
   return (
-    <Surface className="p-6">
+    <Surface className="sprix-task-requirements-panel p-5">
       <SectionTitle title="任务要求" />
       {rows.length > 0 ? (
-        <div className="mt-4 space-y-4">
+        <div className="sprix-requirement-list">
           {rows.map((row) => (
-            <div key={row.label}>
-              <p className="text-xs font-semibold text-ink-soft">{row.label}</p>
-              <p className="mt-1 whitespace-pre-line text-[15px] leading-7 text-ink">{row.value}</p>
+            <div key={row.label} className="sprix-requirement-row">
+              <p>{row.label}</p>
+              <strong>{row.value}</strong>
             </div>
           ))}
         </div>
@@ -257,16 +255,16 @@ function OutputSection({ detail }: { detail: MyTaskExecutionDetail }) {
   }
 
   return (
-    <Surface className="p-6">
+    <Surface className="sprix-output-section p-6">
       <SectionTitle title="Agent 输出" />
       {output ? (
         <div className="mt-4 space-y-4">
           {failureMessage && <div className="sprix-output-error">{failureMessage}</div>}
           <div>
             <p className="text-xs font-semibold text-ink-soft">最终消息</p>
-            <p className="mt-1 whitespace-pre-line text-[15px] leading-7 text-ink">{output.finalMessage || "暂无最终消息"}</p>
+            <FormattedOutputMessage text={output.finalMessage || "暂无最终消息"} />
           </div>
-          <div className="grid gap-3 text-sm text-ink-soft sm:grid-cols-2">
+          <div className="sprix-output-metrics">
             <InfoPill label="退出码" value={String(output.exitCode ?? "-")} />
             <InfoPill label="Token 用量" value={getTokenUsage(detail)} />
             <InfoPill label="接收时间" value={formatDateTime(output.receivedAt)} />
@@ -279,6 +277,136 @@ function OutputSection({ detail }: { detail: MyTaskExecutionDetail }) {
       )}
     </Surface>
   );
+}
+
+type FormattedOutputBlock =
+  | { type: "paragraph"; lines: string[] }
+  | { type: "list"; ordered: boolean; items: string[] }
+  | { type: "code"; lines: string[] };
+
+function FormattedOutputMessage({ text }: { text: string }) {
+  const blocks = parseFormattedOutputBlocks(text);
+  return (
+    <div className="sprix-output-message">
+      {blocks.map((block, blockIndex) => {
+        if (block.type === "code") {
+          return (
+            <pre key={`code-${blockIndex}`} className="sprix-output-code-block">
+              {block.lines.join("\n")}
+            </pre>
+          );
+        }
+
+        if (block.type === "list") {
+          const ListTag = block.ordered ? "ol" : "ul";
+          return (
+            <ListTag key={`list-${blockIndex}`}>
+              {block.items.map((item, itemIndex) => (
+                <li key={`${blockIndex}-${itemIndex}`}>{renderInlineCode(item, `${blockIndex}-${itemIndex}`)}</li>
+              ))}
+            </ListTag>
+          );
+        }
+
+        return (
+          <p key={`paragraph-${blockIndex}`}>
+            {block.lines.map((line, lineIndex) => (
+              <Fragment key={`${blockIndex}-${lineIndex}`}>
+                {lineIndex > 0 && <br />}
+                {renderInlineCode(line, `${blockIndex}-${lineIndex}`)}
+              </Fragment>
+            ))}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+function parseFormattedOutputBlocks(text: string): FormattedOutputBlock[] {
+  const blocks: FormattedOutputBlock[] = [];
+  const paragraphLines: string[] = [];
+  let listBlock: Extract<FormattedOutputBlock, { type: "list" }> | undefined;
+  let codeLines: string[] | undefined;
+
+  const flushParagraph = () => {
+    if (paragraphLines.length === 0) return;
+    blocks.push({ type: "paragraph", lines: [...paragraphLines] });
+    paragraphLines.length = 0;
+  };
+
+  const flushList = () => {
+    if (!listBlock) return;
+    blocks.push(listBlock);
+    listBlock = undefined;
+  };
+
+  const flushCode = () => {
+    if (!codeLines) return;
+    blocks.push({ type: "code", lines: codeLines });
+    codeLines = undefined;
+  };
+
+  text
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .forEach((line) => {
+      const trimmed = line.trim();
+
+      if (codeLines) {
+        if (trimmed.startsWith("```")) {
+          flushCode();
+          return;
+        }
+        codeLines.push(line);
+        return;
+      }
+
+      if (trimmed.startsWith("```")) {
+        flushParagraph();
+        flushList();
+        codeLines = [];
+        return;
+      }
+
+      if (!trimmed) {
+        flushParagraph();
+        flushList();
+        return;
+      }
+
+      const unorderedItem = line.match(/^\s*[-*]\s+(.+)$/);
+      const orderedItem = line.match(/^\s*\d+[.)]\s+(.+)$/);
+      if (unorderedItem || orderedItem) {
+        const ordered = Boolean(orderedItem);
+        const value = (orderedItem?.[1] ?? unorderedItem?.[1] ?? "").trim();
+        flushParagraph();
+        if (!listBlock || listBlock.ordered !== ordered) {
+          flushList();
+          listBlock = { type: "list", ordered, items: [] };
+        }
+        listBlock.items.push(value);
+        return;
+      }
+
+      flushList();
+      paragraphLines.push(line.trimEnd());
+    });
+
+  flushParagraph();
+  flushList();
+  flushCode();
+
+  return blocks.length > 0 ? blocks : [{ type: "paragraph", lines: [text] }];
+}
+
+function renderInlineCode(text: string, keyPrefix: string) {
+  return text.split(/(`[^`]+`)/g).map((part, index) => {
+    if (/^`[^`]+`$/.test(part)) {
+      return <code key={`${keyPrefix}-code-${index}`}>{part.slice(1, -1)}</code>;
+    }
+    return <Fragment key={`${keyPrefix}-text-${index}`}>{part}</Fragment>;
+  });
 }
 
 function ArtifactsSection({ executionId, artifacts }: { executionId: string; artifacts: ArtifactSnapshot[] }) {
@@ -378,7 +506,7 @@ function AcceptanceSection({ detail, action }: { detail: MyTaskExecutionDetail; 
 function TimelineSection({ detail }: { detail: MyTaskExecutionDetail }) {
   const events = getSortedTimeline(detail);
   return (
-    <Surface className="sprix-timeline-panel p-6">
+    <Surface className="sprix-timeline-panel p-5">
       <div className="sprix-section-heading">
         <SectionTitle title="执行时间线" />
         {events.length > 0 && <SoftTag tone="neutral">{events.length} 条事件</SoftTag>}
@@ -440,23 +568,30 @@ function shouldAutoRefreshExecutionDetail(detail: MyTaskExecutionDetail) {
 function HistorySection({ detail }: { detail: MyTaskExecutionDetail }) {
   const histories = detail.historyExecutions ?? [];
   return (
-    <Surface className="p-6">
-      <SectionTitle title="历史执行" />
+    <Surface className="sprix-history-panel p-6">
+      <div className="sprix-section-heading">
+        <SectionTitle title="历史执行" />
+        {histories.length > 0 && <SoftTag tone="neutral">{histories.length} 次执行</SoftTag>}
+      </div>
       {histories.length > 0 ? (
-        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <div className="sprix-history-list">
           {histories.map((history) => (
             <Link
               key={history.id}
               to={`/agent/my-tasks/${history.id}`}
-              className={`rounded-2xl border px-4 py-3 no-underline ${history.current ? "border-[#8dd5c8] bg-[#e7f7f2] text-ink" : "border-line bg-white text-ink"}`}
+              className={`sprix-history-row ${history.current ? "is-current" : ""}`}
             >
-              <div className="flex flex-wrap items-center gap-2">
-                <StatusTag status={mapExecutionStatus(history.status)} />
-                {history.current && <SoftTag>当前执行</SoftTag>}
+              <div className="sprix-history-main">
+                <div className="sprix-history-tags">
+                  <StatusTag status={mapExecutionStatus(history.status)} />
+                  {history.current && <SoftTag>当前执行</SoftTag>}
+                </div>
+                <strong>{getCurrentNodeLabel(history.currentNode)}</strong>
               </div>
-              <p className="mt-2 text-sm text-ink-soft">
-                {history.progress || "-"} · {getCurrentNodeLabel(history.currentNode)} · {formatDateTime(history.startedAt ?? history.createdAt)}
-              </p>
+              <div className="sprix-history-meta">
+                <span className="sprix-history-progress">{history.progress || "-"}</span>
+                <span>{formatDateTime(history.startedAt ?? history.createdAt)}</span>
+              </div>
             </Link>
           ))}
         </div>

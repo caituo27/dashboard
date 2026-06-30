@@ -1050,12 +1050,12 @@ export function EarningsPage({ openLogin, openBindAlipay }: UserPageProps) {
   const account = useSprixStore((state) => state.account);
   const payouts = useSprixStore((state) => state.payouts);
   if (!account.isLoggedIn) {
-    return <EmptyState title="登录后查看提现记录" description="登录后可查看提现记录、到账状态和预计到账时间。" action={<ActionButton onClick={openLogin}>登录 / 注册</ActionButton>} />;
+    return <EmptyState title="登录后查看打款记录" description="登录后可查看打款记录、到账状态和预计到账时间。" action={<ActionButton onClick={openLogin}>登录 / 注册</ActionButton>} />;
   }
   const payoutState = getPayoutRecordState(payouts);
   return (
     <>
-      <PageHeader title="提现记录" subtitle={getPayoutPageSubtitle()} />
+      <PageHeader title="打款记录" subtitle={getPayoutPageSubtitle()} />
       <Surface className="mb-5 p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>

@@ -17,10 +17,11 @@ export function SmsLoginPanel({ active, onAuthenticated }: SmsLoginPanelProps) {
     <>
       <Form form={sms.form} layout="vertical" onFinish={sms.submit} className="sprix-phone-login-form space-y-2 pt-4">
         <Form.Item label="手机号" name="phone" rules={phoneNumberRules}>
-          <Input placeholder="请输入手机号" maxLength={phoneNumberMaxLength} inputMode="tel" />
+          <Input size="large" placeholder="请输入手机号" maxLength={phoneNumberMaxLength} inputMode="tel" />
         </Form.Item>
         <Form.Item label="验证码" name="code" rules={smsCodeRules}>
           <Input
+            size="large"
             placeholder="请输入验证码"
             maxLength={verificationCodeMaxLength}
             suffix={
@@ -32,7 +33,7 @@ export function SmsLoginPanel({ active, onAuthenticated }: SmsLoginPanelProps) {
         </Form.Item>
         <div className="sprix-login-action-stack pt-2">
           <AgreementCheck agreed={sms.agreed} onChange={sms.setAgreed} />
-          <ActionButton block htmlType="submit" loading={sms.submitting} className="sprix-login-submit-button">
+          <ActionButton size="large" block htmlType="submit" loading={sms.submitting} className="sprix-login-submit-button">
             登录 / 注册
           </ActionButton>
         </div>

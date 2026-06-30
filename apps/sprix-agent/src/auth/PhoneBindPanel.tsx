@@ -165,7 +165,7 @@ export function PhoneBindPanel({ provider, bindTicket, onAuthenticated }: PhoneB
             }
           />
         </Form.Item>
-        <ActionButton block htmlType="submit" loading={submitting} className="sprix-login-submit-button">
+        <ActionButton size="large" block htmlType="submit" loading={submitting} className="sprix-login-submit-button">
           完成绑定并登录
         </ActionButton>
       </Form>
