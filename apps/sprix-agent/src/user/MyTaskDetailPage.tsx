@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { Collapse, Spin, message } from "antd";
 import type { CollapseProps } from "antd";
 import { Link, useParams } from "react-router-dom";
@@ -20,10 +21,9 @@ import {
   getTaskRequirementRows,
   getTimelineTime,
   getTokenUsage,
-  isExecutionTerminal,
   mapExecutionStatus
 } from "./executionDetailView";
-import { getMyTaskActions } from "./userFlowRules";
+import { getMyTaskActions, shouldShowAppealStatus } from "./userFlowRules";
 import { useRerunTask } from "./useRerunTask";
 
 type MyTaskDetailPageProps = {
@@ -35,15 +35,12 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
   const rerunTask = useRerunTask();
   const [detail, setDetail] = useState<MyTaskExecutionDetail>();
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
   const loadDetail = useCallback(
     async (silent = false) => {
       if (!id) return;
-      if (silent) {
-        setRefreshing(true);
-      } else {
+      if (!silent) {
         setLoading(true);
       }
       setError("");
@@ -57,7 +54,6 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
         if (silent) message.error(messageText);
       } finally {
         setLoading(false);
-        setRefreshing(false);
       }
     },
     [id]
@@ -69,7 +65,7 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
   }, [loadDetail]);
 
   useEffect(() => {
-    if (!detail || isExecutionTerminal(detail.status)) return;
+    if (!detail || !shouldAutoRefreshExecutionDetail(detail)) return;
     const timer = window.setInterval(() => {
       void loadDetail(true);
     }, 4000);
@@ -124,9 +120,8 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
         <div className="min-w-0">
           <div className="mb-3 flex flex-wrap gap-2">
             <StatusTag status={summary.status} />
-            <StatusTag status={summary.appealStatus} />
+            {shouldShowAppealStatus(summary.appealStatus) && <StatusTag status={summary.appealStatus} />}
             <SoftTag tone="neutral">{summary.currentNode}</SoftTag>
-            {refreshing && <SoftTag tone="neutral">刷新中</SoftTag>}
           </div>
           <h1 className="text-3xl font-semibold leading-tight text-ink">{summary.title}</h1>
           <p className="mt-3 text-sm leading-7 text-ink-soft">
@@ -143,45 +138,44 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
             </div>
           )}
         </div>
-        <div className="sprix-execution-hero-progress">
-          <span>执行进度</span>
-          <strong>{summary.progress}</strong>
+        <div className="sprix-execution-hero-side">
+          <div className="sprix-execution-hero-progress">
+            <span>执行进度</span>
+            <strong>{summary.progress}</strong>
+          </div>
+          {actions?.rerun && (
+            <SecondaryButton icon={<RotateCw size={15} />} onClick={() => rerunTask(detail.id ?? id)}>
+              重新执行
+            </SecondaryButton>
+          )}
         </div>
       </Surface>
 
-      <Surface className="sprix-execution-progress-card p-5">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-ink">执行概况</h2>
-            <p className="mt-1 text-sm text-ink-soft">详情数据来自当前执行记录接口，未结束时会自动刷新。</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {actions?.appealLabel && (
-              <ActionButton disabled={!actions.appealEnabled} onClick={() => actions.appealEnabled && openAppeal(detail.id ?? id)}>
-                {actions.appealLabel}
-              </ActionButton>
-            )}
-            {actions?.rerun && (
-              <SecondaryButton icon={<RotateCw size={15} />} onClick={() => rerunTask(detail.id ?? id)}>
-                重新执行
-              </SecondaryButton>
-            )}
+      <div className="sprix-execution-detail-layout">
+        <div className="sprix-execution-detail-main">
+          <div className="sprix-execution-main-grid">
+            <TaskRequirementSection detail={detail} />
+            <OutputSection detail={detail} />
+            <ArtifactsSection executionId={detail.id ?? id} artifacts={detail.artifacts ?? []} />
+            <AcceptanceSection
+              detail={detail}
+              action={
+                actions?.appealLabel ? (
+                  <ActionButton disabled={!actions.appealEnabled} onClick={() => actions.appealEnabled && openAppeal(detail.id ?? id)}>
+                    {actions.appealLabel}
+                  </ActionButton>
+                ) : undefined
+              }
+            />
+            <div className="sprix-execution-main-wide">
+              <HistorySection detail={detail} />
+            </div>
           </div>
         </div>
-      </Surface>
-
-      <div className="sprix-execution-content-grid">
-        <TaskRequirementSection detail={detail} />
-        <OutputSection detail={detail} />
-        <ArtifactsSection executionId={detail.id ?? id} artifacts={detail.artifacts ?? []} />
+        <aside className="sprix-execution-timeline-sidebar">
+          <TimelineSection detail={detail} />
+        </aside>
       </div>
-
-      <div className="mt-5 grid gap-5 xl:grid-cols-2">
-        <AcceptanceSection detail={detail} />
-        <TimelineSection detail={detail} />
-      </div>
-
-      <HistorySection detail={detail} />
     </div>
   );
 }
@@ -231,7 +225,7 @@ function OutputSection({ detail }: { detail: MyTaskExecutionDetail }) {
       <SectionTitle title="Agent 输出" />
       {output ? (
         <div className="mt-4 space-y-4">
-          {failureMessage && <div className="rounded-2xl border border-[#ffd9d9] bg-[#fff4f4] px-4 py-3 text-sm text-[#b42318]">{failureMessage}</div>}
+          {failureMessage && <div className="sprix-output-error">{failureMessage}</div>}
           <div>
             <p className="text-xs font-semibold text-ink-soft">最终消息</p>
             <p className="mt-1 whitespace-pre-line text-[15px] leading-7 text-ink">{output.finalMessage || "暂无最终消息"}</p>
@@ -282,31 +276,51 @@ function ArtifactsSection({ executionId, artifacts }: { executionId: string; art
   );
 }
 
-function AcceptanceSection({ detail }: { detail: MyTaskExecutionDetail }) {
+function AcceptanceSection({ detail, action }: { detail: MyTaskExecutionDetail; action?: ReactNode }) {
   const acceptance = detail.acceptance;
   const issues = getAcceptanceIssues(acceptance);
+  const [issuesExpanded, setIssuesExpanded] = useState(false);
+  const visibleIssues = issuesExpanded ? issues : issues.slice(0, 4);
+  const hiddenIssueCount = issues.length - visibleIssues.length;
   return (
-    <Surface className="p-6">
-      <SectionTitle title="验收结果" />
+    <Surface className="sprix-acceptance-panel p-6">
+      <div className="sprix-section-heading">
+        <SectionTitle title="验收结果" />
+        <div className="sprix-section-actions">
+          {acceptance?.status && <SoftTag tone={getAcceptanceStatusTone(acceptance.status)}>{acceptance.status}</SoftTag>}
+          {action}
+        </div>
+      </div>
       {acceptance ? (
         <div className="mt-4 space-y-4">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <InfoPill label="状态" value={acceptance.status || "-"} />
-            <InfoPill label="评分" value={acceptance.score == null ? "-" : `${acceptance.score}`} />
-            <InfoPill label="业务状态" value={acceptance.mappedBusinessStatus || "-"} />
+          <div className="sprix-acceptance-metrics">
+            <AcceptanceMetric label="状态" value={acceptance.status || "-"} />
+            <AcceptanceMetric label="评分" value={acceptance.score == null ? "-" : `${acceptance.score}`} emphasized />
+            <AcceptanceMetric label="业务状态" value={acceptance.mappedBusinessStatus || "-"} />
           </div>
-          {acceptance.summary && <p className="whitespace-pre-line text-[15px] leading-7 text-ink">{acceptance.summary}</p>}
+          {acceptance.summary && <p className="sprix-acceptance-summary">{acceptance.summary}</p>}
           {issues.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {issues.map((issue) => (
-                <SoftTag key={issue} tone="amber">
-                  {issue}
-                </SoftTag>
-              ))}
+            <div className="sprix-acceptance-issues">
+              <div className="sprix-acceptance-issues-head">
+                <b>未满足交付目标</b>
+                <SoftTag tone="red">{issues.length} 项问题</SoftTag>
+              </div>
+              <ul>
+                {visibleIssues.map((issue) => (
+                  <li key={issue}>{issue}</li>
+                ))}
+              </ul>
+              {issues.length > 4 && (
+                <button type="button" className="sprix-acceptance-expand" onClick={() => setIssuesExpanded((expanded) => !expanded)}>
+                  {issuesExpanded ? "收起问题" : `展开全部 ${issues.length} 项问题`}
+                  {!issuesExpanded && hiddenIssueCount > 0 ? <span>还有 {hiddenIssueCount} 项</span> : null}
+                </button>
+              )}
             </div>
           )}
           {acceptance.acceptancePayload && (
             <Collapse
+              className="sprix-acceptance-collapse"
               ghost
               items={[
                 {
@@ -328,31 +342,37 @@ function AcceptanceSection({ detail }: { detail: MyTaskExecutionDetail }) {
 function TimelineSection({ detail }: { detail: MyTaskExecutionDetail }) {
   const events = getSortedTimeline(detail);
   return (
-    <Surface className="p-6">
-      <SectionTitle title="执行时间线" />
+    <Surface className="sprix-timeline-panel p-6">
+      <div className="sprix-section-heading">
+        <SectionTitle title="执行时间线" />
+        {events.length > 0 && <SoftTag tone="neutral">{events.length} 条事件</SoftTag>}
+      </div>
       {events.length > 0 ? (
-        <div className="mt-4 space-y-3">
+        <div className="sprix-timeline-list">
           {events.map((event, index) => (
-            <div key={event.eventId ?? `${event.eventType}-${index}`} className="rounded-2xl border border-line bg-white px-4 py-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <SoftTag tone="neutral">{formatDateTime(getTimelineTime(event))}</SoftTag>
-                {event.progress && <SoftTag>{event.progress}</SoftTag>}
+            <div key={event.eventId ?? `${event.eventType}-${index}`} className="sprix-timeline-event">
+              <span className={`sprix-timeline-dot ${index === events.length - 1 ? "is-current" : ""}`} />
+              <div className={`sprix-timeline-card ${index === events.length - 1 ? "is-current" : ""}`}>
+                <div className="sprix-timeline-meta">
+                  <SoftTag tone="neutral">{formatDateTime(getTimelineTime(event))}</SoftTag>
+                  {event.progress && <SoftTag>{event.progress}</SoftTag>}
+                </div>
+                <p className="sprix-timeline-title">{event.currentNodeLabel || getCurrentNodeLabel(event.currentNode) || event.message || event.eventType}</p>
+                {event.message && <p className="sprix-timeline-message">{event.message}</p>}
+                {event.payload && (
+                  <Collapse
+                    className="sprix-timeline-collapse"
+                    ghost
+                    items={[
+                      {
+                        key: "payload",
+                        label: "事件详情",
+                        children: <pre className="sprix-execution-log">{event.payload}</pre>
+                      }
+                    ]}
+                  />
+                )}
               </div>
-              <p className="mt-2 font-semibold text-ink">{event.currentNodeLabel || getCurrentNodeLabel(event.currentNode) || event.message || event.eventType}</p>
-              {event.message && <p className="mt-1 text-sm leading-7 text-ink-soft">{event.message}</p>}
-              {event.payload && (
-                <Collapse
-                  className="mt-2"
-                  ghost
-                  items={[
-                    {
-                      key: "payload",
-                      label: "事件详情",
-                      children: <pre className="sprix-execution-log">{event.payload}</pre>
-                    }
-                  ]}
-                />
-              )}
             </div>
           ))}
         </div>
@@ -361,6 +381,24 @@ function TimelineSection({ detail }: { detail: MyTaskExecutionDetail }) {
       )}
     </Surface>
   );
+}
+
+function AcceptanceMetric({ label, value, emphasized = false }: { label: string; value: string; emphasized?: boolean }) {
+  return (
+    <div className={`sprix-acceptance-metric ${emphasized ? "is-emphasized" : ""}`}>
+      <p>{label}</p>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function getAcceptanceStatusTone(status: string): "teal" | "red" {
+  const normalized = status.toLowerCase();
+  return normalized.includes("fail") || status.includes("失败") || status.includes("未通过") ? "red" : "teal";
+}
+
+function shouldAutoRefreshExecutionDetail(detail: MyTaskExecutionDetail) {
+  return (detail.status ?? "").toUpperCase() === "RUNNING" && !detail.completedAt;
 }
 
 function HistorySection({ detail }: { detail: MyTaskExecutionDetail }) {

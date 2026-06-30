@@ -36,7 +36,8 @@ import {
   getMyTaskActions,
   getMyTaskMetaItems,
   getQualificationSuccessAction,
-  getTaskAcceptGate
+  getTaskAcceptGate,
+  shouldShowAppealStatus
 } from "./userFlowRules";
 import { useRerunTask } from "./useRerunTask";
 export { MyTaskDetailPage } from "./MyTaskDetailPage";
@@ -966,7 +967,7 @@ function MyTaskRow({ task, onAppeal, onRerun }: { task: MyTask; onAppeal: (execu
       <div>
         <div className="flex flex-wrap items-center gap-2">
           <StatusTag status={task.status} />
-          {task.appealStatus && <StatusTag status={task.appealStatus} />}
+          {shouldShowAppealStatus(task.appealStatus) && <StatusTag status={task.appealStatus} />}
         </div>
         <Link to={`/agent/my-tasks/${task.id}`} className="mt-2 block text-lg font-semibold text-ink no-underline hover:text-accent">
           {task.title}

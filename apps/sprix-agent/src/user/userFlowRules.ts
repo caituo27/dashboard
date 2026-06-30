@@ -3,6 +3,7 @@ import { currency } from "../utils/format";
 import { getEstimatedTokenField } from "./tokenEstimateView";
 
 const processingAppealStatuses = new Set(["申诉处理中", "待处理", "处理中", "需补充材料"]);
+const emptyAppealStatuses = new Set(["未申诉", "无申诉"]);
 const taskAcceptQualificationMessage = "首次接单前，请先完成支付宝人脸核验并同意《自由职业者服务框架协议》。";
 
 type TaskAcceptAccount = Pick<Account, "isLoggedIn" | "qualificationStatus" | "realPersonVerified" | "freelancerAgreementSigned">;
@@ -145,4 +146,8 @@ export function getMyTaskActions(task: Pick<MyTask, "status" | "appealStatus">) 
     rerun: task.status === "已终止" || isFailed,
     viewLabel: isSettled ? "查看验收结果" : "查看任务"
   };
+}
+
+export function shouldShowAppealStatus(status?: string): status is string {
+  return Boolean(status && !emptyAppealStatuses.has(status));
 }
