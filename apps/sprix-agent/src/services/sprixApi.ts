@@ -136,6 +136,11 @@ export type AlipayBindStatus = {
   completed: boolean;
 };
 
+export type FaceVerificationIdentity = {
+  readonly realName: string;
+  readonly idCardNo: string;
+};
+
 type RemoteAgentProfileResponse = AgentProfileResponse & {
   evaluation?: RemoteAgentEvaluation | null;
 };
@@ -536,8 +541,8 @@ export async function readRemoteAlipayBindStatus(sessionId: string): Promise<Ali
   };
 }
 
-export async function initializeRemoteFaceVerification(): Promise<FaceVerificationSession> {
-  const response = await accountApi.initializeFaceVerification();
+export async function initializeRemoteFaceVerification(identity: FaceVerificationIdentity): Promise<FaceVerificationSession> {
+  const response = await accountApi.initializeFaceVerification({ data: identity });
   return requireValue<FaceVerificationSession>(response, "支付宝人脸核验初始化失败");
 }
 

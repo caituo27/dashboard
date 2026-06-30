@@ -6,7 +6,21 @@ import { useSprixStore } from "../store/sprixStore";
 import type { Agent } from "../types";
 import * as sprixApi from "../services/sprixApi";
 import { HomePage } from "../home/HomePage";
-import { AgentCenterPage, EarningsPage } from "./UserPages";
+import { AgentCenterPage, EarningsPage, QualificationPage } from "./UserPages";
+
+Object.defineProperty(window, "matchMedia", {
+  writable: true,
+  value: vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn()
+  }))
+});
 
 vi.mock("../services/sprixApi", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../services/sprixApi")>();
@@ -16,6 +30,7 @@ vi.mock("../services/sprixApi", async (importOriginal) => {
     markRemoteCurrentAgent: vi.fn(),
     readRemoteAgents: vi.fn(),
     readRemoteAgentEvaluation: vi.fn(),
+    initializeRemoteFaceVerification: vi.fn(),
     startRemoteAgentEvaluation: vi.fn()
   };
 });
@@ -148,6 +163,47 @@ function renderAgentCenterPage() {
     </MemoryRouter>
   );
 }
+
+function renderQualificationPage() {
+  render(
+    <MemoryRouter initialEntries={["/agent/qualification"]}>
+      <QualificationPage
+        openLogin={vi.fn()}
+        openBindAlipay={vi.fn()}
+        openQualificationPrompt={vi.fn()}
+        openAppeal={vi.fn()}
+      />
+    </MemoryRouter>
+  );
+}
+
+describe("QualificationPage", () => {
+  beforeEach(() => {
+    vi.mocked(sprixApi.initializeRemoteFaceVerification).mockReset();
+    vi.mocked(sprixApi.initializeRemoteFaceVerification).mockResolvedValue({
+      certifyId: "certify-1",
+      webUrl: "https://verify.alipay.com/session",
+      status: "PENDING"
+    });
+    useSprixStore.setState(createInitialSprixState());
+  });
+
+  it("passes real identity fields when starting face verification", async () => {
+    renderQualificationPage();
+
+    fireEvent.change(screen.getByLabelText("真实姓名"), { target: { value: " 张三 " } });
+    fireEvent.change(screen.getByLabelText("身份证号"), { target: { value: "110101199001011234" } });
+    fireEvent.click(screen.getByRole("button", { name: "开始支付宝人脸核验" }));
+
+    await waitFor(() =>
+      expect(sprixApi.initializeRemoteFaceVerification).toHaveBeenCalledWith({
+        realName: "张三",
+        idCardNo: "110101199001011234"
+      })
+    );
+    expect(await screen.findByText("请使用支付宝进行扫码完成认证。")).toBeTruthy();
+  });
+});
 
 describe("EarningsPage", () => {
   beforeEach(() => {

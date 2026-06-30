@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Modal, Progress, Segmented, Steps, message } from "antd";
+import { Form, Input, Modal, Progress, Segmented, Steps, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Bot, BrainCircuit, PlugZap, UsersRound } from "lucide-react";
@@ -9,6 +9,7 @@ import { useSprixStore } from "../store/sprixStore";
 import {
   acceptRemoteTask,
   completeRemoteFaceVerification,
+  type FaceVerificationIdentity,
   getCurrentAgentFromAgents,
   initializeRemoteFaceVerification,
   readLatestRemoteAgentEvaluation,
@@ -54,6 +55,8 @@ type UserPageProps = {
   openQualificationPrompt: (taskId?: string) => void;
   openAppeal: (executionId: string) => void;
 };
+
+type FaceVerificationFormValues = FaceVerificationIdentity;
 
 function showRequestError(error: unknown, fallback: string, prefix = "") {
   if (isGlobalAuthError(error)) return;
@@ -1112,10 +1115,13 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
     return () => window.clearInterval(intervalId);
   }, [agreementOpen]);
 
-  const openFaceVerification = async () => {
+  const openFaceVerification = async (values: FaceVerificationFormValues) => {
     setSubmitting(true);
     try {
-      const verificationSession = await initializeRemoteFaceVerification();
+      const verificationSession = await initializeRemoteFaceVerification({
+        realName: values.realName.trim(),
+        idCardNo: values.idCardNo.trim()
+      });
       setFaceVerificationSession(verificationSession);
       setFaceVerificationOpen(true);
     } catch (error) {
@@ -1182,14 +1188,25 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
               <p className="mt-2 text-sm leading-7 text-ink-soft">
                 用于确认接单服务主体，保障任务执行、收益归属和争议处理准确性。请使用支付宝扫码完成核验，完成后返回本页确认结果。
               </p>
-              <ActionButton
-                className="mt-4"
-                disabled={submitting}
-                loading={submitting}
-                onClick={openFaceVerification}
+              <Form
+                layout="vertical"
+                className="mt-5 max-w-xl"
+                onFinish={openFaceVerification}
               >
-                开始支付宝人脸核验
-              </ActionButton>
+                <Form.Item label="真实姓名" name="realName" rules={[{ required: true, whitespace: true, message: "请输入真实姓名" }]}>
+                  <Input autoComplete="name" placeholder="请输入身份证姓名" />
+                </Form.Item>
+                <Form.Item label="身份证号" name="idCardNo" rules={[{ required: true, whitespace: true, message: "请输入身份证号" }]}>
+                  <Input autoComplete="off" placeholder="请输入本人身份证号" />
+                </Form.Item>
+                <ActionButton
+                  htmlType="submit"
+                  disabled={submitting}
+                  loading={submitting}
+                >
+                  开始支付宝人脸核验
+                </ActionButton>
+              </Form>
             </>
           )}
           {step === 1 && (
