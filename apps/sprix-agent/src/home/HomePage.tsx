@@ -4,8 +4,8 @@ import { useNavigate } from "react-router-dom";
 import type { Agent, AgentEvaluation } from "../types";
 import { useSprixStore } from "../store/sprixStore";
 import {
-  getCurrentAgentFromAgents,
   markRemoteCurrentAgent,
+  readCurrentRemoteAgent,
   readLatestRemoteAgentEvaluation,
   readRemoteAgentEvaluation,
   readRemoteAgents,
@@ -60,8 +60,11 @@ export function HomePage({ openLogin, onLogout }: HomePageProps) {
   const availableAgents = useMemo(() => agents.filter((agent) => agent.status !== "离线"), [agents]);
 
   const refreshAgents = useCallback(async (preferredCurrentAgent?: Agent) => {
-    const refreshedAgents = await readRemoteAgents();
-    mergeRemoteState({ agents: refreshedAgents, currentAgent: getCurrentAgentFromAgents(refreshedAgents) ?? preferredCurrentAgent });
+    const [refreshedAgents, refreshedCurrentAgent] = await Promise.all([
+      readRemoteAgents(),
+      readCurrentRemoteAgent().catch(() => undefined)
+    ]);
+    mergeRemoteState({ agents: refreshedAgents, currentAgent: refreshedCurrentAgent ?? preferredCurrentAgent });
   }, [mergeRemoteState]);
 
   const markCurrentAfterCompletedEvaluation = useCallback(

@@ -38,11 +38,32 @@ vi.mock("../services/sprixApi", () => ({
 
 function renderLoginModal() {
   const queryClient = new QueryClient();
-  render(
+  return render(
     <QueryClientProvider client={queryClient}>
       <AuthModal open onClose={vi.fn()} />
     </QueryClientProvider>
   );
+}
+
+function renderLoginModalWithOpen(open: boolean) {
+  const queryClient = new QueryClient();
+  const onClose = vi.fn();
+  const view = render(
+    <QueryClientProvider client={queryClient}>
+      <AuthModal open={open} onClose={onClose} />
+    </QueryClientProvider>
+  );
+
+  return {
+    ...view,
+    onClose,
+    rerenderOpen: (nextOpen: boolean) =>
+      view.rerender(
+        <QueryClientProvider client={queryClient}>
+          <AuthModal open={nextOpen} onClose={onClose} />
+        </QueryClientProvider>
+      )
+  };
 }
 
 describe("AuthModal phone login", () => {
@@ -121,7 +142,38 @@ describe("AuthModal phone login", () => {
     renderLoginModal();
 
     expect(await screen.findByText("支付宝验证成功")).toBeTruthy();
-    expect(screen.getByText("为了保障账号安全，请绑定手机号")).toBeTruthy();
+    expect(screen.getByText("绑定手机号后即可完成登录。")).toBeTruthy();
     expect(screen.getByRole("button", { name: "完成绑定并登录" })).toBeTruthy();
+  });
+
+  it("resets an unfinished Alipay phone binding flow after the login modal closes", async () => {
+    vi.mocked(readAlipayLoginStatus).mockResolvedValue({
+      sessionId: "alipay-session",
+      status: "PHONE_BIND_REQUIRED",
+      expiresInSeconds: 240,
+      authenticated: false,
+      phoneBindRequired: true,
+      provider: "ALIPAY",
+      bindTicket: "bind-ticket-1"
+    });
+
+    const view = renderLoginModalWithOpen(true);
+
+    expect(await screen.findByText("支付宝验证成功")).toBeTruthy();
+
+    view.rerenderOpen(false);
+    vi.mocked(readAlipayLoginStatus).mockResolvedValue({
+      sessionId: "alipay-session",
+      status: "PENDING",
+      expiresInSeconds: 240,
+      authenticated: false,
+      phoneBindRequired: false
+    });
+    view.rerenderOpen(true);
+
+    await waitFor(() => {
+      expect(screen.queryByText("支付宝验证成功")).toBeNull();
+    });
+    expect(await screen.findByText("请使用支付宝扫码授权，确认后会自动进入平台")).toBeTruthy();
   });
 });

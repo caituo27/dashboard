@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button, Form, Input, message } from "antd";
+import { CheckCircle2 } from "lucide-react";
 import { ActionButton } from "../components/Primitives";
 import { showRequestError } from "../components/requestErrors";
 import {
@@ -98,10 +99,15 @@ export function PhoneBindPanel({ provider, bindTicket, onAuthenticated }: PhoneB
   };
 
   return (
-    <div className="w-full pb-4 pt-6">
-      <div className="mb-5 text-center">
-        <p className="m-0 text-base font-semibold text-ink">{providerLabel}验证成功</p>
-        <p className="m-0 mt-2 text-sm leading-6 text-ink-soft">为了保障账号安全，请绑定手机号</p>
+    <div className="sprix-phone-bind-panel">
+      <div className="sprix-phone-bind-status">
+        <span>
+          <CheckCircle2 size={18} />
+        </span>
+        <div>
+          <strong>{providerLabel}验证成功</strong>
+          <p>绑定手机号后即可完成登录。</p>
+        </div>
       </div>
       <Form form={form} layout="vertical" onFinish={submit} className="sprix-phone-login-form space-y-2">
         <Form.Item label="手机号" name="phone" rules={[{ required: true, message: "请输入手机号" }]}>

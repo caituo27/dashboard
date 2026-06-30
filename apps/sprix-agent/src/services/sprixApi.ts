@@ -106,6 +106,16 @@ export type AlipayLoginStatus = {
   bindTicket?: string;
 };
 
+export type ThirdPartyLoginCallbackStatus = {
+  provider: "ALIPAY" | "WECHAT";
+  sessionId: string;
+  status: string;
+  expiresInSeconds: number;
+  authenticated: boolean;
+  phoneBindRequired: boolean;
+  bindTicket?: string;
+};
+
 export type SmsCodeResponse = {
   mobile: string;
   expiresInSeconds: number;
@@ -275,6 +285,26 @@ export async function readWechatLoginStatus(sessionId: string): Promise<WechatLo
   };
 }
 
+export async function confirmWechatLoginCallback(code: string, state: string): Promise<ThirdPartyLoginCallbackStatus> {
+  const response = await authApi.wechatScanCallback({ code, state });
+  const scanStatus = requireValue<WechatScanStatusResponse>(response, "微信扫码回调处理失败");
+  const token = scanStatus.token?.token;
+
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+  }
+
+  return {
+    provider: "WECHAT",
+    sessionId: scanStatus.sessionId ?? state,
+    status: scanStatus.status ?? "CONFIRMED",
+    expiresInSeconds: scanStatus.expiresInSeconds ?? 0,
+    authenticated: Boolean(token),
+    phoneBindRequired: Boolean((scanStatus as WechatScanStatusResponse & { phoneBindRequired?: boolean }).phoneBindRequired),
+    bindTicket: (scanStatus as WechatScanStatusResponse & { bindTicket?: string }).bindTicket
+  };
+}
+
 export async function createAlipayLoginSession(): Promise<AlipayLoginSession> {
   const response = await authApi.createAlipayLoginSession();
   const session = requireValue<AlipayLoginSessionResponse>(response, "支付宝登录二维码不可用");
@@ -288,6 +318,26 @@ export async function createAlipayLoginSession(): Promise<AlipayLoginSession> {
     qrPayload: session.qrPayload,
     expiresInSeconds: session.expiresInSeconds ?? 0,
     pollIntervalMs: Math.max(session.pollIntervalSeconds ?? 2, 1) * 1000
+  };
+}
+
+export async function confirmAlipayLoginCallback(authCode: string, state: string): Promise<ThirdPartyLoginCallbackStatus> {
+  const response = await authApi.alipayLoginCallback({ authCode, state });
+  const loginStatus = requireValue<AlipayLoginStatusResponse>(response, "支付宝登录回调处理失败");
+  const token = loginStatus.token?.token;
+
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+  }
+
+  return {
+    provider: "ALIPAY",
+    sessionId: loginStatus.sessionId ?? state,
+    status: loginStatus.status ?? "CONFIRMED",
+    expiresInSeconds: loginStatus.expiresInSeconds ?? 0,
+    authenticated: Boolean(token),
+    phoneBindRequired: Boolean((loginStatus as AlipayLoginStatusResponse & { phoneBindRequired?: boolean }).phoneBindRequired),
+    bindTicket: (loginStatus as AlipayLoginStatusResponse & { bindTicket?: string }).bindTicket
   };
 }
 
@@ -391,9 +441,10 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
     tasks = recommendedTasks;
   }
 
-  const accountResponse = await accountApi.current();
-  const [agentsResponse, myTasksResponse, withdrawableResponse, withdrawalAccountResponse] = await Promise.all([
+  const accountResponse = await accountApi.current1();
+  const [agentsResponse, currentAgentResponse, myTasksResponse, withdrawableResponse, withdrawalAccountResponse] = await Promise.all([
     optionalSnapshotRequest(() => agentApi.list1(), []),
+    optionalSnapshotRequest<AgentProfileResponse | undefined>(() => agentApi.current(), undefined),
     optionalSnapshotRequest(() => myTaskApi.list(), []),
     optionalSnapshotRequest<number | undefined>(() => earningsApi.withdrawable(), undefined),
     optionalSnapshotRequest<WithdrawalAccount | undefined>(() => accountApi.currentWithdrawalAccount(), undefined)
@@ -401,7 +452,7 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
 
   const account = accountResponse;
   const agents = listValue<RemoteAgentProfileResponse>(agentsResponse).map(mapAgent);
-  const currentAgent = getCurrentAgentFromAgents(agents);
+  const currentAgent = currentAgentResponse ? mapAgent(currentAgentResponse) : undefined;
   const taskById = new Map(tasks.map((task) => [task.id, task]));
   const agentById = new Map(agents.map((agent) => [agent.id, agent]));
   const myTasks = listValue<MyTaskExecutionDetail>(myTasksResponse).map((item) => mapMyTask(item, taskById, agentById));
@@ -450,12 +501,8 @@ export async function readRemoteAgents(): Promise<Agent[]> {
 }
 
 export async function readCurrentRemoteAgent(): Promise<Agent | undefined> {
-  const response = await agentApi.currentAgent();
+  const response = await agentApi.current();
   return response ? mapAgent(response) : undefined;
-}
-
-export function getCurrentAgentFromAgents(agents: Agent[]): Agent | undefined {
-  return agents.find((agent) => agent.role === "当前执行 Agent");
 }
 
 export async function disconnectRemoteAgent(agentId: string): Promise<Agent | undefined> {
@@ -586,8 +633,10 @@ function requireValue<T>(value: T | undefined, fallbackMessage: string): T {
   return value;
 }
 
-function listValue<T>(value: T[] | undefined | null): T[] {
-  return value ?? [];
+function listValue<T>(value: T[] | { content?: T[] | null } | undefined | null): T[] {
+  if (Array.isArray(value)) return value;
+  if (value && typeof value === "object" && Array.isArray(value.content)) return value.content;
+  return [];
 }
 
 function mapAccount(account: UserAccount): Partial<SprixState["account"]> {
@@ -745,6 +794,8 @@ function normalizeEvaluationResult(
 }
 
 function normalizeEvaluationDimensions(dimensions?: Record<string, RemoteAgentEvaluationDimension | null> | null): Record<string, AgentEvaluationDimension> {
+  if (!dimensions || typeof dimensions !== "object" || Array.isArray(dimensions)) return {};
+
   return Object.fromEntries(
     Object.entries(dimensions ?? {}).map(([key, value]) => [
       key,

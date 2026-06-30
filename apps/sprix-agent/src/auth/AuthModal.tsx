@@ -16,6 +16,7 @@ export function AuthModal({ open, onClose, onLoginSuccess }: AuthModalProps) {
   const queryClient = useQueryClient();
   const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
   const [activeTab, setActiveTab] = useState<AuthTabKey>("alipay");
+  const [authSessionKey, setAuthSessionKey] = useState(0);
 
   const completeLogin = useCallback(async () => {
     const remoteState = await readAgentSnapshot();
@@ -34,6 +35,9 @@ export function AuthModal({ open, onClose, onLoginSuccess }: AuthModalProps) {
   }, [mergeRemoteState, onClose, onLoginSuccess, queryClient]);
 
   useEffect(() => {
+    if (open) {
+      setAuthSessionKey((value) => value + 1);
+    }
     if (!open) {
       setActiveTab("alipay");
     }
@@ -41,7 +45,7 @@ export function AuthModal({ open, onClose, onLoginSuccess }: AuthModalProps) {
 
   return (
     <Modal title="登录 / 注册" open={open} onCancel={onClose} footer={null} width={520}>
-      <AuthTabs activeKey={activeTab} onChange={setActiveTab} onAuthenticated={completeLogin} />
+      {open && <AuthTabs key={authSessionKey} activeKey={activeTab} onChange={setActiveTab} onAuthenticated={completeLogin} />}
     </Modal>
   );
 }

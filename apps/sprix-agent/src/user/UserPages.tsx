@@ -10,8 +10,8 @@ import {
   acceptRemoteTask,
   completeRemoteFaceVerification,
   type FaceVerificationIdentity,
-  getCurrentAgentFromAgents,
   initializeRemoteFaceVerification,
+  readCurrentRemoteAgent,
   readLatestRemoteAgentEvaluation,
   markRemoteCurrentAgent,
   readRemoteAgents,
@@ -432,8 +432,11 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   const currentWithEvaluation = currentEvaluation && current ? { ...current, evaluation: currentEvaluation, score: currentEvaluation.result.overallScore ?? current.score } : current;
 
   const refreshAgents = useCallback(async (preferredCurrentAgent?: Agent) => {
-    const refreshedAgents = await readRemoteAgents();
-    mergeRemoteState({ agents: refreshedAgents, currentAgent: getCurrentAgentFromAgents(refreshedAgents) ?? preferredCurrentAgent });
+    const [refreshedAgents, refreshedCurrentAgent] = await Promise.all([
+      readRemoteAgents(),
+      readCurrentRemoteAgent().catch(() => undefined)
+    ]);
+    mergeRemoteState({ agents: refreshedAgents, currentAgent: refreshedCurrentAgent ?? preferredCurrentAgent });
   }, [mergeRemoteState]);
 
   const setCurrent = async (agent: Agent) => {
