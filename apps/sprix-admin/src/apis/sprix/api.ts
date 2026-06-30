@@ -775,6 +775,10 @@ export interface HeartbeatResponse {
     'minHeartbeatIntervalSeconds'?: number;
     'websocketRequired'?: boolean;
 }
+export interface InitializeFaceVerificationRequest {
+    'realName': string;
+    'idCardNo': string;
+}
 export interface LogsUploadRequest {
     'localTaskId'?: string;
     'stdout'?: string;
@@ -1386,10 +1390,13 @@ export const AccountControllerApiAxiosParamCreator = function (configuration?: C
         },
         /**
          * 
+         * @param {InitializeFaceVerificationRequest} initializeFaceVerificationRequest 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        initializeFaceVerification: async (options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+        initializeFaceVerification: async (initializeFaceVerificationRequest: InitializeFaceVerificationRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'initializeFaceVerificationRequest' is not null or undefined
+            assertParamExists('initializeFaceVerification', 'initializeFaceVerificationRequest', initializeFaceVerificationRequest)
             const localVarPath = `/api/v1/account/qualification/face-verification`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1402,11 +1409,13 @@ export const AccountControllerApiAxiosParamCreator = function (configuration?: C
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
 
+            localVarHeaderParameter['Content-Type'] = 'application/json';
             localVarHeaderParameter['Accept'] = '*/*';
 
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(initializeFaceVerificationRequest, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -1556,11 +1565,12 @@ export const AccountControllerApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @param {InitializeFaceVerificationRequest} initializeFaceVerificationRequest 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async initializeFaceVerification(options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseFaceVerificationSession>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.initializeFaceVerification(options);
+        async initializeFaceVerification(initializeFaceVerificationRequest: InitializeFaceVerificationRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseFaceVerificationSession>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.initializeFaceVerification(initializeFaceVerificationRequest, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AccountControllerApi.initializeFaceVerification']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -1650,11 +1660,12 @@ export const AccountControllerApiFactory = function (configuration?: Configurati
         },
         /**
          * 
+         * @param {AccountControllerApiInitializeFaceVerificationRequest} requestParameters Request parameters.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        initializeFaceVerification(options?: AxiosRequestConfig): AxiosPromise<ApiResponseFaceVerificationSession> {
-            return localVarFp.initializeFaceVerification(options).then((request) => request(axios, basePath));
+        initializeFaceVerification(requestParameters: AccountControllerApiInitializeFaceVerificationRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseFaceVerificationSession> {
+            return localVarFp.initializeFaceVerification(requestParameters.initializeFaceVerificationRequest, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -1697,6 +1708,13 @@ export interface AccountControllerApiCompleteAlipayBindSessionRequest {
  */
 export interface AccountControllerApiCreateAlipayBindSessionRequest {
     readonly createAlipayBindSessionRequest: CreateAlipayBindSessionRequest
+}
+
+/**
+ * Request parameters for initializeFaceVerification operation in AccountControllerApi.
+ */
+export interface AccountControllerApiInitializeFaceVerificationRequest {
+    readonly initializeFaceVerificationRequest: InitializeFaceVerificationRequest
 }
 
 /**
@@ -1769,11 +1787,12 @@ export class AccountControllerApi extends BaseAPI {
 
     /**
      * 
+     * @param {AccountControllerApiInitializeFaceVerificationRequest} requestParameters Request parameters.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public initializeFaceVerification(options?: AxiosRequestConfig) {
-        return AccountControllerApiFp(this.configuration).initializeFaceVerification(options).then((request) => request(this.axios, this.basePath));
+    public initializeFaceVerification(requestParameters: AccountControllerApiInitializeFaceVerificationRequest, options?: AxiosRequestConfig) {
+        return AccountControllerApiFp(this.configuration).initializeFaceVerification(requestParameters.initializeFaceVerificationRequest, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

@@ -589,7 +589,7 @@ export async function readRemoteAlipayBindStatus(sessionId: string): Promise<Ali
 }
 
 export async function initializeRemoteFaceVerification(identity: FaceVerificationIdentity): Promise<FaceVerificationSession> {
-  const response = await accountApi.initializeFaceVerification({ data: identity });
+  const response = await accountApi.initializeFaceVerification({ initializeFaceVerificationRequest: identity });
   return requireValue<FaceVerificationSession>(response, "支付宝人脸核验初始化失败");
 }
 

@@ -2150,6 +2150,16 @@
           "account-controller"
         ],
         "operationId": "initializeFaceVerification",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InitializeFaceVerificationRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "OK",
@@ -5708,6 +5718,23 @@
             "format": "int64"
           }
         }
+      },
+      "InitializeFaceVerificationRequest": {
+        "type": "object",
+        "properties": {
+          "realName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "idCardNo": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "idCardNo",
+          "realName"
+        ]
       },
       "ApiResponseFaceVerificationSession": {
         "type": "object",
