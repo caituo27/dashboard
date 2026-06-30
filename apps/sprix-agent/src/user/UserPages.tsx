@@ -8,6 +8,7 @@ import type { Account, Agent, AgentEvaluation, MyTask, Task } from "../types";
 import { useSprixStore } from "../store/sprixStore";
 import {
   acceptRemoteTask,
+  cancelRemoteTask,
   completeRemoteFaceVerification,
   type FaceVerificationIdentity,
   initializeRemoteFaceVerification,
@@ -908,8 +909,31 @@ function AgentList({
 export function MyTasksPage({ openLogin, openAppeal }: UserPageProps) {
   const account = useSprixStore((state) => state.account);
   const myTasks = useSprixStore((state) => state.myTasks);
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState("全部");
+  const [cancelingTaskId, setCancelingTaskId] = useState<string>();
   const rerunTask = useRerunTask();
+  const cancelTask = (executionId: string) => {
+    Modal.confirm({
+      title: "确认终止任务",
+      content: "终止后本次执行会进入已终止状态，后续可在任务记录中重新执行。",
+      okText: "确认终止",
+      okButtonProps: { danger: true },
+      cancelText: "取消",
+      onOk: async () => {
+        setCancelingTaskId(executionId);
+        try {
+          await cancelRemoteTask(executionId);
+          await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
+          message.success("任务已终止");
+        } catch (error) {
+          showRequestError(error, "任务终止失败", "任务终止失败：");
+        } finally {
+          setCancelingTaskId(undefined);
+        }
+      }
+    });
+  };
   const visible = myTasks.filter((task) => {
     if (tab === "全部") return true;
     if (tab === "已完成") return ["验收未通过", "结算中", "已结算"].includes(task.status);
@@ -928,7 +952,14 @@ export function MyTasksPage({ openLogin, openAppeal }: UserPageProps) {
         {visible.length > 0 ? (
           <div className="mt-5 space-y-3">
             {visible.map((task) => (
-              <MyTaskRow key={task.id} task={task} onAppeal={openAppeal} onRerun={rerunTask} />
+              <MyTaskRow
+                key={task.id}
+                task={task}
+                canceling={cancelingTaskId === task.id}
+                onAppeal={openAppeal}
+                onCancel={cancelTask}
+                onRerun={rerunTask}
+              />
             ))}
           </div>
         ) : (
@@ -959,7 +990,19 @@ function MyTasksEmptyState({ tab, hasAnyTask }: { tab: string; hasAnyTask: boole
   );
 }
 
-function MyTaskRow({ task, onAppeal, onRerun }: { task: MyTask; onAppeal: (executionId: string) => void; onRerun: (executionId: string) => void }) {
+function MyTaskRow({
+  task,
+  canceling,
+  onAppeal,
+  onCancel,
+  onRerun
+}: {
+  task: MyTask;
+  canceling: boolean;
+  onAppeal: (executionId: string) => void;
+  onCancel: (executionId: string) => void;
+  onRerun: (executionId: string) => void;
+}) {
   const actions = getMyTaskActions(task);
   const metaItems = getMyTaskMetaItems(task);
   return (
@@ -982,7 +1025,11 @@ function MyTaskRow({ task, onAppeal, onRerun }: { task: MyTask; onAppeal: (execu
             {actions.appealLabel}
           </ActionButton>
         )}
-        {actions.terminateLabel && <SecondaryButton disabled={!actions.terminateEnabled}>{actions.terminateLabel}</SecondaryButton>}
+        {actions.terminateLabel && (
+          <SecondaryButton danger disabled={!actions.terminateEnabled || canceling} loading={canceling} onClick={() => actions.terminateEnabled && onCancel(task.id)}>
+            {actions.terminateLabel}
+          </SecondaryButton>
+        )}
         {actions.rerun && <SecondaryButton onClick={() => onRerun(task.id)}>重新执行</SecondaryButton>}
         <SecondaryButton href={`/agent/my-tasks/${task.id}`}>{actions.viewLabel}</SecondaryButton>
       </div>

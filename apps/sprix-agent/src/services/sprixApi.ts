@@ -584,6 +584,11 @@ export async function rerunRemoteTask(executionId: string): Promise<TaskExecutio
   return requireValue<TaskExecution>(response, "重新执行失败");
 }
 
+export async function cancelRemoteTask(executionId: string): Promise<TaskExecution> {
+  const response = await http.post<unknown, TaskExecution>(`/api/v1/my-tasks/${encodeURIComponent(executionId)}/cancel`);
+  return requireValue<TaskExecution>(response, "任务终止失败");
+}
+
 export async function readRemoteMyTaskDetail(executionId: string): Promise<MyTaskExecutionDetail> {
   const response = await myTaskApi.detail2({ executionId });
   return requireValue<MyTaskExecutionDetail>(response, "任务执行详情不可用");

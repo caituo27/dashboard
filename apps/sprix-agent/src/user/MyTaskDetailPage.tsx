@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { Collapse, Spin, message } from "antd";
+import { Collapse, Modal, Spin, message } from "antd";
 import type { CollapseProps } from "antd";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { RotateCw } from "lucide-react";
 import type { ArtifactSnapshot, MyTaskExecutionDetail } from "../apis/sprix";
 import { ActionButton, EmptyState, SecondaryButton, SoftTag, StatusTag, Surface } from "../components/Primitives";
-import { readRemoteMyTaskDetail } from "../services/sprixApi";
+import { cancelRemoteTask, readRemoteMyTaskDetail } from "../services/sprixApi";
 import { isGlobalAuthError } from "../utils/http";
 import { ArtifactDownloadButton } from "./ArtifactDownloadButton";
 import {
@@ -33,8 +34,10 @@ type MyTaskDetailPageProps = {
 export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
   const { id } = useParams();
   const rerunTask = useRerunTask();
+  const queryClient = useQueryClient();
   const [detail, setDetail] = useState<MyTaskExecutionDetail>();
   const [loading, setLoading] = useState(true);
+  const [canceling, setCanceling] = useState(false);
   const [error, setError] = useState("");
 
   const loadDetail = useCallback(
@@ -77,6 +80,34 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
     () => (summary ? getMyTaskActions({ status: summary.status, appealStatus: summary.appealStatus }) : undefined),
     [summary]
   );
+  const cancelTask = () => {
+    const executionId = detail?.id ?? id;
+    if (!executionId) return;
+
+    Modal.confirm({
+      title: "确认终止任务",
+      content: "终止后本次执行会进入已终止状态，后续可在任务记录中重新执行。",
+      okText: "确认终止",
+      okButtonProps: { danger: true },
+      cancelText: "取消",
+      onOk: async () => {
+        setCanceling(true);
+        try {
+          await cancelRemoteTask(executionId);
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ["sprix-agent"] }),
+            loadDetail(true)
+          ]);
+          message.success("任务已终止");
+        } catch (cancelError) {
+          if (isGlobalAuthError(cancelError)) return;
+          message.error(cancelError instanceof Error ? `任务终止失败：${cancelError.message}` : "任务终止失败");
+        } finally {
+          setCanceling(false);
+        }
+      }
+    });
+  };
 
   if (!id) {
     return <EmptyState title="执行记录不存在" description="缺少执行记录 ID，无法读取任务详情。" action={<SecondaryButton href="/agent/my-tasks">返回我的任务</SecondaryButton>} />;
@@ -143,6 +174,11 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
             <span>执行进度</span>
             <strong>{summary.progress}</strong>
           </div>
+          {actions?.terminateLabel && (
+            <SecondaryButton danger disabled={!actions.terminateEnabled || canceling} loading={canceling} onClick={cancelTask}>
+              {actions.terminateLabel}
+            </SecondaryButton>
+          )}
           {actions?.rerun && (
             <SecondaryButton icon={<RotateCw size={15} />} onClick={() => rerunTask(detail.id ?? id)}>
               重新执行

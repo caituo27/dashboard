@@ -141,8 +141,8 @@ export function getMyTaskActions(task: Pick<MyTask, "status" | "appealStatus">) 
   return {
     appealLabel,
     appealEnabled: Boolean(isFailed && appealLabel === "申诉" && !appealReadonly),
-    terminateLabel: task.status === "执行中" ? "终止执行（待接口）" : undefined,
-    terminateEnabled: false,
+    terminateLabel: task.status === "执行中" ? "终止执行" : undefined,
+    terminateEnabled: task.status === "执行中",
     rerun: task.status === "已终止" || isFailed,
     viewLabel: isSettled ? "查看验收结果" : "查看任务"
   };
