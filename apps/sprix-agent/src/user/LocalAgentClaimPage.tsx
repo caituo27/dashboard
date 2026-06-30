@@ -4,7 +4,6 @@ import { useSearchParams } from "react-router-dom";
 import { AuthModal } from "../auth/AuthModal";
 import { buildLocalAgentClaimUrl, createLocalAgentEnrollment, hasStoredAuthToken } from "../services/sprixApi";
 import { isGlobalAuthError } from "../utils/http";
-import { getLocalAgentClaimReturnState } from "./localAgentClaimView";
 
 type ClaimStatus = "checking" | "login-required" | "enrolling" | "redirecting" | "invalid" | "failed";
 
@@ -16,7 +15,6 @@ export function LocalAgentClaimPage() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const enrollmentStartedRef = useRef(false);
-  const returnState = getLocalAgentClaimReturnState();
 
   const redirectToBackendClaim = (nextEnrollmentToken: string) => {
     const claimUrl = buildLocalAgentClaimUrl(claimToken, nextEnrollmentToken);
@@ -125,10 +123,6 @@ export function LocalAgentClaimPage() {
             }
           />
         )}
-        <div className="mt-4 rounded-2xl bg-[#fafafa] p-4 text-left text-sm leading-7 text-ink-soft">
-          <b className="block text-ink">{returnState.title}</b>
-          <span>{returnState.description}</span>
-        </div>
       </section>
 
       <AuthModal

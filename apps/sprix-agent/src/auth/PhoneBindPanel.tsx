@@ -11,7 +11,15 @@ import {
 } from "../services/sprixApi";
 import { SafetyChallengeModal } from "./SafetyChallengeModal";
 import type { QrLoginProvider } from "./authTypes";
-import { phoneNumberRules, smsCodeRules, verificationCodeMaxLength } from "./phoneValidation";
+import {
+  getPhoneNumberValidationMessage,
+  normalizePhoneNumber,
+  phoneNumberMaxLength,
+  phoneNumberRules,
+  smsCodeRules,
+  verificationCodeLength,
+  verificationCodeMaxLength
+} from "./phoneValidation";
 
 type PhoneBindForm = {
   phone: string;
@@ -44,7 +52,14 @@ export function PhoneBindPanel({ provider, bindTicket, onAuthenticated }: PhoneB
 
   const requestCode = async () => {
     try {
-      await form.validateFields(["phone"]);
+      const { phone: rawPhone } = await form.validateFields(["phone"]);
+      const phone = normalizePhoneNumber(rawPhone);
+      const phoneError = getPhoneNumberValidationMessage(phone);
+      if (phoneError) {
+        form.setFields([{ name: "phone", errors: [phoneError] }]);
+        return;
+      }
+      form.setFieldValue("phone", phone);
       setSending(true);
       setChallenge(await createSafetyChallenge("PHONE_BIND"));
       setChallengeAnswer("");
@@ -67,10 +82,14 @@ export function PhoneBindPanel({ provider, bindTicket, onAuthenticated }: PhoneB
       setChallengeError("请输入验证码");
       return;
     }
+    if (challengeAnswer.trim().length < verificationCodeLength) {
+      setChallengeError("请输入 4 位图形验证码");
+      return;
+    }
     setChallengeError("");
     setSending(true);
     try {
-      const phone = form.getFieldValue("phone");
+      const phone = normalizePhoneNumber(form.getFieldValue("phone"));
       const result = await sendPhoneBindSmsCode({
         bindTicket,
         mobile: phone,
@@ -102,9 +121,15 @@ export function PhoneBindPanel({ provider, bindTicket, onAuthenticated }: PhoneB
   };
 
   const submit = async (values: PhoneBindForm) => {
+    const phone = normalizePhoneNumber(values.phone);
+    const phoneError = getPhoneNumberValidationMessage(phone);
+    if (phoneError) {
+      form.setFields([{ name: "phone", errors: [phoneError] }]);
+      return;
+    }
     setSubmitting(true);
     try {
-      await confirmPhoneBind({ bindTicket, mobile: values.phone, code: values.code });
+      await confirmPhoneBind({ bindTicket, mobile: phone, code: values.code });
       await onAuthenticated();
     } catch (error) {
       showRequestError(error, "绑定手机号失败", "绑定手机号失败：");
@@ -126,7 +151,7 @@ export function PhoneBindPanel({ provider, bindTicket, onAuthenticated }: PhoneB
       </div>
       <Form form={form} layout="vertical" onFinish={submit} className="sprix-phone-login-form space-y-2">
         <Form.Item label="手机号" name="phone" rules={phoneNumberRules}>
-          <Input size="large" placeholder="请输入手机号" />
+          <Input size="large" placeholder="请输入手机号" maxLength={phoneNumberMaxLength} inputMode="tel" />
         </Form.Item>
         <Form.Item label="短信验证码" name="code" rules={smsCodeRules}>
           <Input

@@ -2,7 +2,7 @@ import { Button, Form, Input } from "antd";
 import { ActionButton } from "../components/Primitives";
 import { AgreementCheck } from "./AgreementCheck";
 import { SafetyChallengeModal } from "./SafetyChallengeModal";
-import { phoneNumberRules, smsCodeRules, verificationCodeMaxLength } from "./phoneValidation";
+import { phoneNumberMaxLength, phoneNumberRules, smsCodeRules, verificationCodeMaxLength } from "./phoneValidation";
 import { useSmsLogin } from "./useSmsLogin";
 
 type SmsLoginPanelProps = {
@@ -17,7 +17,7 @@ export function SmsLoginPanel({ active, onAuthenticated }: SmsLoginPanelProps) {
     <>
       <Form form={sms.form} layout="vertical" onFinish={sms.submit} className="sprix-phone-login-form space-y-2 pt-4">
         <Form.Item label="手机号" name="phone" rules={phoneNumberRules}>
-          <Input placeholder="请输入手机号" />
+          <Input placeholder="请输入手机号" maxLength={phoneNumberMaxLength} inputMode="tel" />
         </Form.Item>
         <Form.Item label="验证码" name="code" rules={smsCodeRules}>
           <Input

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Form, message } from "antd";
 import { authenticateConsumer, createSafetyChallenge, sendSmsCode, type SafetyChallenge } from "../services/sprixApi";
 import { showRequestError } from "../components/requestErrors";
+import { getPhoneNumberValidationMessage, normalizePhoneNumber, verificationCodeLength } from "./phoneValidation";
 
 export type PhoneLoginForm = {
   phone: string;
@@ -46,7 +47,14 @@ export function useSmsLogin({ active, onAuthenticated }: UseSmsLoginOptions) {
 
   const requestCode = async () => {
     try {
-      const { phone } = await form.validateFields(["phone"]);
+      const { phone: rawPhone } = await form.validateFields(["phone"]);
+      const phone = normalizePhoneNumber(rawPhone);
+      const phoneError = getPhoneNumberValidationMessage(phone);
+      if (phoneError) {
+        form.setFields([{ name: "phone", errors: [phoneError] }]);
+        return;
+      }
+      form.setFieldValue("phone", phone);
       setPendingPhone(phone);
       setSending(true);
       const nextChallenge = await createSafetyChallenge("SMS_LOGIN");
@@ -69,6 +77,10 @@ export function useSmsLogin({ active, onAuthenticated }: UseSmsLoginOptions) {
     }
     if (!challengeAnswer.trim()) {
       setChallengeError("请输入验证码");
+      return;
+    }
+    if (challengeAnswer.trim().length < verificationCodeLength) {
+      setChallengeError("请输入 4 位图形验证码");
       return;
     }
     setChallengeError("");
@@ -114,9 +126,15 @@ export function useSmsLogin({ active, onAuthenticated }: UseSmsLoginOptions) {
       message.warning("请输入手机号和验证码");
       return;
     }
+    const phone = normalizePhoneNumber(values.phone);
+    const phoneError = getPhoneNumberValidationMessage(phone);
+    if (phoneError) {
+      form.setFields([{ name: "phone", errors: [phoneError] }]);
+      return;
+    }
     setSubmitting(true);
     try {
-      await authenticateConsumer(values.phone, values.code);
+      await authenticateConsumer(phone, values.code);
       await onAuthenticated();
     } catch (error) {
       showRequestError(error, "登录失败", "登录失败：");

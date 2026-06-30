@@ -2471,6 +2471,17 @@ select {
   color: #b42318;
 }
 
+.sprix-evaluation-step-hero.is-completed {
+  border-color: rgba(15, 118, 110, 0.14);
+  background: #ffffff;
+}
+
+.sprix-evaluation-step-hero.is-completed .sprix-evaluation-step-core {
+  width: 42px;
+  height: 42px;
+  background: rgba(240, 253, 250, 0.82);
+}
+
 .sprix-evaluation-step-copy {
   min-width: 0;
 }
@@ -2501,6 +2512,31 @@ select {
   color: var(--color-accent);
   font-size: 15px;
   font-weight: 860;
+}
+
+.sprix-evaluation-step-score {
+  min-width: 96px;
+  text-align: right;
+}
+
+.sprix-evaluation-step-score span {
+  display: block;
+  color: var(--color-ink-soft);
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1.2;
+}
+
+.sprix-evaluation-step-score strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--color-accent);
+  font-family: var(--font-number);
+  font-size: 28px;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-weight: 780;
+  line-height: 1;
 }
 
 .sprix-evaluation-step-track {
@@ -2632,15 +2668,50 @@ select {
   color: #b42318;
 }
 
-.sprix-evaluation-progress .sprix-evaluation-result {
+.sprix-evaluation-complete-list {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 14px;
-  align-items: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 18px;
   margin-top: 14px;
-  border: 1px solid rgba(15, 118, 110, 0.15);
-  background: rgba(240, 253, 250, 0.82);
-  padding: 18px 20px;
+}
+
+.sprix-evaluation-complete-item {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  padding: 8px 0;
+}
+
+.sprix-evaluation-complete-item > span {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.1);
+  color: var(--color-accent);
+}
+
+.sprix-evaluation-complete-item strong {
+  display: block;
+  color: var(--color-ink);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.sprix-evaluation-complete-item p {
+  margin: 3px 0 0;
+  color: var(--color-ink-soft);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.sprix-evaluation-progress .sprix-evaluation-result {
+  margin-top: 12px;
+  border-top: 1px solid var(--color-line);
+  padding-top: 12px;
 }
 
 .sprix-evaluation-progress .sprix-evaluation-result strong {
@@ -3174,6 +3245,11 @@ select {
     min-width: 0;
     min-height: auto;
     padding: 16px;
+  }
+
+  .sprix-execution-hero-side {
+    min-width: 0;
+    justify-items: stretch;
   }
 
   .sprix-hero-title {

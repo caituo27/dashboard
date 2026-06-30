@@ -176,19 +176,19 @@ describe("AuthModal phone login", () => {
     });
   });
 
-  it("limits login SMS verification code length before submitting", async () => {
+  it("requires a 4-digit login SMS verification code before submitting", async () => {
     renderLoginModal();
 
     fireEvent.click(screen.getByRole("tab", { name: "手机号验证码" }));
     fireEvent.change(screen.getByPlaceholderText("请输入手机号"), { target: { value: "13812345678" } });
     const codeInput = screen.getByPlaceholderText("请输入验证码");
 
-    expect(codeInput.getAttribute("maxlength")).toBe("6");
-    fireEvent.change(codeInput, { target: { value: "1234567" } });
+    expect(codeInput.getAttribute("maxlength")).toBe("4");
+    fireEvent.change(codeInput, { target: { value: "123" } });
     fireEvent.click(screen.getByRole("checkbox"));
     fireEvent.click(screen.getByRole("button", { name: "登录 / 注册" }));
 
-    expect(await screen.findByText("请输入 4-6 位数字验证码")).toBeTruthy();
+    expect(await screen.findByText("请输入完整验证码")).toBeTruthy();
     await waitFor(() => {
       expect(authenticateConsumer).not.toHaveBeenCalled();
     });

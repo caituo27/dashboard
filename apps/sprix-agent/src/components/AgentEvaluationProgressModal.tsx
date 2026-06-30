@@ -69,7 +69,10 @@ export function AgentEvaluationProgressModal({
 }: AgentEvaluationProgressModalProps) {
   const status = evaluation?.status ?? "running";
   const result = evaluation?.result;
+  const completedResult = result?.status === "completed" ? result : undefined;
   const isActive = loading || isEvaluationActive(status);
+  const isCompleted = status === "completed";
+  const hasResultDetails = Boolean(completedResult?.summary) || Boolean(completedResult?.improvements.length);
   const agentName = agent?.name ?? "Agent";
   const activeStepIndex = activeEvaluationStepIndex(evaluation, status);
   const activeStep = evaluationSteps[activeStepIndex];
@@ -93,54 +96,70 @@ export function AgentEvaluationProgressModal({
       <div className="sprix-evaluation-progress">
         {error && <p className="sprix-evaluation-error">{error}</p>}
 
-        <div className={`sprix-evaluation-step-hero ${isActive ? "is-active" : ""} ${status === "failed" ? "is-error" : ""}`}>
+        <div className={`sprix-evaluation-step-hero ${isActive ? "is-active" : ""} ${isCompleted ? "is-completed" : ""} ${status === "failed" ? "is-error" : ""}`}>
           <div className="sprix-evaluation-step-core">
             <span />
-            <Sparkles size={18} />
+            {isCompleted ? <Check size={18} /> : <Sparkles size={18} />}
           </div>
           <div className="sprix-evaluation-step-copy">
             <strong>{isActive ? `正在分析${activeStep.label}` : getStatusCopy(status, agentName)}</strong>
-            <p>{status === "completed" ? `${agentName} 已完成能力画像生成。` : status === "failed" ? "测评没有完成，请稍后重新发起。" : "Sprix 正在逐项完成 Agent 能力画像，完成后会自动生成综合评分和改进建议。"}</p>
+            <p>{isCompleted ? `${agentName} 已完成 6 项能力测评。` : status === "failed" ? "测评没有完成，请稍后重新发起。" : "Sprix 正在逐项完成 Agent 能力画像，完成后会自动生成综合评分和改进建议。"}</p>
           </div>
-          <div className="sprix-evaluation-step-count">
-            {status === "completed" ? "6/6" : `${activeStepIndex + 1}/6`}
-          </div>
-        </div>
-
-        <div className="sprix-evaluation-step-track">
-          {evaluationSteps.map((step, index) => {
-            const stepClass = evaluationStepClass(index, activeStepIndex, status);
-            const isDone = stepClass === "is-done";
-            return (
-              <div className={`sprix-evaluation-step ${stepClass}`} data-testid="evaluation-step" key={step.label}>
-                <div className="sprix-evaluation-step-dot">{isDone ? <Check size={14} /> : index + 1}</div>
-                <div className="sprix-evaluation-step-text">
-                  <span>{step.label}</span>
-                  <p>{index === activeStepIndex || isDone ? step.description : ""}</p>
-                </div>
-                <div className="sprix-evaluation-step-state">{evaluationStepState(index, activeStepIndex, status)}</div>
-              </div>
-            );
-          })}
-        </div>
-
-        {result?.status === "completed" && (
-          <div className="sprix-evaluation-result">
-            <div>
+          {isCompleted && completedResult && (
+            <div className="sprix-evaluation-step-score">
               <span>综合评分</span>
-              <strong>{scoreText(result.overallScore)}</strong>
+              <strong>{scoreText(completedResult.overallScore)}</strong>
             </div>
+          )}
+          {!isCompleted && <div className="sprix-evaluation-step-count">{`${activeStepIndex + 1}/6`}</div>}
+        </div>
+
+        {isCompleted ? (
+          <div className="sprix-evaluation-complete-list">
+            {evaluationSteps.map((step) => (
+              <div className="sprix-evaluation-complete-item" data-testid="evaluation-complete-item" key={step.label}>
+                <span>
+                  <Check size={14} />
+                </span>
+                <div>
+                  <strong>{step.label}</strong>
+                  <p>{step.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="sprix-evaluation-step-track">
+            {evaluationSteps.map((step, index) => {
+              const stepClass = evaluationStepClass(index, activeStepIndex, status);
+              const isDone = stepClass === "is-done";
+              return (
+                <div className={`sprix-evaluation-step ${stepClass}`} data-testid="evaluation-step" key={step.label}>
+                  <div className="sprix-evaluation-step-dot">{isDone ? <Check size={14} /> : index + 1}</div>
+                  <div className="sprix-evaluation-step-text">
+                    <span>{step.label}</span>
+                    <p>{index === activeStepIndex || isDone ? step.description : ""}</p>
+                  </div>
+                  <div className="sprix-evaluation-step-state">{evaluationStepState(index, activeStepIndex, status)}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {hasResultDetails && (
+          <div className="sprix-evaluation-result is-compact">
             <div>
-              {result.summary && <p>{result.summary}</p>}
-              {result.improvements.length > 0 && (
+              {completedResult?.summary && <p>{completedResult.summary}</p>}
+              {completedResult?.improvements.length ? (
                 <div className="sprix-evaluation-result-tags">
-                  {result.improvements.slice(0, 4).map((item) => (
+                  {completedResult.improvements.slice(0, 4).map((item) => (
                     <SoftTag key={item} tone="amber">
                       {item}
                     </SoftTag>
                   ))}
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
         )}

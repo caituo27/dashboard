@@ -7,8 +7,8 @@ export function isSessionExpired(status: string, expiresInSeconds: number) {
 }
 
 export function getQrLoginStatusText(provider: QrLoginProvider, status: string, expiresInSeconds: number, hasSession: boolean) {
-  if (!hasSession) return provider === "alipay" ? "正在生成支付宝登录二维码" : "正在生成微信登录二维码";
   if (status === "ERROR") return "扫码状态获取失败，请刷新二维码";
+  if (!hasSession) return provider === "alipay" ? "正在生成支付宝登录二维码" : "正在生成微信登录二维码";
   if (isSessionExpired(status, expiresInSeconds)) return "二维码已更新，请重新扫码";
   const normalizedStatus = status.toUpperCase();
   if (provider === "wechat" && normalizedStatus === "SCANNED") return "已扫码，请在微信中确认登录";

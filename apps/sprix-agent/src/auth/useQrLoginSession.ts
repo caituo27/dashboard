@@ -28,12 +28,15 @@ export function useQrLoginSession({ provider, active, onAuthenticated }: UseQrLo
   const start = useCallback(async () => {
     if (!active) return;
     setLoading(true);
+    setSession(undefined);
+    setStatus("WAITING");
+    setExpiresInSeconds(0);
+    setBindTicket(undefined);
     try {
       const nextSession = provider === "alipay" ? await createAlipayLoginSession() : await createWechatLoginSession();
       setSession(nextSession);
       setStatus("PENDING");
       setExpiresInSeconds(nextSession.expiresInSeconds);
-      setBindTicket(undefined);
     } catch (error) {
       setStatus("ERROR");
       showRequestError(error, provider === "alipay" ? "支付宝登录失败" : "微信登录失败", provider === "alipay" ? "支付宝登录失败：" : "微信登录失败：");
@@ -51,10 +54,10 @@ export function useQrLoginSession({ provider, active, onAuthenticated }: UseQrLo
       setBindTicket(undefined);
       return;
     }
-    if (!session && !loading) {
+    if (!session && !loading && status !== "ERROR") {
       void start();
     }
-  }, [active, loading, session, start]);
+  }, [active, loading, session, start, status]);
 
   useEffect(() => {
     if (!active || !session) return;
@@ -102,5 +105,5 @@ export function useQrLoginSession({ provider, active, onAuthenticated }: UseQrLo
     };
   }, [active, onAuthenticated, provider, session, start]);
 
-  return { loading, session, status, expiresInSeconds, bindTicket };
+  return { loading, session, status, expiresInSeconds, bindTicket, refresh: start };
 }

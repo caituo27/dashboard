@@ -454,6 +454,7 @@ function useAcceptanceReviewActions(afterAction: () => Promise<unknown>) {
       title: "确认平台审核通过",
       content: "审核通过后将生成结算记录、自动入账，并直接发起平台支付宝打款。请确认用户已绑定可出款的支付宝账户。",
       okText: "审核通过",
+      cancelText: "取消",
       onOk: async () => {
         try {
           await approveRemoteAcceptanceReview(record.executionId);
@@ -470,6 +471,7 @@ function useAcceptanceReviewActions(afterAction: () => Promise<unknown>) {
       title: "确认平台审核不通过",
       content: "审核不通过后，用户任务将变为验收未通过，并可按现有规则发起申诉。",
       okText: "审核不通过",
+      cancelText: "取消",
       okButtonProps: { danger: true },
       onOk: async () => {
         try {
@@ -831,6 +833,7 @@ function AdminExecutionRecords({
       title: "确认平台审核通过",
       content: "审核通过后将生成结算记录、自动入账，并直接发起平台支付宝打款。请确认用户已绑定可出款的支付宝账户。",
       okText: "审核通过",
+      cancelText: "取消",
       onOk: async () => {
         try {
           await approveRemoteAcceptanceReview(record.executionId);
@@ -847,6 +850,7 @@ function AdminExecutionRecords({
       title: "确认平台审核不通过",
       content: "审核不通过后，用户任务将变为验收未通过，并可按现有规则发起申诉。",
       okText: "审核不通过",
+      cancelText: "取消",
       okButtonProps: { danger: true },
       onOk: async () => {
         try {
