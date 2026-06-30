@@ -1408,7 +1408,7 @@ function WithdrawalTable({
           { title: "手机号", dataIndex: "userPhone" },
           { title: "实人认证主体", dataIndex: "verifiedName" },
           { title: "支付宝账户", dataIndex: "alipayAccount" },
-          { title: "实名一致性状态", dataIndex: "realNameMatchStatus", render: (value) => <StatusTag status={value} /> },
+          { title: "收款账户状态", dataIndex: "realNameMatchStatus", render: (value) => <StatusTag status={value} /> },
           { title: "可提现余额", dataIndex: "withdrawableBalance", render: currency },
           { title: "申请提现金额", dataIndex: "applyAmount", render: currency },
           { title: "预计到账时间", dataIndex: "estimatedArrivalTime" },

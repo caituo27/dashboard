@@ -519,7 +519,7 @@ function mapWithdrawal(withdrawal: WithdrawalRecord): Withdrawal {
     userPhone: "-",
     verifiedName: "-",
     alipayAccount: withdrawal.alipayAccount ?? "-",
-    realNameMatchStatus: withdrawal.realNameMatchStatus === "PASSED" ? "已通过" : "未通过",
+    realNameMatchStatus: withdrawal.realNameMatchStatus === "PASSED" ? "可用" : "待授权",
     withdrawableBalance: withdrawal.amount ?? 0,
     applyAmount: withdrawal.amount ?? 0,
     estimatedArrivalTime: withdrawal.estimatedArrivalTime ?? "-",

@@ -233,7 +233,7 @@ export type Withdrawal = {
   userPhone: string;
   verifiedName: string;
   alipayAccount: string;
-  realNameMatchStatus: "已通过" | "未通过";
+  realNameMatchStatus: "可用" | "待授权";
   withdrawableBalance: number;
   applyAmount: number;
   estimatedArrivalTime: string;

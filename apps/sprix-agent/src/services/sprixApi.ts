@@ -665,7 +665,7 @@ export function mapRemoteWithdrawal(record: WithdrawalRecord): Withdrawal {
     userPhone: "",
     verifiedName: "-",
     alipayAccount: record.alipayAccount ?? "-",
-    realNameMatchStatus: record.realNameMatchStatus === "PASSED" ? "已通过" : "未通过",
+    realNameMatchStatus: record.realNameMatchStatus === "PASSED" ? "可用" : "待授权",
     withdrawableBalance: record.amount ?? 0,
     applyAmount: record.amount ?? 0,
     estimatedArrivalTime: record.estimatedArrivalTime ?? "-",
@@ -713,12 +713,13 @@ export function mapWithdrawalAccountState(account?: WithdrawalAccount | null): P
     };
   }
 
+  const payoutReady = Boolean(account.alipayUserId);
   return {
     alipayBound: true,
     alipayAccountMasked: account.alipayAccount ?? "",
     alipayVerifiedName: account.verifiedName ?? "",
-    alipayRealNameMatched: Boolean(account.realNameMatched),
-    withdrawAccountStatus: account.realNameMatched ? "可用" : "需更换"
+    alipayRealNameMatched: payoutReady,
+    withdrawAccountStatus: payoutReady ? "可用" : "需更换"
   };
 }
 

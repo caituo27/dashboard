@@ -83,7 +83,7 @@ export function BindAlipayModal({ open, onClose, afterBind }: BindAlipayModalPro
       style={{ top: 32 }}
       styles={{ body: { maxHeight: "calc(100vh - 128px)", overflowY: "auto" } }}
     >
-      <p className="mb-5 text-sm leading-7 text-ink-soft">为确保平台自动打款进入本人账户，请绑定与接单实人认证主体一致的支付宝账户。</p>
+      <p className="mb-5 text-sm leading-7 text-ink-soft">请绑定收款人授权的支付宝账户。平台后续按该授权账户自动打款，收款支付宝与登录支付宝可以不同。</p>
       <Form
         form={form}
         layout="vertical"
@@ -102,10 +102,10 @@ export function BindAlipayModal({ open, onClose, afterBind }: BindAlipayModalPro
           }
         }}
       >
-        <Form.Item label="认证姓名" name="verifiedName" rules={[{ required: true, message: "请输入实人认证姓名" }]}>
-          <Input placeholder="请输入与实人认证一致的姓名" />
+        <Form.Item label="收款人姓名" name="verifiedName" rules={[{ required: true, message: "请输入收款人姓名" }]}>
+          <Input placeholder="请输入收款人姓名" />
         </Form.Item>
-        <div className="mb-4 rounded-2xl bg-[#e7f7f2] px-4 py-3 text-sm text-accent">扫码授权后，后台将校验支付宝实名主体与接单实人认证主体是否一致。</div>
+        <div className="mb-4 rounded-2xl bg-[#e7f7f2] px-4 py-3 text-sm text-accent">扫码授权后，后台只保存收款支付宝账户，不会绑定或覆盖登录支付宝身份。</div>
         {session && (
           <div className="mb-4 space-y-3">
             <QrPayloadBox value={session.qrPayload} placeholder="同意协议后生成二维码" />
