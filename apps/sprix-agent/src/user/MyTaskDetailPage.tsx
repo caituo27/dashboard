@@ -2,11 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Collapse, Spin, message } from "antd";
 import type { CollapseProps } from "antd";
 import { Link, useParams } from "react-router-dom";
-import { Download, RotateCw } from "lucide-react";
+import { RotateCw } from "lucide-react";
 import type { ArtifactSnapshot, MyTaskExecutionDetail } from "../apis/sprix";
 import { ActionButton, EmptyState, SecondaryButton, SoftTag, StatusTag, Surface } from "../components/Primitives";
-import { getMyTaskArtifactDownloadHref, readRemoteMyTaskDetail } from "../services/sprixApi";
+import { readRemoteMyTaskDetail } from "../services/sprixApi";
 import { isGlobalAuthError } from "../utils/http";
+import { ArtifactDownloadButton } from "./ArtifactDownloadButton";
 import {
   formatBytes,
   formatDateTime,
@@ -258,7 +259,6 @@ function ArtifactsSection({ executionId, artifacts }: { executionId: string; art
         <div className="mt-4 space-y-3">
           {artifacts.map((artifact) => {
             const fileId = artifact.fileId ?? artifact.artifactId ?? "";
-            const href = fileId ? getMyTaskArtifactDownloadHref(executionId, fileId, artifact.downloadUrl) : undefined;
             return (
               <div key={artifact.artifactId ?? artifact.fileId ?? getArtifactTitle(artifact)} className="rounded-2xl border border-line bg-white px-4 py-3">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -269,11 +269,7 @@ function ArtifactsSection({ executionId, artifacts }: { executionId: string; art
                     </p>
                     {artifact.localRelativePath && <p className="mt-1 truncate text-xs text-ink-soft">{artifact.localRelativePath}</p>}
                   </div>
-                  {href && (
-                    <SecondaryButton href={href} target="_blank" rel="noreferrer" icon={<Download size={15} />}>
-                      下载
-                    </SecondaryButton>
-                  )}
+                  {fileId && <ArtifactDownloadButton executionId={executionId} artifact={artifact} fileId={fileId} />}
                 </div>
               </div>
             );

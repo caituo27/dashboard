@@ -592,6 +592,26 @@ export function getMyTaskArtifactDownloadHref(executionId: string, fileId: strin
   return `${API_BASE_URL}/api/v1/my-tasks/${encodeURIComponent(executionId)}/artifacts/${encodeURIComponent(fileId)}/download`;
 }
 
+function getMyTaskArtifactDownloadPath(executionId: string, fileId: string, downloadUrl?: string) {
+  const path = downloadUrl?.trim();
+  if (path) {
+    if (path.startsWith(API_BASE_URL)) {
+      const unprefixed = path.slice(API_BASE_URL.length);
+      return unprefixed.startsWith("/") ? unprefixed : `/${unprefixed}`;
+    }
+    return path.startsWith("/") || /^https?:\/\//.test(path) ? path : `/${path}`;
+  }
+
+  return `/api/v1/my-tasks/${encodeURIComponent(executionId)}/artifacts/${encodeURIComponent(fileId)}/download`;
+}
+
+export async function downloadRemoteMyTaskArtifact(executionId: string, fileId: string, downloadUrl?: string): Promise<Blob> {
+  return http.get<Blob, Blob>(getMyTaskArtifactDownloadPath(executionId, fileId, downloadUrl), {
+    responseType: "blob",
+    headers: { Accept: "application/octet-stream" }
+  });
+}
+
 export async function submitRemoteAppeal(executionId: string, reason: string): Promise<AppealRecord> {
   const response = await appealApi.submit({ submitAppealRequest: { executionId, reason } });
   return requireValue<AppealRecord>(response, "申诉提交失败");
