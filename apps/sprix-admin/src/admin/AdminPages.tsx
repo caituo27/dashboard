@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Key, ReactNode } from "react";
-import { Button, Form, Input, InputNumber, Modal, Segmented, Select, Table, Tabs, Tooltip, message } from "antd";
+import { Button, Form, Input, InputNumber, Modal, Select, Table, Tabs, Tooltip, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
@@ -77,33 +77,24 @@ function AdminDetailPage({ children }: { children: ReactNode }) {
   return <div className="sprix-detail-page">{children}</div>;
 }
 
-function splitAdminDetailTitle(title: string) {
-  const tags: string[] = [];
+function getAdminDetailDisplayTitle(title: string) {
   let displayTitle = title.trim();
   let match = displayTitle.match(/^\[([^\]]{1,48})\]/);
   while (match) {
-    tags.push(match[1]);
     displayTitle = displayTitle.slice(match[0].length).trim();
     match = displayTitle.match(/^\[([^\]]{1,48})\]/);
   }
-  return {
-    displayTitle: displayTitle || title,
-    tags
-  };
+  return displayTitle || title;
 }
 
 function AdminDetailHeading({
   title,
-  subtitle,
-  eyebrow,
   onBack
 }: {
   title: string;
-  subtitle?: string;
-  eyebrow: string;
   onBack: () => void;
 }) {
-  const { displayTitle, tags } = splitAdminDetailTitle(title);
+  const displayTitle = getAdminDetailDisplayTitle(title);
   return (
     <div className="sprix-detail-heading">
       <button className="sprix-detail-back" type="button" onClick={onBack} aria-label="返回">
@@ -111,14 +102,7 @@ function AdminDetailHeading({
         <span>返回</span>
       </button>
       <div className="min-w-0">
-        <div className="sprix-detail-meta-row">
-          <div className="sprix-page-kicker">{eyebrow}</div>
-          {tags.map((tag, index) => (
-            <span key={`${tag}-${index}`} className="sprix-detail-chip">{tag}</span>
-          ))}
-        </div>
         <h1 className="sprix-detail-title">{displayTitle}</h1>
-        {subtitle && <p className="sprix-page-subtitle">{subtitle}</p>}
       </div>
     </div>
   );
@@ -269,18 +253,23 @@ export function AdminTaskCenter() {
   };
   const taskColumns: ColumnsType<Task> = [
     {
-      title: "任务",
+      title: "任务名称",
       dataIndex: "title",
-      width: 320,
+      width: 360,
+      render: (value) => (
+        <span className="block max-w-[340px] whitespace-normal text-sm font-semibold leading-6 text-ink">
+          {value}
+        </span>
+      )
+    },
+    { title: "状态", dataIndex: "taskStatus", width: 110, render: (value) => <StatusTag status={value} /> },
+    {
+      title: "分类与来源",
+      width: 220,
       render: (_, task) => (
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold text-ink">{task.title}</span>
-            <StatusTag status={task.taskStatus} />
-          </div>
-          <div className="mt-1 text-xs text-ink-soft">
-            {task.category} · {task.sourceType}
-          </div>
+        <div className="grid gap-1 text-sm">
+          <span className="text-ink">{task.category}</span>
+          <span className="text-xs text-ink-soft">{task.sourceType}</span>
         </div>
       )
     },
@@ -302,7 +291,7 @@ export function AdminTaskCenter() {
     {
       title: "操作",
       fixed: "right",
-      width: 280,
+      width: 190,
       render: (_, task) => (
         <div className="sprix-task-action-group" onClick={(event) => event.stopPropagation()}>
           <TaskWriteButton action={editTaskFromListAction} onClick={() => confirmTaskAction(task, editTaskFromListAction)} />
@@ -339,22 +328,26 @@ export function AdminTaskCenter() {
         <MetricCard title="申诉记录" value={appealCount} icon={<ShieldCheck size={19} />} onClick={() => navigate("/appeals")} />
       </div>
       <Surface className="sprix-table-card p-4">
-        <div className="sprix-toolbar">
-          <div className="sprix-toolbar-row flex-col items-start lg:flex-row lg:items-center">
-            <h3 className="sprix-section-title">任务列表</h3>
-            <Input.Search className="max-w-[360px]" value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="搜索任务名称或分类" />
-          </div>
-          <Segmented options={["全部", "已发布", "已下线"]} value={tab} onChange={(value) => setTab(String(value))} />
-        </div>
-        <Table
-          rowKey="id"
-          columns={taskColumns}
-          dataSource={visibleTasks}
-          pagination={{ pageSize: 8 }}
-          scroll={{ x: 1180 }}
-          rowClassName="cursor-pointer"
-          locale={{ emptyText: "暂无任务" }}
-          onRow={(task) => ({ onClick: () => navigate(`/tasks/${task.id}`) })}
+        <Tabs
+          activeKey={tab}
+          onChange={(value) => selectTaskTab(String(value))}
+          tabBarExtraContent={<Input.Search className="sprix-table-tab-search" value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="搜索任务名称或分类" />}
+          items={["全部", "已发布", "已下线"].map((key) => ({
+            key,
+            label: key,
+            children: (
+              <Table
+                rowKey="id"
+                columns={taskColumns}
+                dataSource={visibleTasks}
+                pagination={{ pageSize: 8 }}
+                scroll={{ x: 1320 }}
+                rowClassName="cursor-pointer"
+                locale={{ emptyText: "暂无任务" }}
+                onRow={(task) => ({ onClick: () => navigate(`/tasks/${task.id}`) })}
+              />
+            )
+          }))}
         />
       </Surface>
     </>
@@ -395,11 +388,6 @@ export function AdminAcceptanceCenter() {
         <MetricCard title="执行用户" value={userCount} />
       </div>
       <Surface className="sprix-table-card p-4">
-        <div className="sprix-toolbar">
-          <div className="sprix-toolbar-row flex-col items-start lg:flex-row lg:items-center">
-            <h3 className="sprix-section-title">验收审核列表</h3>
-          </div>
-        </div>
         <AcceptanceReviewTable
           data={acceptanceReviews}
           showTask
@@ -438,7 +426,7 @@ export function AdminAcceptanceDetail() {
   if (!record) {
     return (
       <AdminDetailPage>
-        <AdminDetailHeading title="验收详情" subtitle="当前执行记录已处理或不存在。" eyebrow="平台验收中心" onBack={() => navigate("/acceptance")} />
+        <AdminDetailHeading title="验收详情" onBack={() => navigate("/acceptance")} />
         <Surface className="p-8 text-sm text-ink-soft">没有找到对应的待验收记录。</Surface>
       </AdminDetailPage>
     );
@@ -446,7 +434,7 @@ export function AdminAcceptanceDetail() {
 
   return (
     <AdminDetailPage>
-      <AdminDetailHeading title={record.taskTitle || "验收详情"} eyebrow="平台验收中心" onBack={() => navigate("/acceptance")} />
+      <AdminDetailHeading title={record.taskTitle || "验收详情"} onBack={() => navigate("/acceptance")} />
       <div className="mb-4 grid gap-3 md:grid-cols-4">
         <MetricCard title="验收状态" value={<StatusTag status={record.acceptanceStatus} />} icon={<ShieldCheck size={19} />} />
         <MetricCard title="验收评分" value={record.acceptanceScore} />
@@ -555,12 +543,15 @@ function LongTextBlock({ title, body }: { title: string; body: string }) {
 }
 
 function TaskWriteButton({ action, primary = false, onClick }: { action: AdminTaskWriteAction; primary?: boolean; onClick?: () => void }) {
-  const ButtonComponent = primary ? ActionButton : SecondaryButton;
   const label = action.kind === "edit" ? "编辑" : action.label;
-  const button = (
-    <ButtonComponent className={primary ? undefined : "sprix-task-action-button"} size={primary ? undefined : "small"} danger={action.danger} disabled={action.disabled} onClick={onClick}>
+  const button = primary ? (
+    <ActionButton danger={action.danger} disabled={action.disabled} onClick={onClick}>
       {label}
-    </ButtonComponent>
+    </ActionButton>
+  ) : (
+    <Button className="sprix-table-action-button" size="small" type="link" danger={action.danger} disabled={action.disabled} onClick={onClick}>
+      {label}
+    </Button>
   );
   if (!action.reason) return button;
   return (
@@ -783,22 +774,41 @@ export function AdminTaskDetail() {
   const operationLogs = taskDetailQuery.data?.operationLogs ?? [];
   if (!task) return <Surface className="p-8">任务不存在</Surface>;
   const estimatedToken = getAdminEstimatedTokenField();
+  const taskOverviewStats = [
+    ["执行中", records?.running.length ?? 0],
+    ["待平台审核", records?.reviewing.length ?? 0],
+    ["已终止", records?.terminated.length ?? 0],
+    ["已完成", records?.completed.length ?? 0],
+    ["申诉记录", records?.completed.filter((item) => item.appealStatus !== "无申诉").length ?? 0]
+  ];
   return (
     <AdminDetailPage>
-      <AdminDetailHeading title={task.title} subtitle="查看任务配置、执行用户、Agent 记录和结算概览。" eyebrow="任务管理中心" onBack={() => navigate("/tasks")} />
-      <Surface className="mb-4 p-4">
-        <div className="flex flex-wrap gap-2">
-          <StatusTag status={task.taskStatus} />
-          {task.offlineReason && <SoftTag tone="amber">下线原因：{task.offlineReason}</SoftTag>}
+      <AdminDetailHeading title={task.title} onBack={() => navigate("/tasks")} />
+      <Surface className="sprix-task-detail-summary mb-4 p-5">
+        <div className="sprix-task-summary-head">
+          <div className="sprix-task-status-line">
+            <StatusTag status={task.taskStatus} />
+            {task.offlineReason && <SoftTag tone="amber">下线原因：{task.offlineReason}</SoftTag>}
+          </div>
+          <div className="sprix-task-overview" aria-label="结算概况">
+            <dl className="sprix-task-overview-list">
+              {taskOverviewStats.map(([label, value]) => (
+                <div key={label} className="sprix-task-overview-item">
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
         </div>
-        <div className="mt-4 grid gap-2 text-sm text-ink-soft md:grid-cols-3">
-          <span>任务分类：{task.category}</span>
-          <span>任务来源名称：{task.sourceName}</span>
-          <span>任务来源类型：{task.sourceType}</span>
-          <span>任务奖励：{currency(task.reward)}</span>
-          <span>总名额：{task.totalSlots}</span>
-          <span>剩余名额：{task.remainingSlots}</span>
-          <span>预计消耗Token：{estimatedToken.value}</span>
+        <div className="sprix-task-detail-meta">
+          <span><strong>任务分类</strong>{task.category}</span>
+          <span><strong>任务来源名称</strong>{task.sourceName}</span>
+          <span><strong>任务来源类型</strong>{task.sourceType}</span>
+          <span><strong>任务奖励</strong>{currency(task.reward)}</span>
+          <span><strong>总名额</strong>{task.totalSlots}</span>
+          <span><strong>剩余名额</strong>{task.remainingSlots}</span>
+          <span><strong>预计消耗Token</strong>{estimatedToken.value}</span>
         </div>
       </Surface>
       <div className="mb-4 grid gap-4 xl:grid-cols-3">
@@ -808,23 +818,6 @@ export function AdminTaskDetail() {
       </div>
       <AdminExecutionRecords records={records} />
       <AdminOperationLogs logs={operationLogs} />
-      <Surface className="mt-4 p-4">
-        <h3 className="sprix-section-title">结果与结算概览</h3>
-        <div className="mt-3 grid gap-3 md:grid-cols-4">
-          {[
-            ["执行中", records?.running.length ?? 0],
-            ["待平台审核", records?.reviewing.length ?? 0],
-            ["已终止", records?.terminated.length ?? 0],
-            ["已完成", records?.completed.length ?? 0],
-            ["申诉记录", records?.completed.filter((item) => item.appealStatus !== "无申诉").length ?? 0]
-          ].map(([label, value]) => (
-            <div key={label} className="sprix-inline-stat">
-              <span>{label}</span>
-              <strong>{value}</strong>
-            </div>
-          ))}
-        </div>
-      </Surface>
     </AdminDetailPage>
   );
 }
@@ -1029,6 +1022,7 @@ export function AdminAppealCenter() {
     retry: 1
   });
   const [tab, setTab] = useState("全部");
+  const [keyword, setKeyword] = useState("");
   const [quickFilter, setQuickFilter] = useState<"none" | "today" | "done">("none");
   if (appealsQuery.isLoading) return <Surface className="p-8">申诉数据加载中</Surface>;
   if (appealsQuery.isError) {
@@ -1046,9 +1040,12 @@ export function AdminAppealCenter() {
     setQuickFilter("none");
   };
   const visible = appeals.filter((appeal) => {
-    if (quickFilter === "today") return appeal.submittedAt.includes(today);
-    if (quickFilter === "done") return ["申诉通过", "申诉不通过"].includes(appeal.appealStatus);
-    return tab === "全部" || appeal.appealStatus === tab;
+    if (quickFilter === "today" && !appeal.submittedAt.includes(today)) return false;
+    if (quickFilter === "done" && !["申诉通过", "申诉不通过"].includes(appeal.appealStatus)) return false;
+    if (quickFilter === "none" && tab !== "全部" && appeal.appealStatus !== tab) return false;
+    const query = keyword.trim();
+    if (!query) return true;
+    return `${appeal.appealNo}${appeal.taskTitle}${appeal.userName}${appeal.userPhone}${appeal.agentName}`.includes(query);
   });
   const stats = {
     pending: appeals.filter((item) => item.appealStatus === "待处理").length,
@@ -1073,54 +1070,61 @@ export function AdminAppealCenter() {
         <MetricCard title="平均处理时长" value="-" />
       </div>
       <Surface className="sprix-table-card p-4">
-        <div className="sprix-toolbar-row mb-3 flex-col items-start lg:flex-row lg:items-center">
-          <Segmented options={["全部", "待处理", "处理中", "申诉通过", "申诉不通过"]} value={tab} onChange={(value) => selectAppealTab(String(value))} />
-          <Input.Search className="max-w-[420px]" placeholder="搜索任务名称、用户手机号、Agent、申诉编号" />
-        </div>
-        <Table
-          rowKey="appealNo"
-          dataSource={visible}
-          pagination={{ pageSize: 6 }}
-          tableLayout="fixed"
-          scroll={{ x: 1320 }}
-          columns={[
-            { title: "申诉编号", dataIndex: "appealNo", width: 130, render: (value) => <EllipsisCell value={value} /> },
-            { title: "关联任务", dataIndex: "taskTitle", width: 190, render: (value) => <EllipsisCell value={value} /> },
-            { title: "提交用户", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
-            { title: "用户手机号", dataIndex: "userPhone", width: 130, render: (value) => <EllipsisCell value={value} /> },
-            { title: "执行 Agent", dataIndex: "agentName", width: 140, render: (value) => <EllipsisCell value={value} /> },
-            { title: "问题摘要", dataIndex: "issueSummary", width: 220, render: (value) => <EllipsisCell value={value} /> },
-            { title: "当前状态", dataIndex: "appealStatus", width: 120, render: (value) => <StatusTag status={value} /> },
-            { title: "优先级", dataIndex: "priority", width: 100, render: (value) => <EllipsisCell value={value} /> },
-            { title: "提交时间", dataIndex: "submittedAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
-            { title: "处理人", dataIndex: "handler", width: 130, render: (value) => <EllipsisCell value={value} /> },
-            {
-              title: "操作",
-              fixed: "right",
-              width: 150,
-              render: (_, record: AdminAppeal) => (
-                <div className="flex flex-nowrap items-center gap-1 whitespace-nowrap">
-                  <Button type="link" onClick={() => navigate(`/appeals/${getAppealBackendId(record)}`)}>查看详情</Button>
-                  {record.appealStatus === "待处理" && (
-                    <Button
-                      type="link"
-                      onClick={async () => {
-                        try {
-                          await startRemoteAppeal(getAppealBackendId(record));
-                          await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-                          message.success("已开始处理");
-                        } catch (error) {
-                          showRequestError(error, "开始处理失败", "开始处理失败：");
-                        }
-                      }}
-                    >
-                      开始处理
-                    </Button>
-                  )}
-                </div>
-              )
-            }
-          ]}
+        <Tabs
+          activeKey={tab}
+          onChange={(value) => selectAppealTab(String(value))}
+          tabBarExtraContent={<Input.Search className="sprix-table-tab-search" value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="搜索任务名称、用户手机号、Agent、申诉编号" />}
+          items={["全部", "待处理", "处理中", "申诉通过", "申诉不通过"].map((key) => ({
+            key,
+            label: key,
+            children: (
+              <Table
+                rowKey="appealNo"
+                dataSource={visible}
+                pagination={{ pageSize: 6 }}
+                tableLayout="fixed"
+                scroll={{ x: 1320 }}
+                columns={[
+                  { title: "申诉编号", dataIndex: "appealNo", width: 130, render: (value) => <EllipsisCell value={value} /> },
+                  { title: "关联任务", dataIndex: "taskTitle", width: 190, render: (value) => <EllipsisCell value={value} /> },
+                  { title: "提交用户", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
+                  { title: "用户手机号", dataIndex: "userPhone", width: 130, render: (value) => <EllipsisCell value={value} /> },
+                  { title: "执行 Agent", dataIndex: "agentName", width: 140, render: (value) => <EllipsisCell value={value} /> },
+                  { title: "问题摘要", dataIndex: "issueSummary", width: 220, render: (value) => <EllipsisCell value={value} /> },
+                  { title: "当前状态", dataIndex: "appealStatus", width: 120, render: (value) => <StatusTag status={value} /> },
+                  { title: "优先级", dataIndex: "priority", width: 100, render: (value) => <EllipsisCell value={value} /> },
+                  { title: "提交时间", dataIndex: "submittedAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
+                  { title: "处理人", dataIndex: "handler", width: 130, render: (value) => <EllipsisCell value={value} /> },
+                  {
+                    title: "操作",
+                    fixed: "right",
+                    width: 150,
+                    render: (_, record: AdminAppeal) => (
+                      <div className="flex flex-nowrap items-center gap-1 whitespace-nowrap">
+                        <Button type="link" onClick={() => navigate(`/appeals/${getAppealBackendId(record)}`)}>查看详情</Button>
+                        {record.appealStatus === "待处理" && (
+                          <Button
+                            type="link"
+                            onClick={async () => {
+                              try {
+                                await startRemoteAppeal(getAppealBackendId(record));
+                                await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+                                message.success("已开始处理");
+                              } catch (error) {
+                                showRequestError(error, "开始处理失败", "开始处理失败：");
+                              }
+                            }}
+                          >
+                            开始处理
+                          </Button>
+                        )}
+                      </div>
+                    )
+                  }
+                ]}
+              />
+            )
+          }))}
         />
       </Surface>
     </>
@@ -1145,7 +1149,6 @@ export function AdminAppealDetail() {
   }
   const appeal = appealDetailQuery.data;
   if (!appeal) return <Surface className="p-8">申诉不存在</Surface>;
-  const subtitle = [appeal.taskTitle, appeal.userName, appeal.expectedProcessTime].filter(Boolean).join(" · ");
   const baseInfo = [
     `当前状态：${appeal.appealStatus}`,
     `提交时间：${appeal.submittedAt}`,
@@ -1164,7 +1167,7 @@ export function AdminAppealDetail() {
   ].filter(Boolean).join("。");
   return (
     <AdminDetailPage>
-      <AdminDetailHeading title={appeal.appealNo} subtitle={subtitle} eyebrow="申诉处理中心" onBack={() => navigate("/appeals")} />
+      <AdminDetailHeading title={appeal.appealNo} onBack={() => navigate("/appeals")} />
       <div className="grid gap-4 xl:grid-cols-[1fr_380px]">
         <div className="space-y-4">
           <DetailBlock title="基本信息" body={baseInfo} />
@@ -1227,6 +1230,7 @@ export function AdminAppealDetail() {
 
 export function AdminFundCenter() {
   const queryClient = useQueryClient();
+  const [fundTab, setFundTab] = useState("settlements");
   const fundsQuery = useQuery({
     queryKey: ["sprix-admin", "funds"],
     queryFn: readRemoteFunds,
@@ -1388,6 +1392,7 @@ export function AdminFundCenter() {
       showRequestError(error, "打款清单导出失败", "打款清单导出失败：");
     }
   };
+  const payoutExportAction = getAdminPayoutExportAction();
   const markExceptionHandled = async (record: FundException) => {
     try {
       await markRemotePayoutExceptionHandled(getFundExceptionBackendId(record), "异常已处理，用户需更换收款账户");
@@ -1407,6 +1412,16 @@ export function AdminFundCenter() {
       </div>
       <Surface className="sprix-table-card p-4">
         <Tabs
+          activeKey={fundTab}
+          onChange={setFundTab}
+          tabBarExtraContent={
+            fundTab === "payouts" ? (
+              <div className="sprix-tab-extra-action">
+                <SecondaryButton disabled={payoutExportAction.disabled} onClick={exportPayouts}>{payoutExportAction.label}</SecondaryButton>
+                {payoutExportAction.reason && <span className="text-xs text-ink-soft">{payoutExportAction.reason}</span>}
+              </div>
+            ) : undefined
+          }
           items={[
             {
               key: "settlements",
@@ -1464,7 +1479,6 @@ export function AdminFundCenter() {
               children: (
                 <PendingPayoutTable
                   data={payouts}
-                  onExport={exportPayouts}
                   onPay={payPayout}
                   onQuery={queryPayout}
                   onReturnReview={returnPayoutForReview}
@@ -1622,7 +1636,6 @@ function WithdrawalTable({
 
 function PendingPayoutTable({
   data,
-  onExport,
   onPay,
   onQuery,
   onReturnReview,
@@ -1631,7 +1644,6 @@ function PendingPayoutTable({
   onMarkFailedBatch
 }: {
   data: Payout[];
-  onExport: () => Promise<void>;
   onPay: (payout: Payout) => void;
   onQuery: (payout: Payout) => Promise<void>;
   onReturnReview: (payout: Payout) => Promise<void>;
@@ -1641,7 +1653,6 @@ function PendingPayoutTable({
 }) {
   const [selectedKeys, setSelectedKeys] = useState<Key[]>([]);
   const selectedRecords = data.filter((item) => selectedKeys.includes(item.withdrawalNo));
-  const exportAction = getAdminPayoutExportAction();
   const batchActions = getAdminPayoutBatchActions({
     markPaid: async () => {
       await onMarkPaidBatch(selectedRecords);
@@ -1654,10 +1665,6 @@ function PendingPayoutTable({
   });
   return (
     <>
-      <div className="mb-3 flex flex-col items-end gap-2">
-        <SecondaryButton disabled={exportAction.disabled} onClick={onExport}>{exportAction.label}</SecondaryButton>
-        {exportAction.reason && <span className="text-xs text-ink-soft">{exportAction.reason}</span>}
-      </div>
       {selectedRecords.length > 0 && (
         <BatchActionBar
           label={`已选择 ${selectedRecords.length} 条待打款记录`}
