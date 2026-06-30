@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Form, Input, Modal, Progress, Segmented, Steps, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { Bot, BrainCircuit, PlugZap, UsersRound } from "lucide-react";
+import { Bot, BrainCircuit, ClipboardList, PlugZap, UsersRound } from "lucide-react";
 import type { FaceVerificationSession } from "../apis/sprix";
 import type { Account, Agent, AgentEvaluation, MyTask, Task } from "../types";
 import { useSprixStore } from "../store/sprixStore";
@@ -420,6 +420,12 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   const [evaluationLoading, setEvaluationLoading] = useState(false);
   const [evaluationError, setEvaluationError] = useState<string>();
   const currentWithEvaluation = currentEvaluation && current ? { ...current, evaluation: currentEvaluation, score: currentEvaluation.result.overallScore ?? current.score } : current;
+  const agentsWithCurrentEvaluation =
+    currentEvaluation && current
+      ? agents.map((agent) =>
+          agent.id === current.id ? { ...agent, evaluation: currentEvaluation, score: currentEvaluation.result.overallScore ?? agent.score } : agent
+        )
+      : agents;
 
   const refreshAgents = useCallback(async (preferredCurrentAgent?: Agent) => {
     const [remoteAgents, refreshedCurrentAgent] = await Promise.all([
@@ -918,13 +924,37 @@ export function MyTasksPage({ openLogin, openAppeal }: UserPageProps) {
       <PageHeader title="我的任务" subtitle="查看任务执行、验收、申诉和结算状态。" />
       <Surface className="p-5">
         <Segmented options={["全部", "执行中", "已终止", "已完成"]} value={tab} onChange={(value) => setTab(String(value))} />
-        <div className="mt-5 space-y-3">
-          {visible.map((task) => (
-            <MyTaskRow key={task.id} task={task} onAppeal={openAppeal} onRerun={rerunTask} />
-          ))}
-        </div>
+        {visible.length > 0 ? (
+          <div className="mt-5 space-y-3">
+            {visible.map((task) => (
+              <MyTaskRow key={task.id} task={task} onAppeal={openAppeal} onRerun={rerunTask} />
+            ))}
+          </div>
+        ) : (
+          <MyTasksEmptyState tab={tab} hasAnyTask={myTasks.length > 0} />
+        )}
       </Surface>
     </>
+  );
+}
+
+function MyTasksEmptyState({ tab, hasAnyTask }: { tab: string; hasAnyTask: boolean }) {
+  const isFilteredEmpty = hasAnyTask && tab !== "全部";
+  return (
+    <div className="mt-5 flex min-h-[360px] flex-col items-center justify-center rounded-[24px] border border-dashed border-line bg-[linear-gradient(180deg,#ffffff_0%,#f7fbff_100%)] px-6 py-12 text-center">
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10 text-accent shadow-[0_14px_32px_rgba(47,128,237,0.14)]">
+        <ClipboardList size={30} strokeWidth={1.8} />
+      </div>
+      <h3 className="mt-5 text-xl font-semibold text-ink">{isFilteredEmpty ? "当前筛选暂无任务" : "暂无任务记录"}</h3>
+      <p className="mt-2 max-w-[420px] text-sm leading-7 text-ink-soft">
+        {isFilteredEmpty ? "该状态下暂时没有任务记录，可切换到全部查看其它执行进度。" : "接取任务后，执行进度、验收结果、申诉和结算状态会在这里集中展示。"}
+      </p>
+      {!isFilteredEmpty && (
+        <div className="mt-6">
+          <SecondaryButton href="/agent/market">去任务市场</SecondaryButton>
+        </div>
+      )}
+    </div>
   );
 }
 

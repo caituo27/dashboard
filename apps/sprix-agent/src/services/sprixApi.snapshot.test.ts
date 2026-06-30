@@ -155,10 +155,10 @@ describe("readAgentSnapshot", () => {
       }
     });
 
-    const agents = await readRemoteAgents();
+    const result = await readRemoteAgents();
 
-    expect(agents.map((agent) => agent.name)).toEqual(["Codex Agent", "Claude Code Agent"]);
-    expect(agents[0]).toMatchObject({
+    expect(result.agents.map((agent) => agent.name)).toEqual(["Codex Agent", "Claude Code Agent"]);
+    expect(result.agents[0]).toMatchObject({
       role: "当前执行 Agent",
       score: 84,
       tags: ["软件开发", "网页生成", "代码修复"]
