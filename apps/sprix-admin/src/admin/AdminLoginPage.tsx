@@ -46,8 +46,8 @@ export function AdminLoginPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f7f7f5] px-5 py-8">
-      <div className="mx-auto flex min-h-[calc(100vh-64px)] max-w-[440px] flex-col justify-center">
+    <main className="min-h-[100dvh] bg-[#f7f7f5] px-5 py-8">
+      <div className="mx-auto flex min-h-[calc(100dvh-64px)] max-w-[440px] flex-col justify-center">
         <section className="rounded-[28px] border border-line bg-white p-8 shadow-soft">
           <div className="mb-8">
             <div className="sprix-title text-3xl text-ink">Sprix Admin</div>

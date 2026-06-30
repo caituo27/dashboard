@@ -84,7 +84,7 @@ export function LocalAgentClaimPage() {
   };
 
   return (
-    <main className="grid min-h-screen place-items-center px-5 py-10">
+    <main className="grid min-h-[100dvh] place-items-center px-5 py-10">
       <section className="sprix-card w-full max-w-[520px] px-6 py-8 text-center">
         {status === "invalid" && <Result status="warning" title="连接链接无效" subTitle="请重新从 LocalCLIAgent 打开连接。" />}
 

@@ -81,7 +81,7 @@ export function BindAlipayModal({ open, onClose, afterBind }: BindAlipayModalPro
       footer={null}
       width={520}
       style={{ top: 32 }}
-      styles={{ body: { maxHeight: "calc(100vh - 128px)", overflowY: "auto" } }}
+      styles={{ body: { maxHeight: "calc(100dvh - 128px)", overflowY: "auto" } }}
     >
       <p className="mb-5 text-sm leading-7 text-ink-soft">请绑定收款人授权的支付宝账户。平台后续按该授权账户自动打款，收款支付宝与登录支付宝可以不同。</p>
       <Form

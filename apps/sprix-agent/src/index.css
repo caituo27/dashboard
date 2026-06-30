@@ -129,15 +129,15 @@ select {
 .sprix-shell {
   position: relative;
   isolation: isolate;
-  min-height: 100vh;
   display: grid;
+  height: 100dvh;
+  min-height: 100vh;
+  overflow: hidden;
   grid-template-columns: 248px minmax(0, 1fr);
 }
 
 .sprix-sidebar {
-  position: sticky;
-  top: 16px;
-  height: calc(100vh - 32px);
+  height: calc(100dvh - 32px);
   margin: 16px 0 16px 16px;
   border: 1px solid rgba(236, 236, 234, 0.82);
   border-radius: 28px;
@@ -182,11 +182,16 @@ select {
 
 .sprix-main {
   min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 30px 32px 52px;
+  scrollbar-gutter: stable;
 }
 
 .sprix-container {
   width: min(1360px, 100%);
+  min-height: 100%;
   margin: 0 auto;
 }
 
@@ -1629,8 +1634,6 @@ select {
 }
 
 .sprix-output-error {
-  max-height: 112px;
-  overflow: auto;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
   border: 1px solid #ffd9d9;
@@ -1681,8 +1684,6 @@ select {
 }
 
 .sprix-output-code-block {
-  overflow: auto;
-  max-height: 260px;
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
@@ -3352,6 +3353,9 @@ select {
 @media (max-width: 860px) {
   .sprix-shell {
     display: block;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
   }
 
   .sprix-sidebar {
@@ -3366,6 +3370,7 @@ select {
   }
 
   .sprix-main {
+    overflow: visible;
     padding: 18px;
   }
 

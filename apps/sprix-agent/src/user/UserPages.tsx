@@ -1404,7 +1404,7 @@ function FreelancerAgreementModal({
       onCancel={onClose}
       footer={null}
       width={640}
-      styles={{ body: { maxHeight: "calc(100vh - 160px)", overflowY: "auto" } }}
+      styles={{ body: { maxHeight: "calc(100dvh - 160px)", overflowY: "auto" } }}
     >
       <div className="space-y-4 text-sm leading-7 text-ink-soft">
         <section className="rounded-2xl bg-[#fff7e8] px-4 py-3">
