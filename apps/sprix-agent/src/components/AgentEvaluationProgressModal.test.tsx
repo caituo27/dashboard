@@ -36,6 +36,7 @@ const runningEvaluation: AgentEvaluation = {
   },
   startedAt: "",
   completedAt: null,
+  lastEvaluatedAt: null,
   createdAt: "",
   updatedAt: ""
 };
@@ -62,13 +63,13 @@ describe("AgentEvaluationProgressModal", () => {
   it("shows a compact step track while the evaluation is running", () => {
     render(<AgentEvaluationProgressModal open agent={agent} evaluation={runningEvaluation} loading={false} onClose={vi.fn()} />);
 
-    expect(screen.getByText("正在分析任务理解")).toBeTruthy();
-    expect(screen.getByText("2/6")).toBeTruthy();
+    expect(screen.getByText("正在分析安全边界")).toBeTruthy();
+    expect(screen.getByText("1/6")).toBeTruthy();
 
     const steps = screen.getAllByTestId("evaluation-step");
     expect(steps).toHaveLength(6);
-    expect(within(steps[0]).getByText("已完成")).toBeTruthy();
-    expect(within(steps[1]).getByText("评测中")).toBeTruthy();
+    expect(within(steps[0]).getByText("评测中")).toBeTruthy();
+    expect(within(steps[1]).getByText("准备中")).toBeTruthy();
     expect(within(steps[2]).getByText("准备中")).toBeTruthy();
   });
 });

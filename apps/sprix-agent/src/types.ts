@@ -109,6 +109,7 @@ export type AgentEvaluation = {
   result: AgentEvaluationResult;
   startedAt: string;
   completedAt: string | null;
+  lastEvaluatedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };

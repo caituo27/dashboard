@@ -5,6 +5,7 @@ import {
   createRemoteAlipayBindSession,
   mapWithdrawalAccountState,
   readRemoteAlipayBindStatus,
+  readRemoteWithdrawalAccountState,
   type AlipayBindSession
 } from "../services/sprixApi";
 import { useSprixStore } from "../store/sprixStore";
@@ -47,8 +48,17 @@ export function BindAlipayModal({ open, onClose, afterBind }: BindAlipayModalPro
         if (cancelled) return;
         setStatus(bindStatus.status);
         setExpiresInSeconds(bindStatus.expiresInSeconds);
-        if (bindStatus.completed && bindStatus.withdrawalAccount) {
-          mergeRemoteState({ account: mapWithdrawalAccountState(bindStatus.withdrawalAccount) });
+        if (bindStatus.completed) {
+          let accountPatch = bindStatus.withdrawalAccount ? mapWithdrawalAccountState(bindStatus.withdrawalAccount) : {};
+          if (!bindStatus.withdrawalAccount) {
+            try {
+              accountPatch = await readRemoteWithdrawalAccountState();
+            } catch {
+              accountPatch = {};
+            }
+          }
+          if (cancelled) return;
+          mergeRemoteState({ account: accountPatch });
           await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
           message.success("收款支付宝绑定成功");
           onClose();
@@ -138,6 +148,10 @@ function getAlipayStatusText(status: string, expiresInSeconds: number, hasSessio
   if (!hasSession) return "生成二维码后使用支付宝扫码授权";
   if (status === "ERROR") return "扫码状态获取失败，请刷新二维码";
   if (isAlipaySessionExpired(status, expiresInSeconds)) return "二维码已过期，请刷新后重试";
-  if (status.toUpperCase() === "COMPLETED") return "绑定完成，正在同步账户状态";
+  if (isAlipayBindCompleted(status)) return "绑定完成，正在同步账户状态";
   return "请使用支付宝扫码授权，完成后会自动更新账户";
+}
+
+function isAlipayBindCompleted(status: string) {
+  return ["COMPLETED", "SUCCESS", "SUCCEEDED", "AUTHORIZED", "BOUND"].includes(status.toUpperCase());
 }

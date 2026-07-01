@@ -131,6 +131,24 @@ function downloadCsv(filename: string, rows: Array<Record<string, unknown>>) {
   return true;
 }
 
+function showFundRecordDetail(title: string, rows: Array<[string, ReactNode]>) {
+  Modal.info({
+    title,
+    width: 680,
+    okText: "关闭",
+    content: (
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        {rows.map(([label, value]) => (
+          <div key={label} className="rounded-lg border border-line bg-[#fafafa] px-3 py-2">
+            <p className="text-xs text-ink-soft">{label}</p>
+            <div className="mt-1 break-words text-sm font-medium text-ink">{value || "-"}</div>
+          </div>
+        ))}
+      </div>
+    )
+  });
+}
+
 const taskCategoryOptions = ["等待产品输入"].map((value) => ({ value, label: value }));
 const taskFormFields = ["title", "category", "sourceType", "description", "deliverables", "acceptanceCriteria", "reward", "totalSlots"] as const;
 const integerFieldRules = (label: string) => [
@@ -458,7 +476,7 @@ export function AdminAcceptanceDetail() {
           <h3 className="sprix-section-title">执行信息</h3>
           <InfoGrid
             rows={[
-              ["executionId", record.executionId],
+              ["执行记录ID", record.executionId],
               ["关联任务", record.taskTitle || "-"],
               ["任务分类", record.taskCategory || "-"],
               ["执行用户", record.userName],
@@ -594,7 +612,7 @@ function AcceptanceReviewTable({
     { title: "手机号", dataIndex: "phone", width: 140, render: (value) => <EllipsisCell value={value} /> },
     { title: "执行 Agent", dataIndex: "agentName", width: 160, render: (value) => <EllipsisCell value={value} /> },
     { title: "第几次执行", dataIndex: "executionIndex", width: 120, render: (value) => (value ? `第 ${value} 次` : "-") },
-    { title: "executionId", dataIndex: "executionId", width: 220, render: (value) => <EllipsisCell value={value ?? "-"} /> },
+    { title: "执行记录ID", dataIndex: "executionId", width: 220, render: (value) => <EllipsisCell value={value ?? "-"} /> },
     { title: "Agent 综合评分", dataIndex: "agentScore", width: 130 },
     { title: "验收状态", dataIndex: "acceptanceStatus", width: 140, render: (value) => <StatusTag status={value} /> },
     { title: "验收评分", dataIndex: "acceptanceScore", width: 110 },
@@ -797,7 +815,7 @@ export function AdminTaskDetail() {
     ["待平台审核", records?.reviewing.length ?? 0],
     ["已终止", records?.terminated.length ?? 0],
     ["已完成", records?.completed.length ?? 0],
-    ["申诉记录", records?.completed.filter((item) => item.appealStatus !== "无申诉").length ?? 0]
+    ["申诉记录", records?.completed.filter((item) => !["无申诉", "未申诉"].includes(item.appealStatus)).length ?? 0]
   ];
   return (
     <AdminDetailPage>
@@ -854,6 +872,7 @@ function AdminOperationLogs({ logs }: { logs: AdminOperationLog[] }) {
         scroll={{ x: 860 }}
         columns={[
           { title: "操作", dataIndex: "action" },
+          { title: "操作人", dataIndex: "operator" },
           { title: "变更前", dataIndex: "beforeStatus" },
           { title: "变更后", dataIndex: "afterStatus" },
           { title: "原因/备注", dataIndex: "reason" },
@@ -930,7 +949,7 @@ function AdminExecutionRecords({
     { title: "手机号", dataIndex: "phone" },
     { title: "执行 Agent", dataIndex: "agentName" },
     { title: "第几次执行", dataIndex: "executionIndex", render: (value) => (value ? `第 ${value} 次` : "-") },
-    { title: "executionId", dataIndex: "executionId", render: (value) => value ?? "-" },
+    { title: "执行记录ID", dataIndex: "executionId", render: (value) => value ?? "-" },
     { title: "执行状态", dataIndex: "status", render: (value) => <StatusTag status={value} /> },
     { title: "时间", dataIndex: "time" }
   ];
@@ -939,7 +958,7 @@ function AdminExecutionRecords({
     { title: "手机号", dataIndex: "phone" },
     { title: "执行 Agent", dataIndex: "agentName" },
     { title: "第几次执行", dataIndex: "executionIndex", render: (value) => (value ? `第 ${value} 次` : "-") },
-    { title: "executionId", dataIndex: "executionId", render: (value) => value ?? "-" },
+    { title: "执行记录ID", dataIndex: "executionId", render: (value) => value ?? "-" },
     { title: "Agent 综合评分", dataIndex: "agentScore" },
     { title: "当前节点", dataIndex: "currentNode" },
     { title: "当前进度", dataIndex: "progress" },
@@ -951,7 +970,7 @@ function AdminExecutionRecords({
     { title: "手机号", dataIndex: "phone" },
     { title: "执行 Agent", dataIndex: "agentName" },
     { title: "第几次执行", dataIndex: "executionIndex", render: (value) => (value ? `第 ${value} 次` : "-") },
-    { title: "executionId", dataIndex: "executionId", render: (value) => value ?? "-" },
+    { title: "执行记录ID", dataIndex: "executionId", render: (value) => value ?? "-" },
     { title: "终止原因", dataIndex: "terminationReason" },
     { title: "终止节点", dataIndex: "terminatedNode" },
     { title: "终止时间", dataIndex: "terminatedAt" },
@@ -962,7 +981,7 @@ function AdminExecutionRecords({
     { title: "手机号", dataIndex: "phone" },
     { title: "执行 Agent", dataIndex: "agentName" },
     { title: "第几次执行", dataIndex: "executionIndex", render: (value) => (value ? `第 ${value} 次` : "-") },
-    { title: "executionId", dataIndex: "executionId", render: (value) => value ?? "-" },
+    { title: "执行记录ID", dataIndex: "executionId", render: (value) => value ?? "-" },
     { title: "验收状态", dataIndex: "acceptanceStatus", render: (value) => <StatusTag status={value} /> },
     { title: "综合评分", dataIndex: "score" },
     { title: "申诉状态", dataIndex: "appealStatus", render: (value) => <StatusTag status={value} /> },
@@ -1177,7 +1196,7 @@ export function AdminAppealDetail() {
   const taskInfo = [
     `${appeal.taskTitle} · ${appeal.taskCategory}`,
     appeal.executionIndex ? `第 ${appeal.executionIndex} 次执行` : "",
-    appeal.executionId ? `executionId：${appeal.executionId}` : ""
+    appeal.executionId ? `执行记录ID：${appeal.executionId}` : ""
   ].filter(Boolean).join("。");
   const acceptanceInfo = [
     appeal.deliverables ? `交付标准：${appeal.deliverables}` : "",
@@ -1420,6 +1439,71 @@ export function AdminFundCenter() {
       showRequestError(error, "异常处理失败", "异常处理失败：");
     }
   };
+  const showSettlementDetail = (record: Settlement) => {
+    showFundRecordDetail("结算详情", [
+      ["结算单号", record.settlementNo],
+      ["关联任务", record.taskTitle],
+      ["用户昵称", record.userName],
+      ["手机号", record.userPhone],
+      ["执行 Agent", record.agentName],
+      ["任务收入", currency(record.taskIncome)],
+      ["平台服务费", currency(record.platformFee)],
+      ["实际入账", currency(record.netIncome)],
+      ["结算状态", <StatusTag status={record.settlementStatus} />],
+      ["生成时间", record.createdAt],
+      ["入账时间", record.paidAt],
+      ["关联执行/申诉", record.sourceAppealNo ?? "-"]
+    ]);
+  };
+  const showWithdrawalDetail = (record: Withdrawal) => {
+    showFundRecordDetail("提现详情", [
+      ["提现单号", record.withdrawalNo],
+      ["用户昵称", record.userName],
+      ["手机号", record.userPhone],
+      ["实人认证主体", record.verifiedName],
+      ["支付宝账户", record.alipayAccount],
+      ["收款账户状态", <StatusTag status={record.realNameMatchStatus} />],
+      ["可提现余额", currency(record.withdrawableBalance)],
+      ["申请提现金额", currency(record.applyAmount)],
+      ["预计到账时间", record.estimatedArrivalTime],
+      ["提现申请时间", record.appliedAt],
+      ["当前状态", <StatusTag status={record.withdrawStatus} />],
+      ["审核人", record.reviewer],
+      ["审核备注", record.reviewReason ?? "-"]
+    ]);
+  };
+  const showPayoutDetail = (record: Payout) => {
+    showFundRecordDetail("打款详情", [
+      ["提现单号", record.withdrawalNo],
+      ["用户昵称", record.userName],
+      ["手机号", record.userPhone],
+      ["支付宝账户", record.alipayAccount],
+      ["打款金额", currency(record.payoutAmount)],
+      ["预计到账时间", record.estimatedArrivalTime],
+      ["审核通过时间", record.approvedAt],
+      ["打款渠道", record.payoutProvider ?? "-"],
+      ["商户单号", record.payoutOutBizNo ?? "-"],
+      ["支付宝订单号", record.payoutOrderId ?? "-"],
+      ["支付宝状态", record.payoutStatus ?? "-"],
+      ["发起时间", record.payoutRequestedAt ?? "-"],
+      ["完成时间", record.payoutCompletedAt ?? "-"],
+      ["最近查询", record.payoutLastQueriedAt ?? "-"],
+      ["当前状态", <StatusTag status={record.withdrawStatus} />]
+    ]);
+  };
+  const showExceptionDetail = (record: FundException) => {
+    showFundRecordDetail("打款异常详情", [
+      ["异常编号", record.exceptionNo],
+      ["提现单号", record.withdrawalNo],
+      ["用户昵称", record.userName],
+      ["手机号", record.userPhone],
+      ["支付宝账户", record.alipayAccount],
+      ["异常类型", record.exceptionType],
+      ["异常金额", currency(record.exceptionAmount)],
+      ["当前状态", <StatusTag status={record.currentStatus} />],
+      ["发生时间", record.occurredAt]
+    ]);
+  };
   return (
     <>
       <PageHeader title="资金管理中心" subtitle="管理结算记录、提现审核、待打款、打款异常和资金流水。" />
@@ -1464,13 +1548,16 @@ export function AdminFundCenter() {
                     { title: "入账时间", dataIndex: "paidAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
                     {
                       title: "操作",
-                      width: 120,
+                      width: 180,
                       fixed: "right",
                       render: (_, record) => (
                         record.settlementStatus === "结算中" ? (
-                          <Button className="whitespace-nowrap" type="link" onClick={() => postSettlement(record)}>补录入账</Button>
+                          <div className="flex flex-wrap gap-1">
+                            <Button className="whitespace-nowrap" type="link" onClick={() => showSettlementDetail(record)}>查看详情</Button>
+                            <Button className="whitespace-nowrap" type="link" onClick={() => postSettlement(record)}>补录入账</Button>
+                          </div>
                         ) : (
-                          <PendingFundActionButton action={getAdminSettlementDetailAction()} />
+                          <PendingFundActionButton action={getAdminSettlementDetailAction(async () => showSettlementDetail(record))} />
                         )
                       )
                     }
@@ -1488,6 +1575,7 @@ export function AdminFundCenter() {
                   onApproveWithdrawals={approveWithdrawals}
                   onRejectWithdrawal={rejectWithdrawal}
                   onRejectWithdrawals={rejectWithdrawals}
+                  onViewWithdrawal={showWithdrawalDetail}
                 />
               )
             },
@@ -1503,6 +1591,7 @@ export function AdminFundCenter() {
                   onMarkFailed={markPayoutFailed}
                   onMarkPaidBatch={markPayoutsPaid}
                   onMarkFailedBatch={markPayoutsFailed}
+                  onViewPayout={showPayoutDetail}
                 />
               )
             },
@@ -1527,12 +1616,15 @@ export function AdminFundCenter() {
                     { title: "发生时间", dataIndex: "occurredAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
                     {
                       title: "操作",
-                      width: 120,
+                      width: 180,
                       fixed: "right",
                       render: (_, record) => (
-                        <Button type="link" disabled={record.currentStatus === "已处理"} onClick={() => markExceptionHandled(record)}>
-                          标记已处理
-                        </Button>
+                        <div className="flex flex-wrap gap-1">
+                          <Button type="link" onClick={() => showExceptionDetail(record)}>查看详情</Button>
+                          <Button type="link" disabled={record.currentStatus === "已处理"} onClick={() => markExceptionHandled(record)}>
+                            标记已处理
+                          </Button>
+                        </div>
                       )
                     }
                   ]}
@@ -1574,7 +1666,7 @@ export function AdminFundCenter() {
 function PendingFundActionButton({ action }: { action: AdminPendingFundAction }) {
   return (
     <Tooltip title={action.reason}>
-      <Button type="link" disabled>
+      <Button type="link" disabled={action.disabled} onClick={action.onClick}>
         {action.label}
       </Button>
     </Tooltip>
@@ -1586,13 +1678,15 @@ function WithdrawalTable({
   onApproveWithdrawal,
   onApproveWithdrawals,
   onRejectWithdrawal,
-  onRejectWithdrawals
+  onRejectWithdrawals,
+  onViewWithdrawal
 }: {
   data: Withdrawal[];
   onApproveWithdrawal: (withdrawal: Withdrawal) => Promise<void>;
   onApproveWithdrawals: (withdrawals: Withdrawal[]) => Promise<void>;
   onRejectWithdrawal: (withdrawal: Withdrawal) => Promise<void>;
   onRejectWithdrawals: (withdrawals: Withdrawal[]) => Promise<void>;
+  onViewWithdrawal: (withdrawal: Withdrawal) => void;
 }) {
   const [selectedKeys, setSelectedKeys] = useState<Key[]>([]);
   const selectedRecords = data.filter((item) => selectedKeys.includes(item.withdrawalNo));
@@ -1635,10 +1729,13 @@ function WithdrawalTable({
           { title: "审核人", dataIndex: "reviewer", width: 120, render: (value) => <EllipsisCell value={value} /> },
           {
             title: "操作",
-            width: 160,
+            width: 220,
             fixed: "right",
             render: (_, record) => (
               <div className="flex flex-wrap gap-1">
+                <Button type="link" onClick={() => onViewWithdrawal(record)}>
+                  查看详情
+                </Button>
                 <Button type="link" onClick={() => onApproveWithdrawal(record)}>
                   通过审核
                 </Button>
@@ -1659,7 +1756,8 @@ function PendingPayoutTable({
   onReturnReview,
   onMarkFailed,
   onMarkPaidBatch,
-  onMarkFailedBatch
+  onMarkFailedBatch,
+  onViewPayout
 }: {
   data: Payout[];
   onPay: (payout: Payout) => void;
@@ -1668,6 +1766,7 @@ function PendingPayoutTable({
   onMarkFailed: (payout: Payout) => Promise<void>;
   onMarkPaidBatch: (payouts: Payout[]) => Promise<void>;
   onMarkFailedBatch: (payouts: Payout[]) => Promise<void>;
+  onViewPayout: (payout: Payout) => void;
 }) {
   const [selectedKeys, setSelectedKeys] = useState<Key[]>([]);
   const selectedRecords = data.filter((item) => selectedKeys.includes(item.withdrawalNo));
@@ -1713,10 +1812,11 @@ function PendingPayoutTable({
           { title: "当前状态", dataIndex: "withdrawStatus", width: 120, render: (value) => <StatusTag status={value} /> },
           {
             title: "操作",
-            width: 300,
+            width: 360,
             fixed: "right",
             render: (_, record) => (
               <div className="flex flex-wrap gap-1">
+                <Button type="link" onClick={() => onViewPayout(record)}>查看详情</Button>
                 <Button type="link" disabled={record.withdrawStatus !== "待打款"} onClick={() => onPay(record)}>发起支付宝打款</Button>
                 <Button type="link" onClick={() => onQuery(record)}>查询打款结果</Button>
                 <Button type="link" onClick={() => onReturnReview(record)}>退回审核</Button>

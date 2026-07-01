@@ -7,7 +7,6 @@ import {
   MyTaskControllerApiFactory,
   PlatformControllerApiFactory,
   TaskControllerApiFactory,
-  type AgentListResponse,
   type AgentProfileResponse,
   type AgentEvaluationDetailResponse,
   type AlipayBindSessionResponse,
@@ -170,6 +169,15 @@ type RemoteAgentProfileResponse = AgentProfileResponse & {
   evaluation?: RemoteAgentEvaluation | null;
 };
 
+type RemoteAgentListResponse =
+  | RemoteAgentProfileResponse[]
+  | {
+      currentAgentId?: string | null;
+      content?: RemoteAgentProfileResponse[] | null;
+      agents?: RemoteAgentProfileResponse[] | null;
+      localAgent?: LocalAgentDiagnosticResponse | null;
+    };
+
 type RemoteAgentEvaluationDimension = {
   score?: number | null;
   comment?: string | null;
@@ -230,6 +238,7 @@ type RemoteAgentEvaluation = {
   error?: string | null;
   startedAt?: string | null;
   completedAt?: string | null;
+  lastEvaluatedAt?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
 };
@@ -484,7 +493,7 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
 
   const accountResponse = await accountApi.current1();
   const [agentsResponse, currentAgentResponse, myTasksResponse, withdrawableResponse, withdrawalAccountResponse] = await Promise.all([
-    optionalSnapshotRequest<AgentListResponse | RemoteAgentProfileResponse[] | undefined>(() => agentApi.list1(), undefined),
+    optionalSnapshotRequest<RemoteAgentListResponse | undefined>(() => agentApi.list1(), undefined),
     optionalSnapshotRequest<AgentProfileResponse | undefined>(() => agentApi.current(), undefined),
     optionalSnapshotRequest(() => myTaskApi.list(), []),
     optionalSnapshotRequest<number | undefined>(() => earningsApi.withdrawable(), undefined),
@@ -542,7 +551,7 @@ export async function connectRemoteAgent(agentId: string): Promise<Agent | undef
 
 export async function readRemoteAgents(): Promise<RemoteAgentsResult> {
   const response = await agentApi.list1();
-  return mapRemoteAgentsResult(requireValue<AgentListResponse | RemoteAgentProfileResponse[]>(response, "Agent 列表不可用"));
+  return mapRemoteAgentsResult(requireValue<RemoteAgentListResponse>(response, "Agent 列表不可用"));
 }
 
 export async function readCurrentRemoteAgent(): Promise<Agent | undefined> {
@@ -696,7 +705,7 @@ export async function readRemoteAlipayBindStatus(sessionId: string): Promise<Ali
     status: normalizedStatus,
     expiresInSeconds: status.expiresInSeconds ?? 0,
     withdrawalAccount: status.withdrawalAccount,
-    completed: normalizedStatus === "COMPLETED" && Boolean(status.withdrawalAccount)
+    completed: isCompletedAlipayBindStatus(normalizedStatus)
   };
 }
 
@@ -714,6 +723,11 @@ export async function completeRemoteFaceVerification(certifyId: string): Promise
 export async function completeRemoteRealPersonVerification(certifyId: string): Promise<Partial<SprixState["account"]>> {
   const response = await accountApi.completeRealPersonVerification({ completeFaceVerificationRequest: { certifyId } });
   return mapAccount(requireValue<UserAccount>(response, "实人认证状态确认失败"));
+}
+
+export async function readRemoteWithdrawalAccountState(): Promise<Partial<SprixState["account"]>> {
+  const response = await accountApi.currentWithdrawalAccount();
+  return mapWithdrawalAccountState(response);
 }
 
 export async function signRemoteFreelancerAgreement(): Promise<Partial<SprixState["account"]>> {
@@ -751,6 +765,11 @@ function listValue<T>(value: T[] | { content?: T[] | null } | undefined | null):
   return [];
 }
 
+function agentListValue(value: RemoteAgentListResponse | undefined | null): RemoteAgentProfileResponse[] {
+  if (value && typeof value === "object" && !Array.isArray(value) && Array.isArray(value.agents)) return value.agents;
+  return listValue<RemoteAgentProfileResponse>(value);
+}
+
 function mapAccount(account: UserAccount): Partial<SprixState["account"]> {
   const accountWithPhone = account as UserAccount & { phoneVerified?: boolean | null };
   const phoneVerified = accountWithPhone.phoneVerified === true;
@@ -786,6 +805,11 @@ export function mapWithdrawalAccountState(account?: WithdrawalAccount | null): P
     alipayRealNameMatched: payoutReady,
     withdrawAccountStatus: payoutReady ? "可用" : "需更换"
   };
+}
+
+function isCompletedAlipayBindStatus(status: string) {
+  const normalizedStatus = status.toUpperCase();
+  return ["COMPLETED", "SUCCESS", "SUCCEEDED", "AUTHORIZED", "BOUND"].includes(normalizedStatus);
 }
 
 function mapTask(task: TaskEntity): Task {
@@ -831,7 +855,7 @@ export function mapTaskRecommendation(recommendation: TaskRecommendationResponse
   };
 }
 
-function mapRemoteAgentsResult(response: AgentListResponse | RemoteAgentProfileResponse[] | undefined | null): RemoteAgentsResult {
+function mapRemoteAgentsResult(response: RemoteAgentListResponse | undefined | null): RemoteAgentsResult {
   if (Array.isArray(response)) {
     return {
       agents: response.map(mapAgent),
@@ -840,7 +864,7 @@ function mapRemoteAgentsResult(response: AgentListResponse | RemoteAgentProfileR
     };
   }
 
-  const agents = listValue<RemoteAgentProfileResponse>(response?.agents).map(mapAgent);
+  const agents = agentListValue(response).map(mapAgent);
   return {
     agents,
     localAgent: mapLocalAgentDiagnostic(response?.localAgent),
@@ -886,7 +910,7 @@ function mapAgent(agent: RemoteAgentProfileResponse): Agent {
     status,
     role: agent.currentExecution ? "当前执行 Agent" : status === "离线" ? "离线 Agent" : "可用 Agent",
     score,
-    lastEvaluatedAt: formatDateTime(agent.lastEvaluatedAt ?? evaluation?.completedAt),
+    lastEvaluatedAt: formatDateTime(evaluation?.lastEvaluatedAt ?? agent.lastEvaluatedAt ?? evaluation?.completedAt),
     summary: tags.join("、"),
     tags,
     evaluation
@@ -930,6 +954,7 @@ function normalizeAgentEvaluation(evaluation: RemoteAgentEvaluation): AgentEvalu
     result: normalizeEvaluationResult(resultPayload, status, steps, transcript),
     startedAt: evaluation.startedAt ?? "",
     completedAt: evaluation.completedAt ?? null,
+    lastEvaluatedAt: evaluation.lastEvaluatedAt ?? null,
     createdAt: evaluation.createdAt ?? "",
     updatedAt: evaluation.updatedAt ?? ""
   };
@@ -1094,18 +1119,21 @@ function mapOfflineReason(reason?: string) {
 }
 
 function mapCurrentNode(node?: string) {
+  const normalized = node?.trim().toUpperCase();
   const nodes: Record<string, string> = {
     PLATFORM_ACCEPTANCE: "平台验收",
     PLATFORM_REVIEWING: "平台审核中",
-    platform_reviewing: "平台审核中",
-    platform_rejected: "平台审核不通过",
-    reward_recording: "报酬记录中",
+    PLATFORM_REJECTED: "平台审核不通过",
+    REWARD_RECORDING: "报酬记录中",
     SETTLEMENT: "报酬入账",
     GENERATING: "生成结果",
     GENERATING_RESULT: "生成结果",
+    RUNTIME_PROBE: "执行探测",
+    ANALYZING_TASK: "任务理解",
+    RUNNING: "执行中",
     QUALITY_CHECK: "质量检查"
   };
-  return node ? nodes[node] ?? node : "执行中";
+  return normalized ? nodes[normalized] ?? node : "执行中";
 }
 
 function splitTags(tags?: string) {

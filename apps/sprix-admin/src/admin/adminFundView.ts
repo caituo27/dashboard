@@ -6,11 +6,10 @@ export type AdminPendingFundAction = {
   onClick?: () => Promise<void>;
 };
 
-export function getAdminSettlementDetailAction(): AdminPendingFundAction {
+export function getAdminSettlementDetailAction(onClick?: () => Promise<void>): AdminPendingFundAction {
   return {
-    label: "查看详情（待接口）",
-    disabled: true,
-    reason: "后台结算详情接口待接入"
+    label: "查看详情",
+    onClick
   };
 }
 

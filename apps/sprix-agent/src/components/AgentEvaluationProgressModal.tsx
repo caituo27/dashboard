@@ -41,7 +41,7 @@ function completedEvaluationStepCount(evaluation: AgentEvaluation | undefined) {
 function activeEvaluationStepIndex(evaluation: AgentEvaluation | undefined, status: AgentEvaluation["status"]) {
   if (status === "completed" || status === "judging") return evaluationSteps.length - 1;
   if (status === "failed") return Math.max(0, completedEvaluationStepCount(evaluation));
-  return Math.min(evaluationSteps.length - 1, Math.max(1, completedEvaluationStepCount(evaluation)));
+  return Math.min(evaluationSteps.length - 1, Math.max(0, completedEvaluationStepCount(evaluation)));
 }
 
 function evaluationStepClass(index: number, activeIndex: number, status: AgentEvaluation["status"]) {

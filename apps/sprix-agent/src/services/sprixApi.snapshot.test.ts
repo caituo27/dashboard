@@ -194,6 +194,27 @@ describe("readAgentSnapshot", () => {
     });
   });
 
+  it("prefers the nested evaluation last evaluated time from the agent list payload", async () => {
+    apiMocks.agent.list1.mockResolvedValue([
+      {
+        id: "agent-1",
+        name: "Codex Agent",
+        status: "AVAILABLE",
+        lastEvaluatedAt: "2026-06-28T01:00:00.000Z",
+        evaluation: {
+          evaluationId: "evaluation-1",
+          status: "COMPLETED",
+          completedAt: "2026-06-29T01:00:00.000Z",
+          lastEvaluatedAt: "2026-06-30T01:00:00.000Z"
+        }
+      }
+    ]);
+
+    const result = await readRemoteAgents();
+
+    expect(result.agents[0]?.lastEvaluatedAt).toBe("2026-06-30 09:00");
+  });
+
   it("normalizes malformed evaluation list fields to empty arrays", async () => {
     apiMocks.task.market.mockResolvedValue([]);
     apiMocks.task.recommendations.mockResolvedValue([]);

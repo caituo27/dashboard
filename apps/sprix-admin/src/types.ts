@@ -178,6 +178,7 @@ export type AdminExecutionRecords = Record<
 export type AdminOperationLog = {
   id: string;
   action: string;
+  operator: string;
   beforeStatus: string;
   afterStatus: string;
   reason: string;

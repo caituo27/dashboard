@@ -34,7 +34,7 @@ function Sidebar() {
         </div>
         <div>
           <div className="text-base font-semibold leading-none text-ink">Sprix Admin</div>
-          <div className="mt-1 text-xs text-ink-soft">Backoffice</div>
+          <div className="mt-1 text-xs text-ink-soft">运营后台</div>
         </div>
       </Link>
       <nav className="sprix-sidebar-nav space-y-1">

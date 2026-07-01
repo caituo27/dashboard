@@ -44,7 +44,28 @@ export function AccountModal({ open, onClose, onBindAlipay }: AccountModalProps)
         <div className="grid gap-3 text-sm">
           <InfoRow label="头像" value={account.avatarUrl ? <img src={account.avatarUrl} alt="" className="size-10 rounded-full object-cover" /> : "-"} />
           {profileRows.map((row) => (
-            <InfoRow key={row.label} label={row.label} value={row.label === "接单资格" ? <StatusTag status={row.value} /> : row.value} />
+            <InfoRow
+              key={row.label}
+              label={row.label}
+              value={
+                row.label === "接单资格" ? (
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <StatusTag status={row.value} />
+                    <SecondaryButton
+                      size="small"
+                      onClick={() => {
+                        onClose();
+                        navigate("/agent/qualification");
+                      }}
+                    >
+                      {row.value === "已开通" ? "查看记录" : "去开通"}
+                    </SecondaryButton>
+                  </div>
+                ) : (
+                  row.value
+                )
+              }
+            />
           ))}
           <InfoRow
             label="收款支付宝"

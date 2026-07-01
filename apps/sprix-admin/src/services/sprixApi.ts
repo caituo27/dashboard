@@ -82,6 +82,10 @@ type RemoteAdminTaskDetail = {
 type RemoteAuditLog = {
   id?: string;
   action?: string;
+  operator?: string;
+  operatorName?: string;
+  createdBy?: string;
+  adminName?: string;
   beforeStatus?: string;
   afterStatus?: string;
   reason?: string;
@@ -447,7 +451,7 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
         agentName: row.agentName ?? "-",
         acceptanceStatus: row.executionStatus === "ACCEPTANCE_FAILED" ? "验收未通过" : "验收通过",
         score: row.agentScore == null ? "-" : `${row.agentScore}/100`,
-        appealStatus: mapAppealStatus(row.appealStatus),
+        appealStatus: row.executionStatus === "ACCEPTANCE_FAILED" ? mapAppealStatus(row.appealStatus) : "无申诉",
         settlementStatus: mapSettlementStatus(row.settlementStatus),
         completedAt: formatDateTime(row.completedAt ?? row.updatedAt)
       });
@@ -482,9 +486,10 @@ function mapAcceptanceReview(row: RemoteAcceptanceReviewRow): ReviewingExecution
 function mapOperationLog(log: RemoteAuditLog): AdminOperationLog {
   return {
     id: log.id ?? `${log.action ?? "LOG"}-${log.createdAt ?? ""}`,
-    action: log.action ?? "-",
-    beforeStatus: log.beforeStatus ?? "-",
-    afterStatus: log.afterStatus ?? "-",
+    action: mapOperationAction(log.action),
+    operator: log.operator ?? log.operatorName ?? log.createdBy ?? log.adminName ?? "系统",
+    beforeStatus: mapOperationStatus(log.beforeStatus),
+    afterStatus: mapOperationStatus(log.afterStatus),
     reason: log.reason ?? "-",
     occurredAt: formatDateTime(log.createdAt)
   };
@@ -629,6 +634,53 @@ function mapTaskStatus(status?: string): TaskStatus {
   return "已发布";
 }
 
+function mapOperationAction(action?: string) {
+  const actions: Record<string, string> = {
+    CREATE_TASK: "创建任务",
+    UPDATE_TASK: "编辑任务",
+    OFFLINE_TASK: "下线任务",
+    REPUBLISH_TASK: "重新发布任务",
+    DELETE_TASK: "删除任务",
+    APPROVE_ACCEPTANCE: "平台审核通过",
+    REJECT_ACCEPTANCE: "平台审核不通过",
+    CREATE_EXECUTION: "创建执行记录",
+    CANCEL_EXECUTION: "终止执行",
+    START_SETTLEMENT: "开始结算",
+    POST_SETTLEMENT: "结算入账",
+    CREATE_WITHDRAWAL: "创建提现申请",
+    APPROVE_WITHDRAWAL: "提现审核通过",
+    REJECT_WITHDRAWAL: "提现审核驳回",
+    PAYOUT_WITHDRAWAL: "发起打款",
+    QUERY_PAYOUT: "查询打款结果"
+  };
+  const normalized = action?.trim().toUpperCase();
+  return normalized ? actions[normalized] ?? action : "-";
+}
+
+function mapOperationStatus(status?: string) {
+  const statuses: Record<string, string> = {
+    NONE: "无",
+    PUBLISHED: "已发布",
+    OFFLINE: "已下线",
+    DELETED: "已删除",
+    RUNNING: "执行中",
+    PLATFORM_REVIEWING: "待平台审核",
+    TERMINATED: "已终止",
+    ACCEPTANCE_FAILED: "验收未通过",
+    SETTLING: "结算中",
+    SETTLED: "已结算",
+    COMPLETED: "已完成",
+    POSTED: "已入账",
+    FAILED: "失败",
+    PENDING: "待处理",
+    PROCESSING: "处理中",
+    APPROVED: "已通过",
+    REJECTED: "已驳回"
+  };
+  const normalized = status?.trim().toUpperCase();
+  return normalized ? statuses[normalized] ?? status : "-";
+}
+
 function mapAppealStatus(status?: string): AppealStatus {
   if (status === "NOT_APPEALED") return "未申诉";
   if (status === "PENDING") return "待处理";
@@ -667,18 +719,21 @@ function mapOfflineReason(reason?: string) {
 }
 
 function mapCurrentNode(node?: string) {
+  const normalized = node?.trim().toUpperCase();
   const nodes: Record<string, string> = {
     PLATFORM_ACCEPTANCE: "平台验收",
     PLATFORM_REVIEWING: "平台审核中",
-    platform_reviewing: "平台审核中",
-    platform_rejected: "平台审核不通过",
-    reward_recording: "报酬记录中",
+    PLATFORM_REJECTED: "平台审核不通过",
+    REWARD_RECORDING: "报酬记录中",
     SETTLEMENT: "报酬入账",
     GENERATING: "生成结果",
     GENERATING_RESULT: "生成结果",
+    RUNTIME_PROBE: "执行探测",
+    ANALYZING_TASK: "任务理解",
+    RUNNING: "执行中",
     QUALITY_CHECK: "质量检查"
   };
-  return node ? nodes[node] ?? node : "执行中";
+  return normalized ? nodes[normalized] ?? node : "执行中";
 }
 
 function mapFlowType(type?: string) {
