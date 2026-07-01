@@ -4,7 +4,20 @@ import { Button, Form, Input, InputNumber, Modal, Select, Table, Tabs, Tooltip, 
 import type { ColumnsType } from "antd/es/table";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Bot, CircleDollarSign, ClipboardList, Gauge, Route, ShieldCheck } from "lucide-react";
+import {
+  ArrowLeft,
+  Bot,
+  CalendarPlus,
+  CheckCircle2,
+  CircleDollarSign,
+  ClipboardList,
+  Clock3,
+  Gauge,
+  Inbox,
+  RefreshCw,
+  Route,
+  ShieldCheck
+} from "lucide-react";
 import type { AdminAppeal, AdminOperationLog, CompletedExecution, FundException, Payout, ReviewingExecution, RunningExecution, Settlement, Task, TerminatedExecution, Withdrawal } from "../types";
 import {
   approveRemoteAcceptanceReview,
@@ -1182,17 +1195,29 @@ export function AdminAppealCenter() {
     <>
       <PageHeader title="申诉处理中心" subtitle="复核验收争议并同步任务状态、结算状态和用户资金记录。" />
       <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <MetricCard title="待处理申诉" value={stats.pending} active={quickFilter === "none" && tab === "待处理"} onClick={() => selectAppealTab("待处理")} />
-        <MetricCard title="处理中申诉" value={stats.processing} active={quickFilter === "none" && tab === "处理中"} onClick={() => selectAppealTab("处理中")} />
+        <MetricCard
+          title="待处理申诉"
+          value={stats.pending}
+          icon={<Inbox size={19} />}
+          active={quickFilter === "none" && tab === "待处理"}
+          onClick={() => selectAppealTab("待处理")}
+        />
+        <MetricCard
+          title="处理中申诉"
+          value={stats.processing}
+          icon={<RefreshCw size={19} />}
+          active={quickFilter === "none" && tab === "处理中"}
+          onClick={() => selectAppealTab("处理中")}
+        />
         <MetricCard title="今日新增" value={stats.today} active={quickFilter === "today"} onClick={() => {
           setTab("全部");
           setQuickFilter("today");
-        }} />
+        }} icon={<CalendarPlus size={19} />} />
         <MetricCard title="已处理" value={stats.done} active={quickFilter === "done"} onClick={() => {
           setTab("全部");
           setQuickFilter("done");
-        }} />
-        <MetricCard title="平均处理时长" value={stats.averageProcessTime} icon={primitiveIcons.clock} />
+        }} icon={<CheckCircle2 size={19} />} />
+        <MetricCard title="平均处理时长" value={stats.averageProcessTime} icon={<Clock3 size={19} />} />
       </div>
       <Surface className="sprix-table-card p-4">
         <Tabs
