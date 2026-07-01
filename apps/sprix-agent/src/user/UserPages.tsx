@@ -60,6 +60,7 @@ const evaluationDimensionLabels: Record<string, string> = {
 
 type UserPageProps = {
   openLogin: () => void;
+  openAccount: () => void;
   openBindAlipay: (afterBind?: () => void) => void;
   openQualificationPrompt: (taskId?: string) => void;
   openAppeal: (executionId: string) => void;
@@ -84,7 +85,7 @@ const agentEvaluationStatusLabels: Record<AgentEvaluation["status"], string> = {
 const agentEvaluationActionLabels: Record<AgentEvaluation["status"], string> = {
   running: "查看进度",
   judging: "查看进度",
-  completed: "查看结果",
+  completed: "评测完成",
   failed: "重新评测"
 };
 
@@ -615,16 +616,17 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         empty={getLocalAgentEmptyMessage(localAgent)}
         renderActions={(agent) => {
           const canRestartEvaluation = agent.evaluation && isCompletedAgentEvaluation(agent.evaluation);
+          const showEvaluationAction = !canRestartEvaluation;
           return agent.role === "当前执行 Agent" ? (
             <>
               <SecondaryButton disabled>当前执行 Agent</SecondaryButton>
-              <ActionButton onClick={() => openAgentEvaluation(agent)}>{getAgentEvaluationActionLabel(agent)}</ActionButton>
+              {showEvaluationAction && <ActionButton onClick={() => openAgentEvaluation(agent)}>{getAgentEvaluationActionLabel(agent)}</ActionButton>}
               {canRestartEvaluation && <SecondaryButton onClick={() => openAgentEvaluation(agent, { forceStart: true })}>重新评测</SecondaryButton>}
             </>
           ) : (
             <>
               <ActionButton onClick={() => setCurrent(agent)}>设为当前执行 Agent</ActionButton>
-              <SecondaryButton onClick={() => openAgentEvaluation(agent)}>{getAgentEvaluationActionLabel(agent)}</SecondaryButton>
+              {showEvaluationAction && <SecondaryButton onClick={() => openAgentEvaluation(agent)}>{getAgentEvaluationActionLabel(agent)}</SecondaryButton>}
               {canRestartEvaluation && <SecondaryButton onClick={() => openAgentEvaluation(agent, { forceStart: true })}>重新评测</SecondaryButton>}
             </>
           );
@@ -883,11 +885,10 @@ function AgentList({
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <h4 className="text-lg font-semibold">{agent.name}</h4>
-                      <StatusTag status={agent.status} />
                       {agent.evaluation && <StatusTag status={getAgentEvaluationStatusLabel(agent.evaluation)} />}
                     </div>
                     <p className="mt-1 text-sm text-ink-soft">
-                      {completedEvaluation ? `综合评分：${scoreText(completedEvaluation.overallScore)} · ` : ""}当前角色：{agent.role} · 最近评测时间：{agent.lastEvaluatedAt}
+                      {completedEvaluation ? `综合评分：${scoreText(completedEvaluation.overallScore)} · ` : ""}最近评测时间：{agent.lastEvaluatedAt}
                     </p>
                     {agent.tags.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-2">
@@ -1104,7 +1105,7 @@ export function EarningsPage({ openLogin, openBindAlipay }: UserPageProps) {
   );
 }
 
-export function QualificationPage({ openBindAlipay }: UserPageProps) {
+export function QualificationPage({ openAccount, openBindAlipay }: UserPageProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
@@ -1118,7 +1119,7 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
   const faceVerificationConfirmingRef = useRef(false);
   const faceVerificationCompletedRef = useRef(false);
   const successAction = getQualificationSuccessAction(location.search);
-  const qualificationRows = getQualificationRecordRows();
+  const qualificationRows = getQualificationRecordRows(account);
 
   useEffect(() => {
     if (step === 1 && !account.freelancerAgreementSigned) {
@@ -1319,7 +1320,9 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
               <div className="mt-5 flex flex-wrap gap-2">
                 <ActionButton onClick={() => navigate(successAction.path)}>{successAction.label}</ActionButton>
                 {successAction.path !== "/agent/market" && <SecondaryButton href="/agent/market">去任务市场</SecondaryButton>}
-                <SecondaryButton onClick={() => openBindAlipay()}>绑定收款支付宝</SecondaryButton>
+                <SecondaryButton onClick={() => (account.alipayBound ? openAccount() : openBindAlipay())}>
+                  {account.alipayBound ? "查看绑定信息" : "绑定收款支付宝"}
+                </SecondaryButton>
               </div>
             </>
           )}
@@ -1341,8 +1344,7 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
       />
       <Surface className="p-6">
         <h3 className="text-lg font-semibold text-ink">接单资格记录</h3>
-        <p className="mt-2 text-sm leading-7 text-ink-soft">当前仅展示后端接口已开放的接单资格记录字段。</p>
-        <div className="mt-5 grid gap-3">
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
           {qualificationRows.map((row) => (
             <div key={row.label} className="flex items-center justify-between rounded-2xl bg-[#fafafa] px-4 py-3 text-sm">
               <span className="text-ink-soft">{row.label}</span>

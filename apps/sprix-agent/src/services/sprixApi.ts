@@ -916,7 +916,7 @@ function mapAgent(agent: RemoteAgentProfileResponse): Agent {
     status,
     role: agent.currentExecution ? "当前执行 Agent" : status === "离线" ? "离线 Agent" : "可用 Agent",
     score,
-    lastEvaluatedAt: formatDateTime(evaluation?.lastEvaluatedAt ?? agent.lastEvaluatedAt ?? evaluation?.completedAt),
+    lastEvaluatedAt: formatDateTime(agent.lastEvaluatedAt),
     summary: tags.join("、"),
     tags,
     evaluation

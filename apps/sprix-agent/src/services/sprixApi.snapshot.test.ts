@@ -194,7 +194,7 @@ describe("readAgentSnapshot", () => {
     });
   });
 
-  it("prefers the nested evaluation last evaluated time from the agent list payload", async () => {
+  it("uses the agent list last evaluated time field", async () => {
     apiMocks.agent.list1.mockResolvedValue([
       {
         id: "agent-1",
@@ -212,7 +212,7 @@ describe("readAgentSnapshot", () => {
 
     const result = await readRemoteAgents();
 
-    expect(result.agents[0]?.lastEvaluatedAt).toBe("2026-06-30 09:00");
+    expect(result.agents[0]?.lastEvaluatedAt).toBe("2026-06-28 09:00");
   });
 
   it("normalizes malformed evaluation list fields to empty arrays", async () => {

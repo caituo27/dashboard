@@ -116,6 +116,7 @@ function ConsumerAppRoutes() {
 
   const userPageProps = {
     openLogin,
+    openAccount: () => open("account"),
     openBindAlipay,
     openQualificationPrompt: (taskId?: string) => {
       setQualificationTaskId(taskId);
@@ -224,6 +225,7 @@ function AdmissionGate({ children }: { children: ReactNode }) {
 
 function UserRoutes(props: {
   openLogin: () => void;
+  openAccount: () => void;
   openBindAlipay: (afterBind?: () => void) => void;
   openQualificationPrompt: (taskId?: string) => void;
   openAppeal: (executionId: string) => void;
