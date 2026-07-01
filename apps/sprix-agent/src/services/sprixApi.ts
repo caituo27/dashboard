@@ -697,14 +697,14 @@ export async function initializeRemoteFaceVerification(identity: FaceVerificatio
   return requireValue<FaceVerificationSession>(response, "支付宝人脸核验初始化失败");
 }
 
-export async function completeRemoteFaceVerification(): Promise<Partial<SprixState["account"]>> {
-  const response = await accountApi.completeRealPersonVerification();
+export async function completeRemoteFaceVerification(certifyId: string): Promise<Partial<SprixState["account"]>> {
+  const response = await accountApi.completeRealPersonVerification({ completeFaceVerificationRequest: { certifyId } });
   const account = requireValue<UserAccount>(response, "支付宝人脸核验确认失败");
   return mapAccount(account);
 }
 
-export async function completeRemoteRealPersonVerification(): Promise<Partial<SprixState["account"]>> {
-  const response = await accountApi.completeRealPersonVerification();
+export async function completeRemoteRealPersonVerification(certifyId: string): Promise<Partial<SprixState["account"]>> {
+  const response = await accountApi.completeRealPersonVerification({ completeFaceVerificationRequest: { certifyId } });
   return mapAccount(requireValue<UserAccount>(response, "实人认证状态确认失败"));
 }
 

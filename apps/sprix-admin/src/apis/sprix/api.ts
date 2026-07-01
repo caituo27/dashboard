@@ -784,6 +784,9 @@ export interface InitializeFaceVerificationRequest {
     'realName': string;
     'idCardNo': string;
 }
+export interface CompleteFaceVerificationRequest {
+    'certifyId': string;
+}
 export interface LocalAgentDiagnosticResponse {
     'bound'?: boolean;
     'deviceId'?: string;
@@ -1293,7 +1296,8 @@ export const AccountControllerApiAxiosParamCreator = function (configuration?: C
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        completeRealPersonVerification: async (options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+        completeRealPersonVerification: async (completeFaceVerificationRequest: CompleteFaceVerificationRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            assertParamExists('completeRealPersonVerification', 'completeFaceVerificationRequest', completeFaceVerificationRequest)
             const localVarPath = `/api/v1/account/qualification/real-person-complete`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1306,11 +1310,13 @@ export const AccountControllerApiAxiosParamCreator = function (configuration?: C
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
 
+            localVarHeaderParameter['Content-Type'] = 'application/json';
             localVarHeaderParameter['Accept'] = '*/*';
 
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(completeFaceVerificationRequest, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -1544,8 +1550,8 @@ export const AccountControllerApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async completeRealPersonVerification(options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseUserAccount>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.completeRealPersonVerification(options);
+        async completeRealPersonVerification(completeFaceVerificationRequest: CompleteFaceVerificationRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseUserAccount>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.completeRealPersonVerification(completeFaceVerificationRequest, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AccountControllerApi.completeRealPersonVerification']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -1651,8 +1657,8 @@ export const AccountControllerApiFactory = function (configuration?: Configurati
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        completeRealPersonVerification(options?: AxiosRequestConfig): AxiosPromise<ApiResponseUserAccount> {
-            return localVarFp.completeRealPersonVerification(options).then((request) => request(axios, basePath));
+        completeRealPersonVerification(requestParameters: AccountControllerApiCompleteRealPersonVerificationRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseUserAccount> {
+            return localVarFp.completeRealPersonVerification(requestParameters.completeFaceVerificationRequest, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -1724,6 +1730,10 @@ export interface AccountControllerApiCompleteAlipayBindSessionRequest {
     readonly state: string
 }
 
+export interface AccountControllerApiCompleteRealPersonVerificationRequest {
+    readonly completeFaceVerificationRequest: CompleteFaceVerificationRequest
+}
+
 /**
  * Request parameters for createAlipayBindSession operation in AccountControllerApi.
  */
@@ -1774,8 +1784,8 @@ export class AccountControllerApi extends BaseAPI {
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public completeRealPersonVerification(options?: AxiosRequestConfig) {
-        return AccountControllerApiFp(this.configuration).completeRealPersonVerification(options).then((request) => request(this.axios, this.basePath));
+    public completeRealPersonVerification(requestParameters: AccountControllerApiCompleteRealPersonVerificationRequest, options?: AxiosRequestConfig) {
+        return AccountControllerApiFp(this.configuration).completeRealPersonVerification(requestParameters.completeFaceVerificationRequest, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -8800,5 +8810,3 @@ export class WithdrawalControllerApi extends BaseAPI {
         return WithdrawalControllerApiFp(this.configuration).apply(requestParameters.applyWithdrawalRequest, options).then((request) => request(this.axios, this.basePath));
     }
 }
-
-

@@ -1133,7 +1133,8 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
   );
 
   useEffect(() => {
-    if (!faceVerificationOpen || !faceVerificationSession?.webUrl) return;
+    const certifyId = faceVerificationSession?.certifyId;
+    if (!faceVerificationOpen || !faceVerificationSession?.webUrl || !certifyId) return;
 
     let cancelled = false;
     let timeoutId: number | undefined;
@@ -1148,7 +1149,7 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
 
       faceVerificationConfirmingRef.current = true;
       try {
-        const accountPatch = await completeRemoteFaceVerification();
+        const accountPatch = await completeRemoteFaceVerification(certifyId);
         if (!cancelled && applyCompletedFaceVerification(accountPatch)) return;
       } catch (error) {
         if (isGlobalAuthError(error)) return;
@@ -1169,7 +1170,12 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
         window.clearTimeout(timeoutId);
       }
     };
-  }, [applyCompletedFaceVerification, faceVerificationOpen, faceVerificationSession?.webUrl]);
+  }, [
+    applyCompletedFaceVerification,
+    faceVerificationOpen,
+    faceVerificationSession?.certifyId,
+    faceVerificationSession?.webUrl
+  ]);
 
   const openFaceVerification = async (values: FaceVerificationFormValues) => {
     setSubmitting(true);
@@ -1194,11 +1200,16 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
 
   const completeFaceVerification = async () => {
     if (faceVerificationConfirmingRef.current) return;
+    const certifyId = faceVerificationSession?.certifyId;
+    if (!certifyId) {
+      message.info("支付宝认证结果还未同步，请完成扫码后稍等");
+      return;
+    }
 
     setSubmitting(true);
     faceVerificationConfirmingRef.current = true;
     try {
-      const accountPatch = await completeRemoteFaceVerification();
+      const accountPatch = await completeRemoteFaceVerification(certifyId);
       if (!applyCompletedFaceVerification(accountPatch)) {
         message.info("支付宝认证结果还未同步，请完成扫码后稍等");
       }

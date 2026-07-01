@@ -2120,6 +2120,16 @@
           "account-controller"
         ],
         "operationId": "completeRealPersonVerification",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteFaceVerificationRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "OK",
@@ -5738,6 +5748,18 @@
         "required": [
           "idCardNo",
           "realName"
+        ]
+      },
+      "CompleteFaceVerificationRequest": {
+        "type": "object",
+        "properties": {
+          "certifyId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "certifyId"
         ]
       },
       "ApiResponseFaceVerificationSession": {
