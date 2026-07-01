@@ -1100,7 +1100,7 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
   const faceVerificationConfirmingRef = useRef(false);
   const faceVerificationCompletedRef = useRef(false);
   const successAction = getQualificationSuccessAction(location.search);
-  const qualificationRows = getQualificationRecordRows(account);
+  const qualificationRows = getQualificationRecordRows();
 
   useEffect(() => {
     if (step === 1 && !account.freelancerAgreementSigned) {
@@ -1323,8 +1323,8 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
       />
       <Surface className="p-6">
         <h3 className="text-lg font-semibold text-ink">接单资格记录</h3>
-        <p className="mt-2 text-sm leading-7 text-ink-soft">当前只展示账户接口已返回的资格状态。认证主体、认证时间、协议版本和签署时间等待后端记录接口。</p>
-        <div className="mt-5 grid gap-3 md:grid-cols-2">
+        <p className="mt-2 text-sm leading-7 text-ink-soft">当前仅展示后端接口已开放的接单资格记录字段。</p>
+        <div className="mt-5 grid gap-3">
           {qualificationRows.map((row) => (
             <div key={row.label} className="flex items-center justify-between rounded-2xl bg-[#fafafa] px-4 py-3 text-sm">
               <span className="text-ink-soft">{row.label}</span>

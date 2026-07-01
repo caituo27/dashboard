@@ -116,14 +116,6 @@ export function getTaskRequirementRows(detail: MyTaskExecutionDetail) {
   ].filter((item) => Boolean(item.value?.trim()));
 }
 
-export function getOutputFailureMessage(detail: MyTaskExecutionDetail) {
-  const output = detail.output;
-  if (!output) return "";
-  if ((output.exitCode ?? 0) !== 0) return `Agent 执行退出码：${output.exitCode}`;
-  if (output.stderr?.trim()) return output.stderr.trim();
-  return "";
-}
-
 export function getTokenUsage(detail: MyTaskExecutionDetail) {
   const input = detail.output?.inputTokens ?? 0;
   const output = detail.output?.outputTokens ?? 0;

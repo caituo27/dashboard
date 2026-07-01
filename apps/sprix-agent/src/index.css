@@ -1712,18 +1712,6 @@ select {
   line-height: 1.8;
 }
 
-.sprix-output-error {
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-  border: 1px solid #ffd9d9;
-  border-radius: 18px;
-  background: #fff4f4;
-  padding: 14px 16px;
-  color: #b42318;
-  font-size: 13px;
-  line-height: 1.7;
-}
-
 .sprix-output-message {
   margin-top: 6px;
   color: var(--color-ink);
@@ -1890,10 +1878,10 @@ select {
 .sprix-history-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
   border-bottom: 1px solid rgba(238, 238, 238, 0.9);
-  padding: 11px 2px;
+  padding: 12px 2px;
   color: var(--color-ink);
   text-decoration: none;
   transition: background-color 160ms ease;
@@ -1918,16 +1906,8 @@ select {
 }
 
 .sprix-history-main {
-  display: grid;
+  display: block;
   min-width: 0;
-  gap: 6px;
-}
-
-.sprix-history-tags {
-  display: flex;
-  min-width: 0;
-  flex-wrap: wrap;
-  gap: 6px;
 }
 
 .sprix-history-main strong {
@@ -2197,6 +2177,10 @@ select {
 }
 
 .sprix-timeline-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
   min-width: 0;
   border-bottom: 1px solid rgba(238, 238, 238, 0.88);
   padding: 0 0 14px;
@@ -2206,11 +2190,16 @@ select {
   border-bottom-color: rgba(15, 118, 110, 0.18);
 }
 
+.sprix-timeline-content {
+  min-width: 0;
+}
+
 .sprix-timeline-meta {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 6px;
-  margin-bottom: 7px;
+  min-width: 210px;
 }
 
 .sprix-timeline-title {
@@ -3570,6 +3559,16 @@ select {
 
   .sprix-history-time {
     white-space: normal;
+  }
+
+  .sprix-timeline-card {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .sprix-timeline-meta {
+    justify-content: flex-start;
+    min-width: 0;
   }
 
   .sprix-section-heading,

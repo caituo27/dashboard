@@ -31,16 +31,8 @@ export function getQualificationStep(account: Pick<Account, "realPersonVerified"
   return 2;
 }
 
-export function getQualificationRecordRows(account: Account): QualificationRecordRow[] {
-  return [
-    { label: "接单资格", value: account.qualificationStatus },
-    { label: "支付宝人脸核验", value: account.realPersonVerified ? "已完成" : "未完成" },
-    { label: "服务协议", value: account.freelancerAgreementSigned ? "已签署" : "未签署" },
-    { label: "认证主体", value: pending },
-    { label: "认证时间", value: pending },
-    { label: "协议版本", value: pending },
-    { label: "签署时间", value: pending }
-  ];
+export function getQualificationRecordRows(): QualificationRecordRow[] {
+  return [{ label: "签署时间", value: pending }];
 }
 
 export function getFaceVerificationStartState(session: FaceVerificationSession | undefined): FaceVerificationStartState {

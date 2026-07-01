@@ -18,13 +18,11 @@ import {
   getArtifactTitle,
   getCurrentNodeLabel,
   getExecutionSummary,
-  getOutputFailureMessage,
   getReadableAcceptanceStatus,
   getSortedTimeline,
   getTaskRequirementRows,
   getTimelineTime,
-  getTokenUsage,
-  mapExecutionStatus
+  getTokenUsage
 } from "./executionDetailView";
 import { getMyTaskActions, shouldShowAppealStatus } from "./userFlowRules";
 import { useRerunTask } from "./useRerunTask";
@@ -205,11 +203,11 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
             }
           />
           <ArtifactsSection compact executionId={detail.id ?? id} artifacts={detail.artifacts ?? []} />
-          <TimelineSection detail={detail} />
-          <HistorySection detail={detail} />
         </div>
         <aside className="sprix-execution-side-rail">
           <TaskRequirementSection detail={detail} />
+          <TimelineSection detail={detail} />
+          <HistorySection detail={detail} />
         </aside>
       </div>
     </div>
@@ -243,27 +241,20 @@ function TaskRequirementSection({ detail }: { detail: MyTaskExecutionDetail }) {
 
 function OutputSection({ detail }: { detail: MyTaskExecutionDetail }) {
   const output = detail.output;
-  const failureMessage = getOutputFailureMessage(detail);
 
   return (
     <Surface className="sprix-output-section p-6">
       <SectionTitle title="Agent 输出" />
       {output ? (
         <div className="mt-4 space-y-4">
-          {failureMessage && <div className="sprix-output-error">{failureMessage}</div>}
-          <div>
-            <p className="text-xs font-semibold text-ink-soft">最终消息</p>
-            <FormattedOutputMessage text={output.finalMessage || "暂无最终消息"} />
-          </div>
+          <FormattedOutputMessage text={output.finalMessage || "暂无 Agent 输出"} />
           <div className="sprix-output-metrics">
-            <InfoPill label="退出码" value={String(output.exitCode ?? "-")} />
             <InfoPill label="Token 用量" value={getTokenUsage(detail)} />
             <InfoPill label="接收时间" value={formatDateTime(output.receivedAt)} />
-            <InfoPill label="日志截断" value={output.stdoutTruncated || output.stderrTruncated ? "是" : "否"} />
           </div>
         </div>
       ) : (
-        <InlineEmpty title="暂无 Agent 输出" description="任务执行日志和最终消息还未回传。" />
+        <InlineEmpty title="暂无 Agent 输出" description="Agent 输出还未回传。" />
       )}
     </Surface>
   );
@@ -522,12 +513,13 @@ function TimelineSection({ detail }: { detail: MyTaskExecutionDetail }) {
             <div key={event.eventId ?? `${event.eventType}-${index}`} className="sprix-timeline-event">
               <span className={`sprix-timeline-dot ${index === events.length - 1 ? "is-current" : ""}`} />
               <div className={`sprix-timeline-card ${index === events.length - 1 ? "is-current" : ""}`}>
+                <div className="sprix-timeline-content">
+                  <p className="sprix-timeline-title">{getTimelineEventTitle(event)}</p>
+                  {event.message && <p className="sprix-timeline-message">{event.message}</p>}
+                </div>
                 <div className="sprix-timeline-meta">
                   <SoftTag tone="neutral">{formatDateTime(getTimelineTime(event))}</SoftTag>
-                  {event.progress && <SoftTag>{event.progress}</SoftTag>}
                 </div>
-                <p className="sprix-timeline-title">{getTimelineEventTitle(event)}</p>
-                {event.message && <p className="sprix-timeline-message">{event.message}</p>}
               </div>
             </div>
           ))}
@@ -569,10 +561,6 @@ function HistorySection({ detail }: { detail: MyTaskExecutionDetail }) {
               className={`sprix-history-row ${history.current ? "is-current" : ""}`}
             >
               <div className="sprix-history-main">
-                <div className="sprix-history-tags">
-                  <StatusTag status={mapExecutionStatus(history.status)} />
-                  {history.current && <SoftTag>当前执行</SoftTag>}
-                </div>
                 <strong>{getCurrentNodeLabel(history.currentNode)}</strong>
               </div>
               <div className="sprix-history-detail">
