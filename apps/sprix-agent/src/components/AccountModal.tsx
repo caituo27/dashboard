@@ -1,10 +1,10 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Modal, message } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useSprixStore } from "../store/sprixStore";
-import { cancelRemoteAccount } from "../services/sprixApi";
-import { getAccountEditActions, getAccountProfileRows, type AccountEditAction } from "../user/accountView";
+import { cancelRemoteAccount, readRemoteWithdrawalAccountState } from "../services/sprixApi";
+import { getAccountEditActions, getAccountProfileRows, hasBoundPayoutAccount, type AccountEditAction } from "../user/accountView";
 import { ActionButton, SecondaryButton, StatusTag } from "./Primitives";
 import { showRequestError } from "./requestErrors";
 import { AccountPhoneChangeModal } from "./AccountPhoneChangeModal";
@@ -36,6 +36,7 @@ export function AccountModal({
   onOpenQualification
 }: AccountModalProps) {
   const account = useSprixStore((state) => state.account);
+  const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
   const logout = useSprixStore((state) => state.logout);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -43,6 +44,24 @@ export function AccountModal({
   const [phoneOpen, setPhoneOpen] = useState(false);
   const profileRows = getAccountProfileRows(account);
   const editActions = getAccountEditActions();
+  const payoutAccountBound = hasBoundPayoutAccount(account);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+
+    readRemoteWithdrawalAccountState()
+      .then((accountPatch) => {
+        if (!cancelled) mergeRemoteState({ account: accountPatch });
+      })
+      .catch(() => {
+        // Account details remain usable when the payout account endpoint is unavailable.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mergeRemoteState, open]);
 
   const runAction = (action: AccountEditAction) => {
     if (action.key === "avatar" || action.key === "nickname") {
@@ -133,7 +152,7 @@ export function AccountModal({
           <InfoRow
             label="收款支付宝"
             value={
-              account.alipayBound ? (
+              payoutAccountBound ? (
                 <span title={account.alipayAccountMasked || undefined}>
                   {formatAlipayAccountText(account.alipayAccountMasked)}
                 </span>

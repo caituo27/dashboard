@@ -520,7 +520,7 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
     myTasks,
     account: {
       ...(account ? mapAccount(account) : {}),
-      ...mapWithdrawalAccountState(withdrawalAccountResponse),
+      ...(withdrawalAccountResponse !== undefined ? mapWithdrawalAccountState(withdrawalAccountResponse) : {}),
       isLoggedIn: true,
       ...(typeof withdrawableAmount === "number" ? { withdrawableAmount } : {})
     }

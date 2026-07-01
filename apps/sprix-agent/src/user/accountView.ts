@@ -21,6 +21,10 @@ export function getAccountProfileRows(account: Account): AccountProfileRow[] {
   ];
 }
 
+export function hasBoundPayoutAccount(account: Account) {
+  return account.alipayBound || account.withdrawAccountStatus !== "未绑定" || Boolean(account.alipayAccountMasked || account.alipayVerifiedName);
+}
+
 export function getAccountEditActions(): AccountEditAction[] {
   return [
     { key: "avatar", label: "修改头像", description: "上传头像图片并同步到当前账户", buttonLabel: "修改" },

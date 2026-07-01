@@ -13,6 +13,7 @@ import type { Account } from "../types";
 import { ActionButton, SecondaryButton, StatusTag } from "./Primitives";
 import { formatRemainingSeconds, QrPayloadBox } from "./QrSession";
 import { showRequestError } from "./requestErrors";
+import { hasBoundPayoutAccount } from "../user/accountView";
 
 const maxBoundAlipayTextLength = 15;
 
@@ -60,7 +61,7 @@ export function BindAlipayModal({ open, onClose, afterBind }: BindAlipayModalPro
             try {
               accountPatch = await readRemoteWithdrawalAccountState();
             } catch {
-              accountPatch = {};
+              accountPatch = { alipayBound: true, withdrawAccountStatus: "可用" };
             }
           }
           if (cancelled) return;
@@ -87,9 +88,10 @@ export function BindAlipayModal({ open, onClose, afterBind }: BindAlipayModalPro
     };
   }, [afterBind, mergeRemoteState, onClose, open, queryClient, session]);
 
-  const showBindForm = !account.alipayBound || rebinding;
+  const payoutAccountBound = hasBoundPayoutAccount(account);
+  const showBindForm = !payoutAccountBound || rebinding;
   const alipayStatusText = getAlipayStatusText(status, expiresInSeconds, Boolean(session));
-  const title = showBindForm ? "绑定收款支付宝" : "已绑定支付宝";
+  const title = showBindForm ? "绑定收款支付宝" : "收款支付宝绑定信息";
 
   const startRebinding = () => {
     form.resetFields();

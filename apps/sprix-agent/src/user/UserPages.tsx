@@ -17,6 +17,7 @@ import {
   markRemoteCurrentAgent,
   readRemoteAgents,
   readRemoteAgentEvaluation,
+  readRemoteWithdrawalAccountState,
   signRemoteFreelancerAgreement,
   smartAcceptRemoteTask,
   startRemoteAgentEvaluation
@@ -1056,7 +1057,26 @@ function InlineEmpty({ title, description }: { title: string; description: strin
 
 export function EarningsPage({ openLogin, openBindAlipay }: UserPageProps) {
   const account = useSprixStore((state) => state.account);
+  const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
   const payouts = useSprixStore((state) => state.payouts);
+
+  useEffect(() => {
+    if (!account.isLoggedIn) return;
+    let cancelled = false;
+
+    readRemoteWithdrawalAccountState()
+      .then((accountPatch) => {
+        if (!cancelled) mergeRemoteState({ account: accountPatch });
+      })
+      .catch(() => {
+        // The earnings page can still show payout records when the payout account endpoint is unavailable.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [account.isLoggedIn, mergeRemoteState]);
+
   if (!account.isLoggedIn) {
     return (
       <EmptyState
@@ -1105,7 +1125,7 @@ export function EarningsPage({ openLogin, openBindAlipay }: UserPageProps) {
   );
 }
 
-export function QualificationPage({ openAccount, openBindAlipay }: UserPageProps) {
+export function QualificationPage({ openBindAlipay }: UserPageProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
@@ -1126,6 +1146,23 @@ export function QualificationPage({ openAccount, openBindAlipay }: UserPageProps
       setAgreementOpen(true);
     }
   }, [account.freelancerAgreementSigned, step]);
+
+  useEffect(() => {
+    if (step !== 2) return;
+    let cancelled = false;
+
+    readRemoteWithdrawalAccountState()
+      .then((accountPatch) => {
+        if (!cancelled) mergeRemoteState({ account: accountPatch });
+      })
+      .catch(() => {
+        // The qualification page can still be used when the payout account endpoint is unavailable.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mergeRemoteState, step]);
 
   useEffect(() => {
     if (!agreementOpen) return;
@@ -1320,9 +1357,7 @@ export function QualificationPage({ openAccount, openBindAlipay }: UserPageProps
               <div className="mt-5 flex flex-wrap gap-2">
                 <ActionButton onClick={() => navigate(successAction.path)}>{successAction.label}</ActionButton>
                 {successAction.path !== "/agent/market" && <SecondaryButton href="/agent/market">去任务市场</SecondaryButton>}
-                <SecondaryButton onClick={() => (account.alipayBound ? openAccount() : openBindAlipay())}>
-                  {account.alipayBound ? "查看绑定信息" : "绑定收款支付宝"}
-                </SecondaryButton>
+                <SecondaryButton onClick={() => openBindAlipay()}>查看绑定信息</SecondaryButton>
               </div>
             </>
           )}

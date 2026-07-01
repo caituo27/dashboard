@@ -2265,6 +2265,54 @@
         }
       }
     },
+    "/api/v1/account/profile/avatar": {
+      "post": {
+        "tags": [
+          "account-controller"
+        ],
+        "operationId": "uploadAvatar",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "required": [
+                  "file"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseUserAccount"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/account/phone-change/sms-codes": {
       "post": {
         "tags": [
@@ -4052,6 +4100,48 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponseBoolean"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/users/{userId}/avatar": {
+      "get": {
+        "tags": [
+          "account-controller"
+        ],
+        "operationId": "avatar",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
                 }
               }
             }
@@ -5914,6 +6004,10 @@
           "freelancerAgreementSigned": {
             "type": "boolean"
           },
+          "freelancerAgreementSignedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
           "withdrawableAmount": {
             "type": "number"
           },
@@ -7380,6 +7474,26 @@
           },
           "settlementStatus": {
             "type": "string"
+          },
+          "acceptanceStatus": {
+            "type": "string"
+          },
+          "acceptanceScore": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "acceptanceSummary": {
+            "type": "string"
+          },
+          "acceptanceIssues": {
+            "type": "string"
+          },
+          "acceptancePayload": {
+            "type": "string"
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time"
           },
           "startedAt": {
             "type": "string",

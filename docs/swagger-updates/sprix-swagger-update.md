@@ -1,15 +1,24 @@
 # Sprix Swagger 更新记录
 
-最后更新：2026-06-29
+最后更新：2026-07-01
 
 ## 拉取范围
 
 - Swagger UI: http://42.194.150.73:8084/swagger-ui/index.html
 - Swagger JSON: http://42.194.150.73:8084/v3/api-docs
 - 生成范围: `apps/sprix-agent/src/apis/sprix`, `apps/sprix-admin/src/apis/sprix`
-- 是否有生成 diff: 2026-06-29 有 `api.ts` 注释空白格式 diff，但 Swagger JSON 无 diff，接口合同无变化。2026-06-27 曾新增支付宝登录/绑定、后台登录、Agent 评测、验收审核、支付宝打款/查询、我的任务详情等接口与 DTO。
+- 是否有生成 diff: 2026-07-01 有 Swagger JSON 和生成客户端 diff，新增头像接口、协议签署时间字段和后台执行行验收字段。2026-06-29 有 `api.ts` 注释空白格式 diff，但 Swagger JSON 无 diff，接口合同无变化。2026-06-27 曾新增支付宝登录/绑定、后台登录、Agent 评测、验收审核、支付宝打款/查询、我的任务详情等接口与 DTO。
 
 ## 接口变化
+
+- 2026-07-01:
+  - Added:
+    - 账户头像上传接口：`POST /api/v1/account/profile/avatar`。
+    - 用户头像读取接口：`GET /api/v1/account/users/{userId}/avatar`。
+    - `UserAccount.freelancerAgreementSignedAt` 协议签署时间字段。
+    - `AdminExecutionRow` 新增验收字段：`acceptanceStatus`、`acceptanceScore`、`acceptanceSummary`、`acceptanceIssues`、`acceptancePayload`、`submittedAt`。
+  - Removed: 无。
+  - Changed: 无破坏性变更。
 
 - 2026-06-29:
   - Added:
@@ -70,6 +79,8 @@
 - Admin 端待打款记录需要调用后端单笔支付宝打款和打款结果查询接口，并展示后端返回的打款审计字段。
 - 写操作必须先走真实接口，再通过 TanStack Query 刷新远端快照；Swagger 未提供的操作只提示不可用，不再写本地模拟状态。
 - Agent 端接单资格页需要按真实接口完成支付宝人脸核验初始化、实人核验完成确认和协议签署，前端不再用 mock 写账户资格状态。
+- Agent 端账户资料页可后续接入头像上传接口，并展示后端返回的协议签署时间。
+- Admin 端执行记录和验收详情可后续直接读取 `AdminExecutionRow` 新增验收字段，减少详情二次拼接。
 
 ## 已完成适配
 
@@ -106,6 +117,12 @@
 
 ## 验证
 
+- 2026-07-01 `pnpm exec qxun-api-generator` in `apps/sprix-agent/src/apis`: 通过。
+- 2026-07-01 `pnpm exec qxun-api-generator` in `apps/sprix-admin/src/apis`: 通过。
+- 2026-07-01 `git diff -- apps/sprix-agent/src/apis/_swaggers/sprix.json apps/sprix-admin/src/apis/_swaggers/sprix.json`: 确认新增头像接口、协议签署时间字段和后台执行行验收字段。
+- 2026-07-01 `git diff -w --stat -- apps/sprix-agent/src/apis/sprix/api.ts apps/sprix-admin/src/apis/sprix/api.ts`: 确认生成客户端同步新增接口和字段。
+- 2026-07-01 `pnpm --filter @sprix-ai/agent typecheck`: 通过。
+- 2026-07-01 `pnpm --filter @sprix-ai/admin typecheck`: 通过。
 - 2026-06-29 `npx qxun-api-generator` in `apps/sprix-agent/src/apis`: 通过。
 - 2026-06-29 `npx qxun-api-generator` in `apps/sprix-admin/src/apis`: 通过。
 - 2026-06-29 `git diff -w --stat -- apps/sprix-agent/src/apis/sprix/api.ts apps/sprix-admin/src/apis/sprix/api.ts apps/sprix-agent/src/apis/_swaggers/sprix.json apps/sprix-admin/src/apis/_swaggers/sprix.json`: 无输出，确认无接口合同变化。

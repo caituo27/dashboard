@@ -108,6 +108,12 @@ export interface AdminExecutionRow {
     'terminationReason'?: string;
     'appealStatus'?: string;
     'settlementStatus'?: string;
+    'acceptanceStatus'?: string;
+    'acceptanceScore'?: number;
+    'acceptanceSummary'?: string;
+    'acceptanceIssues'?: string;
+    'acceptancePayload'?: string;
+    'submittedAt'?: string;
     'startedAt'?: string;
     'updatedAt'?: string;
     'completedAt'?: string;
@@ -1172,6 +1178,7 @@ export interface UserAccount {
     'qualificationStatus'?: UserAccountQualificationStatusEnum;
     'realPersonVerified'?: boolean;
     'freelancerAgreementSigned'?: boolean;
+    'freelancerAgreementSignedAt'?: string;
     'withdrawableAmount'?: number;
     'currentAgentId'?: string;
     'cancelledAt'?: string;
@@ -1301,6 +1308,39 @@ export interface WithdrawalReviewRequest {
  */
 export const AccountControllerApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
+        /**
+         *
+         * @param {string} userId
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        avatar: async (userId: string, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'userId' is not null or undefined
+            assertParamExists('avatar', 'userId', userId)
+            const localVarPath = `/api/v1/account/users/{userId}/avatar`
+                .replace('{userId}', encodeURIComponent(String(userId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
         /**
          *
          * @param {BindWithdrawalAccountRequest} bindWithdrawalAccountRequest
@@ -1731,6 +1771,45 @@ export const AccountControllerApiAxiosParamCreator = function (configuration?: C
                 options: localVarRequestOptions,
             };
         },
+        /**
+         *
+         * @param {File} file
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        uploadAvatar: async (file: File, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'file' is not null or undefined
+            assertParamExists('uploadAvatar', 'file', file)
+            const localVarPath = `/api/v1/account/profile/avatar`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+            const localVarFormParams = new ((configuration && configuration.formDataCtor) || FormData)();
+
+
+            if (file !== undefined) {
+                localVarFormParams.append('file', file as any);
+            }
+            localVarHeaderParameter['Content-Type'] = 'multipart/form-data';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = localVarFormParams;
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
     }
 };
 
@@ -1740,6 +1819,18 @@ export const AccountControllerApiAxiosParamCreator = function (configuration?: C
 export const AccountControllerApiFp = function(configuration?: Configuration) {
     const localVarAxiosParamCreator = AccountControllerApiAxiosParamCreator(configuration)
     return {
+        /**
+         *
+         * @param {string} userId
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async avatar(userId: string, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<File>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.avatar(userId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AccountControllerApi.avatar']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
         /**
          *
          * @param {BindWithdrawalAccountRequest} bindWithdrawalAccountRequest
@@ -1893,6 +1984,18 @@ export const AccountControllerApiFp = function(configuration?: Configuration) {
             const localVarOperationServerBasePath = operationServerMap['AccountControllerApi.updateProfile']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
+        /**
+         *
+         * @param {File} file
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async uploadAvatar(file: File, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseUserAccount>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.uploadAvatar(file, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AccountControllerApi.uploadAvatar']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
     }
 };
 
@@ -1902,6 +2005,15 @@ export const AccountControllerApiFp = function(configuration?: Configuration) {
 export const AccountControllerApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
     const localVarFp = AccountControllerApiFp(configuration)
     return {
+        /**
+         *
+         * @param {AccountControllerApiAvatarRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        avatar(requestParameters: AccountControllerApiAvatarRequest, options?: AxiosRequestConfig): AxiosPromise<File> {
+            return localVarFp.avatar(requestParameters.userId, options).then((request) => request(axios, basePath));
+        },
         /**
          *
          * @param {AccountControllerApiBindWithdrawalAccountRequest} requestParameters Request parameters.
@@ -2015,8 +2127,24 @@ export const AccountControllerApiFactory = function (configuration?: Configurati
         updateProfile(requestParameters: AccountControllerApiUpdateProfileRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseUserAccount> {
             return localVarFp.updateProfile(requestParameters.updateProfileRequest, options).then((request) => request(axios, basePath));
         },
+        /**
+         *
+         * @param {AccountControllerApiUploadAvatarRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        uploadAvatar(requestParameters: AccountControllerApiUploadAvatarRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseUserAccount> {
+            return localVarFp.uploadAvatar(requestParameters.file, options).then((request) => request(axios, basePath));
+        },
     };
 };
+
+/**
+ * Request parameters for avatar operation in AccountControllerApi.
+ */
+export interface AccountControllerApiAvatarRequest {
+    readonly userId: string
+}
 
 /**
  * Request parameters for bindWithdrawalAccount operation in AccountControllerApi.
@@ -2084,9 +2212,26 @@ export interface AccountControllerApiUpdateProfileRequest {
 }
 
 /**
+ * Request parameters for uploadAvatar operation in AccountControllerApi.
+ */
+export interface AccountControllerApiUploadAvatarRequest {
+    readonly file: File
+}
+
+/**
  * AccountControllerApi - object-oriented interface
  */
 export class AccountControllerApi extends BaseAPI {
+    /**
+     *
+     * @param {AccountControllerApiAvatarRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public avatar(requestParameters: AccountControllerApiAvatarRequest, options?: AxiosRequestConfig) {
+        return AccountControllerApiFp(this.configuration).avatar(requestParameters.userId, options).then((request) => request(this.axios, this.basePath));
+    }
+
     /**
      *
      * @param {AccountControllerApiBindWithdrawalAccountRequest} requestParameters Request parameters.
@@ -2211,6 +2356,16 @@ export class AccountControllerApi extends BaseAPI {
      */
     public updateProfile(requestParameters: AccountControllerApiUpdateProfileRequest, options?: AxiosRequestConfig) {
         return AccountControllerApiFp(this.configuration).updateProfile(requestParameters.updateProfileRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     *
+     * @param {AccountControllerApiUploadAvatarRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public uploadAvatar(requestParameters: AccountControllerApiUploadAvatarRequest, options?: AxiosRequestConfig) {
+        return AccountControllerApiFp(this.configuration).uploadAvatar(requestParameters.file, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

@@ -1,4 +1,5 @@
 import type { Account, Payout } from "../types";
+import { hasBoundPayoutAccount } from "./accountView";
 
 export type PayoutRecordState =
   | {
@@ -22,7 +23,8 @@ export function getPayoutRecordState(payouts: Payout[]): PayoutRecordState {
 
 export function getPayoutAccountText(account: Account) {
   if (account.alipayVerifiedName) return `收款人：${account.alipayVerifiedName}`;
-  if (account.alipayBound) return "收款账户已绑定";
+  if (account.alipayAccountMasked) return `收款支付宝：${account.alipayAccountMasked}`;
+  if (hasBoundPayoutAccount(account)) return "收款账户已绑定";
   if (account.maskedPhone) return `收款用户：${account.maskedPhone}`;
   return "收款信息待确认。";
 }
