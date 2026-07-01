@@ -537,7 +537,7 @@ function LongTextBlock({ title, body }: { title: string; body: string }) {
   return (
     <div className="mt-4 first:mt-3">
       <div className="text-sm font-semibold text-ink">{title}</div>
-      <p className="mt-2 whitespace-pre-wrap rounded-lg border border-line bg-[#fafafa] p-3 text-sm leading-7 text-ink-soft">{body || "-"}</p>
+      <p className="sprix-detail-prose mt-2 rounded-lg border border-line bg-[#fafafa] p-3">{body || "-"}</p>
     </div>
   );
 }
@@ -850,7 +850,7 @@ function DetailBlock({ title, body }: { title: string; body: string }) {
   return (
     <Surface className="p-4">
       <h3 className="sprix-section-title">{title}</h3>
-      <p className="mt-3 text-sm leading-7 text-ink-soft">{body}</p>
+      <p className="sprix-detail-prose mt-3">{body}</p>
     </Surface>
   );
 }

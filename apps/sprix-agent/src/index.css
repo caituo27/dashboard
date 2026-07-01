@@ -196,7 +196,7 @@ select {
 }
 
 .sprix-landing {
-  min-height: 100vh;
+  min-height: 100dvh;
   padding: 30px 32px 52px;
 }
 
@@ -1434,7 +1434,7 @@ select {
 
 .sprix-auth-callback-page {
   display: grid;
-  min-height: 100vh;
+  min-height: 100dvh;
   place-items: center;
   padding: 24px;
 }
@@ -1633,6 +1633,14 @@ select {
   font-weight: 700;
 }
 
+.sprix-detail-prose {
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+  color: var(--color-ink-soft);
+  font-size: 14px;
+  line-height: 1.8;
+}
+
 .sprix-output-error {
   overflow-wrap: anywhere;
   white-space: pre-wrap;
@@ -1769,7 +1777,7 @@ select {
 
 .sprix-history-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(168px, auto);
   gap: 16px;
   align-items: center;
   border-top: 1px solid rgba(238, 238, 238, 0.88);
@@ -1821,11 +1829,14 @@ select {
   white-space: nowrap;
 }
 
-.sprix-history-meta {
+.sprix-history-detail {
   display: grid;
-  min-width: 142px;
+  min-width: 168px;
   justify-items: end;
-  gap: 5px;
+  gap: 8px;
+}
+
+.sprix-history-time {
   color: var(--color-ink-soft);
   font-size: 13px;
   line-height: 1.35;
@@ -1833,12 +1844,20 @@ select {
 }
 
 .sprix-history-progress {
-  color: var(--color-ink);
+  display: inline-flex;
+  min-height: 28px;
+  min-width: 58px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(15, 118, 110, 0.12);
+  border-radius: 999px;
+  background: rgba(231, 247, 242, 0.66);
+  color: var(--color-accent);
   font-family: var(--font-number);
-  font-size: 20px;
+  font-size: 14px;
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: "tnum" 1, "lnum" 1;
-  font-weight: 780;
+  font-weight: 760;
   letter-spacing: 0;
 }
 
@@ -2109,7 +2128,7 @@ select {
 
 .sprix-evaluation-modal .ant-modal-content {
   display: flex;
-  max-height: min(88vh, 880px);
+  max-height: min(88dvh, 880px);
   flex-direction: column;
   overflow: hidden;
 }
@@ -2152,7 +2171,7 @@ select {
 .sprix-evaluation-shell {
   display: flex;
   min-height: 0;
-  max-height: min(66vh, 640px);
+  max-height: min(66dvh, 640px);
   flex-direction: column;
 }
 
@@ -2420,7 +2439,7 @@ select {
 }
 
 .sprix-evaluation-modal .ant-modal-content {
-  max-height: min(82vh, 760px);
+  max-height: min(82dvh, 760px);
   box-shadow: 0 28px 90px rgba(16, 24, 40, 0.22);
 }
 
@@ -2442,7 +2461,7 @@ select {
 }
 
 .sprix-evaluation-shell {
-  max-height: min(62vh, 560px);
+  max-height: min(62dvh, 560px);
 }
 
 .sprix-evaluation-scroll {
@@ -2547,7 +2566,7 @@ select {
 }
 
 .sprix-evaluation-progress-modal .ant-modal-content {
-  max-height: min(86vh, 780px);
+  max-height: min(86dvh, 780px);
 }
 
 .sprix-evaluation-progress-modal .ant-modal-body {
@@ -3354,7 +3373,7 @@ select {
   .sprix-shell {
     display: block;
     height: auto;
-    min-height: 100vh;
+    min-height: 100dvh;
     overflow: visible;
   }
 
@@ -3405,13 +3424,16 @@ select {
     white-space: normal;
   }
 
-  .sprix-history-meta {
+  .sprix-history-detail {
     display: flex;
     min-width: 0;
     flex-wrap: wrap;
     align-items: baseline;
     justify-content: flex-start;
     gap: 8px;
+  }
+
+  .sprix-history-time {
     white-space: normal;
   }
 
@@ -3498,7 +3520,7 @@ select {
   }
 
   .sprix-evaluation-shell {
-    max-height: 68vh;
+    max-height: 68dvh;
   }
 
   .sprix-evaluation-dimensions,
