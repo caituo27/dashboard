@@ -15,22 +15,13 @@ import {
   Route,
   ShieldCheck
 } from "lucide-react";
-import type { AdminAppeal, AdminOperationLog, CompletedExecution, FundException, Payout, ReviewingExecution, RunningExecution, Settlement, Task, TerminatedExecution, Withdrawal } from "../types";
+import type { AdminAppeal, AdminOperationLog, CompletedExecution, Payout, ReviewingExecution, RunningExecution, Settlement, Task, TerminatedExecution, Withdrawal } from "../types";
 import {
   approveRemoteAcceptanceReview,
   approveRemoteAppeal,
-  approveRemoteWithdrawal,
-  approveRemoteWithdrawals,
   createRemoteAdminTask,
   deleteRemoteAdminTask,
-  exportRemotePendingPayouts,
-  markRemotePayoutExceptionHandled,
-  markRemoteWithdrawalPayoutFailed,
-  markRemoteWithdrawalsPaid,
-  markRemoteWithdrawalsPayoutFailed,
   offlineRemoteAdminTask,
-  payRemoteWithdrawal,
-  queryRemoteWithdrawalPayout,
   readRemoteAppeals,
   readRemoteAppealDetail,
   readRemoteAcceptanceReviews,
@@ -39,10 +30,7 @@ import {
   readRemoteTaskDetail,
   rejectRemoteAcceptanceReview,
   rejectRemoteAppeal,
-  rejectRemoteWithdrawal,
-  rejectRemoteWithdrawals,
   republishRemoteAdminTask,
-  returnRemoteWithdrawalForReview,
   updateRemoteAdminTask,
   type UpsertAdminTaskPayload
 } from "../services/sprixApi";
@@ -51,7 +39,6 @@ import { currency } from "../utils/format";
 import { isGlobalAuthError } from "../utils/http";
 import {
   getAdminPayoutBatchActions,
-  getAdminPayoutExportAction,
   getAdminWithdrawalBatchActions,
   type AdminPendingFundAction
 } from "./adminFundView";
@@ -60,14 +47,6 @@ import { getAdminEstimatedTokenField } from "./tokenEstimateView";
 
 function getAppealBackendId(record: AdminAppeal) {
   return record.backendId ?? record.appealNo;
-}
-
-function getWithdrawalBackendId(record: Pick<Withdrawal | Payout, "backendId" | "withdrawalNo">) {
-  return record.backendId ?? record.withdrawalNo;
-}
-
-function getFundExceptionBackendId(record: Pick<FundException, "backendId" | "withdrawalNo">) {
-  return record.backendId ?? record.withdrawalNo;
 }
 
 function showRequestError(error: unknown, fallback: string, prefix = "") {
@@ -119,33 +98,6 @@ function AdminDetailHeading({
       </div>
     </div>
   );
-}
-
-function csvCell(value: unknown) {
-  const text = value == null ? "" : String(value);
-  return `"${text.replace(/"/g, "\"\"")}"`;
-}
-
-function downloadCsv(filename: string, rows: Array<Record<string, unknown>>) {
-  if (rows.length === 0) {
-    message.info("当前没有可导出的待打款记录");
-    return false;
-  }
-
-  const headers = Object.keys(rows[0]);
-  const content = [headers.map(csvCell).join(","), ...rows.map((row) => headers.map((header) => csvCell(row[header])).join(","))].join("\n");
-  const blob = new Blob([`\uFEFF${content}`], { type: "text/csv;charset=utf-8" });
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  window.URL.revokeObjectURL(url);
-  return true;
-}
-
-function showFundRecordDetail(title: string, rows: Array<[string, ReactNode]>) {
-  showAdminRecordDetail(title, rows);
 }
 
 function showAdminRecordDetail(title: string, rows: Array<[string, ReactNode]>) {
@@ -1536,8 +1488,6 @@ export function AdminAppealDetail() {
 }
 
 export function AdminFundCenter() {
-  const queryClient = useQueryClient();
-  const [fundTab, setFundTab] = useState("settlements");
   const fundsQuery = useQuery({
     queryKey: ["sprix-admin", "funds"],
     queryFn: readRemoteFunds,
@@ -1547,10 +1497,7 @@ export function AdminFundCenter() {
   const withdrawals = fundsQuery.data?.withdrawals ?? [];
   const payouts = fundsQuery.data?.payouts ?? [];
   const exceptions = fundsQuery.data?.fundExceptions ?? [];
-  const flows = fundsQuery.data?.fundFlows ?? [];
   const settlementPagination = useStableTablePagination(settlements.length, 10, { storageKey: "sprix-admin:funds:settlements:page" });
-  const exceptionPagination = useStableTablePagination(exceptions.length, 10, { storageKey: "sprix-admin:funds:exceptions:page" });
-  const flowPagination = useStableTablePagination(flows.length, 10, { storageKey: "sprix-admin:funds:flows:page" });
   if (fundsQuery.isLoading) return <Surface className="p-8">资金数据加载中</Surface>;
   if (fundsQuery.isError) {
     const messageText = fundsQuery.error instanceof Error ? fundsQuery.error.message : "资金数据加载失败";
@@ -1565,186 +1512,6 @@ export function AdminFundCenter() {
     ["已打款金额", sumBy(withdrawals.filter((item) => item.withdrawStatus === "已提现"), (item) => item.applyAmount)],
     ["打款失败金额", sumBy(exceptions, (item) => item.exceptionAmount)]
   ];
-  const approveWithdrawal = async (record: Withdrawal) => {
-    try {
-      await approveRemoteWithdrawal(getWithdrawalBackendId(record));
-      await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-      message.success("已通过审核，进入待打款");
-    } catch (error) {
-      showRequestError(error, "提现审核失败", "提现审核失败：");
-    }
-  };
-  const approveWithdrawals = async (records: Withdrawal[]) => {
-    try {
-      await approveRemoteWithdrawals(records.map(getWithdrawalBackendId));
-      await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-      message.success(`已批量通过 ${records.length} 条提现申请`);
-    } catch (error) {
-      showRequestError(error, "批量提现审核失败", "批量提现审核失败：");
-    }
-  };
-  const rejectWithdrawal = async (record: Withdrawal) => {
-    try {
-      await rejectRemoteWithdrawal(getWithdrawalBackendId(record), "后台审核不通过");
-      await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-      message.success("已驳回提现申请");
-    } catch (error) {
-      showRequestError(error, "提现驳回失败", "提现驳回失败：");
-    }
-  };
-  const rejectWithdrawals = async (records: Withdrawal[]) => {
-    try {
-      await rejectRemoteWithdrawals(records.map(getWithdrawalBackendId), "后台批量审核不通过");
-      await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-      message.success(`已批量驳回 ${records.length} 条提现申请`);
-    } catch (error) {
-      showRequestError(error, "批量提现驳回失败", "批量提现驳回失败：");
-    }
-  };
-  const payPayout = (record: Payout) => {
-    Modal.confirm({
-      title: "确认发起支付宝打款",
-      content: `将通过支付宝向 ${record.alipayAccount} 打款 ${currency(record.payoutAmount)}。确认后会调用后端真实出款接口。`,
-      okText: "发起打款",
-      onOk: async () => {
-        try {
-          await payRemoteWithdrawal(getWithdrawalBackendId(record));
-          await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-          message.success("支付宝打款已发起，状态以后端返回为准");
-        } catch (error) {
-          showRequestError(error, "支付宝打款失败", "支付宝打款失败：");
-        }
-      }
-    });
-  };
-  const queryPayout = async (record: Payout) => {
-    try {
-      await queryRemoteWithdrawalPayout(getWithdrawalBackendId(record));
-      await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-      message.success("已查询支付宝打款结果");
-    } catch (error) {
-      showRequestError(error, "打款结果查询失败", "打款结果查询失败：");
-    }
-  };
-  const returnPayoutForReview = async (record: Payout) => {
-    try {
-      await returnRemoteWithdrawalForReview(getWithdrawalBackendId(record), "待打款退回重新审核");
-      await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-      message.success("已退回提现审核");
-    } catch (error) {
-      showRequestError(error, "退回审核失败", "退回审核失败：");
-    }
-  };
-  const markPayoutFailed = async (record: Payout) => {
-    try {
-      await markRemoteWithdrawalPayoutFailed(getWithdrawalBackendId(record));
-      await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-      message.success("已标记打款失败");
-    } catch (error) {
-      showRequestError(error, "打款失败标记提交失败", "打款失败标记提交失败：");
-    }
-  };
-  const markPayoutsPaid = async (records: Payout[]) => {
-    try {
-      await markRemoteWithdrawalsPaid(records.map(getWithdrawalBackendId));
-      await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-      message.success(`已批量标记 ${records.length} 条记录为已打款`);
-    } catch (error) {
-      showRequestError(error, "批量标记已打款失败", "批量标记已打款失败：");
-    }
-  };
-  const markPayoutsFailed = async (records: Payout[]) => {
-    try {
-      await markRemoteWithdrawalsPayoutFailed(records.map(getWithdrawalBackendId), "后台批量标记打款失败");
-      await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-      message.success(`已批量标记 ${records.length} 条记录为打款失败`);
-    } catch (error) {
-      showRequestError(error, "批量标记打款失败提交失败", "批量标记打款失败提交失败：");
-    }
-  };
-  const exportPayouts = async () => {
-    try {
-      const records = await exportRemotePendingPayouts();
-      const downloaded = downloadCsv(
-        `sprix-pending-payouts-${new Date().toISOString().slice(0, 10)}.csv`,
-        records.map((record) => ({
-          提现单号: record.withdrawalNo,
-          用户昵称: record.userName,
-          手机号: record.userPhone,
-          支付宝账户: record.alipayAccount,
-          打款金额: record.applyAmount,
-          预计到账时间: record.estimatedArrivalTime,
-          当前状态: record.withdrawStatus,
-          打款渠道: record.payoutProvider ?? "",
-          商户单号: record.payoutOutBizNo ?? "",
-          支付宝订单号: record.payoutOrderId ?? "",
-          支付宝状态: record.payoutStatus ?? ""
-        }))
-      );
-      if (downloaded) message.success("打款清单已导出");
-    } catch (error) {
-      showRequestError(error, "打款清单导出失败", "打款清单导出失败：");
-    }
-  };
-  const payoutExportAction = getAdminPayoutExportAction();
-  const markExceptionHandled = async (record: FundException) => {
-    try {
-      await markRemotePayoutExceptionHandled(getFundExceptionBackendId(record), "异常已处理，用户需更换收款账户");
-      await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-      message.success("异常已标记处理");
-    } catch (error) {
-      showRequestError(error, "异常处理失败", "异常处理失败：");
-    }
-  };
-  const showWithdrawalDetail = (record: Withdrawal) => {
-    showFundRecordDetail("提现详情", [
-      ["提现单号", record.withdrawalNo],
-      ["用户昵称", record.userName],
-      ["手机号", record.userPhone],
-      ["实人认证主体", record.verifiedName],
-      ["支付宝账户", record.alipayAccount],
-      ["收款账户状态", <StatusTag status={record.realNameMatchStatus} />],
-      ["可提现余额", currency(record.withdrawableBalance)],
-      ["申请提现金额", currency(record.applyAmount)],
-      ["预计到账时间", record.estimatedArrivalTime],
-      ["提现申请时间", record.appliedAt],
-      ["当前状态", <StatusTag status={record.withdrawStatus} />],
-      ["审核人", record.reviewer],
-      ["审核备注", record.reviewReason ?? "-"]
-    ]);
-  };
-  const showPayoutDetail = (record: Payout) => {
-    showFundRecordDetail("打款详情", [
-      ["提现单号", record.withdrawalNo],
-      ["用户昵称", record.userName],
-      ["手机号", record.userPhone],
-      ["支付宝账户", record.alipayAccount],
-      ["打款金额", currency(record.payoutAmount)],
-      ["预计到账时间", record.estimatedArrivalTime],
-      ["审核通过时间", record.approvedAt],
-      ["打款渠道", record.payoutProvider ?? "-"],
-      ["商户单号", record.payoutOutBizNo ?? "-"],
-      ["支付宝订单号", record.payoutOrderId ?? "-"],
-      ["支付宝状态", record.payoutStatus ?? "-"],
-      ["发起时间", record.payoutRequestedAt ?? "-"],
-      ["完成时间", record.payoutCompletedAt ?? "-"],
-      ["最近查询", record.payoutLastQueriedAt ?? "-"],
-      ["当前状态", <StatusTag status={record.withdrawStatus} />]
-    ]);
-  };
-  const showExceptionDetail = (record: FundException) => {
-    showFundRecordDetail("打款异常详情", [
-      ["异常编号", record.exceptionNo],
-      ["提现单号", record.withdrawalNo],
-      ["用户昵称", record.userName],
-      ["手机号", record.userPhone],
-      ["支付宝账户", record.alipayAccount],
-      ["异常类型", record.exceptionType],
-      ["异常金额", currency(record.exceptionAmount)],
-      ["当前状态", <StatusTag status={record.currentStatus} />],
-      ["发生时间", record.occurredAt]
-    ]);
-  };
   return (
     <>
       <PageHeader title="资金管理中心" subtitle="管理结算记录、提现审核、待打款、打款异常和资金流水。" />
@@ -1754,137 +1521,24 @@ export function AdminFundCenter() {
         ))}
       </div>
       <Surface className="sprix-table-card p-4">
-        <Tabs
-          activeKey={fundTab}
-          onChange={setFundTab}
-          tabBarExtraContent={
-            fundTab === "payouts" ? (
-              <div className="sprix-tab-extra-action">
-                <SecondaryButton disabled={payoutExportAction.disabled} onClick={exportPayouts}>{payoutExportAction.label}</SecondaryButton>
-                {payoutExportAction.reason && <span className="text-xs text-ink-soft">{payoutExportAction.reason}</span>}
-              </div>
-            ) : undefined
-          }
-          items={[
-            {
-              key: "settlements",
-              label: "结算记录",
-              children: (
-                <Table
-                  rowKey="settlementNo"
-                  tableLayout="fixed"
-                  dataSource={settlements}
-                  pagination={settlementPagination}
-                  scroll={{ x: 1320 }}
-                  columns={[
-                    { title: "结算单号", dataIndex: "settlementNo", width: 150, render: (value) => <EllipsisCell value={value} /> },
-                    { title: "关联任务", dataIndex: "taskTitle", width: 260, render: (value) => <EllipsisCell value={value} /> },
-                    { title: "用户昵称", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
-                    { title: "手机号", dataIndex: "userPhone", width: 130, render: (value) => <EllipsisCell value={value} /> },
-                    { title: "执行 Agent", dataIndex: "agentName", width: 140, render: (value) => <EllipsisCell value={value} /> },
-                    { title: "任务收入", dataIndex: "taskIncome", width: 96, render: currency },
-                    { title: "平台服务费", dataIndex: "platformFee", width: 112, render: currency },
-                    { title: "实际入账", dataIndex: "netIncome", width: 112, render: currency },
-                    { title: "结算状态", dataIndex: "settlementStatus", width: 120, render: (value) => <StatusTag status={value} /> },
-                    { title: "生成时间", dataIndex: "createdAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
-                    { title: "入账时间", dataIndex: "paidAt", width: 150, render: (value) => <EllipsisCell value={value} /> }
-                  ]}
-                />
-              )
-            },
-            {
-              key: "withdrawals",
-              label: "提现审核",
-              children: (
-                <WithdrawalTable
-                  data={withdrawals}
-                  onApproveWithdrawal={approveWithdrawal}
-                  onApproveWithdrawals={approveWithdrawals}
-                  onRejectWithdrawal={rejectWithdrawal}
-                  onRejectWithdrawals={rejectWithdrawals}
-                  onViewWithdrawal={showWithdrawalDetail}
-                />
-              )
-            },
-            {
-              key: "payouts",
-              label: "待打款",
-              children: (
-                <PendingPayoutTable
-                  data={payouts}
-                  onPay={payPayout}
-                  onQuery={queryPayout}
-                  onReturnReview={returnPayoutForReview}
-                  onMarkFailed={markPayoutFailed}
-                  onMarkPaidBatch={markPayoutsPaid}
-                  onMarkFailedBatch={markPayoutsFailed}
-                  onViewPayout={showPayoutDetail}
-                />
-              )
-            },
-            {
-              key: "exceptions",
-              label: "打款异常",
-              children: (
-                <Table
-                  rowKey="exceptionNo"
-                  tableLayout="fixed"
-                  dataSource={exceptions}
-                  pagination={exceptionPagination}
-                  scroll={{ x: 1260 }}
-                  columns={[
-                    { title: "异常编号", dataIndex: "exceptionNo", width: 150, render: (value) => <EllipsisCell value={value} /> },
-                    { title: "提现单号", dataIndex: "withdrawalNo", width: 220, render: (value) => <EllipsisCell value={value} /> },
-                    { title: "用户昵称", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
-                    { title: "手机号", dataIndex: "userPhone", width: 130, render: (value) => <EllipsisCell value={value} /> },
-                    { title: "支付宝账户", dataIndex: "alipayAccount", width: 260, render: (value) => <EllipsisCell value={value} /> },
-                    { title: "异常类型", dataIndex: "exceptionType", width: 120, render: (value) => <EllipsisCell value={value} /> },
-                    { title: "异常金额", dataIndex: "exceptionAmount", width: 110, render: currency },
-                    { title: "当前状态", dataIndex: "currentStatus", width: 120, render: (value) => <StatusTag status={value} /> },
-                    { title: "发生时间", dataIndex: "occurredAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
-                    {
-                      title: "操作",
-                      width: 180,
-                      fixed: "right",
-                      render: (_, record) => (
-                        <div className="flex flex-wrap gap-1">
-                          <Button type="link" onClick={() => showExceptionDetail(record)}>查看详情</Button>
-                          <Button type="link" disabled={record.currentStatus === "已处理"} onClick={() => markExceptionHandled(record)}>
-                            标记已处理
-                          </Button>
-                        </div>
-                      )
-                    }
-                  ]}
-                />
-              )
-            },
-            {
-              key: "flows",
-              label: "资金流水",
-              children: (
-                <Table
-                  rowKey="flowNo"
-                  tableLayout="fixed"
-                  dataSource={flows}
-                  pagination={flowPagination}
-                  scroll={{ x: 1520 }}
-                  columns={[
-                    { title: "流水编号", dataIndex: "flowNo", width: 180, render: (value) => <EllipsisCell value={value} /> },
-                    { title: "流水类型", dataIndex: "flowType", width: 130, render: (value) => <EllipsisCell value={value} /> },
-                    { title: "关联用户", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
-                    { title: "关联任务", dataIndex: "taskTitle", width: 260, render: (value) => <EllipsisCell value={value} /> },
-                    { title: "关联提现单", dataIndex: "withdrawalNo", width: 160, render: (value) => <EllipsisCell value={value} /> },
-                    { title: "金额", dataIndex: "amount", width: 100, render: currency },
-                    { title: "前状态", dataIndex: "beforeStatus", width: 140, render: (value) => <StatusTag status={value} /> },
-                    { title: "后状态", dataIndex: "afterStatus", width: 140, render: (value) => <StatusTag status={value} /> },
-                    { title: "操作人", dataIndex: "operator", width: 140, render: (value) => <EllipsisCell value={value} /> },
-                    { title: "发生时间", dataIndex: "occurredAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
-                    { title: "备注", dataIndex: "remark", width: 200, render: (value) => <EllipsisCell value={value} /> }
-                  ]}
-                />
-              )
-            }
+        <Table
+          rowKey="settlementNo"
+          tableLayout="fixed"
+          dataSource={settlements}
+          pagination={settlementPagination}
+          scroll={{ x: 1320 }}
+          columns={[
+            { title: "结算单号", dataIndex: "settlementNo", width: 150, render: (value) => <EllipsisCell value={value} /> },
+            { title: "关联任务", dataIndex: "taskTitle", width: 260, render: (value) => <EllipsisCell value={value} /> },
+            { title: "用户昵称", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
+            { title: "手机号", dataIndex: "userPhone", width: 130, render: (value) => <EllipsisCell value={value} /> },
+            { title: "执行 Agent", dataIndex: "agentName", width: 140, render: (value) => <EllipsisCell value={value} /> },
+            { title: "任务收入", dataIndex: "taskIncome", width: 96, render: currency },
+            { title: "平台服务费", dataIndex: "platformFee", width: 112, render: currency },
+            { title: "实际入账", dataIndex: "netIncome", width: 112, render: currency },
+            { title: "结算状态", dataIndex: "settlementStatus", width: 120, render: (value) => <StatusTag status={value} /> },
+            { title: "生成时间", dataIndex: "createdAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
+            { title: "入账时间", dataIndex: "paidAt", width: 150, render: (value) => <EllipsisCell value={value} /> }
           ]}
         />
       </Surface>
