@@ -162,7 +162,7 @@ select {
 }
 
 .sprix-container {
-  width: min(1360px, 100%);
+  width: min(1360px, calc(100% - 48px));
   min-height: 100%;
   margin: 0 auto;
 }
@@ -267,20 +267,17 @@ select {
 }
 
 .sprix-page-header {
-  position: sticky;
-  top: 0;
-  z-index: 20;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 16px;
-  margin: -18px 0 14px;
-  border-bottom: 1px solid rgba(238, 238, 238, 0.72);
-  background:
-    linear-gradient(rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.9)),
-    transparent;
-  padding: 18px 0 12px;
+  margin: 0 0 18px;
+  border: 1px solid rgba(238, 238, 238, 0.9);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 20px 24px;
   text-align: left;
+  box-shadow: var(--shadow-soft);
   backdrop-filter: blur(16px);
 }
 
@@ -412,6 +409,22 @@ select {
   background: transparent;
 }
 
+.sprix-table-card {
+  border-radius: 16px;
+  padding: 20px 22px 22px !important;
+}
+
+.sprix-table-card .ant-tabs-nav {
+  margin-bottom: 16px;
+}
+
+.sprix-table-card .ant-table-container {
+  overflow: hidden;
+  border: 1px solid rgba(238, 238, 238, 0.96);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+}
+
 .sprix-table-card .ant-table-thead > tr > th {
   background: #fafafa;
   color: var(--color-ink-soft);
@@ -425,6 +438,16 @@ select {
   vertical-align: middle;
   word-break: normal;
   overflow-wrap: normal;
+}
+
+.sprix-table-card .ant-table-thead > tr > th:first-child,
+.sprix-table-card .ant-table-tbody > tr > td:first-child {
+  padding-left: 18px;
+}
+
+.sprix-table-card .ant-table-thead > tr > th:last-child,
+.sprix-table-card .ant-table-tbody > tr > td:last-child {
+  padding-right: 18px;
 }
 
 .sprix-table-card .ant-table-tbody > tr > td {
@@ -605,6 +628,10 @@ select {
     padding: 18px;
   }
 
+  .sprix-container {
+    width: 100%;
+  }
+
   .sprix-grid-auto {
     grid-template-columns: 1fr;
   }
@@ -614,7 +641,7 @@ select {
     grid-template-columns: 1fr;
     align-items: start;
     margin: 0 0 14px;
-    padding: 4px 0;
+    padding: 18px;
   }
 
   .sprix-page-actions {

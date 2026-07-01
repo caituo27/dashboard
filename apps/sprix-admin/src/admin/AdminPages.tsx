@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Key, ReactNode } from "react";
 import { Button, Form, Input, InputNumber, Modal, Select, Table, Tabs, Tooltip, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -149,6 +149,54 @@ function showFundRecordDetail(title: string, rows: Array<[string, ReactNode]>) {
   });
 }
 
+function readStoredTablePage(storageKey?: string) {
+  if (!storageKey || typeof window === "undefined") return 1;
+  try {
+    const page = Number(window.sessionStorage.getItem(storageKey));
+    return Number.isInteger(page) && page > 0 ? page : 1;
+  } catch {
+    return 1;
+  }
+}
+
+function writeStoredTablePage(storageKey: string | undefined, page: number) {
+  if (!storageKey || typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(storageKey, String(page));
+  } catch {
+    // Ignore storage failures; pagination still works for the current mount.
+  }
+}
+
+function useStableTablePagination(total: number, pageSize: number, options?: string | { resetKey?: string; storageKey?: string }) {
+  const resetKey = typeof options === "string" ? options : options?.resetKey;
+  const storageKey = typeof options === "string" ? undefined : options?.storageKey;
+  const resetKeyRef = useRef(resetKey);
+  const [current, setCurrent] = useState(() => readStoredTablePage(storageKey));
+
+  useEffect(() => {
+    if (resetKeyRef.current === resetKey) return;
+    resetKeyRef.current = resetKey;
+    setCurrent(1);
+  }, [resetKey]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(total / pageSize));
+    setCurrent((page) => Math.min(page, maxPage));
+  }, [pageSize, total]);
+
+  useEffect(() => {
+    writeStoredTablePage(storageKey, current);
+  }, [current, storageKey]);
+
+  return {
+    current,
+    pageSize,
+    showSizeChanger: false,
+    onChange: (page: number) => setCurrent(page)
+  };
+}
+
 const taskCategoryOptions = ["等待产品输入"].map((value) => ({ value, label: value }));
 const taskFormFields = ["title", "category", "sourceType", "description", "deliverables", "acceptanceCriteria", "reward", "totalSlots"] as const;
 const integerFieldRules = (label: string) => [
@@ -203,11 +251,6 @@ export function AdminTaskCenter() {
   });
   const [tab, setTab] = useState("全部");
   const [keyword, setKeyword] = useState("");
-  if (taskCenterQuery.isLoading) return <Surface className="p-8">任务数据加载中</Surface>;
-  if (taskCenterQuery.isError) {
-    const messageText = taskCenterQuery.error instanceof Error ? taskCenterQuery.error.message : "任务数据加载失败";
-    return <Surface className="p-8">任务数据加载失败：{messageText}</Surface>;
-  }
   const tasks = taskCenterQuery.data?.tasks ?? [];
   const acceptanceReviews = taskCenterQuery.data?.acceptanceReviews ?? [];
   const appealCount = taskCenterQuery.data?.appealCount ?? 0;
@@ -218,6 +261,15 @@ export function AdminTaskCenter() {
     if (!query) return true;
     return `${task.title}${task.category}${task.sourceType}`.includes(query);
   });
+  const taskPagination = useStableTablePagination(visibleTasks.length, 8, {
+    resetKey: `${tab}:${keyword.trim()}`,
+    storageKey: "sprix-admin:tasks:page"
+  });
+  if (taskCenterQuery.isLoading) return <Surface className="p-8">任务数据加载中</Surface>;
+  if (taskCenterQuery.isError) {
+    const messageText = taskCenterQuery.error instanceof Error ? taskCenterQuery.error.message : "任务数据加载失败";
+    return <Surface className="p-8">任务数据加载失败：{messageText}</Surface>;
+  }
   const executionCount = tasks.reduce((sum, task) => sum + (task.executionTotal ?? 0), 0);
   const reviewCount = acceptanceReviews.length;
   const selectTaskTab = (nextTab: string) => {
@@ -358,7 +410,7 @@ export function AdminTaskCenter() {
                 rowKey="id"
                 columns={taskColumns}
                 dataSource={visibleTasks}
-                pagination={{ pageSize: 8 }}
+                pagination={taskPagination}
                 scroll={{ x: 1320 }}
                 rowClassName="cursor-pointer"
                 locale={{ emptyText: "暂无任务" }}
@@ -601,6 +653,7 @@ function AcceptanceReviewTable({
   onApprove: (record: ReviewingExecution) => void;
   onReject: (record: ReviewingExecution) => void;
 }) {
+  const pagination = useStableTablePagination(data.length, 6, { storageKey: showTask ? "sprix-admin:acceptance:page" : "sprix-admin:executions:reviewing:page" });
   const columns: ColumnsType<ReviewingExecution> = [
     ...(showTask
       ? [
@@ -639,7 +692,7 @@ function AcceptanceReviewTable({
       rowKey="executionId"
       dataSource={data}
       columns={columns}
-      pagination={{ pageSize: 6 }}
+      pagination={pagination}
       locale={{ emptyText: "暂无待平台审核记录" }}
       scroll={{ x: showTask ? 2200 : 1800 }}
       rowClassName={onOpenDetail ? "cursor-pointer" : undefined}
@@ -1061,11 +1114,6 @@ export function AdminAppealCenter() {
   const [tab, setTab] = useState("全部");
   const [keyword, setKeyword] = useState("");
   const [quickFilter, setQuickFilter] = useState<"none" | "today" | "done">("none");
-  if (appealsQuery.isLoading) return <Surface className="p-8">申诉数据加载中</Surface>;
-  if (appealsQuery.isError) {
-    const messageText = appealsQuery.error instanceof Error ? appealsQuery.error.message : "申诉数据加载失败";
-    return <Surface className="p-8">申诉数据加载失败：{messageText}</Surface>;
-  }
   const appeals = appealsQuery.data ?? [];
   const today = new Intl.DateTimeFormat("sv-SE", {
     year: "numeric",
@@ -1084,6 +1132,15 @@ export function AdminAppealCenter() {
     if (!query) return true;
     return `${appeal.appealNo}${appeal.taskTitle}${appeal.userName}${appeal.userPhone}${appeal.agentName}`.includes(query);
   });
+  const appealPagination = useStableTablePagination(visible.length, 6, {
+    resetKey: `${tab}:${quickFilter}:${keyword.trim()}`,
+    storageKey: "sprix-admin:appeals:page"
+  });
+  if (appealsQuery.isLoading) return <Surface className="p-8">申诉数据加载中</Surface>;
+  if (appealsQuery.isError) {
+    const messageText = appealsQuery.error instanceof Error ? appealsQuery.error.message : "申诉数据加载失败";
+    return <Surface className="p-8">申诉数据加载失败：{messageText}</Surface>;
+  }
   const stats = {
     pending: appeals.filter((item) => item.appealStatus === "待处理").length,
     processing: appeals.filter((item) => item.appealStatus === "处理中").length,
@@ -1118,7 +1175,7 @@ export function AdminAppealCenter() {
               <Table
                 rowKey="appealNo"
                 dataSource={visible}
-                pagination={{ pageSize: 6 }}
+                pagination={appealPagination}
                 tableLayout="fixed"
                 scroll={{ x: 1320 }}
                 columns={[
@@ -1273,16 +1330,19 @@ export function AdminFundCenter() {
     queryFn: readRemoteFunds,
     retry: 1
   });
-  if (fundsQuery.isLoading) return <Surface className="p-8">资金数据加载中</Surface>;
-  if (fundsQuery.isError) {
-    const messageText = fundsQuery.error instanceof Error ? fundsQuery.error.message : "资金数据加载失败";
-    return <Surface className="p-8">资金数据加载失败：{messageText}</Surface>;
-  }
   const settlements = fundsQuery.data?.settlements ?? [];
   const withdrawals = fundsQuery.data?.withdrawals ?? [];
   const payouts = fundsQuery.data?.payouts ?? [];
   const exceptions = fundsQuery.data?.fundExceptions ?? [];
   const flows = fundsQuery.data?.fundFlows ?? [];
+  const settlementPagination = useStableTablePagination(settlements.length, 10, { storageKey: "sprix-admin:funds:settlements:page" });
+  const exceptionPagination = useStableTablePagination(exceptions.length, 10, { storageKey: "sprix-admin:funds:exceptions:page" });
+  const flowPagination = useStableTablePagination(flows.length, 10, { storageKey: "sprix-admin:funds:flows:page" });
+  if (fundsQuery.isLoading) return <Surface className="p-8">资金数据加载中</Surface>;
+  if (fundsQuery.isError) {
+    const messageText = fundsQuery.error instanceof Error ? fundsQuery.error.message : "资金数据加载失败";
+    return <Surface className="p-8">资金数据加载失败：{messageText}</Surface>;
+  }
   const sumBy = <T,>(records: T[], pickAmount: (record: T) => number) => records.reduce((sum, record) => sum + pickAmount(record), 0);
   const stats = [
     ["可提现余额总额", sumBy(withdrawals, (item) => item.withdrawableBalance)],
@@ -1533,6 +1593,7 @@ export function AdminFundCenter() {
                   rowKey="settlementNo"
                   tableLayout="fixed"
                   dataSource={settlements}
+                  pagination={settlementPagination}
                   scroll={{ x: 1500 }}
                   columns={[
                     { title: "结算单号", dataIndex: "settlementNo", width: 150, render: (value) => <EllipsisCell value={value} /> },
@@ -1603,6 +1664,7 @@ export function AdminFundCenter() {
                   rowKey="exceptionNo"
                   tableLayout="fixed"
                   dataSource={exceptions}
+                  pagination={exceptionPagination}
                   scroll={{ x: 1260 }}
                   columns={[
                     { title: "异常编号", dataIndex: "exceptionNo", width: 150, render: (value) => <EllipsisCell value={value} /> },
@@ -1639,6 +1701,7 @@ export function AdminFundCenter() {
                   rowKey="flowNo"
                   tableLayout="fixed"
                   dataSource={flows}
+                  pagination={flowPagination}
                   scroll={{ x: 1520 }}
                   columns={[
                     { title: "流水编号", dataIndex: "flowNo", width: 180, render: (value) => <EllipsisCell value={value} /> },
@@ -1690,6 +1753,7 @@ function WithdrawalTable({
 }) {
   const [selectedKeys, setSelectedKeys] = useState<Key[]>([]);
   const selectedRecords = data.filter((item) => selectedKeys.includes(item.withdrawalNo));
+  const pagination = useStableTablePagination(data.length, 10, { storageKey: "sprix-admin:funds:withdrawals:page" });
   const batchActions = getAdminWithdrawalBatchActions({
     approve: async () => {
       await onApproveWithdrawals(selectedRecords);
@@ -1713,6 +1777,7 @@ function WithdrawalTable({
         tableLayout="fixed"
         dataSource={data}
         rowSelection={{ selectedRowKeys: selectedKeys, onChange: setSelectedKeys }}
+        pagination={pagination}
         scroll={{ x: 1560 }}
         columns={[
           { title: "提现单号", dataIndex: "withdrawalNo", width: 220, render: (value) => <EllipsisCell value={value} /> },
@@ -1770,6 +1835,7 @@ function PendingPayoutTable({
 }) {
   const [selectedKeys, setSelectedKeys] = useState<Key[]>([]);
   const selectedRecords = data.filter((item) => selectedKeys.includes(item.withdrawalNo));
+  const pagination = useStableTablePagination(data.length, 10, { storageKey: "sprix-admin:funds:payouts:page" });
   const batchActions = getAdminPayoutBatchActions({
     markPaid: async () => {
       await onMarkPaidBatch(selectedRecords);
@@ -1793,6 +1859,7 @@ function PendingPayoutTable({
         tableLayout="fixed"
         dataSource={data}
         rowSelection={{ selectedRowKeys: selectedKeys, onChange: setSelectedKeys }}
+        pagination={pagination}
         scroll={{ x: 2100 }}
         columns={[
           { title: "提现单号", dataIndex: "withdrawalNo", width: 240, render: (value) => <EllipsisCell value={value} /> },

@@ -83,15 +83,17 @@ export function MetricCard({
   caption?: string;
   icon?: ReactNode;
 }) {
+  const valueClassName = typeof value === "string" && value.length > 8 ? " is-long" : "";
+
   return (
-    <Surface tight className="p-5">
+    <Surface tight className="sprix-metric-card p-5">
       <div className="flex items-start gap-3">
         <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-[#e7f7f2] text-accent">
           {icon ?? <CircleDollarSign size={19} />}
         </div>
         <div className="min-w-0">
-          <p className="text-xs font-medium text-ink-soft">{title}</p>
-          <div className="sprix-metric-card-value mt-1 text-4xl leading-none text-ink">{value}</div>
+          <p className="sprix-metric-card-title text-ink-soft">{title}</p>
+          <div className={`sprix-metric-card-value mt-1 text-ink${valueClassName}`}>{value}</div>
           {caption && <p className="mt-1 text-xs text-ink-soft">{caption}</p>}
         </div>
       </div>

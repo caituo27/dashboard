@@ -131,18 +131,64 @@ export function formatBytes(value?: number) {
 }
 
 export function getAcceptanceIssues(acceptance?: AcceptanceSnapshot) {
-  const issues = acceptance?.issues?.trim();
-  if (!issues) return [];
+  const payload = parseAcceptancePayload(acceptance?.acceptancePayload);
+  return uniqueTextItems([
+    ...parseTextList(acceptance?.issues),
+    ...parseTextList(payload?.issues),
+    ...parseTextList(payload?.failureReasons)
+  ]);
+}
 
-  try {
-    const parsed = JSON.parse(issues) as unknown;
-    if (Array.isArray(parsed)) return parsed.map((item) => String(item)).filter(Boolean);
-    if (parsed && typeof parsed === "object") return Object.entries(parsed).map(([key, value]) => `${key}：${String(value)}`);
-  } catch {
-    return [issues];
+export function getAcceptanceSuggestions(acceptance?: AcceptanceSnapshot) {
+  const payload = parseAcceptancePayload(acceptance?.acceptancePayload);
+  return uniqueTextItems(parseTextList(payload?.improvementSuggestions));
+}
+
+export function getAcceptanceSummary(acceptance?: AcceptanceSnapshot) {
+  const payload = parseAcceptancePayload(acceptance?.acceptancePayload);
+  return acceptance?.summary?.trim() || textValue(payload?.summary);
+}
+
+export function getReadableAcceptanceStatus(status?: string) {
+  const normalized = (status ?? "").trim().toLowerCase();
+  if (!normalized) return "";
+  if (["passed", "pass", "success", "accepted", "approved"].includes(normalized) || normalized.includes("通过")) {
+    return "验收通过";
   }
+  if (["failed", "fail", "rejected"].includes(normalized) || normalized.includes("失败") || normalized.includes("未通过")) {
+    return "验收未通过";
+  }
+  if (normalized.includes("pending") || normalized.includes("review")) {
+    return "待平台审核";
+  }
+  return status ?? "";
+}
 
-  return [issues];
+function parseAcceptancePayload(payload?: string) {
+  if (!payload?.trim()) return undefined;
+  try {
+    const parsed = JSON.parse(payload) as unknown;
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function parseTextList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(textValue).filter(Boolean);
+  if (value && typeof value === "object") {
+    return Object.entries(value).map(([key, item]) => `${key}：${textValue(item) || "-"}`);
+  }
+  const text = textValue(value);
+  return text ? [text] : [];
+}
+
+function textValue(value: unknown) {
+  return typeof value === "string" ? value.trim() : value == null ? "" : String(value).trim();
+}
+
+function uniqueTextItems(items: string[]) {
+  return [...new Set(items.map((item) => item.trim()).filter(Boolean))];
 }
 
 export function getSortedTimeline(detail: MyTaskExecutionDetail): TimelineEventSnapshot[] {

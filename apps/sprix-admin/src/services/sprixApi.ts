@@ -140,6 +140,18 @@ type RemoteAcceptanceReviewRow = {
   updatedAt?: string;
 };
 
+type RemoteSettlementRecord = SettlementRecord & {
+  userName?: string;
+  userPhone?: string;
+  agentName?: string;
+};
+
+type RemoteWithdrawalRecord = WithdrawalRecord & {
+  userName?: string;
+  userPhone?: string;
+  verifiedName?: string;
+};
+
 type RemoteAdminAppealDetail = {
   appeal: AppealRecord;
   executionId: string;
@@ -242,8 +254,8 @@ export async function readRemoteFunds(): Promise<AdminFundsSnapshot> {
   ]);
   const tasks = listValue<TaskEntity>(tasksResponse).map(mapTask);
   const taskById = new Map(tasks.map((task) => [task.id, task]));
-  const settlements = listValue<SettlementRecord>(settlementsResponse).map((item) => mapSettlement(item, taskById));
-  const withdrawals = listValue<WithdrawalRecord>(withdrawalsResponse).map(mapWithdrawal);
+  const settlements = listValue<RemoteSettlementRecord>(settlementsResponse).map((item) => mapSettlement(item, taskById));
+  const withdrawals = listValue<RemoteWithdrawalRecord>(withdrawalsResponse).map(mapWithdrawal);
   return {
     settlements,
     withdrawals,
@@ -322,7 +334,7 @@ export async function markRemoteWithdrawalsPayoutFailed(withdrawalIds: string[],
 
 export async function exportRemotePendingPayouts(): Promise<Withdrawal[]> {
   const response = await adminFundsApi.pendingPayoutExport();
-  return listValue<WithdrawalRecord>(requireValue(response, "打款清单导出失败")).map(mapWithdrawal);
+  return listValue<RemoteWithdrawalRecord>(requireValue(response, "打款清单导出失败")).map(mapWithdrawal);
 }
 
 export async function returnRemoteWithdrawalForReview(withdrawalId: string, reason: string) {
@@ -525,15 +537,15 @@ function mapAppealDetail(detail: RemoteAdminAppealDetail): AdminAppeal {
   };
 }
 
-function mapSettlement(settlement: SettlementRecord, taskById: Map<string, Task>): Settlement {
+function mapSettlement(settlement: RemoteSettlementRecord, taskById: Map<string, Task>): Settlement {
   const task = taskById.get(settlement.taskId ?? "");
   return {
     backendId: settlement.id,
     settlementNo: settlement.settlementNo ?? settlement.id ?? "",
     taskTitle: task?.title ?? compactId(settlement.taskId, "任务"),
-    userName: compactId(settlement.userId, "用户"),
-    userPhone: "-",
-    agentName: compactId(settlement.agentId, "Agent"),
+    userName: settlement.userName || compactId(settlement.userId, "用户"),
+    userPhone: settlement.userPhone || "-",
+    agentName: settlement.agentName || compactId(settlement.agentId, "Agent"),
     taskIncome: settlement.taskIncome ?? 0,
     platformFee: settlement.platformFee ?? 0,
     netIncome: settlement.netIncome ?? 0,
@@ -544,13 +556,13 @@ function mapSettlement(settlement: SettlementRecord, taskById: Map<string, Task>
   };
 }
 
-function mapWithdrawal(withdrawal: WithdrawalRecord): Withdrawal {
+function mapWithdrawal(withdrawal: RemoteWithdrawalRecord): Withdrawal {
   return {
     backendId: withdrawal.id,
     withdrawalNo: withdrawal.withdrawalNo ?? withdrawal.id ?? "",
-    userName: compactId(withdrawal.userId, "用户"),
-    userPhone: "-",
-    verifiedName: "-",
+    userName: withdrawal.userName || compactId(withdrawal.userId, "用户"),
+    userPhone: withdrawal.userPhone || "-",
+    verifiedName: withdrawal.verifiedName || "-",
     alipayAccount: withdrawal.alipayAccount ?? "-",
     realNameMatchStatus: withdrawal.realNameMatchStatus === "PASSED" ? "可用" : "待授权",
     withdrawableBalance: withdrawal.amount ?? 0,
