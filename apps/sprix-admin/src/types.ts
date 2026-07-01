@@ -198,6 +198,7 @@ export type AdminAppeal = {
   appealStatus: AppealStatus;
   priority: "普通" | "加急" | "高风险";
   submittedAt: string;
+  handledAt?: string;
   handler: string;
   expectedProcessTime?: string;
   originalScore?: string;

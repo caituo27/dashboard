@@ -1005,11 +1005,12 @@ function MyTaskRow({
 }) {
   const actions = getMyTaskActions(task);
   const metaItems = getMyTaskMetaItems(task);
+  const showPrimaryStatus = !(task.status === "验收未通过" && shouldShowAppealStatus(task.appealStatus));
   return (
     <div className="flex flex-col gap-4 rounded-[18px] border border-line bg-white p-4 xl:flex-row xl:items-center xl:justify-between">
       <div>
         <div className="flex flex-wrap items-center gap-2">
-          <StatusTag status={task.status} />
+          {showPrimaryStatus && <StatusTag status={task.status} />}
           {shouldShowAppealStatus(task.appealStatus) && <StatusTag status={task.appealStatus} />}
         </div>
         <Link to={`/agent/my-tasks/${task.id}`} className="mt-2 block text-lg font-semibold text-ink no-underline hover:text-accent">

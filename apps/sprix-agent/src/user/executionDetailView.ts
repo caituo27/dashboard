@@ -34,11 +34,22 @@ const settlementLabels: Record<string, SettlementStatus> = {
 };
 
 const nodeLabels: Record<string, string> = {
+  ACCEPTED: "已接单",
+  PARSING: "解析任务",
+  GENERATING: "生成结果",
+  GENERATING_RESULT: "生成结果",
+  QUALITY_CHECK: "质量检查",
+  QUALITY_CHECKING: "质量检查",
+  PLATFORM_REVIEWING: "平台验收",
+  PLATFORM_REJECTED: "平台审核不通过",
+  SETTLING: "报酬入账",
   accepted: "已接单",
   parsing: "解析任务",
   generating: "生成结果",
+  generating_result: "生成结果",
   quality_checking: "质量检查",
   platform_reviewing: "平台验收",
+  platform_rejected: "平台审核不通过",
   settling: "报酬入账"
 };
 
@@ -90,7 +101,8 @@ export function mapSettlementStatus(status?: string): SettlementStatus {
 
 export function getCurrentNodeLabel(node?: string) {
   if (!node) return "-";
-  return nodeLabels[node] ?? node;
+  const normalized = node.trim();
+  return nodeLabels[normalized] ?? nodeLabels[normalized.toUpperCase()] ?? node;
 }
 
 export function getTaskRequirementRows(detail: MyTaskExecutionDetail) {

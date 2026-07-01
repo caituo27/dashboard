@@ -1941,10 +1941,12 @@ select {
 }
 
 .sprix-history-detail {
-  display: grid;
-  min-width: 104px;
-  justify-items: end;
-  gap: 6px;
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .sprix-history-time {

@@ -83,6 +83,7 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
     () => (summary ? getMyTaskActions({ status: summary.status, appealStatus: summary.appealStatus }) : undefined),
     [summary]
   );
+  const showPrimaryStatus = Boolean(summary && !shouldHidePrimaryStatus(summary.status, summary.appealStatus));
   const cancelTask = () => {
     const executionId = detail?.id ?? id;
     if (!executionId) return;
@@ -153,7 +154,7 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
       <Surface className="sprix-execution-hero p-6">
         <div className="min-w-0">
           <div className="mb-3 flex flex-wrap gap-2">
-            <StatusTag status={summary.status} />
+            {showPrimaryStatus && <StatusTag status={summary.status} />}
             {shouldShowAppealStatus(summary.appealStatus) && <StatusTag status={summary.appealStatus} />}
             {showCurrentNodeTag && <SoftTag tone="neutral">{summary.currentNode}</SoftTag>}
           </div>
@@ -204,15 +205,19 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
             }
           />
           <ArtifactsSection compact executionId={detail.id ?? id} artifacts={detail.artifacts ?? []} />
+          <TimelineSection detail={detail} />
+          <HistorySection detail={detail} />
         </div>
         <aside className="sprix-execution-side-rail">
           <TaskRequirementSection detail={detail} />
-          <TimelineSection detail={detail} />
-          <HistorySection detail={detail} />
         </aside>
       </div>
     </div>
   );
+}
+
+function shouldHidePrimaryStatus(status: string, appealStatus: string) {
+  return status === "验收未通过" && shouldShowAppealStatus(appealStatus);
 }
 
 function TaskRequirementSection({ detail }: { detail: MyTaskExecutionDetail }) {
@@ -521,7 +526,7 @@ function TimelineSection({ detail }: { detail: MyTaskExecutionDetail }) {
                   <SoftTag tone="neutral">{formatDateTime(getTimelineTime(event))}</SoftTag>
                   {event.progress && <SoftTag>{event.progress}</SoftTag>}
                 </div>
-                <p className="sprix-timeline-title">{event.currentNodeLabel || getCurrentNodeLabel(event.currentNode) || event.message || event.eventType}</p>
+                <p className="sprix-timeline-title">{getTimelineEventTitle(event)}</p>
                 {event.message && <p className="sprix-timeline-message">{event.message}</p>}
               </div>
             </div>
@@ -534,6 +539,10 @@ function TimelineSection({ detail }: { detail: MyTaskExecutionDetail }) {
   );
 }
 
+function getTimelineEventTitle(event: NonNullable<MyTaskExecutionDetail["timeline"]>[number]) {
+  const nodeLabel = event.currentNodeLabel || event.currentNode;
+  return nodeLabel ? getCurrentNodeLabel(nodeLabel) : event.message || event.eventType || "执行事件";
+}
 function getAcceptanceStatusTone(status: string): "teal" | "red" {
   const normalized = status.toLowerCase();
   return normalized.includes("fail") || status.includes("失败") || status.includes("未通过") ? "red" : "teal";

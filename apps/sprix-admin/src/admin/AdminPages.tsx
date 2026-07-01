@@ -4,7 +4,7 @@ import { Button, Form, Input, InputNumber, Modal, Select, Table, Tabs, Tooltip, 
 import type { ColumnsType } from "antd/es/table";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, CircleDollarSign, ClipboardList, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Bot, CircleDollarSign, ClipboardList, Gauge, Route, ShieldCheck } from "lucide-react";
 import type { AdminAppeal, AdminOperationLog, CompletedExecution, FundException, Payout, ReviewingExecution, RunningExecution, Settlement, Task, TerminatedExecution, Withdrawal } from "../types";
 import {
   approveRemoteAcceptanceReview,
@@ -71,6 +71,36 @@ function getFundExceptionBackendId(record: Pick<FundException, "backendId" | "wi
 function showRequestError(error: unknown, fallback: string, prefix = "") {
   if (isGlobalAuthError(error)) return;
   message.error(error instanceof Error ? `${prefix}${error.message}` : fallback);
+}
+
+function parseAdminDateTime(value?: string) {
+  if (!value || value === "-") return undefined;
+  const normalized = value.replace(/\//g, "-");
+  const timestamp = new Date(normalized).getTime();
+  return Number.isNaN(timestamp) ? undefined : timestamp;
+}
+
+function formatDuration(milliseconds: number) {
+  const minutes = Math.max(1, Math.round(milliseconds / 60000));
+  if (minutes < 60) return `${minutes} 分钟`;
+  const hours = minutes / 60;
+  if (hours < 24) return `${Number.isInteger(hours) ? hours : hours.toFixed(1)} 小时`;
+  const days = hours / 24;
+  return `${Number.isInteger(days) ? days : days.toFixed(1)} 天`;
+}
+
+function getAverageAppealProcessTime(appeals: AdminAppeal[]) {
+  const durations = appeals
+    .filter((appeal) => ["申诉通过", "申诉不通过"].includes(appeal.appealStatus))
+    .map((appeal) => {
+      const submittedAt = parseAdminDateTime(appeal.submittedAt);
+      const handledAt = parseAdminDateTime(appeal.handledAt);
+      return submittedAt && handledAt && handledAt >= submittedAt ? handledAt - submittedAt : undefined;
+    })
+    .filter((duration): duration is number => duration != null);
+
+  if (durations.length === 0) return "-";
+  return formatDuration(durations.reduce((sum, duration) => sum + duration, 0) / durations.length);
 }
 
 function AdminDetailPage({ children }: { children: ReactNode }) {
@@ -507,9 +537,9 @@ export function AdminAcceptanceDetail() {
       <AdminDetailHeading title={record.taskTitle || "验收详情"} onBack={() => navigate("/acceptance")} />
       <div className="mb-4 grid gap-3 md:grid-cols-4">
         <MetricCard title="验收状态" value={<StatusTag status={record.acceptanceStatus} />} icon={<ShieldCheck size={19} />} />
-        <MetricCard title="验收评分" value={record.acceptanceScore} />
-        <MetricCard title="Agent 评分" value={record.agentScore} />
-        <MetricCard title="当前节点" value={<span className="text-lg">{record.currentNode}</span>} />
+        <MetricCard title="验收评分" value={record.acceptanceScore} icon={<Gauge size={19} />} />
+        <MetricCard title="Agent 评分" value={record.agentScore} icon={<Bot size={19} />} />
+        <MetricCard title="当前节点" value={<span className="text-lg">{record.currentNode}</span>} icon={<Route size={19} />} />
       </div>
       <Surface className="mb-4 p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -1145,7 +1175,8 @@ export function AdminAppealCenter() {
     pending: appeals.filter((item) => item.appealStatus === "待处理").length,
     processing: appeals.filter((item) => item.appealStatus === "处理中").length,
     today: appeals.filter((item) => item.submittedAt.includes(today)).length,
-    done: appeals.filter((item) => ["申诉通过", "申诉不通过"].includes(item.appealStatus)).length
+    done: appeals.filter((item) => ["申诉通过", "申诉不通过"].includes(item.appealStatus)).length,
+    averageProcessTime: getAverageAppealProcessTime(appeals)
   };
   return (
     <>
@@ -1161,7 +1192,7 @@ export function AdminAppealCenter() {
           setTab("全部");
           setQuickFilter("done");
         }} />
-        <MetricCard title="平均处理时长" value="-" />
+        <MetricCard title="平均处理时长" value={stats.averageProcessTime} icon={primitiveIcons.clock} />
       </div>
       <Surface className="sprix-table-card p-4">
         <Tabs
@@ -1177,7 +1208,7 @@ export function AdminAppealCenter() {
                 dataSource={visible}
                 pagination={appealPagination}
                 tableLayout="fixed"
-                scroll={{ x: 1320 }}
+                scroll={{ x: 1380 }}
                 columns={[
                   { title: "申诉编号", dataIndex: "appealNo", width: 130, render: (value) => <EllipsisCell value={value} /> },
                   { title: "关联任务", dataIndex: "taskTitle", width: 190, render: (value) => <EllipsisCell value={value} /> },
@@ -1192,7 +1223,7 @@ export function AdminAppealCenter() {
                   {
                     title: "操作",
                     fixed: "right",
-                    width: 150,
+                    width: 190,
                     render: (_, record: AdminAppeal) => (
                       <div className="flex flex-nowrap items-center gap-1 whitespace-nowrap">
                         <Button type="link" onClick={() => navigate(`/appeals/${getAppealBackendId(record)}`)}>查看详情</Button>

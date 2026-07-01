@@ -518,6 +518,7 @@ function mapAppealDetail(detail: RemoteAdminAppealDetail): AdminAppeal {
     appealStatus: mapAppealStatus(appeal.status),
     priority: appeal.priority === "HIGH" ? "高风险" : appeal.priority === "URGENT" ? "加急" : "普通",
     submittedAt: formatDateTime(appeal.submittedAt ?? appeal.createdAt),
+    handledAt: appeal.handledAt ? formatDateTime(appeal.handledAt) : undefined,
     handler: appeal.handler ?? "",
     originalScore: detail.agentScore == null ? undefined : `${detail.agentScore}/100`,
     resultDescription: appeal.resultDescription,
