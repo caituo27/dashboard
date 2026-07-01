@@ -7,14 +7,11 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   Bot,
-  CalendarPlus,
   CheckCircle2,
   CircleDollarSign,
   ClipboardList,
-  Clock3,
   Gauge,
   Inbox,
-  RefreshCw,
   Route,
   ShieldCheck
 } from "lucide-react";
@@ -46,7 +43,6 @@ import {
   rejectRemoteWithdrawals,
   republishRemoteAdminTask,
   returnRemoteWithdrawalForReview,
-  startRemoteAppeal,
   updateRemoteAdminTask,
   type UpsertAdminTaskPayload
 } from "../services/sprixApi";
@@ -79,41 +75,15 @@ function showRequestError(error: unknown, fallback: string, prefix = "") {
   message.error(error instanceof Error ? `${prefix}${error.message}` : fallback);
 }
 
-function parseAdminDateTime(value?: string) {
-  if (!value || value === "-") return undefined;
-  const normalized = value.replace(/\//g, "-");
-  const timestamp = new Date(normalized).getTime();
-  return Number.isNaN(timestamp) ? undefined : timestamp;
-}
-
-function formatDuration(milliseconds: number) {
-  const minutes = Math.max(1, Math.round(milliseconds / 60000));
-  if (minutes < 60) return `${minutes} 分钟`;
-  const hours = minutes / 60;
-  if (hours < 24) return `${Number.isInteger(hours) ? hours : hours.toFixed(1)} 小时`;
-  const days = hours / 24;
-  return `${Number.isInteger(days) ? days : days.toFixed(1)} 天`;
-}
-
-function getAverageAppealProcessTime(appeals: AdminAppeal[]) {
-  const durations = appeals
-    .filter((appeal) => ["申诉通过", "申诉不通过"].includes(appeal.appealStatus))
-    .map((appeal) => {
-      const submittedAt = parseAdminDateTime(appeal.submittedAt);
-      const handledAt = parseAdminDateTime(appeal.handledAt);
-      return submittedAt && handledAt && handledAt >= submittedAt ? handledAt - submittedAt : undefined;
-    })
-    .filter((duration): duration is number => duration != null);
-
-  if (durations.length === 0) return "-";
-  return formatDuration(durations.reduce((sum, duration) => sum + duration, 0) / durations.length);
-}
-
 const taskDetailNoAppealStatuses = new Set(["无申诉", "未申诉"]);
 
 function hasTaskDetailAppealRecord(status?: string) {
   const normalizedStatus = status?.trim();
   return Boolean(normalizedStatus && !taskDetailNoAppealStatuses.has(normalizedStatus));
+}
+
+function isAppealDone(status: AdminAppeal["appealStatus"]) {
+  return ["申诉通过", "申诉不通过"].includes(status);
 }
 
 function AdminDetailPage({ children }: { children: ReactNode }) {
@@ -824,6 +794,8 @@ function AcceptanceReviewTable({
     { title: "执行用户", dataIndex: "userName", width: 130, render: (value) => <EllipsisCell value={value} /> },
     { title: "手机号", dataIndex: "phone", width: 140, render: (value) => <EllipsisCell value={value} /> },
     { title: "执行 Agent", dataIndex: "agentName", width: 160, render: (value) => <EllipsisCell value={value} /> },
+    ...(!showTask ? [{ title: "第几次执行", dataIndex: "executionIndex", width: 120, render: (value) => (value ? `第 ${value} 次` : "-") }] satisfies ColumnsType<ReviewingExecution> : []),
+    { title: "执行记录ID", dataIndex: "executionId", width: 220, render: (value) => <EllipsisCell value={value ?? "-"} /> },
     { title: "Agent 本次任务评分", dataIndex: "agentScore", width: 150 },
     { title: "验收状态", dataIndex: "acceptanceStatus", width: 140, render: (value) => <StatusTag status={value} /> },
     { title: "验收评分", dataIndex: "acceptanceScore", width: 110 },
@@ -852,7 +824,7 @@ function AcceptanceReviewTable({
       columns={columns}
       pagination={pagination}
       locale={{ emptyText: "暂无待平台审核记录" }}
-      scroll={{ x: showTask ? 1880 : 1460 }}
+      scroll={{ x: showTask ? 2080 : 1800 }}
       rowClassName={onOpenDetail ? "cursor-pointer" : undefined}
       onRow={onOpenDetail ? (record) => ({ onClick: () => onOpenDetail(record) }) : undefined}
     />
@@ -1371,7 +1343,6 @@ function AdminExecutionActionButtons({ actions }: { actions: AdminExecutionTable
 
 export function AdminAppealCenter() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const appealsQuery = useQuery({
     queryKey: ["sprix-admin", "appeals"],
     queryFn: readRemoteAppeals,
@@ -1379,20 +1350,14 @@ export function AdminAppealCenter() {
   });
   const [tab, setTab] = useState("全部");
   const [keyword, setKeyword] = useState("");
-  const [quickFilter, setQuickFilter] = useState<"none" | "today" | "done">("none");
+  const [quickFilter, setQuickFilter] = useState<"none" | "done">("none");
   const appeals = appealsQuery.data ?? [];
-  const today = new Intl.DateTimeFormat("sv-SE", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).format(new Date());
   const selectAppealTab = (nextTab: string) => {
     setTab(nextTab);
     setQuickFilter("none");
   };
   const visible = appeals.filter((appeal) => {
-    if (quickFilter === "today" && !appeal.submittedAt.includes(today)) return false;
-    if (quickFilter === "done" && !["申诉通过", "申诉不通过"].includes(appeal.appealStatus)) return false;
+    if (quickFilter === "done" && !isAppealDone(appeal.appealStatus)) return false;
     if (quickFilter === "none" && tab !== "全部" && appeal.appealStatus !== tab) return false;
     const query = keyword.trim();
     if (!query) return true;
@@ -1409,15 +1374,12 @@ export function AdminAppealCenter() {
   }
   const stats = {
     pending: appeals.filter((item) => item.appealStatus === "待处理").length,
-    processing: appeals.filter((item) => item.appealStatus === "处理中").length,
-    today: appeals.filter((item) => item.submittedAt.includes(today)).length,
-    done: appeals.filter((item) => ["申诉通过", "申诉不通过"].includes(item.appealStatus)).length,
-    averageProcessTime: getAverageAppealProcessTime(appeals)
+    done: appeals.filter((item) => isAppealDone(item.appealStatus)).length
   };
   return (
     <>
       <PageHeader title="申诉处理中心" subtitle="复核验收争议并同步任务状态、结算状态和用户资金记录。" />
-      <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <div className="mb-4 grid gap-3 md:grid-cols-2">
         <MetricCard
           title="待处理申诉"
           value={stats.pending}
@@ -1425,29 +1387,17 @@ export function AdminAppealCenter() {
           active={quickFilter === "none" && tab === "待处理"}
           onClick={() => selectAppealTab("待处理")}
         />
-        <MetricCard
-          title="处理中申诉"
-          value={stats.processing}
-          icon={<RefreshCw size={19} />}
-          active={quickFilter === "none" && tab === "处理中"}
-          onClick={() => selectAppealTab("处理中")}
-        />
-        <MetricCard title="今日新增" value={stats.today} active={quickFilter === "today"} onClick={() => {
-          setTab("全部");
-          setQuickFilter("today");
-        }} icon={<CalendarPlus size={19} />} />
         <MetricCard title="已处理" value={stats.done} active={quickFilter === "done"} onClick={() => {
           setTab("全部");
           setQuickFilter("done");
         }} icon={<CheckCircle2 size={19} />} />
-        <MetricCard title="平均处理时长" value={stats.averageProcessTime} icon={<Clock3 size={19} />} />
       </div>
       <Surface className="sprix-table-card p-4">
         <Tabs
           activeKey={tab}
           onChange={(value) => selectAppealTab(String(value))}
           tabBarExtraContent={<Input.Search className="sprix-table-tab-search" value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="搜索任务名称、用户手机号、Agent、申诉编号" />}
-          items={["全部", "待处理", "处理中", "申诉通过", "申诉不通过"].map((key) => ({
+          items={["全部", "待处理", "申诉通过", "申诉不通过"].map((key) => ({
             key,
             label: key,
             children: (
@@ -1471,26 +1421,10 @@ export function AdminAppealCenter() {
                   {
                     title: "操作",
                     fixed: "right",
-                    width: 190,
+                    width: 110,
                     render: (_, record: AdminAppeal) => (
                       <div className="flex flex-nowrap items-center gap-1 whitespace-nowrap">
                         <Button type="link" onClick={() => navigate(`/appeals/${getAppealBackendId(record)}`)}>查看详情</Button>
-                        {record.appealStatus === "待处理" && (
-                          <Button
-                            type="link"
-                            onClick={async () => {
-                              try {
-                                await startRemoteAppeal(getAppealBackendId(record));
-                                await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-                                message.success("已开始处理");
-                              } catch (error) {
-                                showRequestError(error, "开始处理失败", "开始处理失败：");
-                              }
-                            }}
-                          >
-                            开始处理
-                          </Button>
-                        )}
                       </div>
                     )
                   }
