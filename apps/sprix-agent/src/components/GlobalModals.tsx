@@ -61,8 +61,8 @@ export function ContactModal({ open, onClose }: { open: boolean; onClose: () => 
     <Modal title="联系我们" open={open} onCancel={onClose} footer={<ActionButton onClick={onClose}>我知道了</ActionButton>}>
       <div className="space-y-3 text-sm text-ink-soft">
         <section className="rounded-2xl bg-[#fafafa] px-4 py-3">
-          <h3 className="font-semibold text-ink">客服联系信息待配置</h3>
-          <p className="mt-1">客服渠道、服务时间和问题分类待运营配置或后端接口返回后展示。</p>
+          <h3 className="font-semibold text-ink">客服热线：18126292642</h3>
+          <p className="mt-1">工作时间：工作日 10:00-18:00</p>
         </section>
         <p>如遇接单资格、任务执行、申诉或收款相关问题，可联系客服协助处理。</p>
       </div>

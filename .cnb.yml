@@ -1,76 +1,79 @@
+.portal_deploy_pipeline: &portal_deploy_pipeline
+  imports:
+    - https://cnb.cool/yztx_qxun/QXunSecurityCenter/-/blob/main/env.prod.yml
+  docker:
+    image: node:22
+    volumes:
+      - /root/.pnpm-store:copy-on-write
+  stages:
+    - name: 校验部署参数
+      script: |
+        set -eu
+
+        test -n "${PROD_PORTAL_NGINX_IP:-}"
+        test -n "${PROD_USERNAME:-}"
+        test -n "${PROD_SSH_PORT:-}"
+        test -n "${PROD_SSH_PRIVATE_KEY:-}"
+        test -n "${SPRIX_PORTAL_AGENT_WEB_ROOT:-}"
+        test -n "${SPRIX_PORTAL_ADMIN_WEB_ROOT:-}"
+
+        echo "部署目标服务器: ${PROD_PORTAL_NGINX_IP}"
+        echo "C 端目录: ${SPRIX_PORTAL_AGENT_WEB_ROOT}"
+        echo "管理后台目录: ${SPRIX_PORTAL_ADMIN_WEB_ROOT}"
+
+    - name: 安装依赖
+      script: |
+        set -eu
+
+        corepack enable
+        corepack prepare pnpm@10.32.1 --activate
+        pnpm install --frozen-lockfile
+
+    - name: 构建前端
+      script: |
+        set -eu
+
+        export VITE_API_BASE_URL="${SPRIX_PORTAL_API_BASE_URL:-/sprix-api}"
+
+        pnpm --filter @sprix-ai/agent build
+        pnpm --filter @sprix-ai/admin build
+
+        rm -rf target/cnb-deploy
+        mkdir -p target/cnb-deploy/agent target/cnb-deploy/admin
+        cp -R apps/sprix-agent/dist/. target/cnb-deploy/agent/
+        cp -R apps/sprix-admin/dist/. target/cnb-deploy/admin/
+
+        test -f target/cnb-deploy/agent/index.html
+        test -f target/cnb-deploy/admin/index.html
+
+    - name: 部署 C 端到服务器
+      image: tencentcom/rsync
+      settings:
+        user: $PROD_USERNAME
+        port: $PROD_SSH_PORT
+        key: $PROD_SSH_PRIVATE_KEY
+        hosts:
+          - $PROD_PORTAL_NGINX_IP
+        source: ./target/cnb-deploy/agent/
+        target: $SPRIX_PORTAL_AGENT_WEB_ROOT/
+        ssh_args: >-
+          -o IdentitiesOnly=yes
+          -o StrictHostKeyChecking=accept-new
+
+    - name: 部署管理后台到服务器
+      image: tencentcom/rsync
+      settings:
+        user: $PROD_USERNAME
+        port: $PROD_SSH_PORT
+        key: $PROD_SSH_PRIVATE_KEY
+        hosts:
+          - $PROD_PORTAL_NGINX_IP
+        source: ./target/cnb-deploy/admin/
+        target: $SPRIX_PORTAL_ADMIN_WEB_ROOT/
+        ssh_args: >-
+          -o IdentitiesOnly=yes
+          -o StrictHostKeyChecking=accept-new
+
 $:
   tag_push:
-    - imports:
-        - https://cnb.cool/yztx_qxun/QXunSecurityCenter/-/blob/main/env.prod.yml
-      docker:
-        image: node:22
-        volumes:
-          - /root/.pnpm-store:copy-on-write
-      stages:
-        - name: 校验部署参数
-          script: |
-            set -eu
-
-            test -n "${PROD_PORTAL_NGINX_IP:-}"
-            test -n "${PROD_USERNAME:-}"
-            test -n "${PROD_SSH_PORT:-}"
-            test -n "${PROD_SSH_PRIVATE_KEY:-}"
-            test -n "${SPRIX_PORTAL_AGENT_WEB_ROOT:-}"
-            test -n "${SPRIX_PORTAL_ADMIN_WEB_ROOT:-}"
-
-            echo "部署目标服务器: ${PROD_PORTAL_NGINX_IP}"
-            echo "C 端目录: ${SPRIX_PORTAL_AGENT_WEB_ROOT}"
-            echo "管理后台目录: ${SPRIX_PORTAL_ADMIN_WEB_ROOT}"
-
-        - name: 安装依赖
-          script: |
-            set -eu
-
-            corepack enable
-            corepack prepare pnpm@10.32.1 --activate
-            pnpm install --frozen-lockfile
-
-        - name: 构建前端
-          script: |
-            set -eu
-
-            export VITE_API_BASE_URL="${SPRIX_PORTAL_API_BASE_URL:-/sprix-api}"
-
-            pnpm --filter @sprix-ai/agent build
-            pnpm --filter @sprix-ai/admin build
-
-            rm -rf target/cnb-deploy
-            mkdir -p target/cnb-deploy/agent target/cnb-deploy/admin
-            cp -R apps/sprix-agent/dist/. target/cnb-deploy/agent/
-            cp -R apps/sprix-admin/dist/. target/cnb-deploy/admin/
-
-            test -f target/cnb-deploy/agent/index.html
-            test -f target/cnb-deploy/admin/index.html
-
-        - name: 部署 C 端到服务器
-          image: tencentcom/rsync
-          settings:
-            user: $PROD_USERNAME
-            port: $PROD_SSH_PORT
-            key: $PROD_SSH_PRIVATE_KEY
-            hosts:
-              - $PROD_PORTAL_NGINX_IP
-            source: ./target/cnb-deploy/agent/
-            target: $SPRIX_PORTAL_AGENT_WEB_ROOT/
-            ssh_args: >-
-              -o IdentitiesOnly=yes
-              -o StrictHostKeyChecking=accept-new
-
-        - name: 部署管理后台到服务器
-          image: tencentcom/rsync
-          settings:
-            user: $PROD_USERNAME
-            port: $PROD_SSH_PORT
-            key: $PROD_SSH_PRIVATE_KEY
-            hosts:
-              - $PROD_PORTAL_NGINX_IP
-            source: ./target/cnb-deploy/admin/
-            target: $SPRIX_PORTAL_ADMIN_WEB_ROOT/
-            ssh_args: >-
-              -o IdentitiesOnly=yes
-              -o StrictHostKeyChecking=accept-new
+    - <<: *portal_deploy_pipeline

@@ -374,6 +374,14 @@ export async function confirmAlipayLoginCallback(authCode: string, state: string
   };
 }
 
+export function buildRemoteAlipayBindCallbackUrl(authCode: string, state: string) {
+  const params = new URLSearchParams({
+    auth_code: authCode,
+    state
+  });
+  return `${API_BASE_URL}/api/v1/account/alipay-bind-callback?${params.toString()}`;
+}
+
 export async function readAlipayLoginStatus(sessionId: string): Promise<AlipayLoginStatus> {
   const response = await authApi.alipayLoginSession({ sessionId });
   const loginStatus = requireValue<AlipayLoginStatusResponse>(response, "支付宝登录状态不可用");

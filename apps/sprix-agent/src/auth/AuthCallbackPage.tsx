@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { confirmAlipayLoginCallback, confirmWechatLoginCallback } from "../services/sprixApi";
+import { buildRemoteAlipayBindCallbackUrl, confirmAlipayLoginCallback, confirmWechatLoginCallback } from "../services/sprixApi";
 
 type CallbackState =
   | { kind: "loading" }
   | { kind: "success" }
-  | { kind: "phone_bind" };
+  | { kind: "phone_bind" }
+  | { kind: "bind_success" }
+  | { kind: "bind_failed" };
 
 function getProviderCopy(provider?: string) {
   return provider === "wechat" ? "微信" : "支付宝";
@@ -25,6 +27,9 @@ export function AuthCallbackPage() {
   const [searchParams] = useSearchParams();
   const [state, setState] = useState<CallbackState>({ kind: "loading" });
   const normalizedProvider = provider === "wechat" ? "wechat" : "alipay";
+  const scene = searchParams.get("scene")?.trim();
+  const resultStatus = searchParams.get("status")?.trim();
+  const isAlipayBindScene = normalizedProvider === "alipay" && scene === "bind";
   const providerLabel = getProviderCopy(normalizedProvider);
 
   const callbackParams = useMemo(() => {
@@ -41,6 +46,11 @@ export function AuthCallbackPage() {
     const fallbackSuccess: CallbackState = { kind: "success" };
 
     async function confirmCallback() {
+      if (isAlipayBindScene) {
+        setState(resultStatus === "success" ? { kind: "bind_success" } : { kind: "bind_failed" });
+        return;
+      }
+
       if (!callbackParams.code || !callbackParams.state) {
         setState(fallbackSuccess);
         return;
@@ -55,6 +65,10 @@ export function AuthCallbackPage() {
         setState(nextStatus.phoneBindRequired ? { kind: "phone_bind" } : { kind: "success" });
       } catch (error) {
         if (cancelled) return;
+        if (normalizedProvider === "alipay" && isMissingAlipayLoginSession(error)) {
+          window.location.replace(buildRemoteAlipayBindCallbackUrl(callbackParams.code, callbackParams.state));
+          return;
+        }
         setState(fallbackSuccess);
       }
     }
@@ -64,28 +78,62 @@ export function AuthCallbackPage() {
     return () => {
       cancelled = true;
     };
-  }, [callbackParams.code, callbackParams.state, normalizedProvider]);
+  }, [callbackParams.code, callbackParams.state, isAlipayBindScene, normalizedProvider, resultStatus]);
 
   const isLoading = state.kind === "loading";
+  const isError = state.kind === "bind_failed";
+  const copy = getCallbackCopy(state, providerLabel, isLoading, isAlipayBindScene);
 
   return (
     <main className="sprix-auth-callback-page">
       <section className="sprix-auth-callback-card">
-        <div className={`sprix-auth-callback-icon ${isLoading ? "" : "is-success"}`}>
-          {isLoading ? <Loader2 size={30} /> : <CheckCircle2 size={32} />}
+        <div className={`sprix-auth-callback-icon ${isLoading ? "" : isError ? "is-error" : "is-success"}`}>
+          {isLoading ? <Loader2 size={30} /> : isError ? <XCircle size={32} /> : <CheckCircle2 size={32} />}
         </div>
         <div>
-          <span className="sprix-auth-callback-kicker">{providerLabel}扫码登录</span>
-          <h1>{isLoading ? "正在确认授权" : "扫码授权成功"}</h1>
-          <p>
-            {isLoading
-              ? "正在确认扫码结果，请不要关闭页面。"
-              : state.kind === "phone_bind"
-                ? "授权已完成，请回到电脑端继续绑定手机号。"
-                : "授权已完成，请回到电脑端继续使用 Sprix AI。"}
-          </p>
+          <span className="sprix-auth-callback-kicker">{copy.kicker}</span>
+          <h1>{copy.title}</h1>
+          <p>{copy.description}</p>
         </div>
       </section>
     </main>
   );
+}
+
+function isMissingAlipayLoginSession(error: unknown) {
+  return error instanceof Error && error.message.includes("Alipay login session not found");
+}
+
+function getCallbackCopy(state: CallbackState, providerLabel: string, isLoading: boolean, isAlipayBindScene: boolean) {
+  if (isAlipayBindScene) {
+    if (isLoading) {
+      return {
+        kicker: "收款支付宝绑定",
+        title: "正在确认授权",
+        description: "正在确认收款支付宝绑定结果，请不要关闭页面。"
+      };
+    }
+    if (state.kind === "bind_success") {
+      return {
+        kicker: "收款支付宝绑定",
+        title: "收款支付宝绑定成功",
+        description: "授权已完成，请回到 Sprix 页面继续使用。"
+      };
+    }
+    return {
+      kicker: "收款支付宝绑定",
+      title: "收款支付宝绑定未完成",
+      description: "请回到 Sprix 页面刷新二维码后重试。"
+    };
+  }
+
+  return {
+    kicker: `${providerLabel}扫码登录`,
+    title: isLoading ? "正在确认授权" : "扫码授权成功",
+    description: isLoading
+      ? "正在确认扫码结果，请不要关闭页面。"
+      : state.kind === "phone_bind"
+        ? "授权已完成，请回到电脑端继续绑定手机号。"
+        : "授权已完成，请回到电脑端继续使用 Sprix AI。"
+  };
 }

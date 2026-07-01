@@ -653,6 +653,14 @@ export function AdminTaskForm() {
   }, [editTask, form]);
 
   const writeAction = getAdminTaskWriteAction(isEdit ? "edit" : "publish");
+  const editTaskRecords = editTaskQuery.data?.records;
+  const hasExistingExecutions = Boolean(
+    editTaskRecords &&
+      (editTaskRecords.running.length > 0 ||
+        editTaskRecords.reviewing.length > 0 ||
+        editTaskRecords.terminated.length > 0 ||
+        editTaskRecords.completed.length > 0)
+  );
   const submitTask = async (values: UpsertAdminTaskPayload) => {
     try {
       if (isEdit && editTaskId) {
@@ -670,6 +678,16 @@ export function AdminTaskForm() {
   };
   const confirmAndSubmitTask = (values: UpsertAdminTaskPayload) => {
     if (isEdit) {
+      if (hasExistingExecutions) {
+        Modal.confirm({
+          title: "任务已更新",
+          content: "该任务已有执行记录，修改任务要求可能影响后续验收口径，请确认是否保存。",
+          okText: "确认保存",
+          cancelText: "取消",
+          onOk: () => submitTask(values)
+        });
+        return;
+      }
       void submitTask(values);
       return;
     }

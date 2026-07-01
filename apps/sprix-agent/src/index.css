@@ -1518,6 +1518,65 @@ select {
   margin-inline-start: 8px;
 }
 
+.sprix-qualification-steps .ant-steps-item-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  line-height: 28px;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.sprix-qualification-steps .ant-steps-item-title {
+  color: var(--color-ink);
+  font-weight: 700;
+}
+
+.sprix-qualification-steps .ant-steps-item-description,
+.sprix-qualification-steps .ant-steps-item-wait .ant-steps-item-title {
+  color: var(--color-ink-soft);
+}
+
+.sprix-qualification-steps .ant-steps-item-process .ant-steps-item-icon {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  box-shadow: 0 8px 20px rgba(15, 118, 110, 0.14);
+}
+
+.sprix-qualification-steps .ant-steps-item-process .ant-steps-icon {
+  color: #ffffff;
+  font-family: var(--font-number);
+  font-weight: 800;
+}
+
+.sprix-qualification-steps .ant-steps-item-finish .ant-steps-item-icon {
+  border-color: rgba(15, 118, 110, 0.22);
+  background: rgba(231, 247, 242, 0.92);
+}
+
+.sprix-qualification-steps .ant-steps-item-finish .ant-steps-icon {
+  color: var(--color-accent);
+}
+
+.sprix-qualification-steps .ant-steps-item-wait .ant-steps-item-icon {
+  border-color: rgba(26, 26, 26, 0.12);
+  background: #fafafa;
+}
+
+.sprix-qualification-steps .ant-steps-item-wait .ant-steps-icon {
+  color: var(--color-ink-soft);
+}
+
+.sprix-qualification-steps .ant-steps-item-tail::after {
+  background: rgba(26, 26, 26, 0.12);
+}
+
+.sprix-qualification-steps .ant-steps-item-finish .ant-steps-item-tail::after {
+  background: rgba(15, 118, 110, 0.38);
+}
+
 .sprix-task-detail-page {
   display: grid;
   gap: 18px;

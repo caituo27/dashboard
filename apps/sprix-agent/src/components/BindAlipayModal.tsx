@@ -87,6 +87,7 @@ export function BindAlipayModal({ open, onClose, afterBind }: BindAlipayModalPro
       <Form
         form={form}
         layout="vertical"
+        className="sprix-phone-login-form"
         onFinish={async (values) => {
           const verifiedName = values.verifiedName || "";
           setSubmitting(true);
@@ -103,7 +104,7 @@ export function BindAlipayModal({ open, onClose, afterBind }: BindAlipayModalPro
         }}
       >
         <Form.Item label="收款人姓名" name="verifiedName" rules={[{ required: true, message: "请输入收款人姓名" }]}>
-          <Input placeholder="请输入收款人姓名" />
+          <Input size="large" placeholder="请输入收款人姓名" />
         </Form.Item>
         <div className="mb-4 rounded-2xl bg-[#e7f7f2] px-4 py-3 text-sm text-accent">扫码授权后，后台只保存收款支付宝账户，不会绑定或覆盖登录支付宝身份。</div>
         {session && (
@@ -115,11 +116,11 @@ export function BindAlipayModal({ open, onClose, afterBind }: BindAlipayModalPro
             </p>
           </div>
         )}
-        <ActionButton htmlType="submit" block loading={submitting}>
+        <ActionButton size="large" htmlType="submit" block loading={submitting} className="sprix-login-submit-button">
           {session ? "刷新支付宝绑定二维码" : "生成支付宝绑定二维码"}
         </ActionButton>
         {session && (
-          <SecondaryButton className="mt-2" block href={session.qrPayload} target="_blank">
+          <SecondaryButton size="large" className="mt-2" block href={session.qrPayload} target="_blank">
             无法扫码时打开授权页
           </SecondaryButton>
         )}

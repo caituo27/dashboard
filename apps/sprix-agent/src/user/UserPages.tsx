@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Form, Input, Modal, Progress, Segmented, Steps, message } from "antd";
+import { Form, Input, Modal, Progress, Steps, Tabs, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Bot, BrainCircuit, ClipboardList, PlugZap, UsersRound } from "lucide-react";
@@ -946,7 +946,11 @@ export function MyTasksPage({ openLogin, openAppeal }: UserPageProps) {
     <>
       <PageHeader title="我的任务" subtitle="查看任务执行、验收、申诉和结算状态。" />
       <Surface className="p-5">
-        <Segmented options={["全部", "执行中", "已终止", "已完成"]} value={tab} onChange={(value) => setTab(String(value))} />
+        <Tabs
+          activeKey={tab}
+          onChange={setTab}
+          items={["全部", "执行中", "已终止", "已完成"].map((label) => ({ key: label, label }))}
+        />
         {visible.length > 0 ? (
           <div className="mt-5 space-y-3">
             {visible.map((task) => (
@@ -1249,7 +1253,7 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
         subtitle="首次接单前需完成支付宝人脸核验，并同意《自由职业者服务框架协议》。"
       />
       <Surface className="mb-5 p-6">
-        <Steps current={step} items={["支付宝人脸核验", "同意服务协议", "开通成功"].map((title) => ({ title }))} />
+        <Steps className="sprix-qualification-steps" current={step} items={["支付宝人脸核验", "同意服务协议", "开通成功"].map((title) => ({ title }))} />
         <div className="mt-8 rounded-[22px] bg-[#fafafa] p-5">
           {step === 0 && (
             <>
