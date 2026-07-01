@@ -34,7 +34,7 @@ export type WithdrawStatus =
 export type Account = {
   isLoggedIn: boolean;
   nickname: string;
-  email: string;
+  avatarUrl: string;
   maskedPhone: string;
   phone: string;
   phoneVerified: boolean;

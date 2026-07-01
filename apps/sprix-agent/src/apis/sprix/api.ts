@@ -1112,7 +1112,7 @@ export interface UserAccount {
     'createdAt'?: string;
     'updatedAt'?: string;
     'nickname'?: string;
-    'email'?: string;
+    'avatarUrl'?: string;
     'phone'?: string;
     'phoneVerified'?: boolean;
     'wechatOpenId'?: string;
@@ -1123,6 +1123,7 @@ export interface UserAccount {
     'freelancerAgreementSigned'?: boolean;
     'withdrawableAmount'?: number;
     'currentAgentId'?: string;
+    'cancelledAt'?: string;
     'version'?: number;
 }
 
@@ -8799,6 +8800,5 @@ export class WithdrawalControllerApi extends BaseAPI {
         return WithdrawalControllerApiFp(this.configuration).apply(requestParameters.applyWithdrawalRequest, options).then((request) => request(this.axios, this.basePath));
     }
 }
-
 
 

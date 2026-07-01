@@ -5670,7 +5670,7 @@
           "nickname": {
             "type": "string"
           },
-          "email": {
+          "avatarUrl": {
             "type": "string"
           },
           "phone": {
@@ -5712,6 +5712,10 @@
           "currentAgentId": {
             "type": "string",
             "format": "uuid"
+          },
+          "cancelledAt": {
+            "type": "string",
+            "format": "date-time"
           },
           "version": {
             "type": "integer",

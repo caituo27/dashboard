@@ -94,7 +94,7 @@ function UserMenu({
                   label: (
                     <div className="py-1">
                       <div className="font-semibold text-ink">{account.nickname}</div>
-                      <div className="text-xs text-ink-soft">{account.email}</div>
+                      <div className="text-xs text-ink-soft">{account.maskedPhone || "手机号未绑定"}</div>
                     </div>
                   ),
                   disabled: true
@@ -132,7 +132,11 @@ function UserMenu({
           >
             <button className="sprix-sidebar-user-button">
               <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#e7f7f2] text-accent">
-                <UserRound size={17} />
+                {account.avatarUrl ? (
+                  <img src={account.avatarUrl} alt="" className="size-full rounded-full object-cover" />
+                ) : (
+                  <UserRound size={17} />
+                )}
               </span>
               <span className="truncate">{account.nickname}</span>
             </button>

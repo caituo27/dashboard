@@ -10,7 +10,7 @@ export function createInitialSprixState(): SprixState {
     account: {
       isLoggedIn: hasInitialAuthToken(),
       nickname: "",
-      email: "",
+      avatarUrl: "",
       maskedPhone: "",
       phone: "",
       phoneVerified: false,

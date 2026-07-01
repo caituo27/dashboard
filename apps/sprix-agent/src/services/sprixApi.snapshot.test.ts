@@ -37,11 +37,37 @@ vi.mock("../apis/sprix", () => ({
 
 import { readAgentSnapshot, readRemoteAgents } from "./sprixApi";
 
+function createTestStorage(): Storage {
+  const values = new Map<string, string>();
+  return {
+    get length() {
+      return values.size;
+    },
+    clear() {
+      values.clear();
+    },
+    getItem(key: string) {
+      return values.get(key) ?? null;
+    },
+    key(index: number) {
+      return Array.from(values.keys())[index] ?? null;
+    },
+    removeItem(key: string) {
+      values.delete(key);
+    },
+    setItem(key: string, value: string) {
+      values.set(key, value);
+    }
+  };
+}
+
 function mockLoggedInSnapshotDefaults() {
   localStorage.setItem("sprix-auth-token", "token-1");
   apiMocks.platform.overview.mockResolvedValue({ agentCount: 1, taskCount: 1 });
   apiMocks.account.current1.mockResolvedValue({
     nickname: "用户5160",
+    email: "legacy@example.com",
+    avatarUrl: "https://cdn.sprix.ai/avatar.png",
     phone: "13812345678",
     phoneVerified: true,
     qualificationStatus: "ACTIVE",
@@ -56,7 +82,7 @@ function mockLoggedInSnapshotDefaults() {
 describe("readAgentSnapshot", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    localStorage.clear();
+    vi.stubGlobal("localStorage", createTestStorage());
     mockLoggedInSnapshotDefaults();
   });
 
@@ -79,7 +105,8 @@ describe("readAgentSnapshot", () => {
     });
     apiMocks.task.recommendations.mockResolvedValue({ content: [] });
     apiMocks.agent.list1.mockResolvedValue({
-      content: [
+      currentAgentId: "agent-1",
+      agents: [
         {
           id: "agent-1",
           name: "Codex Agent",
@@ -104,6 +131,8 @@ describe("readAgentSnapshot", () => {
     expect(snapshot.agents?.map((agent) => agent.id)).toEqual(["agent-1"]);
     expect(snapshot.currentAgent?.id).toBe("agent-1");
     expect(snapshot.myTasks).toEqual([]);
+    expect(snapshot.account?.avatarUrl).toBe("https://cdn.sprix.ai/avatar.png");
+    expect("email" in (snapshot.account ?? {})).toBe(false);
   });
 
   it("uses the current Agent endpoint instead of inferring current execution from the agent list", async () => {

@@ -6,15 +6,16 @@ export type AccountProfileRow = {
 };
 
 export type AccountEditAction = {
+  key: "avatar" | "nickname" | "phone" | "cancel";
   label: string;
-  disabled: true;
-  reason: string;
+  description: string;
+  buttonLabel: string;
+  danger?: boolean;
 };
 
 export function getAccountProfileRows(account: Account): AccountProfileRow[] {
   return [
     { label: "昵称", value: account.nickname || "-" },
-    { label: "邮箱", value: account.email || "-" },
     { label: "绑定手机号", value: account.maskedPhone || "-" },
     { label: "接单资格", value: account.qualificationStatus }
   ];
@@ -22,9 +23,9 @@ export function getAccountProfileRows(account: Account): AccountProfileRow[] {
 
 export function getAccountEditActions(): AccountEditAction[] {
   return [
-    { label: "修改头像", disabled: true, reason: "头像上传与资料更新接口待接入" },
-    { label: "修改昵称", disabled: true, reason: "账户资料编辑接口待接入" },
-    { label: "修改手机号", disabled: true, reason: "手机号更换与验证码接口待接入" },
-    { label: "注销账户", disabled: true, reason: "账户注销接口待接入" }
+    { key: "avatar", label: "修改头像", description: "填写头像图片 URL 后同步到当前账户", buttonLabel: "修改" },
+    { key: "nickname", label: "修改昵称", description: "更新账户昵称并刷新页面账户信息", buttonLabel: "修改" },
+    { key: "phone", label: "修改手机号", description: "通过图形验证码和短信验证码更换绑定手机号", buttonLabel: "更换" },
+    { key: "cancel", label: "注销账户", description: "注销后将退出登录并清除当前账号登录身份", buttonLabel: "注销", danger: true }
   ];
 }

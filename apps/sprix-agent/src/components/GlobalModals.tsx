@@ -1,14 +1,13 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Form, Input, Modal, message } from "antd";
-import { useSprixStore } from "../store/sprixStore";
-import { ActionButton, SecondaryButton, StatusTag } from "./Primitives";
+import { ActionButton } from "./Primitives";
 import { submitRemoteAppeal } from "../services/sprixApi";
-import { getAccountEditActions, getAccountProfileRows } from "../user/accountView";
 import { showRequestError } from "./requestErrors";
 
 export { BindAlipayModal } from "./BindAlipayModal";
 export { AuthModal } from "../auth/AuthModal";
+export { AccountModal } from "./AccountModal";
 
 type ModalState = {
   login: boolean;
@@ -68,65 +67,6 @@ export function ContactModal({ open, onClose }: { open: boolean; onClose: () => 
         <p>如遇接单资格、任务执行、申诉或收款相关问题，可联系客服协助处理。</p>
       </div>
     </Modal>
-  );
-}
-
-export function AccountModal({
-  open,
-  onClose,
-  onBindAlipay
-}: {
-  open: boolean;
-  onClose: () => void;
-  onBindAlipay: () => void;
-}) {
-  const account = useSprixStore((state) => state.account);
-  const profileRows = getAccountProfileRows(account);
-  const editActions = getAccountEditActions();
-  return (
-    <Modal title="账户信息" open={open} onCancel={onClose} footer={<ActionButton onClick={onClose}>关闭</ActionButton>} width={620}>
-      <div className="grid gap-3 text-sm">
-        {profileRows.map((row) => (
-          <InfoRow key={row.label} label={row.label} value={row.label === "接单资格" ? <StatusTag status={row.value} /> : row.value} />
-        ))}
-        <InfoRow
-          label="收款支付宝"
-          value={
-            account.alipayBound ? (
-              <span>{account.alipayAccountMasked || "已绑定"}</span>
-            ) : (
-              <SecondaryButton size="small" onClick={onBindAlipay}>
-                绑定支付宝
-              </SecondaryButton>
-            )
-          }
-        />
-        <div className="mt-2 grid gap-2 rounded-2xl bg-[#fafafa] p-3">
-          {editActions.map((action) => (
-            <div key={action.label} className="flex flex-col gap-2 rounded-2xl border border-line bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="font-medium text-ink">{action.label}</div>
-                <div className="mt-1 text-xs text-ink-soft">{action.reason}</div>
-              </div>
-              <SecondaryButton size="small" disabled={action.disabled}>
-                待接口接入
-              </SecondaryButton>
-            </div>
-          ))}
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="grid grid-cols-[88px_minmax(0,1fr)] items-center gap-3 rounded-2xl bg-[#fafafa] px-4 py-3 sm:grid-cols-[112px_minmax(0,1fr)]">
-      <span className="text-ink-soft">{label}</span>
-      <div className="min-w-0 justify-self-end break-words text-right font-medium text-ink [overflow-wrap:anywhere]">
-        {value}
-      </div>
-    </div>
   );
 }
 

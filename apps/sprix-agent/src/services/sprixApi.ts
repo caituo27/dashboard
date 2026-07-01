@@ -126,7 +126,7 @@ export type SmsCodeResponse = {
   resendIntervalSeconds: number;
 };
 
-export type SafetyChallengeScene = "SMS_LOGIN" | "PHONE_BIND";
+export type SafetyChallengeScene = "SMS_LOGIN" | "PHONE_BIND" | "PHONE_CHANGE";
 
 export type SafetyChallenge = {
   challengeId: string;
@@ -155,6 +155,11 @@ export type FaceVerificationIdentity = {
   readonly idCardNo: string;
 };
 
+export type AccountProfileUpdate = {
+  readonly nickname?: string;
+  readonly avatarUrl?: string;
+};
+
 export type RemoteAgentsResult = {
   agents: Agent[];
   localAgent?: LocalAgentDiagnostic;
@@ -164,13 +169,6 @@ export type RemoteAgentsResult = {
 type RemoteAgentProfileResponse = AgentProfileResponse & {
   evaluation?: RemoteAgentEvaluation | null;
 };
-
-type RemoteAgentListResponse =
-  | RemoteAgentProfileResponse[]
-  | {
-      content?: RemoteAgentProfileResponse[] | null;
-      agents?: RemoteAgentProfileResponse[] | null;
-    };
 
 type RemoteAgentEvaluationDimension = {
   score?: number | null;
@@ -629,6 +627,33 @@ export async function submitRemoteAppeal(executionId: string, reason: string): P
   return requireValue<AppealRecord>(response, "申诉提交失败");
 }
 
+export async function updateRemoteAccountProfile(input: AccountProfileUpdate): Promise<Partial<SprixState["account"]>> {
+  const response = await http.patch<unknown, UserAccount>("/api/v1/account/profile", input);
+  return mapAccount(requireValue<UserAccount>(response, "账户资料保存失败"));
+}
+
+export async function sendPhoneChangeSmsCode(input: {
+  readonly mobile: string;
+  readonly challengeId: string;
+  readonly challengeAnswer: string;
+}): Promise<SmsCodeResponse> {
+  const response = await http.post<unknown, SmsCodeResponse>("/api/v1/account/phone-change/sms-codes", input);
+  return requireValue<SmsCodeResponse>(response, "验证码发送失败");
+}
+
+export async function confirmRemotePhoneChange(input: {
+  readonly mobile: string;
+  readonly code: string;
+}): Promise<Partial<SprixState["account"]>> {
+  const response = await http.post<unknown, UserAccount>("/api/v1/account/phone-change/confirm", input);
+  return mapAccount(requireValue<UserAccount>(response, "手机号更换失败"));
+}
+
+export async function cancelRemoteAccount(): Promise<void> {
+  await http.delete<unknown, boolean>("/api/v1/account");
+  localStorage.removeItem(TOKEN_KEY);
+}
+
 export async function bindRemoteWithdrawalAccount(account: string, verifiedName: string): Promise<WithdrawalAccount> {
   const response = await accountApi.bindWithdrawalAccount({
     bindWithdrawalAccountRequest: {
@@ -718,17 +743,12 @@ function listValue<T>(value: T[] | { content?: T[] | null } | undefined | null):
   return [];
 }
 
-function agentListValue(value: RemoteAgentListResponse | undefined | null): RemoteAgentProfileResponse[] {
-  if (value && typeof value === "object" && !Array.isArray(value) && Array.isArray(value.agents)) return value.agents;
-  return listValue<RemoteAgentProfileResponse>(value);
-}
-
 function mapAccount(account: UserAccount): Partial<SprixState["account"]> {
   const accountWithPhone = account as UserAccount & { phoneVerified?: boolean | null };
   const phoneVerified = accountWithPhone.phoneVerified === true;
   return {
     nickname: account.nickname ?? "",
-    email: account.email ?? "",
+    avatarUrl: account.avatarUrl ?? "",
     phone: account.phone ?? "",
     maskedPhone: phoneVerified ? maskPhone(account.phone) : "",
     phoneVerified,
