@@ -10,13 +10,31 @@ import { showRequestError } from "./requestErrors";
 import { AccountPhoneChangeModal } from "./AccountPhoneChangeModal";
 import { AccountProfileEditModal, type AccountProfileEditMode } from "./AccountProfileEditModal";
 
+const maxAlipayAccountTextLength = 15;
+
+const accountActionRowClassName = [
+  "flex flex-col gap-2 rounded-2xl border border-line bg-white px-3 py-3",
+  "sm:flex-row sm:items-center sm:justify-between"
+].join(" ");
+
+const accountInfoRowClassName = [
+  "grid grid-cols-[88px_minmax(0,1fr)] items-center gap-3 rounded-2xl bg-[#fafafa] px-4 py-3",
+  "sm:grid-cols-[112px_minmax(0,1fr)]"
+].join(" ");
+
 type AccountModalProps = {
   open: boolean;
   onClose: () => void;
   onBindAlipay: () => void;
+  onOpenQualification: () => void;
 };
 
-export function AccountModal({ open, onClose, onBindAlipay }: AccountModalProps) {
+export function AccountModal({
+  open,
+  onClose,
+  onBindAlipay,
+  onOpenQualification
+}: AccountModalProps) {
   const account = useSprixStore((state) => state.account);
   const logout = useSprixStore((state) => state.logout);
   const queryClient = useQueryClient();
@@ -38,11 +56,48 @@ export function AccountModal({ open, onClose, onBindAlipay }: AccountModalProps)
     confirmCancelAccount(logout, queryClient, navigate, onClose);
   };
 
+  const openQualification = () => {
+    onClose();
+    onOpenQualification();
+  };
+
+  const viewQualificationRecords = () => {
+    onClose();
+    navigate("/agent/qualification");
+  };
+
+  const handleQualificationAction = () => {
+    if (account.qualificationStatus === "已开通") {
+      viewQualificationRecords();
+      return;
+    }
+    openQualification();
+  };
+
   return (
     <>
-      <Modal title="账户信息" open={open} onCancel={onClose} footer={<ActionButton onClick={onClose}>关闭</ActionButton>} width={620}>
+      <Modal
+        title="账户信息"
+        open={open}
+        onCancel={onClose}
+        footer={<ActionButton onClick={onClose}>关闭</ActionButton>}
+        width={620}
+      >
         <div className="grid gap-3 text-sm">
-          <InfoRow label="头像" value={account.avatarUrl ? <img src={account.avatarUrl} alt="" className="size-10 rounded-full object-cover" /> : "-"} />
+          <InfoRow
+            label="头像"
+            value={
+              account.avatarUrl ? (
+                <img
+                  src={account.avatarUrl}
+                  alt=""
+                  className="size-10 rounded-full object-cover"
+                />
+              ) : (
+                "-"
+              )
+            }
+          />
           {profileRows.map((row) => (
             <InfoRow
               key={row.label}
@@ -50,13 +105,21 @@ export function AccountModal({ open, onClose, onBindAlipay }: AccountModalProps)
               value={
                 row.label === "接单资格" ? (
                   <div className="flex flex-wrap items-center justify-end gap-2">
-                    <StatusTag status={row.value} />
+                    {account.qualificationStatus === "已开通" ? (
+                      <StatusTag status={row.value} />
+                    ) : (
+                      <button
+                        type="button"
+                        className="inline-flex cursor-pointer border-0 bg-transparent p-0"
+                        onClick={openQualification}
+                        aria-label={`${row.value}，开通接单资格`}
+                      >
+                        <StatusTag status={row.value} />
+                      </button>
+                    )}
                     <SecondaryButton
                       size="small"
-                      onClick={() => {
-                        onClose();
-                        navigate("/agent/qualification");
-                      }}
+                      onClick={handleQualificationAction}
                     >
                       {row.value === "已开通" ? "查看记录" : "去开通"}
                     </SecondaryButton>
@@ -71,7 +134,9 @@ export function AccountModal({ open, onClose, onBindAlipay }: AccountModalProps)
             label="收款支付宝"
             value={
               account.alipayBound ? (
-                <span>{account.alipayAccountMasked || "已绑定"}</span>
+                <span title={account.alipayAccountMasked || undefined}>
+                  {formatAlipayAccountText(account.alipayAccountMasked)}
+                </span>
               ) : (
                 <SecondaryButton size="small" onClick={onBindAlipay}>
                   绑定支付宝
@@ -81,12 +146,19 @@ export function AccountModal({ open, onClose, onBindAlipay }: AccountModalProps)
           />
           <div className="mt-2 grid gap-2 rounded-2xl bg-[#fafafa] p-3">
             {editActions.map((action) => (
-              <div key={action.key} className="flex flex-col gap-2 rounded-2xl border border-line bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div
+                key={action.key}
+                className={accountActionRowClassName}
+              >
                 <div>
                   <div className="font-medium text-ink">{action.label}</div>
                   <div className="mt-1 text-xs text-ink-soft">{action.description}</div>
                 </div>
-                <SecondaryButton size="small" danger={action.danger} onClick={() => runAction(action)}>
+                <SecondaryButton
+                  size="small"
+                  danger={action.danger}
+                  onClick={() => runAction(action)}
+                >
                   {action.buttonLabel}
                 </SecondaryButton>
               </div>
@@ -94,15 +166,27 @@ export function AccountModal({ open, onClose, onBindAlipay }: AccountModalProps)
           </div>
         </div>
       </Modal>
-      <AccountProfileEditModal open={profileMode !== null} mode={profileMode} onClose={() => setProfileMode(null)} />
-      <AccountPhoneChangeModal open={phoneOpen} onClose={() => setPhoneOpen(false)} />
+      <AccountProfileEditModal
+        open={profileMode !== null}
+        mode={profileMode}
+        onClose={() => setProfileMode(null)}
+      />
+      <AccountPhoneChangeModal
+        open={phoneOpen}
+        onClose={() => setPhoneOpen(false)}
+      />
     </>
   );
 }
 
+function formatAlipayAccountText(value?: string) {
+  if (!value) return "已绑定";
+  return Array.from(value).slice(0, maxAlipayAccountTextLength).join("");
+}
+
 function InfoRow({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="grid grid-cols-[88px_minmax(0,1fr)] items-center gap-3 rounded-2xl bg-[#fafafa] px-4 py-3 sm:grid-cols-[112px_minmax(0,1fr)]">
+    <div className={accountInfoRowClassName}>
       <span className="text-ink-soft">{label}</span>
       <div className="min-w-0 justify-self-end break-words text-right font-medium text-ink [overflow-wrap:anywhere]">{value}</div>
     </div>

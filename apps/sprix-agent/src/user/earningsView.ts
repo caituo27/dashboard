@@ -27,6 +27,14 @@ export function getPayoutAccountText(account: Account) {
   return "收款信息待确认。";
 }
 
+export function getPayoutAccountActionLabel(account: Account) {
+  return account.alipayBound ? "已绑定支付宝" : "绑定支付宝";
+}
+
+export function getPayoutAccountWarning(account: Account) {
+  return account.alipayBound ? "" : "当前未绑定支付宝，将影响任务结算";
+}
+
 export function getPayoutPageSubtitle() {
   return "查看打款记录、到账状态和预计到账时间。";
 }

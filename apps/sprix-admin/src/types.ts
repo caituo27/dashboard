@@ -159,7 +159,12 @@ export type CompletedExecution = {
   phone: string;
   agentName: string;
   acceptanceStatus: string;
+  acceptanceScore: string;
+  acceptanceSummary: string;
+  acceptanceIssues: string;
   score: string;
+  currentNode: string;
+  progress: string;
   appealStatus: string;
   settlementStatus: string;
   completedAt: string;

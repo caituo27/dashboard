@@ -3,7 +3,17 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Navigate, Route, BrowserRouter as Router, Routes, useLocation } from "react-router-dom";
 import type { ReactNode } from "react";
 import { AdminLoginPage, hasAdminToken } from "./admin/AdminLoginPage";
-import { AdminAcceptanceCenter, AdminAcceptanceDetail, AdminAppealCenter, AdminAppealDetail, AdminFundCenter, AdminTaskCenter, AdminTaskDetail, AdminTaskForm } from "./admin/AdminPages";
+import {
+  AdminAcceptanceCenter,
+  AdminAcceptanceDetail,
+  AdminAppealCenter,
+  AdminAppealDetail,
+  AdminFundCenter,
+  AdminTaskCenter,
+  AdminTaskDetail,
+  AdminTaskExecutionResultDetail,
+  AdminTaskForm
+} from "./admin/AdminPages";
 import { AdminShell } from "./components/Layout";
 
 const queryClient = new QueryClient();
@@ -49,6 +59,7 @@ function AdminRoutes() {
         <Route path="tasks" element={<AdminTaskCenter />} />
         <Route path="tasks/new" element={<AdminTaskForm />} />
         <Route path="tasks/:id/edit" element={<AdminTaskForm />} />
+        <Route path="tasks/:taskId/results/:executionId" element={<AdminTaskExecutionResultDetail />} />
         <Route path="tasks/:id" element={<AdminTaskDetail />} />
         <Route path="acceptance" element={<AdminAcceptanceCenter />} />
         <Route path="acceptance/:executionId" element={<AdminAcceptanceDetail />} />

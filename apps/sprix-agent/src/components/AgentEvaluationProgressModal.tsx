@@ -19,7 +19,7 @@ function isEvaluationActive(status: AgentEvaluation["status"]) {
 
 function getStatusCopy(status: AgentEvaluation["status"], agentName: string) {
   if (status === "completed") return "能力画像已生成";
-  if (status === "failed") return "测评失败";
+  if (status === "failed") return "生成失败了";
   if (status === "judging") return "正在生成能力画像";
   return `正在测评 ${agentName}`;
 }
@@ -76,6 +76,7 @@ export function AgentEvaluationProgressModal({
   const agentName = agent?.name ?? "Agent";
   const activeStepIndex = activeEvaluationStepIndex(evaluation, status);
   const activeStep = evaluationSteps[activeStepIndex];
+  const isFailed = status === "failed" || result?.status === "failed" || Boolean(error);
 
   return (
     <Modal
@@ -87,14 +88,14 @@ export function AgentEvaluationProgressModal({
       footer={
         <div className="sprix-evaluation-footer">
           <span className={isActive ? "is-active" : ""}>
-            {isActive ? "处理中，关闭弹框不会取消后端任务" : status === "completed" ? "测评完成" : "测评失败"}
+            {isActive ? "处理中，关闭弹框不会取消后端任务" : status === "completed" ? "测评完成" : "生成失败了"}
           </span>
           <ActionButton onClick={onClose}>关闭</ActionButton>
         </div>
       }
     >
       <div className="sprix-evaluation-progress">
-        {error && <p className="sprix-evaluation-error">{error}</p>}
+        {error && result?.status !== "failed" && <p className="sprix-evaluation-error">生成失败了</p>}
 
         <div className={`sprix-evaluation-step-hero ${isActive ? "is-active" : ""} ${isCompleted ? "is-completed" : ""} ${status === "failed" ? "is-error" : ""}`}>
           <div className="sprix-evaluation-step-core">
@@ -103,7 +104,7 @@ export function AgentEvaluationProgressModal({
           </div>
           <div className="sprix-evaluation-step-copy">
             <strong>{isActive ? `正在分析${activeStep.label}` : getStatusCopy(status, agentName)}</strong>
-            <p>{isCompleted ? `${agentName} 已完成 6 项能力测评。` : status === "failed" ? "测评没有完成，请稍后重新发起。" : "Sprix 正在逐项完成 Agent 能力画像，完成后会自动生成综合评分和改进建议。"}</p>
+            <p>{isCompleted ? `${agentName} 已完成 6 项能力测评。` : isFailed ? "生成失败了，请稍后重新发起。" : "Sprix 正在逐项完成 Agent 能力画像，完成后会自动生成综合评分和改进建议。"}</p>
           </div>
           {isCompleted && completedResult && (
             <div className="sprix-evaluation-step-score">
@@ -164,7 +165,7 @@ export function AgentEvaluationProgressModal({
           </div>
         )}
 
-        {result?.status === "failed" && <p className="sprix-evaluation-error">{result.error ?? "评测失败"}</p>}
+        {result?.status === "failed" && <p className="sprix-evaluation-error">生成失败了</p>}
       </div>
     </Modal>
   );

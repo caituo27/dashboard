@@ -28,7 +28,13 @@ import { isGlobalAuthError } from "../utils/http";
 import { getLocalAgentEmptyMessage } from "../home/localAgentInventory";
 import { QrPayloadBox } from "../components/QrSession";
 import { getAgentAbilityResult, getAgentAdmissionSummary, getAgentTagLabels, hasPendingAgentEvaluation } from "./agentResult";
-import { getPayoutAccountText, getPayoutPageSubtitle, getPayoutRecordState } from "./earningsView";
+import {
+  getPayoutAccountActionLabel,
+  getPayoutAccountText,
+  getPayoutAccountWarning,
+  getPayoutPageSubtitle,
+  getPayoutRecordState
+} from "./earningsView";
 import { getQualificationRecordRows } from "./qualificationView";
 import { getRecommendationPanelState, getSmartAcceptMessage } from "./recommendationView";
 import { getEstimatedTokenField } from "./tokenEstimateView";
@@ -341,7 +347,6 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
         <div className="space-y-5">
           <Surface className="p-6">
             <div className="flex flex-wrap items-center gap-2">
-              <StatusTag status={task.taskStatus} />
               <SoftTag>剩余名额 {task.remainingSlots}/{task.totalSlots}</SoftTag>
               <SoftTag tone="neutral">{estimatedToken.label}：{estimatedToken.value}</SoftTag>
             </div>
@@ -356,7 +361,6 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
               <h3 className="text-lg font-semibold">匹配推荐</h3>
               <div className="mt-4 space-y-3 text-sm text-ink-soft">
                 <p className="inline-flex items-baseline gap-2">匹配度：<b className="text-ink">{task.agentMatchScore}%</b></p>
-                <p>推荐团队：<b className="text-ink">{task.suggestedTeam || "当前执行 Agent"}</b></p>
               </div>
             </Surface>
           )}
@@ -504,10 +508,12 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
           throw error;
         }
       }
-      const shouldStartEvaluation = forceStart || !hasReusableEvaluation(latestEvaluation);
-      const nextEvaluation = !forceStart && hasReusableEvaluation(latestEvaluation)
-        ? latestEvaluation
-        : await startRemoteAgentEvaluation(agent.id);
+      const reusableLatestEvaluation =
+        !forceStart && agent.evaluation && hasReusableEvaluation(latestEvaluation)
+          ? latestEvaluation
+          : undefined;
+      const shouldStartEvaluation = !reusableLatestEvaluation;
+      const nextEvaluation = reusableLatestEvaluation ?? await startRemoteAgentEvaluation(agent.id);
       setEvaluation(nextEvaluation);
       if (current?.id === agent.id) {
         setCurrentEvaluation(nextEvaluation);
@@ -1051,9 +1057,16 @@ export function EarningsPage({ openLogin, openBindAlipay }: UserPageProps) {
   const account = useSprixStore((state) => state.account);
   const payouts = useSprixStore((state) => state.payouts);
   if (!account.isLoggedIn) {
-    return <EmptyState title="登录后查看打款记录" description="登录后可查看打款记录、到账状态和预计到账时间。" action={<ActionButton onClick={openLogin}>登录 / 注册</ActionButton>} />;
+    return (
+      <EmptyState
+        title="登录后查看打款记录"
+        description="登录后可查看打款记录、到账状态和预计到账时间。"
+        action={<ActionButton onClick={openLogin}>登录 / 注册</ActionButton>}
+      />
+    );
   }
   const payoutState = getPayoutRecordState(payouts);
+  const accountWarning = getPayoutAccountWarning(account);
   return (
     <>
       <PageHeader title="打款记录" subtitle={getPayoutPageSubtitle()} />
@@ -1062,8 +1075,13 @@ export function EarningsPage({ openLogin, openBindAlipay }: UserPageProps) {
           <div>
             <SoftTag>自动打款</SoftTag>
             <p className="mt-3 text-sm text-ink-soft">{getPayoutAccountText(account)}</p>
+            {accountWarning && (
+              <p className="mt-1 text-sm font-medium text-red-600">{accountWarning}</p>
+            )}
           </div>
-          <SecondaryButton onClick={() => openBindAlipay()}>绑定支付宝</SecondaryButton>
+          <SecondaryButton onClick={() => openBindAlipay()}>
+            {getPayoutAccountActionLabel(account)}
+          </SecondaryButton>
         </div>
         {payoutState.kind === "records" ? (
           <div className="space-y-3">

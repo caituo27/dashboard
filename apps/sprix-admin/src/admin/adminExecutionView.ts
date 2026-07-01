@@ -6,6 +6,19 @@ export type AdminExecutionRecordAction = {
   reason: string;
 };
 
+const noAppealStatuses = new Set(["无申诉", "未申诉"]);
+const settlementActionStatuses = new Set(["结算中", "已结算", "已入账"]);
+
+function hasAppealRecord(status?: string) {
+  const normalizedStatus = status?.trim();
+  return Boolean(normalizedStatus && !noAppealStatuses.has(normalizedStatus));
+}
+
+function hasSettlementRecord(status?: string) {
+  const normalizedStatus = status?.trim();
+  return Boolean(normalizedStatus && settlementActionStatuses.has(normalizedStatus));
+}
+
 export function getAdminExecutionRecordActions(
   kind: AdminExecutionRecordKind,
   options: { appealStatus?: string; settlementStatus?: string } = {}
@@ -30,11 +43,11 @@ export function getAdminExecutionRecordActions(
     { label: "查看验收详情", disabled: true, reason: "后台验收报告详情接口待接入" }
   ];
 
-  if (options.appealStatus && !["无申诉", "未申诉"].includes(options.appealStatus)) {
+  if (hasAppealRecord(options.appealStatus)) {
     actions.push({ label: "查看申诉", disabled: true, reason: "执行记录到申诉详情的关联字段待后端返回" });
   }
 
-  if (options.settlementStatus && ["结算中", "已入账"].includes(options.settlementStatus)) {
+  if (hasSettlementRecord(options.settlementStatus)) {
     actions.push({ label: "查看结算", disabled: true, reason: "后台执行记录结算详情接口待接入" });
   }
 

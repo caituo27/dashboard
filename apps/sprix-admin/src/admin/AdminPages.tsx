@@ -33,7 +33,6 @@ import {
   markRemoteWithdrawalsPayoutFailed,
   offlineRemoteAdminTask,
   payRemoteWithdrawal,
-  postRemoteSettlement,
   queryRemoteWithdrawalPayout,
   readRemoteAppeals,
   readRemoteAppealDetail,
@@ -54,11 +53,9 @@ import {
 import { ActionButton, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface, primitiveIcons } from "../components/Primitives";
 import { currency } from "../utils/format";
 import { isGlobalAuthError } from "../utils/http";
-import { getAdminExecutionRecordActions, type AdminExecutionRecordAction } from "./adminExecutionView";
 import {
   getAdminPayoutBatchActions,
   getAdminPayoutExportAction,
-  getAdminSettlementDetailAction,
   getAdminWithdrawalBatchActions,
   type AdminPendingFundAction
 } from "./adminFundView";
@@ -67,10 +64,6 @@ import { getAdminEstimatedTokenField } from "./tokenEstimateView";
 
 function getAppealBackendId(record: AdminAppeal) {
   return record.backendId ?? record.appealNo;
-}
-
-function getSettlementBackendId(record: Pick<Settlement, "backendId" | "settlementNo">) {
-  return record.backendId ?? record.settlementNo;
 }
 
 function getWithdrawalBackendId(record: Pick<Withdrawal | Payout, "backendId" | "withdrawalNo">) {
@@ -114,6 +107,13 @@ function getAverageAppealProcessTime(appeals: AdminAppeal[]) {
 
   if (durations.length === 0) return "-";
   return formatDuration(durations.reduce((sum, duration) => sum + duration, 0) / durations.length);
+}
+
+const taskDetailNoAppealStatuses = new Set(["无申诉", "未申诉"]);
+
+function hasTaskDetailAppealRecord(status?: string) {
+  const normalizedStatus = status?.trim();
+  return Boolean(normalizedStatus && !taskDetailNoAppealStatuses.has(normalizedStatus));
 }
 
 function AdminDetailPage({ children }: { children: ReactNode }) {
@@ -175,6 +175,10 @@ function downloadCsv(filename: string, rows: Array<Record<string, unknown>>) {
 }
 
 function showFundRecordDetail(title: string, rows: Array<[string, ReactNode]>) {
+  showAdminRecordDetail(title, rows);
+}
+
+function showAdminRecordDetail(title: string, rows: Array<[string, ReactNode]>) {
   Modal.info({
     title,
     width: 680,
@@ -242,12 +246,38 @@ function useStableTablePagination(total: number, pageSize: number, options?: str
 
 const taskCategoryOptions = ["等待产品输入"].map((value) => ({ value, label: value }));
 const taskFormFields = ["title", "category", "sourceType", "description", "deliverables", "acceptanceCriteria", "reward", "totalSlots"] as const;
-const integerFieldRules = (label: string) => [
+const taskTextLimits = {
+  title: 30,
+  category: 100,
+  sourceType: 30,
+  description: 1000,
+  deliverables: 1000,
+  acceptanceCriteria: 1000
+} as const;
+
+const requiredTrimmedTextRules = (label: string, max: number) => [
+  {
+    required: true,
+    transform: (value?: string) => value?.trim(),
+    message: `请输入${label}`
+  },
+  {
+    max,
+    transform: (value?: string) => value?.trim(),
+    message: `${label}不能超过 ${max} 个字符`
+  }
+];
+
+const integerFieldRules = (label: string, max: number) => [
   { required: true, message: `请输入${label}` },
   {
-    validator: (_: unknown, value?: number | null) => {
+    validator: (_: unknown, value?: number | string | null) => {
       if (value == null) return Promise.resolve();
-      return Number.isInteger(value) ? Promise.resolve() : Promise.reject(new Error(`${label}不能输入小数`));
+      const numericValue = Number(value);
+      if (!Number.isInteger(numericValue)) return Promise.reject(new Error(`${label}必须是整数`));
+      if (numericValue < 1) return Promise.reject(new Error(`${label}不能小于 1`));
+      if (numericValue > max) return Promise.reject(new Error(`${label}不能超过 ${max}`));
+      return Promise.resolve();
     }
   }
 ];
@@ -269,6 +299,18 @@ function buildTaskFormInitialValues(task?: Task): Partial<UpsertAdminTaskPayload
 function normalizeTaskFormValue(value: unknown) {
   if (value === undefined || value === null) return "";
   return typeof value === "string" ? value.trim() : value;
+}
+
+function normalizeTaskPayload(values: UpsertAdminTaskPayload): UpsertAdminTaskPayload {
+  return {
+    ...values,
+    title: values.title.trim(),
+    category: values.category.trim(),
+    sourceType: values.sourceType.trim(),
+    description: values.description.trim(),
+    deliverables: values.deliverables.trim(),
+    acceptanceCriteria: values.acceptanceCriteria.trim()
+  };
 }
 
 function hasTaskFormChanges(currentValues: Partial<UpsertAdminTaskPayload>, initialValues: Partial<UpsertAdminTaskPayload>) {
@@ -341,7 +383,7 @@ export function AdminTaskCenter() {
         content: task.title,
         okText: "确认下线",
         cancelText: "取消",
-        onOk: () => runTaskAction(() => offlineRemoteAdminTask(task.id, "Admin offlined task"), "已下线任务")
+        onOk: () => runTaskAction(() => offlineRemoteAdminTask(task.id, "手动操作下线"), "已下线任务")
       });
       return;
     }
@@ -454,7 +496,7 @@ export function AdminTaskCenter() {
                 columns={taskColumns}
                 dataSource={visibleTasks}
                 pagination={taskPagination}
-                scroll={{ x: 1320 }}
+                scroll={{ x: 1650 }}
                 rowClassName="cursor-pointer"
                 locale={{ emptyText: "暂无任务" }}
                 onRow={(task) => ({ onClick: () => navigate(`/tasks/${task.id}`) })}
@@ -546,26 +588,100 @@ export function AdminAcceptanceDetail() {
   }
 
   return (
+    <AcceptanceResultDetail
+      record={record}
+      onBack={() => navigate("/acceptance")}
+      reviewActions={(
+        <Surface className="mb-4 p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h3 className="sprix-section-title">审核操作</h3>
+              <p className="mt-1 text-sm text-ink-soft">确认该执行结果是否满足任务交付和验收要求。</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <ActionButton onClick={() => approveAcceptanceReview(record)}>通过</ActionButton>
+              <SecondaryButton danger onClick={() => rejectAcceptanceReview(record)}>不通过</SecondaryButton>
+            </div>
+          </div>
+        </Surface>
+      )}
+    />
+  );
+}
+
+export function AdminTaskExecutionResultDetail() {
+  const { taskId, executionId } = useParams();
+  const navigate = useNavigate();
+  const taskDetailQuery = useQuery({
+    queryKey: ["sprix-admin", "task-detail", taskId],
+    queryFn: () => readRemoteTaskDetail(taskId as string),
+    enabled: Boolean(taskId),
+    retry: 1
+  });
+
+  const backToTaskDetail = () => {
+    navigate(taskId ? `/tasks/${encodeURIComponent(taskId)}` : "/tasks");
+  };
+
+  if (!taskId || !executionId) return <Surface className="p-8">结果详情参数缺失</Surface>;
+  if (taskDetailQuery.isLoading) return <Surface className="p-8">结果详情加载中</Surface>;
+  if (taskDetailQuery.isError) {
+    const messageText = taskDetailQuery.error instanceof Error ? taskDetailQuery.error.message : "结果详情加载失败";
+    return <Surface className="p-8">结果详情加载失败：{messageText}</Surface>;
+  }
+
+  const task = taskDetailQuery.data?.task;
+  const record = taskDetailQuery.data?.records.completed.find((item) => item.executionId === executionId);
+  if (!task || !record) {
+    return (
+      <AdminDetailPage>
+        <AdminDetailHeading title="查看结果" onBack={backToTaskDetail} />
+        <Surface className="p-8 text-sm text-ink-soft">没有找到对应的已完成执行记录。</Surface>
+      </AdminDetailPage>
+    );
+  }
+
+  const resultRecord: ReviewingExecution = {
+    executionId: record.executionId ?? executionId,
+    executionIndex: record.executionIndex,
+    taskId,
+    taskTitle: task.title,
+    taskCategory: task.category,
+    userName: record.userName,
+    phone: record.phone,
+    agentName: record.agentName,
+    agentScore: record.score,
+    acceptanceStatus: record.acceptanceStatus,
+    acceptanceScore: record.acceptanceScore,
+    acceptanceSummary: record.acceptanceSummary,
+    acceptanceIssues: record.acceptanceIssues,
+    currentNode: record.currentNode,
+    progress: record.progress,
+    submittedAt: record.completedAt
+  };
+
+  return <AcceptanceResultDetail record={resultRecord} onBack={backToTaskDetail} />;
+}
+
+function AcceptanceResultDetail({
+  record,
+  onBack,
+  reviewActions
+}: {
+  record: ReviewingExecution;
+  onBack: () => void;
+  reviewActions?: ReactNode;
+}) {
+  return (
     <AdminDetailPage>
-      <AdminDetailHeading title={record.taskTitle || "验收详情"} onBack={() => navigate("/acceptance")} />
+      <AdminDetailHeading title={record.taskTitle || "验收详情"} onBack={onBack} />
       <div className="mb-4 grid gap-3 md:grid-cols-4">
         <MetricCard title="验收状态" value={<StatusTag status={record.acceptanceStatus} />} icon={<ShieldCheck size={19} />} />
         <MetricCard title="验收评分" value={record.acceptanceScore} icon={<Gauge size={19} />} />
-        <MetricCard title="Agent 评分" value={record.agentScore} icon={<Bot size={19} />} />
+        <MetricCard title="Agent 本次任务评分" value={record.agentScore} icon={<Bot size={19} />} />
         <MetricCard title="当前节点" value={<span className="text-lg">{record.currentNode}</span>} icon={<Route size={19} />} />
       </div>
-      <Surface className="mb-4 p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h3 className="sprix-section-title">审核操作</h3>
-            <p className="mt-1 text-sm text-ink-soft">确认该执行结果是否满足任务交付和验收要求。</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <ActionButton onClick={() => approveAcceptanceReview(record)}>通过</ActionButton>
-            <SecondaryButton danger onClick={() => rejectAcceptanceReview(record)}>不通过</SecondaryButton>
-          </div>
-        </div>
-      </Surface>
+      {reviewActions}
       <div className="grid gap-4 xl:grid-cols-[1fr_1.2fr]">
         <Surface className="p-4">
           <h3 className="sprix-section-title">执行信息</h3>
@@ -634,14 +750,15 @@ function useAcceptanceReviewActions(afterAction: () => Promise<unknown>) {
 function InfoGrid({ rows }: { rows: Array<[string, string]> }) {
   return (
     <dl className="mt-4 grid gap-3 text-sm">
-      {rows.map(([label, value]) => (
-        <div key={label} className="grid gap-1 sm:grid-cols-[120px_1fr]">
-          <dt className="text-ink-soft">{label}</dt>
-          <dd className="min-w-0 text-ink">
-            <EllipsisCell value={value} />
-          </dd>
-        </div>
-      ))}
+      {rows.map(([label, value]) => {
+        const text = value == null || value === "" ? "-" : String(value);
+        return (
+          <div key={label} className="grid gap-1 sm:grid-cols-[120px_1fr]">
+            <dt className="text-ink-soft">{label}</dt>
+            <dd className="min-w-0 break-all leading-6 text-ink">{text}</dd>
+          </div>
+        );
+      })}
     </dl>
   );
 }
@@ -707,9 +824,7 @@ function AcceptanceReviewTable({
     { title: "执行用户", dataIndex: "userName", width: 130, render: (value) => <EllipsisCell value={value} /> },
     { title: "手机号", dataIndex: "phone", width: 140, render: (value) => <EllipsisCell value={value} /> },
     { title: "执行 Agent", dataIndex: "agentName", width: 160, render: (value) => <EllipsisCell value={value} /> },
-    { title: "第几次执行", dataIndex: "executionIndex", width: 120, render: (value) => (value ? `第 ${value} 次` : "-") },
-    { title: "执行记录ID", dataIndex: "executionId", width: 220, render: (value) => <EllipsisCell value={value ?? "-"} /> },
-    { title: "Agent 综合评分", dataIndex: "agentScore", width: 130 },
+    { title: "Agent 本次任务评分", dataIndex: "agentScore", width: 150 },
     { title: "验收状态", dataIndex: "acceptanceStatus", width: 140, render: (value) => <StatusTag status={value} /> },
     { title: "验收评分", dataIndex: "acceptanceScore", width: 110 },
     { title: "验收摘要", dataIndex: "acceptanceSummary", width: 260, render: (value) => <EllipsisCell value={value} /> },
@@ -737,7 +852,7 @@ function AcceptanceReviewTable({
       columns={columns}
       pagination={pagination}
       locale={{ emptyText: "暂无待平台审核记录" }}
-      scroll={{ x: showTask ? 2200 : 1800 }}
+      scroll={{ x: showTask ? 1880 : 1460 }}
       rowClassName={onOpenDetail ? "cursor-pointer" : undefined}
       onRow={onOpenDetail ? (record) => ({ onClick: () => onOpenDetail(record) }) : undefined}
     />
@@ -776,12 +891,13 @@ export function AdminTaskForm() {
         editTaskRecords.completed.length > 0)
   );
   const submitTask = async (values: UpsertAdminTaskPayload) => {
+    const payload = normalizeTaskPayload(values);
     try {
       if (isEdit && editTaskId) {
-        await updateRemoteAdminTask(editTaskId, values);
+        await updateRemoteAdminTask(editTaskId, payload);
         message.success("任务已保存");
       } else {
-        await createRemoteAdminTask(values);
+        await createRemoteAdminTask(payload);
         message.success("任务已发布");
       }
       await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
@@ -840,33 +956,33 @@ export function AdminTaskForm() {
           onFinish={confirmAndSubmitTask}
         >
           <div className="grid gap-4 lg:grid-cols-3">
-            <Form.Item label="任务名称" name="title" rules={[{ required: true, message: "请输入任务名称" }]}>
-              <Input />
+            <Form.Item label="任务名称" name="title" rules={requiredTrimmedTextRules("任务名称", taskTextLimits.title)}>
+              <Input maxLength={taskTextLimits.title} showCount />
             </Form.Item>
-            <Form.Item label="任务类型" name="category" rules={[{ required: true, message: "请选择任务类型" }]}>
+            <Form.Item label="任务类型" name="category" rules={requiredTrimmedTextRules("任务类型", taskTextLimits.category)}>
               <Select placeholder="等待产品输入" options={taskCategoryOptions} />
             </Form.Item>
-            <Form.Item label="任务来源类型" name="sourceType" rules={[{ required: true, message: "请输入任务来源类型" }]}>
-              <Input />
+            <Form.Item label="任务来源类型" name="sourceType" rules={requiredTrimmedTextRules("任务来源类型", taskTextLimits.sourceType)}>
+              <Input maxLength={taskTextLimits.sourceType} showCount />
             </Form.Item>
           </div>
-          <Form.Item label="详细任务描述" name="description" rules={[{ required: true, message: "请输入详细任务描述" }]}>
-            <Input.TextArea rows={4} />
+          <Form.Item label="详细任务描述" name="description" rules={requiredTrimmedTextRules("详细任务描述", taskTextLimits.description)}>
+            <Input.TextArea rows={4} maxLength={taskTextLimits.description} showCount />
           </Form.Item>
           <div className="grid gap-4 lg:grid-cols-2">
-            <Form.Item label="交付标准" name="deliverables" rules={[{ required: true, message: "请输入交付标准" }]}>
-              <Input.TextArea rows={4} />
+            <Form.Item label="交付标准" name="deliverables" rules={requiredTrimmedTextRules("交付标准", taskTextLimits.deliverables)}>
+              <Input.TextArea rows={4} maxLength={taskTextLimits.deliverables} showCount />
             </Form.Item>
-            <Form.Item label="验收标准" name="acceptanceCriteria" rules={[{ required: true, message: "请输入验收标准" }]}>
-              <Input.TextArea rows={4} />
+            <Form.Item label="验收标准" name="acceptanceCriteria" rules={requiredTrimmedTextRules("验收标准", taskTextLimits.acceptanceCriteria)}>
+              <Input.TextArea rows={4} maxLength={taskTextLimits.acceptanceCriteria} showCount />
             </Form.Item>
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
-            <Form.Item label="任务奖励" name="reward" rules={integerFieldRules("任务奖励")}>
-              <InputNumber min={1} step={1} precision={0} className="w-full" />
+            <Form.Item label="任务奖励" name="reward" rules={integerFieldRules("任务奖励", 999999)}>
+              <InputNumber min={1} max={999999} step={1} precision={0} className="w-full" />
             </Form.Item>
-            <Form.Item label="总名额" name="totalSlots" rules={integerFieldRules("总名额")}>
-              <InputNumber min={1} step={1} precision={0} className="w-full" />
+            <Form.Item label="总名额" name="totalSlots" rules={integerFieldRules("总名额", 9999)}>
+              <InputNumber min={1} max={9999} step={1} precision={0} className="w-full" />
             </Form.Item>
           </div>
           <div className="mb-4 rounded-2xl bg-[#fafafa] p-4 text-sm leading-7 text-ink-soft">
@@ -911,7 +1027,7 @@ export function AdminTaskDetail() {
     ["待平台审核", records?.reviewing.length ?? 0],
     ["已终止", records?.terminated.length ?? 0],
     ["已完成", records?.completed.length ?? 0],
-    ["申诉记录", records?.completed.filter((item) => !["无申诉", "未申诉"].includes(item.appealStatus)).length ?? 0]
+    ["申诉记录", records?.completed.filter((item) => hasTaskDetailAppealRecord(item.appealStatus)).length ?? 0]
   ];
   return (
     <AdminDetailPage>
@@ -948,7 +1064,7 @@ export function AdminTaskDetail() {
         <DetailBlock title="交付标准" body={task.deliverables} />
         <DetailBlock title="验收标准" body={task.acceptanceCriteria} />
       </div>
-      <AdminExecutionRecords records={records} />
+      <AdminExecutionRecords taskId={task.id} records={records} />
       <AdminOperationLogs logs={operationLogs} />
     </AdminDetailPage>
   );
@@ -989,8 +1105,10 @@ function DetailBlock({ title, body }: { title: string; body: string }) {
 }
 
 function AdminExecutionRecords({
+  taskId,
   records
 }: {
+  taskId: string;
   records?: {
     running: RunningExecution[];
     reviewing: ReviewingExecution[];
@@ -998,6 +1116,7 @@ function AdminExecutionRecords({
     completed: CompletedExecution[];
   };
 }) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const approveAcceptanceReview = (record: ReviewingExecution) => {
     Modal.confirm({
@@ -1044,8 +1163,6 @@ function AdminExecutionRecords({
     { title: "执行用户", dataIndex: "userName" },
     { title: "手机号", dataIndex: "phone" },
     { title: "执行 Agent", dataIndex: "agentName" },
-    { title: "第几次执行", dataIndex: "executionIndex", render: (value) => (value ? `第 ${value} 次` : "-") },
-    { title: "执行记录ID", dataIndex: "executionId", render: (value) => value ?? "-" },
     { title: "执行状态", dataIndex: "status", render: (value) => <StatusTag status={value} /> },
     { title: "时间", dataIndex: "time" }
   ];
@@ -1053,31 +1170,63 @@ function AdminExecutionRecords({
     { title: "执行用户", dataIndex: "userName" },
     { title: "手机号", dataIndex: "phone" },
     { title: "执行 Agent", dataIndex: "agentName" },
-    { title: "第几次执行", dataIndex: "executionIndex", render: (value) => (value ? `第 ${value} 次` : "-") },
-    { title: "执行记录ID", dataIndex: "executionId", render: (value) => value ?? "-" },
-    { title: "Agent 综合评分", dataIndex: "agentScore" },
-    { title: "当前节点", dataIndex: "currentNode" },
+    { title: "Agent 本次任务评分", dataIndex: "agentScore" },
+    { title: "当前节点", dataIndex: "currentNode", width: 120, render: (value) => <span className="whitespace-nowrap">{value}</span> },
     { title: "当前进度", dataIndex: "progress" },
     { title: "开始时间", dataIndex: "startedAt" },
-    { title: "操作", render: () => <PendingAdminActionButtons actions={getAdminExecutionRecordActions("running")} /> }
+    {
+      title: "操作",
+      width: 220,
+      render: (_, record) => (
+        <AdminExecutionActionButtons
+          actions={[
+            {
+              label: "查看执行详情",
+              onClick: () => showRunningExecutionDetail(record)
+            },
+            {
+              label: "查看 Agent 信息",
+              onClick: () => showExecutionAgentInfo(record)
+            }
+          ]}
+        />
+      )
+    }
   ];
   const terminatedColumns: ColumnsType<TerminatedExecution> = [
     { title: "执行用户", dataIndex: "userName" },
     { title: "手机号", dataIndex: "phone" },
     { title: "执行 Agent", dataIndex: "agentName" },
-    { title: "第几次执行", dataIndex: "executionIndex", render: (value) => (value ? `第 ${value} 次` : "-") },
-    { title: "执行记录ID", dataIndex: "executionId", render: (value) => value ?? "-" },
     { title: "终止原因", dataIndex: "terminationReason" },
-    { title: "终止节点", dataIndex: "terminatedNode" },
+    { title: "终止节点", dataIndex: "terminatedNode", width: 120, render: (value) => <span className="whitespace-nowrap">{value}</span> },
     { title: "终止时间", dataIndex: "terminatedAt" },
-    { title: "操作", render: () => <PendingAdminActionButtons actions={getAdminExecutionRecordActions("terminated")} /> }
+    {
+      title: "操作",
+      width: 300,
+      render: (_, record) => (
+        <AdminExecutionActionButtons
+          actions={[
+            {
+              label: "查看执行记录",
+              onClick: () => showTerminatedExecutionDetail(record)
+            },
+            {
+              label: "查看用户信息",
+              onClick: () => showExecutionUserInfo(record)
+            },
+            {
+              label: "查看 Agent 信息",
+              onClick: () => showExecutionAgentInfo(record)
+            }
+          ]}
+        />
+      )
+    }
   ];
   const completedColumns: ColumnsType<CompletedExecution> = [
     { title: "执行用户", dataIndex: "userName" },
     { title: "手机号", dataIndex: "phone" },
     { title: "执行 Agent", dataIndex: "agentName" },
-    { title: "第几次执行", dataIndex: "executionIndex", render: (value) => (value ? `第 ${value} 次` : "-") },
-    { title: "执行记录ID", dataIndex: "executionId", render: (value) => value ?? "-" },
     { title: "验收状态", dataIndex: "acceptanceStatus", render: (value) => <StatusTag status={value} /> },
     { title: "综合评分", dataIndex: "score" },
     { title: "申诉状态", dataIndex: "appealStatus", render: (value) => <StatusTag status={value} /> },
@@ -1085,7 +1234,23 @@ function AdminExecutionRecords({
     { title: "完成时间", dataIndex: "completedAt" },
     {
       title: "操作",
-      render: (_, record) => <PendingAdminActionButtons actions={getAdminExecutionRecordActions("completed", record)} />
+      width: 120,
+      render: (_, record) => (
+        <AdminExecutionActionButtons
+          actions={[
+            {
+              label: "查看结果",
+              onClick: () => {
+                if (!record.executionId) {
+                  message.warning("执行记录缺少 ID，无法查看结果");
+                  return;
+                }
+                navigate(`/tasks/${encodeURIComponent(taskId)}/results/${encodeURIComponent(record.executionId)}`);
+              }
+            }
+          ]}
+        />
+      )
     }
   ];
   return (
@@ -1098,12 +1263,12 @@ function AdminExecutionRecords({
           {
             key: "all",
             label: "全部",
-            children: <Table rowKey={(record) => record.executionId ?? `${record.userName}-${record.time}`} columns={allColumns} dataSource={allRecords} pagination={false} locale={{ emptyText: "暂无执行记录" }} scroll={{ x: 1220 }} />
+            children: <Table rowKey={(record) => record.executionId ?? `${record.userName}-${record.time}`} columns={allColumns} dataSource={allRecords} pagination={false} locale={{ emptyText: "暂无执行记录" }} scroll={{ x: 900 }} />
           },
           {
             key: "running",
             label: "执行中",
-            children: <Table rowKey={(record) => record.executionId ?? record.startedAt} columns={runningColumns} dataSource={records?.running ?? []} pagination={false} locale={{ emptyText: "暂无执行中记录" }} scroll={{ x: 1160 }} />
+            children: <Table rowKey={(record) => record.executionId ?? record.startedAt} columns={runningColumns} dataSource={records?.running ?? []} pagination={false} locale={{ emptyText: "暂无执行中记录" }} scroll={{ x: 900 }} />
           },
           {
             key: "reviewing",
@@ -1119,12 +1284,12 @@ function AdminExecutionRecords({
           {
             key: "terminated",
             label: "已终止",
-            children: <Table rowKey={(record) => record.executionId ?? record.terminatedAt} columns={terminatedColumns} dataSource={records?.terminated ?? []} pagination={false} locale={{ emptyText: "暂无已终止记录" }} scroll={{ x: 1160 }} />
+            children: <Table rowKey={(record) => record.executionId ?? record.terminatedAt} columns={terminatedColumns} dataSource={records?.terminated ?? []} pagination={false} locale={{ emptyText: "暂无已终止记录" }} scroll={{ x: 900 }} />
           },
           {
             key: "completed",
             label: "已完成",
-            children: <Table rowKey={(record) => record.executionId ?? record.completedAt} columns={completedColumns} dataSource={records?.completed ?? []} pagination={false} locale={{ emptyText: "暂无已完成记录" }} scroll={{ x: 1280 }} />
+            children: <Table rowKey={(record) => record.executionId ?? record.completedAt} columns={completedColumns} dataSource={records?.completed ?? []} pagination={false} locale={{ emptyText: "暂无已完成记录" }} scroll={{ x: 960 }} />
           }
         ]}
       />
@@ -1132,15 +1297,73 @@ function AdminExecutionRecords({
   );
 }
 
-function PendingAdminActionButtons({ actions }: { actions: AdminExecutionRecordAction[] }) {
+type AdminExecutionTableAction = {
+  label: string;
+  onClick: () => void;
+};
+
+type ExecutionUserRecord = {
+  userName: string;
+  phone: string;
+  executionId?: string;
+};
+
+type ExecutionAgentRecord = {
+  agentName: string;
+  executionId?: string;
+  agentScore?: string;
+};
+
+function showRunningExecutionDetail(record: RunningExecution) {
+  showAdminRecordDetail("执行详情", [
+    ["执行状态", "执行中"],
+    ["执行记录ID", record.executionId ?? "-"],
+    ["执行用户", record.userName],
+    ["手机号", record.phone],
+    ["执行 Agent", record.agentName],
+    ["Agent 本次任务评分", record.agentScore],
+    ["当前节点", record.currentNode],
+    ["当前进度", record.progress],
+    ["开始时间", record.startedAt]
+  ]);
+}
+
+function showTerminatedExecutionDetail(record: TerminatedExecution) {
+  showAdminRecordDetail("执行记录", [
+    ["执行状态", "已终止"],
+    ["执行记录ID", record.executionId ?? "-"],
+    ["执行用户", record.userName],
+    ["手机号", record.phone],
+    ["执行 Agent", record.agentName],
+    ["终止原因", record.terminationReason],
+    ["终止节点", record.terminatedNode],
+    ["终止时间", record.terminatedAt]
+  ]);
+}
+
+function showExecutionUserInfo(record: ExecutionUserRecord) {
+  showAdminRecordDetail("用户信息", [
+    ["用户昵称", record.userName],
+    ["手机号", record.phone],
+    ["关联执行记录ID", record.executionId ?? "-"]
+  ]);
+}
+
+function showExecutionAgentInfo(record: ExecutionAgentRecord) {
+  showAdminRecordDetail("Agent 信息", [
+    ["执行 Agent", record.agentName],
+    ["Agent 本次任务评分", record.agentScore ?? "-"],
+    ["关联执行记录ID", record.executionId ?? "-"]
+  ]);
+}
+
+function AdminExecutionActionButtons({ actions }: { actions: AdminExecutionTableAction[] }) {
   return (
     <div className="flex flex-wrap gap-1">
       {actions.map((action) => (
-        <Tooltip key={action.label} title={action.reason}>
-          <Button type="link" disabled>
-            {action.label}
-          </Button>
-        </Tooltip>
+        <Button key={action.label} size="small" type="link" onClick={action.onClick}>
+          {action.label}
+        </Button>
       ))}
     </div>
   );
@@ -1405,7 +1628,7 @@ export function AdminFundCenter() {
     ["结算中金额", sumBy(settlements.filter((item) => item.settlementStatus === "结算中"), (item) => item.netIncome)],
     ["提现审核中金额", sumBy(withdrawals.filter((item) => item.withdrawStatus === "提现审核中"), (item) => item.applyAmount)],
     ["待打款金额", sumBy(payouts.filter((item) => item.withdrawStatus === "待打款"), (item) => item.payoutAmount)],
-    ["已提现金额", sumBy(withdrawals.filter((item) => item.withdrawStatus === "已提现"), (item) => item.applyAmount)],
+    ["已打款金额", sumBy(withdrawals.filter((item) => item.withdrawStatus === "已提现"), (item) => item.applyAmount)],
     ["打款失败金额", sumBy(exceptions, (item) => item.exceptionAmount)]
   ];
   const approveWithdrawal = async (record: Withdrawal) => {
@@ -1443,22 +1666,6 @@ export function AdminFundCenter() {
     } catch (error) {
       showRequestError(error, "批量提现驳回失败", "批量提现驳回失败：");
     }
-  };
-  const postSettlement = (record: Settlement) => {
-    Modal.confirm({
-      title: "确认补录结算入账",
-      content: "新审核通过记录会自动入账并发起打款。此操作仅用于处理历史结算中记录或异常补录。",
-      okText: "确认入账",
-      onOk: async () => {
-        try {
-          await postRemoteSettlement(getSettlementBackendId(record));
-          await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-          message.success("结算已入账");
-        } catch (error) {
-          showRequestError(error, "结算入账失败", "结算入账失败：");
-        }
-      }
-    });
   };
   const payPayout = (record: Payout) => {
     Modal.confirm({
@@ -1555,22 +1762,6 @@ export function AdminFundCenter() {
       showRequestError(error, "异常处理失败", "异常处理失败：");
     }
   };
-  const showSettlementDetail = (record: Settlement) => {
-    showFundRecordDetail("结算详情", [
-      ["结算单号", record.settlementNo],
-      ["关联任务", record.taskTitle],
-      ["用户昵称", record.userName],
-      ["手机号", record.userPhone],
-      ["执行 Agent", record.agentName],
-      ["任务收入", currency(record.taskIncome)],
-      ["平台服务费", currency(record.platformFee)],
-      ["实际入账", currency(record.netIncome)],
-      ["结算状态", <StatusTag status={record.settlementStatus} />],
-      ["生成时间", record.createdAt],
-      ["入账时间", record.paidAt],
-      ["关联执行/申诉", record.sourceAppealNo ?? "-"]
-    ]);
-  };
   const showWithdrawalDetail = (record: Withdrawal) => {
     showFundRecordDetail("提现详情", [
       ["提现单号", record.withdrawalNo],
@@ -1650,7 +1841,7 @@ export function AdminFundCenter() {
                   tableLayout="fixed"
                   dataSource={settlements}
                   pagination={settlementPagination}
-                  scroll={{ x: 1500 }}
+                  scroll={{ x: 1320 }}
                   columns={[
                     { title: "结算单号", dataIndex: "settlementNo", width: 150, render: (value) => <EllipsisCell value={value} /> },
                     { title: "关联任务", dataIndex: "taskTitle", width: 260, render: (value) => <EllipsisCell value={value} /> },
@@ -1662,22 +1853,7 @@ export function AdminFundCenter() {
                     { title: "实际入账", dataIndex: "netIncome", width: 112, render: currency },
                     { title: "结算状态", dataIndex: "settlementStatus", width: 120, render: (value) => <StatusTag status={value} /> },
                     { title: "生成时间", dataIndex: "createdAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
-                    { title: "入账时间", dataIndex: "paidAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
-                    {
-                      title: "操作",
-                      width: 180,
-                      fixed: "right",
-                      render: (_, record) => (
-                        record.settlementStatus === "结算中" ? (
-                          <div className="flex flex-wrap gap-1">
-                            <Button className="whitespace-nowrap" type="link" onClick={() => showSettlementDetail(record)}>查看详情</Button>
-                            <Button className="whitespace-nowrap" type="link" onClick={() => postSettlement(record)}>补录入账</Button>
-                          </div>
-                        ) : (
-                          <PendingFundActionButton action={getAdminSettlementDetailAction(async () => showSettlementDetail(record))} />
-                        )
-                      )
-                    }
+                    { title: "入账时间", dataIndex: "paidAt", width: 150, render: (value) => <EllipsisCell value={value} /> }
                   ]}
                 />
               )

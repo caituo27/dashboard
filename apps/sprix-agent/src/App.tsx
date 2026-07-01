@@ -164,6 +164,10 @@ function ConsumerAppRoutes() {
       <AccountModal
         open={modal.account}
         onClose={() => close("account")}
+        onOpenQualification={() => {
+          setQualificationTaskId(undefined);
+          setQualificationOpen(true);
+        }}
         onBindAlipay={() => {
           close("account");
           openBindAlipay();

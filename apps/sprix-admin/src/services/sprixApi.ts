@@ -110,16 +110,21 @@ type RemoteAdminExecutionRow = {
   agentName?: string;
   agentScore?: number | null;
   executionStatus?: string;
-  currentNode?: string;
-  progress?: string;
-  terminationReason?: string;
-  appealStatus?: string;
-  settlementStatus?: string;
   acceptanceStatus?: string;
   acceptanceScore?: number | null;
   acceptanceSummary?: string;
   acceptanceIssues?: string;
   acceptancePayload?: string;
+  score?: number | null;
+  summary?: string;
+  issues?: string;
+  acceptance?: RemoteAcceptanceSnapshot;
+  currentNode?: string;
+  currentNodeLabel?: string;
+  progress?: string;
+  terminationReason?: string;
+  appealStatus?: string;
+  settlementStatus?: string;
   submittedAt?: string;
   startedAt?: string;
   updatedAt?: string;
@@ -140,11 +145,25 @@ type RemoteAcceptanceReviewRow = {
   acceptanceScore?: number | null;
   acceptanceSummary?: string;
   acceptanceIssues?: string;
+  acceptancePayload?: string;
+  score?: number | null;
+  summary?: string;
+  issues?: string;
+  acceptance?: RemoteAcceptanceSnapshot;
   currentNode?: string;
+  currentNodeLabel?: string;
   progress?: string;
   submittedAt?: string;
   startedAt?: string;
   updatedAt?: string;
+};
+
+type RemoteAcceptanceSnapshot = {
+  status?: string;
+  score?: number | null;
+  summary?: string;
+  issues?: string;
+  acceptancePayload?: string;
 };
 
 type RemoteSettlementRecord = SettlementRecordRow;
@@ -422,7 +441,7 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
         phone: row.userPhone ?? "-",
         agentName: row.agentName ?? "-",
         terminationReason: row.terminationReason ?? "-",
-        terminatedNode: mapCurrentNode(row.currentNode),
+        terminatedNode: mapCurrentNode(row.currentNode, row.currentNodeLabel),
         terminatedAt: formatDateTime(row.completedAt ?? row.updatedAt)
       });
     } else if (row.executionStatus === "RUNNING") {
@@ -433,7 +452,7 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
         phone: row.userPhone ?? "-",
         agentName: row.agentName ?? "-",
         agentScore: row.agentScore == null ? "-" : `${row.agentScore}/100`,
-        currentNode: mapCurrentNode(row.currentNode),
+        currentNode: mapCurrentNode(row.currentNode, row.currentNodeLabel),
         progress: row.progress ?? "-",
         startedAt: formatDateTime(row.startedAt)
       });
@@ -445,11 +464,11 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
         phone: row.userPhone ?? "-",
         agentName: row.agentName ?? "-",
         agentScore: row.agentScore == null ? "-" : `${row.agentScore}/100`,
-        acceptanceStatus: mapAcceptanceStatus(row.acceptanceStatus),
-        acceptanceScore: row.acceptanceScore == null ? "-" : `${row.acceptanceScore}/100`,
-        acceptanceSummary: row.acceptanceSummary || "-",
-        acceptanceIssues: mapAcceptanceIssues(row.acceptanceIssues),
-        currentNode: mapCurrentNode(row.currentNode),
+        acceptanceStatus: mapAcceptanceStatus(row.acceptanceStatus ?? row.acceptance?.status),
+        acceptanceScore: mapAcceptanceScore(row),
+        acceptanceSummary: mapAcceptanceSummary(row),
+        acceptanceIssues: mapAcceptanceIssues(row),
+        currentNode: mapCurrentNode(row.currentNode, row.currentNodeLabel),
         progress: row.progress ?? "-",
         submittedAt: formatDateTime(row.submittedAt ?? row.completedAt ?? row.updatedAt)
       });
@@ -461,7 +480,12 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
         phone: row.userPhone ?? "-",
         agentName: row.agentName ?? "-",
         acceptanceStatus: row.executionStatus === "ACCEPTANCE_FAILED" ? "验收未通过" : "验收通过",
+        acceptanceScore: mapAcceptanceScore(row),
+        acceptanceSummary: mapAcceptanceSummary(row),
+        acceptanceIssues: mapAcceptanceIssues(row),
         score: row.agentScore == null ? "-" : `${row.agentScore}/100`,
+        currentNode: mapCurrentNode(row.currentNode, row.currentNodeLabel),
+        progress: row.progress ?? "-",
         appealStatus: row.executionStatus === "ACCEPTANCE_FAILED" ? mapAppealStatus(row.appealStatus) : "无申诉",
         settlementStatus: mapSettlementStatus(row.settlementStatus),
         completedAt: formatDateTime(row.completedAt ?? row.updatedAt)
@@ -484,11 +508,11 @@ function mapAcceptanceReview(row: RemoteAcceptanceReviewRow): ReviewingExecution
     phone: row.userPhone ?? "-",
     agentName: row.agentName ?? "-",
     agentScore: row.agentScore == null ? "-" : `${row.agentScore}/100`,
-    acceptanceStatus: mapAcceptanceStatus(row.acceptanceStatus),
-    acceptanceScore: row.acceptanceScore == null ? "-" : `${row.acceptanceScore}/100`,
-    acceptanceSummary: row.acceptanceSummary || "-",
-    acceptanceIssues: mapAcceptanceIssues(row.acceptanceIssues),
-    currentNode: mapCurrentNode(row.currentNode),
+    acceptanceStatus: mapAcceptanceStatus(row.acceptanceStatus ?? row.acceptance?.status),
+    acceptanceScore: mapAcceptanceScore(row),
+    acceptanceSummary: mapAcceptanceSummary(row),
+    acceptanceIssues: mapAcceptanceIssues(row),
+    currentNode: mapCurrentNode(row.currentNode, row.currentNodeLabel),
     progress: row.progress ?? "-",
     submittedAt: formatDateTime(row.submittedAt ?? row.updatedAt ?? row.startedAt)
   };
@@ -694,12 +718,13 @@ function mapOperationStatus(status?: string) {
 }
 
 function mapAppealStatus(status?: string): AppealStatus {
-  if (status === "NOT_APPEALED") return "未申诉";
-  if (status === "PENDING") return "待处理";
-  if (status === "PROCESSING") return "处理中";
-  if (status === "APPROVED") return "申诉通过";
-  if (status === "REJECTED") return "申诉不通过";
-  if (status === "NONE") return "无申诉";
+  const normalized = status?.trim().toUpperCase();
+  if (!normalized || normalized === "NOT_APPEALED" || normalized === "NONE") return "未申诉";
+  if (normalized === "PENDING") return "待处理";
+  if (normalized === "PROCESSING") return "处理中";
+  if (normalized === "NEED_SUPPLEMENT") return "需补充材料";
+  if (normalized === "APPROVED") return "申诉通过";
+  if (normalized === "REJECTED") return "申诉不通过";
   return "待处理";
 }
 
@@ -726,24 +751,32 @@ function mapSourceType(type?: string) {
 }
 
 function mapOfflineReason(reason?: string) {
-  if (reason === "FULL" || reason === "SLOT_FULL") return "名额已满";
-  return reason ?? "";
+  const normalized = reason?.trim().toUpperCase();
+  if (normalized === "FULL" || normalized === "SLOT_FULL") return "名额已满";
+  if (normalized === "OFFLINE" || normalized === "ADMIN OFFLINED TASK") return "手动操作下线";
+  return reason?.trim() ?? "";
 }
 
-function mapCurrentNode(node?: string) {
+function mapCurrentNode(node?: string, label?: string) {
+  if (label?.trim()) return label.trim();
+
   const normalized = node?.trim().toUpperCase();
   const nodes: Record<string, string> = {
+    ACCEPTED: "已接单",
+    PARSING: "解析任务",
     PLATFORM_ACCEPTANCE: "平台验收",
     PLATFORM_REVIEWING: "平台审核中",
     PLATFORM_REJECTED: "平台审核不通过",
     REWARD_RECORDING: "报酬记录中",
     SETTLEMENT: "报酬入账",
+    SETTLING: "报酬入账",
     GENERATING: "生成结果",
     GENERATING_RESULT: "生成结果",
     RUNTIME_PROBE: "执行探测",
     ANALYZING_TASK: "任务理解",
     RUNNING: "执行中",
-    QUALITY_CHECK: "质量检查"
+    QUALITY_CHECK: "质量检查",
+    QUALITY_CHECKING: "质量检查"
   };
   return normalized ? nodes[normalized] ?? node : "执行中";
 }
@@ -766,25 +799,88 @@ function mapFlowType(type?: string) {
 }
 
 function mapAcceptanceStatus(status?: string) {
-  if (status === "passed") return "Agent 评分通过";
-  if (status === "failed") return "Agent 评分不通过";
+  const normalized = status?.trim().toLowerCase();
+  if (["passed", "pass", "success", "accepted", "approved"].includes(normalized ?? "")) return "本次任务评分通过";
+  if (["failed", "fail", "rejected"].includes(normalized ?? "")) return "本次任务评分不通过";
   return "待平台审核";
 }
 
-function mapAcceptanceIssues(value?: string) {
-  if (!value) return "-";
+function mapAcceptanceScore(row: RemoteAcceptanceReviewRow | RemoteAdminExecutionRow) {
+  const payload = parseAcceptancePayload(row.acceptancePayload ?? row.acceptance?.acceptancePayload);
+  const score = row.acceptanceScore ?? row.score ?? row.acceptance?.score ?? numberFromUnknown(payload?.score);
+  return score == null ? "-" : `${score}/100`;
+}
+
+function mapAcceptanceSummary(row: RemoteAcceptanceReviewRow | RemoteAdminExecutionRow) {
+  const payload = parseAcceptancePayload(row.acceptancePayload ?? row.acceptance?.acceptancePayload);
+  return (
+    textFromUnknown(row.acceptanceSummary) ||
+    textFromUnknown(row.summary) ||
+    textFromUnknown(row.acceptance?.summary) ||
+    textFromUnknown(payload?.summary) ||
+    "-"
+  );
+}
+
+function mapAcceptanceIssues(row: RemoteAcceptanceReviewRow | RemoteAdminExecutionRow) {
+  const payload = parseAcceptancePayload(row.acceptancePayload ?? row.acceptance?.acceptancePayload);
+  const issues = parseTextList(
+    row.acceptanceIssues ??
+      row.issues ??
+      row.acceptance?.issues ??
+      payload?.issues
+  );
+  if (issues.length > 0) return uniqueTextItems(issues).join("；");
+
+  const failureReasons = parseTextList(payload?.failureReasons);
+  return failureReasons.length > 0 ? uniqueTextItems(failureReasons).join("；") : "-";
+}
+
+function parseAcceptancePayload(payload?: string) {
+  if (!payload?.trim()) return undefined;
   try {
-    const parsed: unknown = JSON.parse(value);
-    if (Array.isArray(parsed)) {
-      return parsed
-        .map((item) => (typeof item === "string" ? item : JSON.stringify(item)))
-        .filter(Boolean)
-        .join("；") || "无";
-    }
+    const parsed = JSON.parse(payload) as unknown;
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : undefined;
   } catch {
-    return value;
+    return undefined;
   }
-  return value;
+}
+
+function parseTextList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(textFromUnknown).filter(Boolean);
+  if (value && typeof value === "object") {
+    return Object.entries(value).map(([key, item]) => `${key}：${textFromUnknown(item) || "-"}`);
+  }
+
+  const text = textFromUnknown(value);
+  const parsedText = parseJsonText(text);
+  if (parsedText !== undefined) return parseTextList(parsedText);
+  return text ? [text] : [];
+}
+
+function parseJsonText(text: string) {
+  if (!text || !["[", "{"].includes(text.charAt(0))) return undefined;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+function textFromUnknown(value: unknown) {
+  return typeof value === "string" ? value.trim() : value == null ? "" : String(value).trim();
+}
+
+function numberFromUnknown(value: unknown) {
+  if (typeof value === "number" && !Number.isNaN(value)) return value;
+  if (typeof value !== "string" || !value.trim()) return undefined;
+
+  const numericValue = Number(value);
+  return Number.isNaN(numericValue) ? undefined : numericValue;
+}
+
+function uniqueTextItems(items: string[]) {
+  return [...new Set(items.map((item) => item.trim()).filter(Boolean))];
 }
 
 function readString(source: unknown, key: string) {
