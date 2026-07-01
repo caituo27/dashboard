@@ -29,12 +29,12 @@ const task: Task = {
   publishedAt: "2026-06-29 10:00",
   taskStatus: "已发布",
   offlineReason: "",
-  agentMatchScore: 95,
+  agentMatchScore: 92,
   recommendedTaskType: "data operations",
   suggestedTeam: "Local Agent 优先",
-  matchAnalysis: "命中 automation",
-  riskPrompt: "匹配度未超过 95%，仅按评分推荐，不自动接单。",
-  recommendedReason: "匹配度 95%，能力标签覆盖：直接命中 automation。",
+  matchAnalysis: "",
+  riskPrompt: "当前匹配度可触发智能接单。",
+  recommendedReason: "按当前执行 Agent 匹配度推荐。",
   submittedFiles: [],
   resultFiles: [],
   acceptanceResult: ""
@@ -50,12 +50,12 @@ describe("recommendationView", () => {
     });
 
     expect(state.bestTask?.id).toBe("task-1");
-    expect(state.metrics).toContainEqual({ label: "最高匹配度", value: "95%" });
+    expect(state.metrics).toContainEqual({ label: "最高匹配度", value: "92%" });
     expect(state.metrics).toContainEqual({ label: "推荐任务数", value: "1" });
     expect(state.metrics).toContainEqual({ label: "智能接单", value: "未自动接单" });
   });
 
   it("keeps backend not-accepted message for smart accept feedback", () => {
-    expect(getSmartAcceptMessage(false, "已按评分推荐，最高匹配度未超过 95%，未自动接单。")).toContain("未自动接单");
+    expect(getSmartAcceptMessage(false, "已按评分推荐，最高匹配度未达到自动接单条件，未自动接单。")).toContain("未自动接单");
   });
 });

@@ -817,8 +817,8 @@ export function mapTaskRecommendation(recommendation: TaskRecommendationResponse
     agentMatchScore: recommendation.matchScore ?? 0,
     recommendedTaskType: task.category,
     suggestedTeam: recommendation.suggestedTeam ?? "",
-    matchAnalysis: recommendation.matchAnalysis ?? "",
-    riskPrompt: recommendation.autoAcceptEligible ? "匹配度超过 95%，可触发智能接单。" : "匹配度未超过 95%，仅按评分推荐，不自动接单。",
+    matchAnalysis: "",
+    riskPrompt: recommendation.autoAcceptEligible ? "当前匹配度可触发智能接单。" : "当前匹配度仅按评分推荐，不自动接单。",
     recommendedReason: recommendation.recommendedReason ?? ""
   };
 }

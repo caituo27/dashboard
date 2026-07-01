@@ -359,8 +359,6 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
               <div className="mt-4 space-y-3 text-sm text-ink-soft">
                 <p className="flex items-center justify-between gap-3">匹配度：<b className="text-ink">{task.agentMatchScore}%</b></p>
                 <p>推荐团队：<b className="text-ink">{task.suggestedTeam || "当前执行 Agent"}</b></p>
-                <p>{task.recommendedReason}</p>
-                {task.matchAnalysis && <p>{task.matchAnalysis}</p>}
               </div>
             </Surface>
           )}
