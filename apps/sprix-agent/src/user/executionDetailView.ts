@@ -144,11 +144,13 @@ export function formatBytes(value?: number) {
 
 export function getAcceptanceIssues(acceptance?: AcceptanceSnapshot) {
   const payload = parseAcceptancePayload(acceptance?.acceptancePayload);
-  return uniqueTextItems([
-    ...parseTextList(acceptance?.issues),
-    ...parseTextList(payload?.issues),
-    ...parseTextList(payload?.failureReasons)
-  ]);
+  const payloadIssues = parseTextList(payload?.issues);
+  if (payloadIssues.length > 0) return uniqueTextItems(payloadIssues);
+
+  const snapshotIssues = parseTextList(acceptance?.issues);
+  if (snapshotIssues.length > 0) return uniqueTextItems(snapshotIssues);
+
+  return uniqueTextItems(parseTextList(payload?.failureReasons));
 }
 
 export function getAcceptanceSuggestions(acceptance?: AcceptanceSnapshot) {
@@ -192,7 +194,18 @@ function parseTextList(value: unknown): string[] {
     return Object.entries(value).map(([key, item]) => `${key}：${textValue(item) || "-"}`);
   }
   const text = textValue(value);
+  const parsedText = parseJsonText(text);
+  if (parsedText !== undefined) return parseTextList(parsedText);
   return text ? [text] : [];
+}
+
+function parseJsonText(text: string) {
+  if (!text || !["[", "{"].includes(text.charAt(0))) return undefined;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return undefined;
+  }
 }
 
 function textValue(value: unknown) {

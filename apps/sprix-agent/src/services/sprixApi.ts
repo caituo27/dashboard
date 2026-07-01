@@ -844,6 +844,7 @@ function mapTask(task: TaskEntity): Task {
 
 export function mapTaskRecommendation(recommendation: TaskRecommendationResponse): Task {
   const task = mapTask(requireValue(recommendation.task, "推荐任务数据不可用"));
+  const recommendedReason = normalizeRecommendationReason(recommendation.recommendedReason);
   return {
     ...task,
     agentMatchScore: recommendation.matchScore ?? 0,
@@ -851,8 +852,13 @@ export function mapTaskRecommendation(recommendation: TaskRecommendationResponse
     suggestedTeam: recommendation.suggestedTeam ?? "",
     matchAnalysis: "",
     riskPrompt: recommendation.autoAcceptEligible ? "当前匹配度可触发智能接单。" : "当前匹配度仅按评分推荐，不自动接单。",
-    recommendedReason: recommendation.recommendedReason ?? ""
+    recommendedReason
   };
+}
+
+function normalizeRecommendationReason(reason?: string | null) {
+  const text = reason?.trim() ?? "";
+  return text === "按当前执行 Agent 匹配度推荐。" ? "" : text;
 }
 
 function mapRemoteAgentsResult(response: RemoteAgentListResponse | undefined | null): RemoteAgentsResult {

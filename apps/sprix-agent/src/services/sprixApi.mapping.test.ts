@@ -30,7 +30,7 @@ describe("sprixApi task recommendation mapping", () => {
     const task = mapTaskRecommendation(recommendation);
 
     expect(task.agentMatchScore).toBe(92);
-    expect(task.recommendedReason).toBe("按当前执行 Agent 匹配度推荐。");
+    expect(task.recommendedReason).toBe("");
     expect(task.matchAnalysis).toBe("");
     expect(task.suggestedTeam).toBe("Local Agent 优先");
     expect(task.riskPrompt).toContain("可触发智能接单");
