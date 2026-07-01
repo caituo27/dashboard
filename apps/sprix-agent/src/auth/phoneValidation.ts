@@ -19,8 +19,10 @@ export function getPhoneNumberValidationMessage(value: unknown) {
 }
 
 export const phoneNumberRules = [
+  { required: true, message: "请输入手机号" },
   {
     validator: async (_: unknown, value: unknown) => {
+      if (!normalizePhoneNumber(value)) return;
       const message = getPhoneNumberValidationMessage(value);
       if (message) throw new Error(message);
     }

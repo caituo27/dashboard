@@ -139,11 +139,13 @@ describe("AdminTaskForm cancel confirmation", () => {
   it("rejects decimal reward and total slots values", async () => {
     renderTaskForm("/tasks/task-1/edit");
 
+    expect(await screen.findByRole("button", { name: /保\s*存/ })).toBeTruthy();
+
     const rewardInput = await screen.findByDisplayValue("100");
     const totalSlotsInput = await screen.findByDisplayValue("2");
     fireEvent.change(rewardInput, { target: { value: "100.5" } });
     fireEvent.change(totalSlotsInput, { target: { value: "2.5" } });
-    fireEvent.click(screen.getByRole("button", { name: /编\s*辑/ }));
+    fireEvent.click(screen.getByRole("button", { name: /保\s*存/ }));
 
     expect(await screen.findByText("任务奖励不能输入小数")).toBeTruthy();
     expect(await screen.findByText("总名额不能输入小数")).toBeTruthy();

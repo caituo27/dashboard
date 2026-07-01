@@ -66,6 +66,12 @@ function renderLoginModalWithOpen(open: boolean) {
   };
 }
 
+function expectPhoneLabelToBeRequired(container: ParentNode) {
+  const phoneLabel = container.querySelector(".sprix-phone-required-label");
+
+  expect(phoneLabel?.textContent).toBe("*手机号");
+}
+
 describe("AuthModal phone login", () => {
   beforeAll(() => {
     const getComputedStyle = window.getComputedStyle;
@@ -99,9 +105,10 @@ describe("AuthModal phone login", () => {
   });
 
   it("opens a server safety challenge dialog before sending an SMS code", async () => {
-    renderLoginModal();
+    const { baseElement } = renderLoginModal();
 
     fireEvent.click(screen.getByRole("tab", { name: "手机号验证码" }));
+    expectPhoneLabelToBeRequired(baseElement);
     fireEvent.change(screen.getByPlaceholderText("请输入手机号"), { target: { value: "13812345678" } });
     fireEvent.click(screen.getByRole("button", { name: "获取验证码" }));
 
@@ -165,6 +172,7 @@ describe("AuthModal phone login", () => {
     expect(sendSmsCode).not.toHaveBeenCalled();
 
     fireEvent.compositionEnd(challengeInput);
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
     fireEvent.keyDown(challengeInput, { key: "Enter", code: "Enter" });
 
     await waitFor(() => {
@@ -236,10 +244,11 @@ describe("AuthModal phone login", () => {
       bindTicket: "bind-ticket-1"
     });
 
-    renderLoginModal();
+    const { baseElement } = renderLoginModal();
 
     expect(await screen.findByText("支付宝验证成功")).toBeTruthy();
     expect(screen.getByText("绑定手机号后即可完成登录。")).toBeTruthy();
+    expectPhoneLabelToBeRequired(baseElement);
     expect(screen.getByRole("button", { name: "完成绑定并登录" })).toBeTruthy();
   });
 

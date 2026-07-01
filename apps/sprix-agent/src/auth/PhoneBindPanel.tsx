@@ -10,6 +10,7 @@ import {
   type SafetyChallenge
 } from "../services/sprixApi";
 import { SafetyChallengeModal } from "./SafetyChallengeModal";
+import { PhoneNumberLabel } from "./PhoneNumberLabel";
 import type { QrLoginProvider } from "./authTypes";
 import {
   getPhoneNumberValidationMessage,
@@ -150,7 +151,7 @@ export function PhoneBindPanel({ provider, bindTicket, onAuthenticated }: PhoneB
         </div>
       </div>
       <Form form={form} layout="vertical" onFinish={submit} className="sprix-phone-login-form space-y-2">
-        <Form.Item label="手机号" name="phone" rules={phoneNumberRules}>
+        <Form.Item label={<PhoneNumberLabel />} name="phone" rules={phoneNumberRules}>
           <Input size="large" placeholder="请输入手机号" maxLength={phoneNumberMaxLength} inputMode="tel" />
         </Form.Item>
         <Form.Item label="短信验证码" name="code" rules={smsCodeRules}>
