@@ -471,6 +471,14 @@ select {
   color: var(--color-ink);
 }
 
+.sprix-detail-prose {
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+  color: var(--color-ink-soft);
+  font-size: 14px;
+  line-height: 1.75;
+}
+
 .sprix-task-detail-summary {
   overflow: hidden;
 }
@@ -581,7 +589,7 @@ select {
   .sprix-shell {
     display: block;
     height: auto;
-    min-height: 100vh;
+    min-height: 100dvh;
     overflow: visible;
   }
 

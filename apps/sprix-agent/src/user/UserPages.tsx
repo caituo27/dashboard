@@ -345,8 +345,8 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
               <SoftTag>剩余名额 {task.remainingSlots}/{task.totalSlots}</SoftTag>
               <SoftTag tone="neutral">{estimatedToken.label}：{estimatedToken.value}</SoftTag>
             </div>
-            <p className="mt-5 text-[15px] leading-8 text-ink-soft">{task.description}</p>
-            <p className="mt-3 rounded-2xl bg-[#fafafa] p-4 text-sm leading-7 text-ink-soft">{estimatedToken.description}</p>
+            <p className="sprix-detail-prose mt-5 text-[15px]">{task.description}</p>
+            <p className="sprix-detail-prose mt-3 rounded-2xl bg-[#fafafa] p-4">{estimatedToken.description}</p>
           </Surface>
           <InfoBlock title="详细任务描述" body={task.description} />
           <InfoBlock title="交付标准" body={task.deliverables} />
@@ -390,7 +390,7 @@ function InfoBlock({ title, body }: { title: string; body: string }) {
   return (
     <Surface className="p-6">
       <h3 className="text-lg font-semibold text-ink">{title}</h3>
-      <p className="mt-3 text-[15px] leading-8 text-ink-soft">{body}</p>
+      <p className="sprix-detail-prose mt-3 text-[15px]">{body}</p>
     </Surface>
   );
 }

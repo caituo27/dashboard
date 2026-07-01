@@ -588,9 +588,9 @@ function HistorySection({ detail }: { detail: MyTaskExecutionDetail }) {
                 </div>
                 <strong>{getCurrentNodeLabel(history.currentNode)}</strong>
               </div>
-              <div className="sprix-history-meta">
+              <div className="sprix-history-detail">
+                <span className="sprix-history-time">{formatDateTime(history.startedAt ?? history.createdAt)}</span>
                 <span className="sprix-history-progress">{history.progress || "-"}</span>
-                <span>{formatDateTime(history.startedAt ?? history.createdAt)}</span>
               </div>
             </Link>
           ))}
