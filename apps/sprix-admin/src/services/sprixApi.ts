@@ -8,9 +8,10 @@ import {
   type AuthTokenResponse,
   type FundFlow as ApiFundFlow,
   type AdminTaskDetail,
-  type SettlementRecord,
+  type SettlementRecordRow,
   type TaskEntity,
-  type WithdrawalRecord
+  type WithdrawalRecord,
+  type WithdrawalRecordRow
 } from "../apis/sprix";
 import type {
   AdminAppeal,
@@ -140,17 +141,9 @@ type RemoteAcceptanceReviewRow = {
   updatedAt?: string;
 };
 
-type RemoteSettlementRecord = SettlementRecord & {
-  userName?: string;
-  userPhone?: string;
-  agentName?: string;
-};
+type RemoteSettlementRecord = SettlementRecordRow;
 
-type RemoteWithdrawalRecord = WithdrawalRecord & {
-  userName?: string;
-  userPhone?: string;
-  verifiedName?: string;
-};
+type RemoteWithdrawalRecord = WithdrawalRecordRow;
 
 type RemoteAdminAppealDetail = {
   appeal: AppealRecord;

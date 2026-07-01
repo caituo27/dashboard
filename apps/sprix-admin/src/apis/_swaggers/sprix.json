@@ -396,6 +396,47 @@
         }
       }
     },
+    "/api/v1/my-tasks/{executionId}/cancel": {
+      "post": {
+        "tags": [
+          "my-task-controller"
+        ],
+        "operationId": "cancel",
+        "parameters": [
+          {
+            "name": "executionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseTaskExecution"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/local-agent/enrollments": {
       "post": {
         "tags": [
@@ -2224,6 +2265,86 @@
         }
       }
     },
+    "/api/v1/account/phone-change/sms-codes": {
+      "post": {
+        "tags": [
+          "account-controller"
+        ],
+        "operationId": "sendPhoneChangeSmsCode",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneChangeSmsCodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSmsCodeResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/phone-change/confirm": {
+      "post": {
+        "tags": [
+          "account-controller"
+        ],
+        "operationId": "confirmPhoneChange",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneChangeConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseUserAccount"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/account/alipay-bind-sessions": {
       "post": {
         "tags": [
@@ -2830,6 +2951,46 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/GatewayResponsePairDeviceResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/profile": {
+      "patch": {
+        "tags": [
+          "account-controller"
+        ],
+        "operationId": "updateProfile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseUserAccount"
                 }
               }
             }
@@ -3641,7 +3802,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponseListWithdrawalRecord"
+                  "$ref": "#/components/schemas/ApiResponseListWithdrawalRecordRow"
                 }
               }
             }
@@ -3671,7 +3832,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponseListWithdrawalRecord"
+                  "$ref": "#/components/schemas/ApiResponseListWithdrawalRecordRow"
                 }
               }
             }
@@ -3701,7 +3862,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponseListSettlementRecord"
+                  "$ref": "#/components/schemas/ApiResponseListSettlementRecordRow"
                 }
               }
             }
@@ -3878,6 +4039,34 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "account-controller"
+        ],
+        "operationId": "cancelAccount",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseBoolean"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/account/alipay-bind-sessions/{sessionId}": {
@@ -3947,14 +4136,7 @@
         ],
         "responses": {
           "200": {
-            "description": "OK",
-            "content": {
-              "text/html;charset=UTF-8": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
+            "description": "OK"
           },
           "500": {
             "description": "Internal Server Error",
@@ -5311,6 +5493,10 @@
           },
           "error": {
             "type": "string"
+          },
+          "lastEvaluatedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -5645,6 +5831,18 @@
           }
         }
       },
+      "CompleteFaceVerificationRequest": {
+        "type": "object",
+        "properties": {
+          "certifyId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "certifyId"
+        ]
+      },
       "ApiResponseUserAccount": {
         "type": "object",
         "properties": {
@@ -5750,18 +5948,6 @@
           "realName"
         ]
       },
-      "CompleteFaceVerificationRequest": {
-        "type": "object",
-        "properties": {
-          "certifyId": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "required": [
-          "certifyId"
-        ]
-      },
       "ApiResponseFaceVerificationSession": {
         "type": "object",
         "properties": {
@@ -5790,6 +5976,35 @@
           },
           "status": {
             "type": "string"
+          }
+        }
+      },
+      "PhoneChangeSmsCodeRequest": {
+        "type": "object",
+        "properties": {
+          "mobile": {
+            "type": "string",
+            "pattern": "^1\\d{10}$"
+          },
+          "challengeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "challengeAnswer": {
+            "type": "string"
+          }
+        }
+      },
+      "PhoneChangeConfirmRequest": {
+        "type": "object",
+        "properties": {
+          "mobile": {
+            "type": "string",
+            "pattern": "^1\\d{10}$"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{4,6}$"
           }
         }
       },
@@ -6457,6 +6672,21 @@
           },
           "enrollmentToken": {
             "type": "string"
+          }
+        }
+      },
+      "UpdateProfileRequest": {
+        "type": "object",
+        "properties": {
+          "nickname": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 0
+          },
+          "avatarUrl": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
           }
         }
       },
@@ -7404,7 +7634,7 @@
           }
         }
       },
-      "ApiResponseListSettlementRecord": {
+      "ApiResponseListWithdrawalRecordRow": {
         "type": "object",
         "properties": {
           "success": {
@@ -7419,8 +7649,207 @@
           "data": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/SettlementRecord"
+              "$ref": "#/components/schemas/WithdrawalRecordRow"
             }
+          }
+        }
+      },
+      "WithdrawalRecordRow": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "withdrawalNo": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userName": {
+            "type": "string"
+          },
+          "userPhone": {
+            "type": "string"
+          },
+          "verifiedName": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "alipayAccount": {
+            "type": "string"
+          },
+          "realNameMatchStatus": {
+            "type": "string"
+          },
+          "estimatedArrivalTime": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "REVIEWING",
+              "PENDING_PAYOUT",
+              "PAID",
+              "PAYOUT_FAILED",
+              "REJECTED",
+              "NEED_ACCOUNT_CHANGE"
+            ]
+          },
+          "reviewer": {
+            "type": "string"
+          },
+          "reviewReason": {
+            "type": "string"
+          },
+          "payoutFailureReason": {
+            "type": "string"
+          },
+          "exceptionRemark": {
+            "type": "string"
+          },
+          "payoutProvider": {
+            "type": "string"
+          },
+          "payoutOutBizNo": {
+            "type": "string"
+          },
+          "payoutOrderId": {
+            "type": "string"
+          },
+          "payoutStatus": {
+            "type": "string"
+          },
+          "payoutRequestedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "payoutCompletedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "payoutLastQueriedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "appliedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reviewedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ApiResponseListSettlementRecordRow": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SettlementRecordRow"
+            }
+          }
+        }
+      },
+      "SettlementRecordRow": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "settlementNo": {
+            "type": "string"
+          },
+          "executionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "taskId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userName": {
+            "type": "string"
+          },
+          "userPhone": {
+            "type": "string"
+          },
+          "agentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "agentName": {
+            "type": "string"
+          },
+          "taskIncome": {
+            "type": "number"
+          },
+          "platformFee": {
+            "type": "number"
+          },
+          "netIncome": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "NOT_POSTED",
+              "SETTLING",
+              "POSTED",
+              "EXCEPTION"
+            ]
+          },
+          "createdAtBusiness": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "paidAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },

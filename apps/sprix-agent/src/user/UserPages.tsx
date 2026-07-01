@@ -345,8 +345,6 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
               <SoftTag>剩余名额 {task.remainingSlots}/{task.totalSlots}</SoftTag>
               <SoftTag tone="neutral">{estimatedToken.label}：{estimatedToken.value}</SoftTag>
             </div>
-            <p className="sprix-detail-prose mt-5 text-[15px]">{task.description}</p>
-            <p className="sprix-detail-prose mt-3 rounded-2xl bg-[#fafafa] p-4">{estimatedToken.description}</p>
           </Surface>
           <InfoBlock title="详细任务描述" body={task.description} />
           <InfoBlock title="交付标准" body={task.deliverables} />
