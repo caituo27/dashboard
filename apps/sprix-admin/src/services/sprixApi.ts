@@ -115,6 +115,12 @@ type RemoteAdminExecutionRow = {
   terminationReason?: string;
   appealStatus?: string;
   settlementStatus?: string;
+  acceptanceStatus?: string;
+  acceptanceScore?: number | null;
+  acceptanceSummary?: string;
+  acceptanceIssues?: string;
+  acceptancePayload?: string;
+  submittedAt?: string;
   startedAt?: string;
   updatedAt?: string;
   completedAt?: string;
@@ -439,13 +445,13 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
         phone: row.userPhone ?? "-",
         agentName: row.agentName ?? "-",
         agentScore: row.agentScore == null ? "-" : `${row.agentScore}/100`,
-        acceptanceStatus: "待平台审核",
-        acceptanceScore: "-",
-        acceptanceSummary: "-",
-        acceptanceIssues: "-",
+        acceptanceStatus: mapAcceptanceStatus(row.acceptanceStatus),
+        acceptanceScore: row.acceptanceScore == null ? "-" : `${row.acceptanceScore}/100`,
+        acceptanceSummary: row.acceptanceSummary || "-",
+        acceptanceIssues: mapAcceptanceIssues(row.acceptanceIssues),
         currentNode: mapCurrentNode(row.currentNode),
         progress: row.progress ?? "-",
-        submittedAt: formatDateTime(row.completedAt ?? row.updatedAt)
+        submittedAt: formatDateTime(row.submittedAt ?? row.completedAt ?? row.updatedAt)
       });
     } else {
       completed.push({
