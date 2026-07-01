@@ -69,7 +69,7 @@ function renderLoginModalWithOpen(open: boolean) {
 function expectPhoneLabelToBeRequired(container: ParentNode) {
   const phoneLabel = container.querySelector(".sprix-phone-required-label");
 
-  expect(phoneLabel?.textContent).toBe("*手机号");
+  expect(phoneLabel?.textContent).toBe("手机号");
 }
 
 describe("AuthModal phone login", () => {
