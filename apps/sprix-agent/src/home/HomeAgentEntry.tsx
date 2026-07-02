@@ -57,7 +57,7 @@ export function HomeAgentEntry({
           <h2>连接本地 Agent</h2>
           <p>{bindPolling.recognizing ? "正在检测本机 Agent，请稍候。" : localAgentMessage}</p>
           <div className="sprix-hero-actions">
-            <ActionButton icon={<RefreshCw size={16} />} loading={bindPolling.recognizing} onClick={() => void bindPolling.start()}>
+            <ActionButton icon={<RefreshCw size={16} />} loading={bindPolling.recognizing} onClick={() => void bindPolling.start({ announceCompletion: true, minimumVisibleMs: 700 })}>
               {bindPolling.recognizing ? "检测中" : "我已安装，重新检测"}
             </ActionButton>
             <SecondaryButton href={LOCAL_AGENT_DOWNLOAD_URL} target="_blank" rel="noreferrer" icon={<Download size={16} />}>

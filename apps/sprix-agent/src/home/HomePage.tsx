@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { message } from "antd";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import type { Agent, AgentEvaluation } from "../types";
 import { useSprixStore } from "../store/sprixStore";
 import {
@@ -48,6 +48,7 @@ function showHomeRequestError(error: unknown, fallback: string, prefix = "") {
 
 export function HomePage({ openLogin, openContact, onLogout }: HomePageProps) {
   useHomeBootstrap();
+  const location = useLocation();
   const navigate = useNavigate();
   const account = useSprixStore((state) => state.account);
   const agents = useSprixStore((state) => state.agents);
@@ -64,6 +65,7 @@ export function HomePage({ openLogin, openContact, onLogout }: HomePageProps) {
   const [evaluationModalOpen, setEvaluationModalOpen] = useState(false);
   const [evaluationLoading, setEvaluationLoading] = useState(false);
   const [evaluationError, setEvaluationError] = useState<string>();
+  const shouldOpenConnectModal = Boolean((location.state as { openConnectAgentModal?: boolean } | null)?.openConnectAgentModal);
 
   const availableAgents = useMemo(() => agents.filter((agent) => agent.status !== "离线"), [agents]);
 
@@ -187,12 +189,19 @@ export function HomePage({ openLogin, openContact, onLogout }: HomePageProps) {
   };
 
   useEffect(() => {
-    if (account.isLoggedIn && currentAgent) {
+    if (shouldOpenConnectModal) {
+      setConnectModalOpen(true);
+      navigate(".", { replace: true, state: null });
+    }
+  }, [navigate, shouldOpenConnectModal]);
+
+  useEffect(() => {
+    if (account.isLoggedIn && currentAgent && !connectModalOpen && !shouldOpenConnectModal) {
       navigate("/agent/market", { replace: true });
     }
-  }, [account.isLoggedIn, currentAgent, navigate]);
+  }, [account.isLoggedIn, connectModalOpen, currentAgent, navigate, shouldOpenConnectModal]);
 
-  if (account.isLoggedIn && currentAgent) {
+  if (account.isLoggedIn && currentAgent && !connectModalOpen && !shouldOpenConnectModal) {
     return null;
   }
 

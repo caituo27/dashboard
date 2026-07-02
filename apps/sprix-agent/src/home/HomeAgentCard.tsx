@@ -24,7 +24,7 @@ export function HomeAgentCard({ agent, onEnterMarket, onManageAgent }: HomeAgent
           <p>{agent.summary || "当前可使用该 Agent 浏览任务并接单执行。需要切换、测评或查看能力画像时，可进入 Agent 中心管理。"}</p>
           <div className="sprix-current-agent-meta">
             <StatusTag status={agent.status} />
-            <span>{scoreText(agent.score)}</span>
+            <span>{scoreText(agent.evaluation?.result.overallScore ?? null)}</span>
           </div>
         </div>
       </div>

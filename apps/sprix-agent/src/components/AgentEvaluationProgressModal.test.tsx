@@ -28,6 +28,7 @@ const runningEvaluation: AgentEvaluation = {
     overallScore: null,
     dimensions: {},
     careerProfile: null,
+    abilityTags: [],
     summary: "",
     improvements: [],
     steps: [],

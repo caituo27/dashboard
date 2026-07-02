@@ -19,6 +19,7 @@ function isEvaluationActive(status: AgentEvaluation["status"]) {
 }
 
 function getStatusCopy(status: AgentEvaluation["status"], agentName: string) {
+  if (status === "not_started") return "尚未开始测评";
   if (status === "completed") return "能力画像已生成";
   if (status === "failed") return "生成失败了";
   if (status === "judging") return "正在生成能力画像";
@@ -126,7 +127,7 @@ export function AgentEvaluationProgressModal({
       footer={
         <div className="sprix-evaluation-footer">
           <span className={isActive ? "is-active" : ""}>
-            {isActive ? "处理中，关闭弹框不会取消后端任务" : status === "completed" ? "测评完成" : "生成失败了"}
+            {isActive ? "处理中，关闭弹框不会取消后端任务" : status === "completed" ? "测评完成" : status === "failed" ? "生成失败了" : "尚未开始"}
           </span>
           <ActionButton onClick={onClose}>关闭</ActionButton>
         </div>

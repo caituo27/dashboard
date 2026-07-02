@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Dropdown, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Bot, LogOut, UserRound } from "lucide-react";
+import { Bot, UserRound } from "lucide-react";
 import { useSprixStore } from "../store/sprixStore";
 import { ActionButton } from "./Primitives";
 import { userRoutes } from "../navigation";
@@ -16,12 +16,14 @@ function Sidebar({
   onOpenLogin,
   onOpenAccount,
   onOpenAgreements,
-  onOpenContact
+  onOpenContact,
+  onReconnectLocalAgent
 }: {
   onOpenLogin: () => void;
   onOpenAccount: () => void;
   onOpenAgreements: () => void;
   onOpenContact: () => void;
+  onReconnectLocalAgent: () => void;
 }) {
   const location = useLocation();
   return (
@@ -63,6 +65,7 @@ function Sidebar({
         onOpenAccount={onOpenAccount}
         onOpenAgreements={onOpenAgreements}
         onOpenContact={onOpenContact}
+        onReconnectLocalAgent={onReconnectLocalAgent}
       />
     </aside>
   );
@@ -72,12 +75,14 @@ function UserMenu({
   onOpenLogin,
   onOpenAccount,
   onOpenAgreements,
-  onOpenContact
+  onOpenContact,
+  onReconnectLocalAgent
 }: {
   onOpenLogin: () => void;
   onOpenAccount: () => void;
   onOpenAgreements: () => void;
   onOpenContact: () => void;
+  onReconnectLocalAgent: () => void;
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -109,6 +114,7 @@ function UserMenu({
                 { key: "account", label: "账户信息", onClick: onOpenAccount },
                 { key: "agreements", label: "相关协议", onClick: onOpenAgreements },
                 { key: "contact", label: "联系我们", onClick: onOpenContact },
+                { key: "reconnectLocalAgent", label: "重新检测", onClick: onReconnectLocalAgent },
                 {
                   key: "clientUpdate",
                   label: (
@@ -120,7 +126,6 @@ function UserMenu({
                 {
                   key: "logout",
                   label: "退出登录",
-                  icon: <LogOut size={15} />,
                   onClick: async () => {
                     try {
                       await logoutConsumer();
@@ -161,7 +166,8 @@ export function UserShell({
   onOpenLogin,
   onOpenAccount,
   onOpenAgreements,
-  onOpenContact
+  onOpenContact,
+  onReconnectLocalAgent
 }: {
   title: string;
   children: ReactNode;
@@ -169,6 +175,7 @@ export function UserShell({
   onOpenAccount: () => void;
   onOpenAgreements: () => void;
   onOpenContact: () => void;
+  onReconnectLocalAgent: () => void;
 }) {
   return (
     <div className="sprix-shell">
@@ -177,6 +184,7 @@ export function UserShell({
         onOpenAccount={onOpenAccount}
         onOpenAgreements={onOpenAgreements}
         onOpenContact={onOpenContact}
+        onReconnectLocalAgent={onReconnectLocalAgent}
       />
       <main className="sprix-main">
         <div className="sprix-container">

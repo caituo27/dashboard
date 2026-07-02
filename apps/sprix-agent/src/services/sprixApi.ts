@@ -215,6 +215,7 @@ type RemoteAgentEvaluationResult = {
   overallScore?: number | null;
   dimensions?: Record<string, RemoteAgentEvaluationDimension | null> | null;
   careerProfile?: RemoteAgentCareerProfile | null;
+  abilityTags?: string[] | null;
   summary?: string | null;
   improvements?: string[] | null;
   steps?: RemoteAgentEvaluationStep[] | null;
@@ -231,6 +232,7 @@ type RemoteAgentEvaluation = {
   overallScore?: number | null;
   dimensions?: Record<string, RemoteAgentEvaluationDimension | null> | null;
   careerProfile?: RemoteAgentCareerProfile | null;
+  abilityTags?: string[] | null;
   summary?: string | null;
   improvements?: string[] | null;
   questions?: string[] | null;
@@ -922,16 +924,16 @@ function normalizeLocalAgentInventoryStatus(status?: string | null): LocalAgentI
 
 function mapAgent(agent: RemoteAgentProfileResponse): Agent {
   const status = mapAgentStatus(agent.status);
-  const tags = splitTags(agent.abilityTags);
   const evaluation = normalizeOptionalAgentEvaluation(agent.evaluation);
-  const score = evaluation?.result.overallScore ?? agent.score ?? null;
+  const tags = evaluation?.result.abilityTags ?? [];
+  const score = evaluation?.result.overallScore ?? null;
   return {
     id: agent.id ?? "",
     name: agent.name ?? "",
     status,
     role: agent.currentExecution ? "当前执行 Agent" : status === "离线" ? "离线 Agent" : "可用 Agent",
     score,
-    lastEvaluatedAt: formatDateTime(agent.lastEvaluatedAt),
+    lastEvaluatedAt: evaluation?.lastEvaluatedAt ?? "",
     summary: tags.join("、"),
     tags,
     evaluation
@@ -956,7 +958,8 @@ function normalizeAgentEvaluation(evaluation: RemoteAgentEvaluation): AgentEvalu
   const resultPayload = evaluation.result
     ? {
         ...evaluation.result,
-        careerProfile: evaluation.result.careerProfile ?? evaluation.careerProfile
+        careerProfile: evaluation.result.careerProfile ?? evaluation.careerProfile,
+        abilityTags: evaluation.result.abilityTags ?? evaluation.abilityTags
       }
     : {
         status: evaluation.status,
@@ -964,6 +967,7 @@ function normalizeAgentEvaluation(evaluation: RemoteAgentEvaluation): AgentEvalu
         overallScore: evaluation.overallScore,
         dimensions: evaluation.dimensions,
         careerProfile: evaluation.careerProfile,
+        abilityTags: evaluation.abilityTags,
         summary: evaluation.summary,
         improvements: evaluation.improvements,
         steps: evaluation.steps,
@@ -1001,6 +1005,7 @@ function normalizeEvaluationResult(
     overallScore: result?.overallScore ?? null,
     dimensions: normalizeEvaluationDimensions(result?.dimensions),
     careerProfile: normalizeCareerProfile(result?.careerProfile),
+    abilityTags: listValue(result?.abilityTags).filter(Boolean),
     summary: result?.summary ?? "",
     improvements: listValue(result?.improvements).filter(Boolean),
     steps: steps.length > 0 ? steps : fallbackSteps,
@@ -1055,7 +1060,7 @@ function normalizeEvaluationTranscript(transcript?: RemoteAgentEvaluationTranscr
 }
 
 function normalizeEvaluationStatus(status?: string | null): AgentEvaluationStatus {
-  if (status === "judging" || status === "completed" || status === "failed") return status;
+  if (status === "not_started" || status === "running" || status === "judging" || status === "completed" || status === "failed") return status;
   return "running";
 }
 

@@ -145,6 +145,7 @@ function ConsumerAppRoutes() {
                 onOpenAccount={() => open("account")}
                 onOpenAgreements={() => open("agreements")}
                 onOpenContact={() => open("contact")}
+                onReconnectLocalAgent={() => navigate("/", { state: { openConnectAgentModal: true } })}
               >
                 <UserRoutes {...userPageProps} />
               </UserShell>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { message } from "antd";
 import { readRemoteAgents } from "../services/sprixApi";
 import { useSprixStore } from "../store/sprixStore";
 import { showRequestError } from "../components/requestErrors";
@@ -10,11 +11,18 @@ type UseAgentBindPollingOptions = {
   localAgent?: LocalAgentDiagnostic;
 };
 
-export function useAgentBindPolling({ open, localAgent }: UseAgentBindPollingOptions) {
+type AgentBindPollingStartOptions = {
+  announceCompletion?: boolean;
+  minimumVisibleMs?: number;
+};
+
+export function useAgentBindPolling({ open }: UseAgentBindPollingOptions) {
   const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
   const [recognizing, setRecognizing] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
   const timerRef = useRef<number>();
+  const announceCompletionRef = useRef(false);
+  const minimumVisibleUntilRef = useRef(0);
 
   const stop = useCallback(() => {
     if (timerRef.current) {
@@ -23,6 +31,11 @@ export function useAgentBindPolling({ open, localAgent }: UseAgentBindPollingOpt
     }
     setRecognizing(false);
     setElapsedMs(0);
+    minimumVisibleUntilRef.current = 0;
+    if (announceCompletionRef.current) {
+      announceCompletionRef.current = false;
+      message.success("检测完成，本地 Agent 可用");
+    }
   }, []);
 
   const refreshOnce = useCallback(async () => {
@@ -43,12 +56,19 @@ export function useAgentBindPolling({ open, localAgent }: UseAgentBindPollingOpt
   const recognize = useCallback(async () => {
     const result = await refreshOnce();
     if (result.agents.length > 0 || !shouldPollLocalAgentInventory(result.localAgent?.inventoryStatus)) {
+      const remainingMs = minimumVisibleUntilRef.current - Date.now();
+      if (remainingMs > 0) {
+        window.setTimeout(stop, remainingMs);
+        return;
+      }
       stop();
     }
   }, [refreshOnce, stop]);
 
-  const start = useCallback(() => {
+  const start = useCallback((options?: AgentBindPollingStartOptions) => {
     stop();
+    announceCompletionRef.current = options?.announceCompletion === true;
+    minimumVisibleUntilRef.current = options?.minimumVisibleMs ? Date.now() + options.minimumVisibleMs : 0;
     setRecognizing(true);
     void recognize();
     timerRef.current = window.setInterval(() => {
@@ -70,11 +90,6 @@ export function useAgentBindPolling({ open, localAgent }: UseAgentBindPollingOpt
     }
     return stop;
   }, [open, stop]);
-
-  useEffect(() => {
-    if (!open || recognizing || !shouldPollLocalAgentInventory(localAgent?.inventoryStatus)) return;
-    start();
-  }, [localAgent?.inventoryStatus, open, recognizing, start]);
 
   return { recognizing, elapsedMs, recognize, start, stop };
 }

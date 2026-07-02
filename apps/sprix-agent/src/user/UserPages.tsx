@@ -89,6 +89,7 @@ function showRequestError(error: unknown, fallback: string, prefix = "") {
 }
 
 const agentEvaluationStatusLabels: Record<AgentEvaluation["status"], string> = {
+  not_started: "未测评",
   running: "能力画像生成中",
   judging: "能力画像评分中",
   completed: "能力画像已生成",
@@ -96,6 +97,7 @@ const agentEvaluationStatusLabels: Record<AgentEvaluation["status"], string> = {
 };
 
 const agentEvaluationActionLabels: Record<AgentEvaluation["status"], string> = {
+  not_started: "开始评测",
   running: "查看进度",
   judging: "查看进度",
   completed: "评测完成",
@@ -500,11 +502,11 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   const [currentEvaluation, setCurrentEvaluation] = useState<AgentEvaluation | undefined>();
   const [evaluationLoading, setEvaluationLoading] = useState(false);
   const [evaluationError, setEvaluationError] = useState<string>();
-  const currentWithEvaluation = currentEvaluation && current ? { ...current, evaluation: currentEvaluation, score: currentEvaluation.result.overallScore ?? current.score } : current;
+  const currentWithEvaluation = currentEvaluation && current ? { ...current, evaluation: currentEvaluation, score: currentEvaluation.result.overallScore ?? null } : current;
   const agentsWithCurrentEvaluation =
     currentEvaluation && current
       ? agents.map((agent) =>
-          agent.id === current.id ? { ...agent, evaluation: currentEvaluation, score: currentEvaluation.result.overallScore ?? agent.score } : agent
+          agent.id === current.id ? { ...agent, evaluation: currentEvaluation, score: currentEvaluation.result.overallScore ?? null } : agent
         )
       : agents;
 

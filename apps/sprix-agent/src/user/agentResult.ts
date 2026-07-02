@@ -42,8 +42,8 @@ export function getAgentAdmissionSummary(agent: Agent): AgentAdmissionSummary {
     title: agent.name,
     status: agent.status,
     role: agent.role,
-    score: scoreText(agent.score),
-    lastEvaluatedAt: agent.evaluation?.lastEvaluatedAt || "待后端返回",
+    score: scoreText(agent.evaluation?.result.overallScore ?? null),
+    lastEvaluatedAt: agent.evaluation?.lastEvaluatedAt || "-",
     summary: agent.summary,
     tags: agent.tags
   };
@@ -108,7 +108,7 @@ export function hasPendingAgentEvaluation(agent?: Pick<Agent, "evaluation"> | nu
 }
 
 export function getCurrentAgentScoreMetric(agent?: Agent) {
-  return scoreText(agent?.score);
+  return scoreText(agent?.evaluation?.result.overallScore ?? null);
 }
 
 export function getAgentProfileEditAction(): AgentProfileEditAction {

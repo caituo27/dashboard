@@ -10,7 +10,7 @@ export type LocalAgentInventoryStatus =
   | "INVENTORY_STALE"
   | "NO_AVAILABLE_AGENT"
   | "READY";
-export type AgentEvaluationStatus = "running" | "judging" | "completed" | "failed";
+export type AgentEvaluationStatus = "not_started" | "running" | "judging" | "completed" | "failed";
 export type MyTaskStatus = "执行中" | "待平台审核" | "已终止" | "验收未通过" | "结算中" | "已结算";
 export type AppealStatus =
   | "无申诉"
@@ -92,6 +92,7 @@ export type AgentEvaluationResult = {
   overallScore: number | null;
   dimensions: Record<string, AgentEvaluationDimension>;
   careerProfile: AgentCareerProfile | null;
+  abilityTags: string[];
   summary: string;
   improvements: string[];
   steps: AgentEvaluationStep[];
