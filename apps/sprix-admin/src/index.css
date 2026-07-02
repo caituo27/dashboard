@@ -157,13 +157,13 @@ select {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 18px 24px 40px;
+  padding: 18px 24px 24px;
   scrollbar-gutter: stable;
 }
 
 .sprix-container {
   width: min(1360px, calc(100% - 48px));
-  min-height: 100%;
+  min-height: 0;
   margin: 0 auto;
 }
 
@@ -201,6 +201,27 @@ select {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.sprix-table-link-cell {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--color-ink);
+  font: inherit;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sprix-table-link-cell:hover {
+  color: var(--color-accent);
 }
 
 .sprix-task-action-group {

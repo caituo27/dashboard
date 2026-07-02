@@ -173,6 +173,51 @@ function useStableTablePagination(total: number, pageSize: number, options?: str
   };
 }
 
+function getResponsiveAdminTablePageSize() {
+  return 10;
+}
+
+function useResponsiveAdminTablePageSize() {
+  return getResponsiveAdminTablePageSize();
+}
+
+function getMeasuredAdminTableScrollY(container: HTMLDivElement | null) {
+  if (typeof window === "undefined" || !container) return 420;
+  const { top } = container.getBoundingClientRect();
+  const tableChromeHeight = 168;
+  const availableHeight = window.innerHeight - top - tableChromeHeight;
+  return Math.max(220, Math.min(availableHeight, 640));
+}
+
+function useResponsiveAdminTableScrollY() {
+  const tableViewportRef = useRef<HTMLDivElement>(null);
+  const [scrollY, setScrollY] = useState(420);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const updateScrollY = () => setScrollY(getMeasuredAdminTableScrollY(tableViewportRef.current));
+    updateScrollY();
+    const frameId = window.requestAnimationFrame(updateScrollY);
+    const timeoutId = window.setTimeout(updateScrollY, 0);
+    window.addEventListener("resize", updateScrollY);
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(updateScrollY) : undefined;
+    if (observer && tableViewportRef.current) observer.observe(tableViewportRef.current);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.clearTimeout(timeoutId);
+      window.removeEventListener("resize", updateScrollY);
+      observer?.disconnect();
+    };
+  }, []);
+
+  return { ref: tableViewportRef, scrollY };
+}
+
+function AdminTableViewport({ children }: { children: (scrollY: number) => ReactNode }) {
+  const tableScroll = useResponsiveAdminTableScrollY();
+  return <div ref={tableScroll.ref}>{children(tableScroll.scrollY)}</div>;
+}
+
 const taskCategoryOptions = ["等待产品输入"].map((value) => ({ value, label: value }));
 const taskFormFields = ["title", "category", "sourceType", "description", "deliverables", "acceptanceCriteria", "totalSlots"] as const;
 const taskTextLimits = {
@@ -300,7 +345,8 @@ export function AdminTaskCenter() {
     if (!query) return true;
     return `${task.title}${task.category}${task.sourceType}`.includes(query);
   });
-  const taskPagination = useStableTablePagination(visibleTasks.length, 8, {
+  const tablePageSize = useResponsiveAdminTablePageSize();
+  const taskPagination = useStableTablePagination(visibleTasks.length, tablePageSize, {
     resetKey: `${tab}:${keyword.trim()}`,
     storageKey: "sprix-admin:tasks:page"
   });
@@ -446,16 +492,20 @@ export function AdminTaskCenter() {
             key,
             label: key,
             children: (
-              <Table
-                rowKey="id"
-                columns={taskColumns}
-                dataSource={visibleTasks}
-                pagination={taskPagination}
-                scroll={{ x: 1650 }}
-                rowClassName="cursor-pointer"
-                locale={{ emptyText: "暂无任务" }}
-                onRow={(task) => ({ onClick: () => navigate(`/tasks/${task.id}`) })}
-              />
+              <AdminTableViewport>
+                {(scrollY) => (
+                  <Table
+                    rowKey="id"
+                    columns={taskColumns}
+                    dataSource={visibleTasks}
+                    pagination={taskPagination}
+                    scroll={{ x: 1650, y: scrollY }}
+                    rowClassName="cursor-pointer"
+                    locale={{ emptyText: "暂无任务" }}
+                    onRow={(task) => ({ onClick: () => navigate(`/tasks/${task.id}`) })}
+                  />
+                )}
+              </AdminTableViewport>
             )
           }))}
         />
@@ -768,7 +818,8 @@ function AcceptanceReviewTable({
   onApprove: (record: ReviewingExecution) => void;
   onReject: (record: ReviewingExecution) => void;
 }) {
-  const pagination = useStableTablePagination(data.length, 6, { storageKey: showTask ? "sprix-admin:acceptance:page" : "sprix-admin:executions:reviewing:page" });
+  const tablePageSize = useResponsiveAdminTablePageSize();
+  const pagination = useStableTablePagination(data.length, tablePageSize, { storageKey: showTask ? "sprix-admin:acceptance:page" : "sprix-admin:executions:reviewing:page" });
   const columns: ColumnsType<ReviewingExecution> = [
     ...(showTask
       ? [
@@ -800,17 +851,21 @@ function AcceptanceReviewTable({
     }
   ];
   return (
-    <Table
-      className="mt-4"
-      rowKey="executionId"
-      dataSource={data}
-      columns={columns}
-      pagination={pagination}
-      locale={{ emptyText: "暂无待平台审核记录" }}
-      scroll={{ x: showTask ? 1860 : 1460 }}
-      rowClassName={onOpenDetail ? "cursor-pointer" : undefined}
-      onRow={onOpenDetail ? (record) => ({ onClick: () => onOpenDetail(record) }) : undefined}
-    />
+    <AdminTableViewport>
+      {(scrollY) => (
+        <Table
+          className="mt-4"
+          rowKey="executionId"
+          dataSource={data}
+          columns={columns}
+          pagination={pagination}
+          locale={{ emptyText: "暂无待平台审核记录" }}
+          scroll={{ x: showTask ? 1860 : 1460, y: scrollY }}
+          rowClassName={onOpenDetail ? "cursor-pointer" : undefined}
+          onRow={onOpenDetail ? (record) => ({ onClick: () => onOpenDetail(record) }) : undefined}
+        />
+      )}
+    </AdminTableViewport>
   );
 }
 
@@ -1082,22 +1137,26 @@ function AdminOperationLogs({ logs }: { logs: AdminOperationLog[] }) {
     <Surface className="sprix-table-card mt-4 p-4">
       <h3 className="sprix-section-title">操作记录</h3>
       <p className="mt-1 text-sm text-ink-soft">展示后端返回的任务创建、编辑、上下线、删除等操作追溯记录。</p>
-      <Table
-        className="mt-4"
-        rowKey="id"
-        dataSource={logs}
-        pagination={false}
-        locale={{ emptyText: "暂无操作记录" }}
-        scroll={{ x: 860 }}
-        columns={[
-          { title: "操作", dataIndex: "action" },
-          { title: "操作人", dataIndex: "operator" },
-          { title: "变更前", dataIndex: "beforeStatus" },
-          { title: "变更后", dataIndex: "afterStatus" },
-          { title: "原因/备注", dataIndex: "reason" },
-          { title: "时间", dataIndex: "occurredAt" }
-        ]}
-      />
+      <AdminTableViewport>
+        {(scrollY) => (
+          <Table
+            className="mt-4"
+            rowKey="id"
+            dataSource={logs}
+            pagination={false}
+            locale={{ emptyText: "暂无操作记录" }}
+            scroll={{ x: 860, y: scrollY }}
+            columns={[
+              { title: "操作", dataIndex: "action" },
+              { title: "操作人", dataIndex: "operator" },
+              { title: "变更前", dataIndex: "beforeStatus" },
+              { title: "变更后", dataIndex: "afterStatus" },
+              { title: "原因/备注", dataIndex: "reason" },
+              { title: "时间", dataIndex: "occurredAt" }
+            ]}
+          />
+        )}
+      </AdminTableViewport>
     </Surface>
   );
 }
@@ -1107,6 +1166,30 @@ function DetailBlock({ title, body }: { title: string; body: string }) {
     <Surface className="p-4">
       <h3 className="sprix-section-title">{title}</h3>
       <p className="sprix-detail-prose mt-3">{body}</p>
+    </Surface>
+  );
+}
+
+function DetailFieldBlock({
+  title,
+  fields
+}: {
+  title: string;
+  fields: Array<{ label: string; value?: ReactNode }>;
+}) {
+  const visibleFields = fields.filter((field) => field.value !== undefined && field.value !== null && field.value !== "");
+  if (visibleFields.length === 0) return null;
+  return (
+    <Surface className="p-4">
+      <h3 className="sprix-section-title">{title}</h3>
+      <dl className="mt-5 space-y-2">
+        {visibleFields.map((field) => (
+          <div key={field.label} className="grid gap-1 text-sm leading-6 md:grid-cols-[96px_minmax(0,1fr)]">
+            <dt className="text-ink-soft">{field.label}</dt>
+            <dd className="min-w-0 whitespace-pre-wrap break-words text-ink-soft">{field.value}</dd>
+          </div>
+        ))}
+      </dl>
     </Surface>
   );
 }
@@ -1167,14 +1250,14 @@ function AdminExecutionRecords({
     ...(records?.completed ?? []).map((item) => ({ ...item, status: item.acceptanceStatus, time: item.completedAt }))
   ];
   const allColumns: ColumnsType<(typeof allRecords)[number]> = [
-    { title: "执行用户", dataIndex: "userName" },
+    { title: "执行用户", dataIndex: "userName", width: 160, render: (value) => <EllipsisCell value={value} /> },
     { title: "手机号", dataIndex: "phone" },
     { title: "执行 Agent", dataIndex: "agentName" },
     { title: "执行状态", dataIndex: "status", render: (value) => <StatusTag status={value} /> },
     { title: "时间", dataIndex: "time" }
   ];
   const runningColumns: ColumnsType<RunningExecution> = [
-    { title: "执行用户", dataIndex: "userName" },
+    { title: "执行用户", dataIndex: "userName", width: 160, render: (value) => <EllipsisCell value={value} /> },
     { title: "手机号", dataIndex: "phone" },
     { title: "执行 Agent", dataIndex: "agentName" },
     { title: "Agent 本次任务评分", dataIndex: "agentScore" },
@@ -1183,7 +1266,7 @@ function AdminExecutionRecords({
     { title: "开始时间", dataIndex: "startedAt" }
   ];
   const terminatedColumns: ColumnsType<TerminatedExecution> = [
-    { title: "执行用户", dataIndex: "userName" },
+    { title: "执行用户", dataIndex: "userName", width: 160, render: (value) => <EllipsisCell value={value} /> },
     { title: "手机号", dataIndex: "phone" },
     { title: "执行 Agent", dataIndex: "agentName" },
     { title: "终止原因", dataIndex: "terminationReason" },
@@ -1191,7 +1274,7 @@ function AdminExecutionRecords({
     { title: "终止时间", dataIndex: "terminatedAt" }
   ];
   const completedColumns: ColumnsType<CompletedExecution> = [
-    { title: "执行用户", dataIndex: "userName" },
+    { title: "执行用户", dataIndex: "userName", width: 160, render: (value) => <EllipsisCell value={value} /> },
     { title: "手机号", dataIndex: "phone" },
     { title: "执行 Agent", dataIndex: "agentName" },
     { title: "验收状态", dataIndex: "acceptanceStatus", render: (value) => <StatusTag status={value} /> },
@@ -1230,12 +1313,20 @@ function AdminExecutionRecords({
           {
             key: "all",
             label: "全部",
-            children: <Table rowKey={(record) => record.executionId ?? `${record.userName}-${record.time}`} columns={allColumns} dataSource={allRecords} pagination={false} locale={{ emptyText: "暂无执行记录" }} scroll={{ x: 900 }} />
+            children: (
+              <AdminTableViewport>
+                {(scrollY) => <Table rowKey={(record) => record.executionId ?? `${record.userName}-${record.time}`} columns={allColumns} dataSource={allRecords} pagination={false} locale={{ emptyText: "暂无执行记录" }} scroll={{ x: 900, y: scrollY }} />}
+              </AdminTableViewport>
+            )
           },
           {
             key: "running",
             label: "执行中",
-            children: <Table rowKey={(record) => record.executionId ?? record.startedAt} columns={runningColumns} dataSource={records?.running ?? []} pagination={false} locale={{ emptyText: "暂无执行中记录" }} scroll={{ x: 680 }} />
+            children: (
+              <AdminTableViewport>
+                {(scrollY) => <Table rowKey={(record) => record.executionId ?? record.startedAt} columns={runningColumns} dataSource={records?.running ?? []} pagination={false} locale={{ emptyText: "暂无执行中记录" }} scroll={{ x: 680, y: scrollY }} />}
+              </AdminTableViewport>
+            )
           },
           {
             key: "reviewing",
@@ -1252,12 +1343,20 @@ function AdminExecutionRecords({
           {
             key: "terminated",
             label: "已终止",
-            children: <Table rowKey={(record) => record.executionId ?? record.terminatedAt} columns={terminatedColumns} dataSource={records?.terminated ?? []} pagination={false} locale={{ emptyText: "暂无已终止记录" }} scroll={{ x: 600 }} />
+            children: (
+              <AdminTableViewport>
+                {(scrollY) => <Table rowKey={(record) => record.executionId ?? record.terminatedAt} columns={terminatedColumns} dataSource={records?.terminated ?? []} pagination={false} locale={{ emptyText: "暂无已终止记录" }} scroll={{ x: 600, y: scrollY }} />}
+              </AdminTableViewport>
+            )
           },
           {
             key: "completed",
             label: "已完成",
-            children: <Table rowKey={(record) => record.executionId ?? record.completedAt} columns={completedColumns} dataSource={records?.completed ?? []} pagination={false} locale={{ emptyText: "暂无已完成记录" }} scroll={{ x: 960 }} />
+            children: (
+              <AdminTableViewport>
+                {(scrollY) => <Table rowKey={(record) => record.executionId ?? record.completedAt} columns={completedColumns} dataSource={records?.completed ?? []} pagination={false} locale={{ emptyText: "暂无已完成记录" }} scroll={{ x: 960, y: scrollY }} />}
+              </AdminTableViewport>
+            )
           }
         ]}
       />
@@ -1359,7 +1458,8 @@ export function AdminAppealCenter() {
     if (!query) return true;
     return `${appeal.appealNo}${appeal.taskTitle}${appeal.userName}${appeal.userPhone}${appeal.agentName}`.includes(query);
   });
-  const appealPagination = useStableTablePagination(visible.length, 6, {
+  const tablePageSize = useResponsiveAdminTablePageSize();
+  const appealPagination = useStableTablePagination(visible.length, tablePageSize, {
     resetKey: `${tab}:${quickFilter}:${keyword.trim()}`,
     storageKey: "sprix-admin:appeals:page"
   });
@@ -1397,35 +1497,59 @@ export function AdminAppealCenter() {
             key,
             label: key,
             children: (
-              <Table
-                rowKey="appealNo"
-                dataSource={visible}
-                pagination={appealPagination}
-                tableLayout="fixed"
-                scroll={{ x: 1380 }}
-                columns={[
-                  { title: "申诉编号", dataIndex: "appealNo", width: 130, render: (value) => <EllipsisCell value={value} /> },
-                  { title: "关联任务", dataIndex: "taskTitle", width: 190, render: (value) => <EllipsisCell value={value} /> },
-                  { title: "提交用户", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
-                  { title: "用户手机号", dataIndex: "userPhone", width: 130, render: (value) => <EllipsisCell value={value} /> },
-                  { title: "执行 Agent", dataIndex: "agentName", width: 140, render: (value) => <EllipsisCell value={value} /> },
-                  { title: "问题摘要", dataIndex: "issueSummary", width: 220, render: (value) => <EllipsisCell value={value} /> },
-                  { title: "当前状态", dataIndex: "appealStatus", width: 120, render: (value) => <StatusTag status={value} /> },
-                  { title: "优先级", dataIndex: "priority", width: 100, render: (value) => <EllipsisCell value={value} /> },
-                  { title: "提交时间", dataIndex: "submittedAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
-                  { title: "处理人", dataIndex: "handler", width: 130, render: (value) => <EllipsisCell value={value} /> },
-                  {
-                    title: "操作",
-                    fixed: "right",
-                    width: 110,
-                    render: (_, record: AdminAppeal) => (
-                      <div className="flex flex-nowrap items-center gap-1 whitespace-nowrap">
-                        <Button type="link" onClick={() => navigate(`/appeals/${getAppealBackendId(record)}`)}>查看详情</Button>
-                      </div>
-                    )
-                  }
-                ]}
-              />
+              <AdminTableViewport>
+                {(scrollY) => (
+                  <Table
+                    rowKey="appealNo"
+                    dataSource={visible}
+                    pagination={appealPagination}
+                    tableLayout="fixed"
+                    scroll={{ x: 1380, y: scrollY }}
+                    columns={[
+                      {
+                        title: "申诉编号",
+                        dataIndex: "appealNo",
+                        width: 130,
+                        render: (value, record) => {
+                          const text = value == null || value === "" ? "-" : String(value);
+                          return (
+                            <Tooltip title={text === "-" ? undefined : text}>
+                              <span className="block min-w-0 overflow-hidden">
+                                <button
+                                  type="button"
+                                  className="sprix-table-link-cell"
+                                  onClick={() => navigate(`/appeals/${getAppealBackendId(record)}`)}
+                                >
+                                  {text}
+                                </button>
+                              </span>
+                            </Tooltip>
+                          );
+                        }
+                      },
+                      { title: "关联任务", dataIndex: "taskTitle", width: 190, render: (value) => <EllipsisCell value={value} /> },
+                      { title: "提交用户", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
+                      { title: "用户手机号", dataIndex: "userPhone", width: 130, render: (value) => <EllipsisCell value={value} /> },
+                      { title: "执行 Agent", dataIndex: "agentName", width: 140, render: (value) => <EllipsisCell value={value} /> },
+                      { title: "问题摘要", dataIndex: "issueSummary", width: 220, render: (value) => <EllipsisCell value={value} /> },
+                      { title: "当前状态", dataIndex: "appealStatus", width: 120, render: (value) => <StatusTag status={value} /> },
+                      { title: "优先级", dataIndex: "priority", width: 100, render: (value) => <EllipsisCell value={value} /> },
+                      { title: "提交时间", dataIndex: "submittedAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
+                      { title: "处理人", dataIndex: "handler", width: 130, render: (value) => <EllipsisCell value={value} /> },
+                      {
+                        title: "操作",
+                        fixed: "right",
+                        width: 110,
+                        render: (_, record: AdminAppeal) => (
+                          <div className="flex flex-nowrap items-center gap-1 whitespace-nowrap">
+                            <Button type="link" className="!px-0" onClick={() => navigate(`/appeals/${getAppealBackendId(record)}`)}>查看详情</Button>
+                          </div>
+                        )
+                      }
+                    ]}
+                  />
+                )}
+              </AdminTableViewport>
             )
           }))}
         />
@@ -1452,80 +1576,89 @@ export function AdminAppealDetail() {
   }
   const appeal = appealDetailQuery.data;
   if (!appeal) return <Surface className="p-8">申诉不存在</Surface>;
-  const baseInfo = [
-    `当前状态：${appeal.appealStatus}`,
-    `提交时间：${appeal.submittedAt}`,
-    `提交用户：${appeal.userName}`,
-    `手机号：${appeal.userPhone}`,
-    appeal.handler ? `处理人：${appeal.handler}` : ""
-  ].filter(Boolean).join("。");
-  const taskInfo = [
-    `${appeal.taskTitle} · ${appeal.taskCategory}`,
-    appeal.executionIndex ? `第 ${appeal.executionIndex} 次执行` : "",
-    appeal.executionId ? `执行记录ID：${appeal.executionId}` : ""
-  ].filter(Boolean).join("。");
-  const acceptanceInfo = [
-    appeal.deliverables ? `交付标准：${appeal.deliverables}` : "",
-    appeal.acceptanceCriteria ? `验收标准：${appeal.acceptanceCriteria}` : ""
-  ].filter(Boolean).join("。");
+  const baseInfoFields = [
+    { label: "当前状态", value: appeal.appealStatus },
+    { label: "提交时间", value: appeal.submittedAt },
+    { label: "提交用户", value: appeal.userName },
+    { label: "手机号", value: appeal.userPhone },
+    { label: "处理人", value: appeal.handler }
+  ];
+  const taskInfoFields = [
+    { label: "关联任务", value: appeal.taskTitle },
+    { label: "任务分类", value: appeal.taskCategory },
+    { label: "执行次数", value: appeal.executionIndex ? `第 ${appeal.executionIndex} 次执行` : "" },
+    { label: "执行记录ID", value: appeal.executionId }
+  ];
+  const acceptanceInfoFields = [
+    { label: "交付标准", value: appeal.deliverables },
+    { label: "验收标准", value: appeal.acceptanceCriteria }
+  ];
+  const appealInfoFields = [
+    { label: "问题摘要", value: appeal.issueSummary },
+    { label: "申诉原因", value: appeal.appealReason },
+    { label: "补充说明", value: appeal.userSupplement }
+  ];
+  const canReviewAppeal = appeal.appealStatus === "待处理";
   return (
     <AdminDetailPage>
       <AdminDetailHeading title={appeal.appealNo} onBack={() => navigate("/appeals")} />
-      <div className="grid gap-4 xl:grid-cols-[1fr_380px]">
+      <div className={canReviewAppeal ? "grid gap-4 xl:grid-cols-[1fr_380px]" : "grid gap-4"}>
         <div className="space-y-4">
-          <DetailBlock title="基本信息" body={baseInfo} />
-          <DetailBlock title="关联任务信息" body={taskInfo} />
-          {acceptanceInfo && <DetailBlock title="验收口径" body={acceptanceInfo} />}
-          <DetailBlock title="申诉信息" body={`${appeal.issueSummary}。${appeal.appealReason} ${appeal.userSupplement ?? ""}`} />
+          <DetailFieldBlock title="基本信息" fields={baseInfoFields} />
+          <DetailFieldBlock title="关联任务信息" fields={taskInfoFields} />
+          <DetailFieldBlock title="验收口径" fields={acceptanceInfoFields} />
+          <DetailFieldBlock title="申诉信息" fields={appealInfoFields} />
         </div>
-        <Surface className="p-4">
-          <h3 className="sprix-section-title">平台复核区</h3>
-          <Input.TextArea rows={5} className="mt-4" placeholder="填写处理说明" />
-          <div className="mt-5 flex flex-wrap gap-2">
-            <ActionButton
-              onClick={() =>
-                Modal.confirm({
-                  title: "确认申诉通过",
-                  content: "确认申诉通过后，该任务将从验收未通过转为结算中，并生成结算记录。",
-                  okText: "申诉通过",
-                  onOk: async () => {
-                    try {
-                      await approveRemoteAppeal(getAppealBackendId(appeal));
-                      await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-                      message.success("申诉已通过，任务已进入结算中");
-                      navigate("/appeals");
-                    } catch (error) {
-                      showRequestError(error, "申诉通过失败", "申诉通过失败：");
+        {canReviewAppeal && (
+          <Surface className="p-4">
+            <h3 className="sprix-section-title">平台复核区</h3>
+            <Input.TextArea rows={8} className="mt-4" placeholder="填写处理说明" />
+            <div className="mt-5 flex flex-wrap gap-2">
+              <ActionButton
+                onClick={() =>
+                  Modal.confirm({
+                    title: "确认申诉通过",
+                    content: "确认申诉通过后，该任务将从验收未通过转为结算中，并生成结算记录。",
+                    okText: "申诉通过",
+                    onOk: async () => {
+                      try {
+                        await approveRemoteAppeal(getAppealBackendId(appeal));
+                        await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+                        message.success("申诉已通过，任务已进入结算中");
+                        navigate("/appeals");
+                      } catch (error) {
+                        showRequestError(error, "申诉通过失败", "申诉通过失败：");
+                      }
                     }
-                  }
-                })
-              }
-            >
-              申诉通过
-            </ActionButton>
-            <SecondaryButton
-              onClick={() =>
-                Modal.confirm({
-                  title: "确认申诉不通过",
-                  content: "确认申诉不通过后，该任务将保持验收未通过状态，用户不可再次申诉。",
-                  okText: "申诉不通过",
-                  onOk: async () => {
-                    try {
-                      await rejectRemoteAppeal(getAppealBackendId(appeal));
-                      await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-                      message.success("已处理为申诉不通过");
-                      navigate("/appeals");
-                    } catch (error) {
-                      showRequestError(error, "申诉驳回失败", "申诉驳回失败：");
+                  })
+                }
+              >
+                申诉通过
+              </ActionButton>
+              <SecondaryButton
+                onClick={() =>
+                  Modal.confirm({
+                    title: "确认申诉不通过",
+                    content: "确认申诉不通过后，该任务将保持验收未通过状态，用户不可再次申诉。",
+                    okText: "申诉不通过",
+                    onOk: async () => {
+                      try {
+                        await rejectRemoteAppeal(getAppealBackendId(appeal));
+                        await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
+                        message.success("已处理为申诉不通过");
+                        navigate("/appeals");
+                      } catch (error) {
+                        showRequestError(error, "申诉驳回失败", "申诉驳回失败：");
+                      }
                     }
-                  }
-                })
-              }
-            >
-              申诉不通过
-            </SecondaryButton>
-          </div>
-        </Surface>
+                  })
+                }
+              >
+                申诉不通过
+              </SecondaryButton>
+            </div>
+          </Surface>
+        )}
       </div>
     </AdminDetailPage>
   );
@@ -1539,7 +1672,8 @@ export function AdminFundCenter() {
   });
   const settlements = fundsQuery.data?.settlements ?? [];
   const withdrawals = fundsQuery.data?.withdrawals ?? [];
-  const settlementPagination = useStableTablePagination(settlements.length, 10, { storageKey: "sprix-admin:funds:settlements:page" });
+  const tablePageSize = useResponsiveAdminTablePageSize();
+  const settlementPagination = useStableTablePagination(settlements.length, tablePageSize, { storageKey: "sprix-admin:funds:settlements:page" });
   if (fundsQuery.isLoading) return <Surface className="p-8">资金数据加载中</Surface>;
   if (fundsQuery.isError) {
     const messageText = requestErrorMessage(fundsQuery.error, "资金数据加载失败");
@@ -1559,26 +1693,30 @@ export function AdminFundCenter() {
         ))}
       </div>
       <Surface className="sprix-table-card p-4">
-        <Table
-          rowKey="settlementNo"
-          tableLayout="fixed"
-          dataSource={settlements}
-          pagination={settlementPagination}
-          scroll={{ x: 1320 }}
-          columns={[
-            { title: "结算单号", dataIndex: "settlementNo", width: 150, render: (value) => <EllipsisCell value={value} /> },
-            { title: "关联任务", dataIndex: "taskTitle", width: 260, render: (value) => <EllipsisCell value={value} /> },
-            { title: "用户昵称", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
-            { title: "手机号", dataIndex: "userPhone", width: 130, render: (value) => <EllipsisCell value={value} /> },
-            { title: "执行 Agent", dataIndex: "agentName", width: 140, render: (value) => <EllipsisCell value={value} /> },
-            { title: "任务收入", dataIndex: "taskIncome", width: 96, render: currency },
-            { title: "平台服务费", dataIndex: "platformFee", width: 112, render: currency },
-            { title: "实际入账", dataIndex: "netIncome", width: 112, render: currency },
-            { title: "结算状态", dataIndex: "settlementStatus", width: 120, render: (value) => <StatusTag status={value} /> },
-            { title: "生成时间", dataIndex: "createdAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
-            { title: "入账时间", dataIndex: "paidAt", width: 150, render: (value) => <EllipsisCell value={value} /> }
-          ]}
-        />
+        <AdminTableViewport>
+          {(scrollY) => (
+            <Table
+              rowKey="settlementNo"
+              tableLayout="fixed"
+              dataSource={settlements}
+              pagination={settlementPagination}
+              scroll={{ x: 1320, y: scrollY }}
+              columns={[
+                { title: "结算单号", dataIndex: "settlementNo", width: 150, render: (value) => <EllipsisCell value={value} /> },
+                { title: "关联任务", dataIndex: "taskTitle", width: 260, render: (value) => <EllipsisCell value={value} /> },
+                { title: "用户昵称", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
+                { title: "手机号", dataIndex: "userPhone", width: 130, render: (value) => <EllipsisCell value={value} /> },
+                { title: "执行 Agent", dataIndex: "agentName", width: 140, render: (value) => <EllipsisCell value={value} /> },
+                { title: "任务收入", dataIndex: "taskIncome", width: 96, render: currency },
+                { title: "平台服务费", dataIndex: "platformFee", width: 112, render: currency },
+                { title: "实际入账", dataIndex: "netIncome", width: 112, render: currency },
+                { title: "结算状态", dataIndex: "settlementStatus", width: 120, render: (value) => <StatusTag status={value} /> },
+                { title: "生成时间", dataIndex: "createdAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
+                { title: "入账时间", dataIndex: "paidAt", width: 150, render: (value) => <EllipsisCell value={value} /> }
+              ]}
+            />
+          )}
+        </AdminTableViewport>
       </Surface>
     </>
   );
@@ -1611,7 +1749,8 @@ function WithdrawalTable({
 }) {
   const [selectedKeys, setSelectedKeys] = useState<Key[]>([]);
   const selectedRecords = data.filter((item) => selectedKeys.includes(item.withdrawalNo));
-  const pagination = useStableTablePagination(data.length, 10, { storageKey: "sprix-admin:funds:withdrawals:page" });
+  const tablePageSize = useResponsiveAdminTablePageSize();
+  const pagination = useStableTablePagination(data.length, tablePageSize, { storageKey: "sprix-admin:funds:withdrawals:page" });
   const batchActions = getAdminWithdrawalBatchActions({
     approve: async () => {
       await onApproveWithdrawals(selectedRecords);
@@ -1630,44 +1769,48 @@ function WithdrawalTable({
           actions={batchActions}
         />
       )}
-      <Table
-        rowKey="withdrawalNo"
-        tableLayout="fixed"
-        dataSource={data}
-        rowSelection={{ selectedRowKeys: selectedKeys, onChange: setSelectedKeys }}
-        pagination={pagination}
-        scroll={{ x: 1560 }}
-        columns={[
-          { title: "提现单号", dataIndex: "withdrawalNo", width: 220, render: (value) => <EllipsisCell value={value} /> },
-          { title: "用户昵称", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
-          { title: "手机号", dataIndex: "userPhone", width: 130, render: (value) => <EllipsisCell value={value} /> },
-          { title: "实人认证主体", dataIndex: "verifiedName", width: 140, render: (value) => <EllipsisCell value={value} /> },
-          { title: "支付宝账户", dataIndex: "alipayAccount", width: 260, render: (value) => <EllipsisCell value={value} /> },
-          { title: "收款账户状态", dataIndex: "realNameMatchStatus", width: 140, render: (value) => <StatusTag status={value} /> },
-          { title: "可提现余额", dataIndex: "withdrawableBalance", width: 110, render: currency },
-          { title: "申请提现金额", dataIndex: "applyAmount", width: 120, render: currency },
-          { title: "预计到账时间", dataIndex: "estimatedArrivalTime", width: 150, render: (value) => <EllipsisCell value={value} /> },
-          { title: "提现申请时间", dataIndex: "appliedAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
-          { title: "当前状态", dataIndex: "withdrawStatus", width: 120, render: (value) => <StatusTag status={value} /> },
-          { title: "审核人", dataIndex: "reviewer", width: 120, render: (value) => <EllipsisCell value={value} /> },
-          {
-            title: "操作",
-            width: 220,
-            fixed: "right",
-            render: (_, record) => (
-              <div className="flex flex-wrap gap-1">
-                <Button type="link" onClick={() => onViewWithdrawal(record)}>
-                  查看详情
-                </Button>
-                <Button type="link" onClick={() => onApproveWithdrawal(record)}>
-                  通过审核
-                </Button>
-                <Button type="link" danger onClick={() => onRejectWithdrawal(record)}>驳回审核</Button>
-              </div>
-            )
-          }
-        ]}
-      />
+      <AdminTableViewport>
+        {(scrollY) => (
+          <Table
+            rowKey="withdrawalNo"
+            tableLayout="fixed"
+            dataSource={data}
+            rowSelection={{ selectedRowKeys: selectedKeys, onChange: setSelectedKeys }}
+            pagination={pagination}
+            scroll={{ x: 1560, y: scrollY }}
+            columns={[
+              { title: "提现单号", dataIndex: "withdrawalNo", width: 220, render: (value) => <EllipsisCell value={value} /> },
+              { title: "用户昵称", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
+              { title: "手机号", dataIndex: "userPhone", width: 130, render: (value) => <EllipsisCell value={value} /> },
+              { title: "实人认证主体", dataIndex: "verifiedName", width: 140, render: (value) => <EllipsisCell value={value} /> },
+              { title: "支付宝账户", dataIndex: "alipayAccount", width: 260, render: (value) => <EllipsisCell value={value} /> },
+              { title: "收款账户状态", dataIndex: "realNameMatchStatus", width: 140, render: (value) => <StatusTag status={value} /> },
+              { title: "可提现余额", dataIndex: "withdrawableBalance", width: 110, render: currency },
+              { title: "申请提现金额", dataIndex: "applyAmount", width: 120, render: currency },
+              { title: "预计到账时间", dataIndex: "estimatedArrivalTime", width: 150, render: (value) => <EllipsisCell value={value} /> },
+              { title: "提现申请时间", dataIndex: "appliedAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
+              { title: "当前状态", dataIndex: "withdrawStatus", width: 120, render: (value) => <StatusTag status={value} /> },
+              { title: "审核人", dataIndex: "reviewer", width: 120, render: (value) => <EllipsisCell value={value} /> },
+              {
+                title: "操作",
+                width: 220,
+                fixed: "right",
+                render: (_, record) => (
+                  <div className="flex flex-wrap gap-1">
+                    <Button type="link" onClick={() => onViewWithdrawal(record)}>
+                      查看详情
+                    </Button>
+                    <Button type="link" onClick={() => onApproveWithdrawal(record)}>
+                      通过审核
+                    </Button>
+                    <Button type="link" danger onClick={() => onRejectWithdrawal(record)}>驳回审核</Button>
+                  </div>
+                )
+              }
+            ]}
+          />
+        )}
+      </AdminTableViewport>
     </>
   );
 }
@@ -1693,7 +1836,8 @@ function PendingPayoutTable({
 }) {
   const [selectedKeys, setSelectedKeys] = useState<Key[]>([]);
   const selectedRecords = data.filter((item) => selectedKeys.includes(item.withdrawalNo));
-  const pagination = useStableTablePagination(data.length, 10, { storageKey: "sprix-admin:funds:payouts:page" });
+  const tablePageSize = useResponsiveAdminTablePageSize();
+  const pagination = useStableTablePagination(data.length, tablePageSize, { storageKey: "sprix-admin:funds:payouts:page" });
   const batchActions = getAdminPayoutBatchActions({
     markPaid: async () => {
       await onMarkPaidBatch(selectedRecords);
@@ -1712,45 +1856,49 @@ function PendingPayoutTable({
           actions={batchActions}
         />
       )}
-      <Table
-        rowKey="withdrawalNo"
-        tableLayout="fixed"
-        dataSource={data}
-        rowSelection={{ selectedRowKeys: selectedKeys, onChange: setSelectedKeys }}
-        pagination={pagination}
-        scroll={{ x: 2100 }}
-        columns={[
-          { title: "提现单号", dataIndex: "withdrawalNo", width: 240, render: (value) => <EllipsisCell value={value} /> },
-          { title: "用户昵称", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
-          { title: "手机号", dataIndex: "userPhone", width: 130, render: (value) => <EllipsisCell value={value} /> },
-          { title: "支付宝账户", dataIndex: "alipayAccount", width: 300, render: (value) => <EllipsisCell value={value} /> },
-          { title: "打款金额", dataIndex: "payoutAmount", width: 100, render: currency },
-          { title: "预计到账时间", dataIndex: "estimatedArrivalTime", width: 150, render: (value) => <EllipsisCell value={value} /> },
-          { title: "审核通过时间", dataIndex: "approvedAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
-          { title: "打款渠道", dataIndex: "payoutProvider", width: 120, render: (value) => <EllipsisCell value={value || "-"} /> },
-          { title: "商户单号", dataIndex: "payoutOutBizNo", width: 220, render: (value) => <EllipsisCell value={value || "-"} /> },
-          { title: "支付宝订单号", dataIndex: "payoutOrderId", width: 220, render: (value) => <EllipsisCell value={value || "-"} /> },
-          { title: "支付宝状态", dataIndex: "payoutStatus", width: 130, render: (value) => <EllipsisCell value={value || "-"} /> },
-          { title: "发起时间", dataIndex: "payoutRequestedAt", width: 150, render: (value) => <EllipsisCell value={value || "-"} /> },
-          { title: "完成时间", dataIndex: "payoutCompletedAt", width: 150, render: (value) => <EllipsisCell value={value || "-"} /> },
-          { title: "最近查询", dataIndex: "payoutLastQueriedAt", width: 150, render: (value) => <EllipsisCell value={value || "-"} /> },
-          { title: "当前状态", dataIndex: "withdrawStatus", width: 120, render: (value) => <StatusTag status={value} /> },
-          {
-            title: "操作",
-            width: 360,
-            fixed: "right",
-            render: (_, record) => (
-              <div className="flex flex-wrap gap-1">
-                <Button type="link" onClick={() => onViewPayout(record)}>查看详情</Button>
-                <Button type="link" disabled={record.withdrawStatus !== "待打款"} onClick={() => onPay(record)}>发起支付宝打款</Button>
-                <Button type="link" onClick={() => onQuery(record)}>查询打款结果</Button>
-                <Button type="link" onClick={() => onReturnReview(record)}>退回审核</Button>
-                <Button type="link" onClick={() => onMarkFailed(record)}>标记打款失败</Button>
-              </div>
-            )
-          }
-        ]}
-      />
+      <AdminTableViewport>
+        {(scrollY) => (
+          <Table
+            rowKey="withdrawalNo"
+            tableLayout="fixed"
+            dataSource={data}
+            rowSelection={{ selectedRowKeys: selectedKeys, onChange: setSelectedKeys }}
+            pagination={pagination}
+            scroll={{ x: 2100, y: scrollY }}
+            columns={[
+              { title: "提现单号", dataIndex: "withdrawalNo", width: 240, render: (value) => <EllipsisCell value={value} /> },
+              { title: "用户昵称", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
+              { title: "手机号", dataIndex: "userPhone", width: 130, render: (value) => <EllipsisCell value={value} /> },
+              { title: "支付宝账户", dataIndex: "alipayAccount", width: 300, render: (value) => <EllipsisCell value={value} /> },
+              { title: "打款金额", dataIndex: "payoutAmount", width: 100, render: currency },
+              { title: "预计到账时间", dataIndex: "estimatedArrivalTime", width: 150, render: (value) => <EllipsisCell value={value} /> },
+              { title: "审核通过时间", dataIndex: "approvedAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
+              { title: "打款渠道", dataIndex: "payoutProvider", width: 120, render: (value) => <EllipsisCell value={value || "-"} /> },
+              { title: "商户单号", dataIndex: "payoutOutBizNo", width: 220, render: (value) => <EllipsisCell value={value || "-"} /> },
+              { title: "支付宝订单号", dataIndex: "payoutOrderId", width: 220, render: (value) => <EllipsisCell value={value || "-"} /> },
+              { title: "支付宝状态", dataIndex: "payoutStatus", width: 130, render: (value) => <EllipsisCell value={value || "-"} /> },
+              { title: "发起时间", dataIndex: "payoutRequestedAt", width: 150, render: (value) => <EllipsisCell value={value || "-"} /> },
+              { title: "完成时间", dataIndex: "payoutCompletedAt", width: 150, render: (value) => <EllipsisCell value={value || "-"} /> },
+              { title: "最近查询", dataIndex: "payoutLastQueriedAt", width: 150, render: (value) => <EllipsisCell value={value || "-"} /> },
+              { title: "当前状态", dataIndex: "withdrawStatus", width: 120, render: (value) => <StatusTag status={value} /> },
+              {
+                title: "操作",
+                width: 360,
+                fixed: "right",
+                render: (_, record) => (
+                  <div className="flex flex-wrap gap-1">
+                    <Button type="link" onClick={() => onViewPayout(record)}>查看详情</Button>
+                    <Button type="link" disabled={record.withdrawStatus !== "待打款"} onClick={() => onPay(record)}>发起支付宝打款</Button>
+                    <Button type="link" onClick={() => onQuery(record)}>查询打款结果</Button>
+                    <Button type="link" onClick={() => onReturnReview(record)}>退回审核</Button>
+                    <Button type="link" onClick={() => onMarkFailed(record)}>标记打款失败</Button>
+                  </div>
+                )
+              }
+            ]}
+          />
+        )}
+      </AdminTableViewport>
     </>
   );
 }
