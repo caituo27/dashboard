@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { Navigate, useLocation, useParams, useSearchParams } from "react-router-dom";
 import { buildRemoteAlipayBindCallbackUrl, confirmAlipayLoginCallback, confirmWechatLoginCallback } from "../services/sprixApi";
 
 type CallbackState =
@@ -19,20 +19,8 @@ function getSearchValue(searchParams: URLSearchParams, keys: string[]) {
 }
 
 export function FaceVerificationCallbackPage() {
-  return (
-    <main className="sprix-auth-callback-page">
-      <section className="sprix-auth-callback-card">
-        <div className="sprix-auth-callback-icon is-success">
-          <CheckCircle2 size={32} />
-        </div>
-        <div>
-          <span className="sprix-auth-callback-kicker">支付宝人脸核验</span>
-          <h1>核验结果已返回</h1>
-          <p>请回到 Sprix 页面继续操作，系统会自动同步核验结果；如果页面未更新，请点击完成确认。</p>
-        </div>
-      </section>
-    </main>
-  );
+  const location = useLocation();
+  return <Navigate to={`/auth/callback/alipay${location.search}${location.hash}`} replace />;
 }
 
 export function AuthCallbackPage() {
