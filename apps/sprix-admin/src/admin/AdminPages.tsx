@@ -1581,9 +1581,7 @@ export function AdminAppealDetail() {
   ];
   const taskInfoFields = [
     { label: "关联任务", value: appeal.taskTitle },
-    { label: "任务分类", value: appeal.taskCategory },
-    { label: "执行次数", value: appeal.executionIndex ? `第 ${appeal.executionIndex} 次执行` : "" },
-    { label: "执行记录ID", value: appeal.executionId }
+    { label: "任务分类", value: appeal.taskCategory }
   ];
   const acceptanceInfoFields = [
     { label: "交付标准", value: appeal.deliverables },
