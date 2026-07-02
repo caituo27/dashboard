@@ -46,6 +46,7 @@ import {
   getPayoutPageSubtitle,
   getPayoutRecordState
 } from "./earningsView";
+import { hasBoundPayoutAccount } from "./accountView";
 import { getQualificationRecordRows } from "./qualificationView";
 import { getEstimatedTokenField } from "./tokenEstimateView";
 import {
@@ -419,7 +420,7 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
               <div className="sprix-task-side-divider" />
               <h3 className="is-muted">来源信息</h3>
               <InfoRow label="来源平台" value={task.sourceName} />
-              <InfoRow label="任务类型" value={task.sourceType} />
+              <InfoRow label="任务类型" value={task.category} />
             </Surface>
 
             <Surface className="sprix-task-side-card">
@@ -1236,6 +1237,7 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
   const faceVerificationCompletedRef = useRef(false);
   const successAction = getQualificationSuccessAction(location.search);
   const qualificationRows = getQualificationRecordRows(account);
+  const payoutAccountActionLabel = hasBoundPayoutAccount(account) ? "查看绑定信息" : "绑定收款支付宝";
 
   useEffect(() => {
     if (step === 1 && !account.freelancerAgreementSigned) {
@@ -1453,7 +1455,7 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
               <div className="mt-5 flex flex-wrap gap-2">
                 <ActionButton onClick={() => navigate(successAction.path)}>{successAction.label}</ActionButton>
                 {successAction.path !== "/agent/market" && <SecondaryButton href="/agent/market">去任务市场</SecondaryButton>}
-                <SecondaryButton onClick={() => openBindAlipay()}>查看绑定信息</SecondaryButton>
+                <SecondaryButton onClick={() => openBindAlipay()}>{payoutAccountActionLabel}</SecondaryButton>
               </div>
             </>
           )}

@@ -224,6 +224,44 @@ select {
   color: var(--color-accent);
 }
 
+.sprix-admin-task-category-popup.ant-select-dropdown {
+  border: 1px solid rgba(238, 238, 238, 0.96);
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 12px;
+  box-shadow: 0 14px 36px rgba(20, 20, 20, 0.08);
+}
+
+.sprix-admin-task-category-popup .ant-select-item {
+  color: var(--color-ink);
+}
+
+.sprix-admin-task-category-popup .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
+  background: rgba(15, 118, 110, 0.07);
+}
+
+.sprix-admin-task-category-popup .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background: rgba(15, 118, 110, 0.1);
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.sprix-task-basic-grid {
+  margin-bottom: 24px;
+}
+
+.sprix-task-basic-grid .ant-form-item {
+  position: relative;
+  margin-bottom: 0;
+}
+
+.sprix-task-basic-grid .ant-form-item-explain {
+  position: absolute;
+  inset-block-start: calc(100% + 4px);
+  inset-inline-start: 0;
+  z-index: 1;
+  min-height: auto;
+}
+
 .sprix-task-action-group {
   display: flex;
   max-width: 170px;

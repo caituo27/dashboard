@@ -214,7 +214,18 @@ function AdminTableViewport({ children }: { children: (scrollY: number) => React
   return <div ref={tableScroll.ref}>{children(tableScroll.scrollY)}</div>;
 }
 
-const taskCategoryOptions = ["等待产品输入"].map((value) => ({ value, label: value }));
+const taskCategoryOptions = [
+  "企业经营 / 投融资咨询",
+  "数据标注",
+  "AI 内容创作",
+  "办公文档",
+  "市场调研",
+  "网站开发",
+  "UI 设计",
+  "AI 营销",
+  "Agent 自动化 / Python 开发",
+  "翻译 / 本地化"
+].map((value) => ({ value, label: value }));
 const taskFormFields = ["title", "category", "sourceType", "description", "deliverables", "acceptanceCriteria", "totalSlots"] as const;
 const taskTextLimits = {
   title: 30,
@@ -990,15 +1001,18 @@ export function AdminTaskForm() {
             setPricingDirty(isEdit ? hasTaskFormChanges(currentValues, initialValues) : true);
           }}
         >
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="sprix-task-basic-grid grid gap-x-4 gap-y-6 lg:grid-cols-2">
             <Form.Item label="任务名称" name="title" rules={requiredTrimmedTextRules("任务名称", taskTextLimits.title)}>
               <Input maxLength={taskTextLimits.title} showCount />
             </Form.Item>
             <Form.Item label="任务类型" name="category" rules={requiredTrimmedTextRules("任务类型", taskTextLimits.category)}>
-              <Select placeholder="等待产品输入" options={taskCategoryOptions} />
+              <Select popupClassName="sprix-admin-task-category-popup" placeholder="请选择任务类型" options={taskCategoryOptions} />
             </Form.Item>
             <Form.Item label="任务来源类型" name="sourceType" rules={requiredTrimmedTextRules("任务来源类型", taskTextLimits.sourceType)}>
               <Input maxLength={taskTextLimits.sourceType} showCount />
+            </Form.Item>
+            <Form.Item label="总名额" name="totalSlots" rules={integerFieldRules("总名额", 9999)}>
+              <InputNumber min={1} max={9999} step={1} precision={0} style={{ width: "100%" }} />
             </Form.Item>
           </div>
           <Form.Item label="详细任务描述" name="description" rules={requiredTrimmedTextRules("详细任务描述", taskTextLimits.description)}>
@@ -1012,22 +1026,12 @@ export function AdminTaskForm() {
               <Input.TextArea rows={4} maxLength={taskTextLimits.acceptanceCriteria} showCount />
             </Form.Item>
           </div>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Form.Item label="总名额" name="totalSlots" rules={integerFieldRules("总名额", 9999)}>
-              <InputNumber min={1} max={9999} step={1} precision={0} className="w-full" />
-            </Form.Item>
-          </div>
-          <div className="mb-4 border-t border-line pt-4">
+          <div className="mb-4 pt-4">
             <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 text-base font-semibold text-ink">
                   <CircleDollarSign size={18} />
                   <span>智能定价</span>
-                  {pricingRequired && !pricingEstimate ? (
-                    <SoftTag tone="amber">需重新定价</SoftTag>
-                  ) : (
-                    <SoftTag tone="teal">{pricingEstimate ? "报价有效" : "沿用已有报价"}</SoftTag>
-                  )}
                 </div>
                 <p className="mt-1 text-sm text-ink-soft">根据任务内容预测单人执行 Token，并按总名额计算任务总金额。</p>
               </div>
@@ -1047,7 +1051,7 @@ export function AdminTaskForm() {
             </div>
             {pricingEstimate?.summary && <p className="mt-3 text-sm text-ink-soft">{pricingEstimate.summary}</p>}
           </div>
-          <div className="flex gap-2">
+          <div className="flex justify-end gap-2">
             <ActionButton htmlType="submit" disabled={writeAction.disabled || (pricingRequired && !pricingEstimate)}>{writeAction.label}</ActionButton>
             <SecondaryButton onClick={cancelTaskForm}>
               取消

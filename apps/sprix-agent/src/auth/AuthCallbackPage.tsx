@@ -116,7 +116,7 @@ function getCallbackCopy(state: CallbackState, providerLabel: string, isLoading:
     if (state.kind === "bind_success") {
       return {
         kicker: "收款支付宝绑定",
-        title: "收款支付宝绑定成功",
+        title: "成功",
         description: "授权已完成，请回到 Sprix 页面继续使用。"
       };
     }
@@ -129,7 +129,7 @@ function getCallbackCopy(state: CallbackState, providerLabel: string, isLoading:
 
   return {
     kicker: `${providerLabel}扫码登录`,
-    title: isLoading ? "正在确认授权" : "扫码授权成功",
+    title: isLoading ? "正在确认授权" : "成功",
     description: isLoading
       ? "正在确认扫码结果，请不要关闭页面。"
       : state.kind === "phone_bind"
