@@ -23,8 +23,11 @@ import { HomeTopAccount } from "./HomeTopAccount";
 
 type HomePageProps = {
   openLogin: () => void;
+  openContact?: () => void;
   onLogout?: () => void;
 };
+
+const ICP_RECORD_NO = import.meta.env.VITE_ICP_RECORD_NO ?? "ICP备案号待补充";
 
 function isEvaluationTerminal(status: AgentEvaluation["status"]) {
   return status === "completed" || status === "failed";
@@ -39,7 +42,7 @@ function showHomeRequestError(error: unknown, fallback: string, prefix = "") {
   message.error(error instanceof Error ? `${prefix}${error.message}` : fallback);
 }
 
-export function HomePage({ openLogin, onLogout }: HomePageProps) {
+export function HomePage({ openLogin, openContact, onLogout }: HomePageProps) {
   useHomeBootstrap();
   const navigate = useNavigate();
   const account = useSprixStore((state) => state.account);
@@ -199,6 +202,13 @@ export function HomePage({ openLogin, onLogout }: HomePageProps) {
         />
         <HomeAgentCard agent={currentAgent} onEnterMarket={() => navigate("/agent/market")} onManageAgent={() => navigate("/agent/center")} />
         <HomeStats overview={platformOverview} />
+        <footer className="sprix-landing-footer">
+          <span>© Sprix AI</span>
+          <button type="button" onClick={openContact}>联系我们</button>
+          <a href="https://beian.miit.gov.cn/" target="_blank" rel="noreferrer">
+            {ICP_RECORD_NO}
+          </a>
+        </footer>
       </section>
       <HomeAgentPickerModal
         open={agentPickerOpen}

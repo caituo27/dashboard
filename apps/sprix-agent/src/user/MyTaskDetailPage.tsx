@@ -22,7 +22,8 @@ import {
   getSortedTimeline,
   getTaskRequirementRows,
   getTimelineTime,
-  getTokenUsage
+  getTokenUsage,
+  mapExecutionStatus
 } from "./executionDetailView";
 import { getMyTaskActions, shouldShowAppealStatus } from "./userFlowRules";
 import { useRerunTask } from "./useRerunTask";
@@ -76,7 +77,6 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
   }, [detail, loadDetail]);
 
   const summary = useMemo(() => (detail ? getExecutionSummary(detail) : undefined), [detail]);
-  const showCurrentNodeTag = summary ? !(summary.status === "待平台审核" && summary.currentNode === "平台验收") : false;
   const actions = useMemo(
     () => (summary ? getMyTaskActions({ status: summary.status, appealStatus: summary.appealStatus }) : undefined),
     [summary]
@@ -154,7 +154,6 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
           <div className="mb-3 flex flex-wrap gap-2">
             {showPrimaryStatus && <StatusTag status={summary.status} />}
             {shouldShowAppealStatus(summary.appealStatus) && <StatusTag status={summary.appealStatus} />}
-            {showCurrentNodeTag && <SoftTag tone="neutral">{summary.currentNode}</SoftTag>}
           </div>
           <h1 className="text-3xl font-semibold leading-tight text-ink">{summary.title}</h1>
           <p className="mt-3 text-sm leading-7 text-ink-soft">
@@ -561,7 +560,7 @@ function HistorySection({ detail }: { detail: MyTaskExecutionDetail }) {
               className={`sprix-history-row ${history.current ? "is-current" : ""}`}
             >
               <div className="sprix-history-main">
-                <strong>{getCurrentNodeLabel(history.currentNode)}</strong>
+                <strong>{getHistoryExecutionTitle(history.status)}</strong>
               </div>
               <div className="sprix-history-detail">
                 <span className="sprix-history-time">{formatDateTime(history.startedAt ?? history.createdAt)}</span>
@@ -575,6 +574,10 @@ function HistorySection({ detail }: { detail: MyTaskExecutionDetail }) {
       )}
     </Surface>
   );
+}
+
+function getHistoryExecutionTitle(status?: string) {
+  return status ? mapExecutionStatus(status) : "执行记录";
 }
 
 function SectionTitle({ title }: { title: string }) {

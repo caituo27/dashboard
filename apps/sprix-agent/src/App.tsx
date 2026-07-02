@@ -132,7 +132,7 @@ function ConsumerAppRoutes() {
     <>
       <RemoteSprixBridge enabled={location.pathname.startsWith("/agent")} />
       <Routes>
-        <Route path="/" element={<HomePage openLogin={openLogin} onLogout={handleLogout} />} />
+        <Route path="/" element={<HomePage openLogin={openLogin} openContact={() => open("contact")} onLogout={handleLogout} />} />
         <Route path="/auth/callback/:provider" element={<AuthCallbackPage />} />
         <Route path="/local-agent/claim" element={<LocalAgentClaimPage />} />
         <Route

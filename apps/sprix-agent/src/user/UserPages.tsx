@@ -1092,12 +1092,12 @@ export function EarningsPage({ openLogin, openBindAlipay }: UserPageProps) {
     <>
       <PageHeader title="打款记录" subtitle={getPayoutPageSubtitle()} />
       <Surface className="mb-5 p-6">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
+        <div className="sprix-payout-summary">
+          <div className="sprix-payout-summary-copy">
             <SoftTag>自动打款</SoftTag>
-            <p className="mt-3 text-sm text-ink-soft">{getPayoutAccountText(account)}</p>
+            <p>{getPayoutAccountText(account)}</p>
             {accountWarning && (
-              <p className="mt-1 text-sm font-medium text-red-600">{accountWarning}</p>
+              <p className="sprix-payout-warning">{accountWarning}</p>
             )}
           </div>
           <SecondaryButton onClick={() => openBindAlipay()}>
@@ -1105,17 +1105,35 @@ export function EarningsPage({ openLogin, openBindAlipay }: UserPageProps) {
           </SecondaryButton>
         </div>
         {payoutState.kind === "records" ? (
-          <div className="space-y-3">
-            {payouts.slice(0, 8).map((item) => (
-              <div key={item.withdrawalNo} className="grid gap-2 rounded-[18px] border border-line bg-white p-4 text-sm lg:grid-cols-6">
-                <b>{item.withdrawalNo}</b>
-                <span>{currency(item.payoutAmount)}</span>
-                <span>{item.alipayAccount}</span>
-                <StatusTag status={item.withdrawStatus} />
-                <span>{item.approvedAt}</span>
-                <span>预计 {item.estimatedArrivalTime}</span>
-              </div>
-            ))}
+          <div className="sprix-payout-table-wrap">
+            <table className="sprix-payout-table">
+              <thead>
+                <tr>
+                  <th>打款单号</th>
+                  <th>打款金额</th>
+                  <th>支付宝账户</th>
+                  <th>打款状态</th>
+                  <th>处理时间</th>
+                  <th>预计到账</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payouts.map((item) => (
+                  <tr key={item.withdrawalNo}>
+                    <td>
+                      <span className="sprix-payout-table-no" title={item.withdrawalNo}>{item.withdrawalNo}</span>
+                    </td>
+                    <td className="sprix-payout-table-amount">{currency(item.payoutAmount)}</td>
+                    <td>
+                      <span className="sprix-payout-table-text" title={item.alipayAccount}>{item.alipayAccount}</span>
+                    </td>
+                    <td><StatusTag status={item.withdrawStatus} /></td>
+                    <td>{item.approvedAt || "-"}</td>
+                    <td>{item.estimatedArrivalTime}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : (
           <InlineEmpty title={payoutState.title} description={payoutState.description} />

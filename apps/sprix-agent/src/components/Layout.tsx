@@ -10,6 +10,8 @@ import { logoutConsumer } from "../services/sprixApi";
 import { isGlobalAuthError } from "../utils/http";
 import { LOCAL_AGENT_DOWNLOAD_URL } from "../localAgentDownload";
 
+const ICP_RECORD_NO = import.meta.env.VITE_ICP_RECORD_NO ?? "ICP备案号待补充";
+
 function Sidebar({
   onOpenLogin,
   onOpenAccount,
@@ -144,6 +146,12 @@ function UserMenu({
         ) : (
           <ActionButton className="w-full justify-center" onClick={onOpenLogin}>登录 / 注册</ActionButton>
         )}
+      </div>
+      <div className="sprix-sidebar-footer">
+        <button type="button" onClick={onOpenContact}>联系我们</button>
+        <a href="https://beian.miit.gov.cn/" target="_blank" rel="noreferrer">
+          {ICP_RECORD_NO}
+        </a>
       </div>
     </div>
   );
