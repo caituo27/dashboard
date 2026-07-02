@@ -1,4 +1,6 @@
 import { Checkbox, Modal } from "antd";
+import { AgreementContent } from "../components/AgreementContent";
+import { getAgreementDocument, type AgreementDocumentKey } from "../content/agreementDocuments";
 
 type AgreementCheckProps = {
   agreed: boolean;
@@ -6,14 +8,18 @@ type AgreementCheckProps = {
 };
 
 export function AgreementCheck({ agreed, onChange }: AgreementCheckProps) {
-  const openAgreement = (title: string) => {
+  const openAgreement = (key: AgreementDocumentKey) => {
+    const document = getAgreementDocument(key);
+
     Modal.info({
-      title,
+      title: document.title,
       okText: "知道了",
+      width: 620,
+      className: "sprix-agreement-modal",
       content: (
-        <p className="m-0 leading-7 text-ink-soft">
-          当前仅展示产品流程摘要，正式全文待法务/后端配置后接入。用户应遵守平台任务规则，按页面提示完成接单、交付、申诉和账户管理。
-        </p>
+        <div className="sprix-agreement-scroll">
+          <AgreementContent compact markdown={document.markdown} />
+        </div>
       )
     });
   };
@@ -22,11 +28,11 @@ export function AgreementCheck({ agreed, onChange }: AgreementCheckProps) {
     <Checkbox checked={agreed} onChange={(event) => onChange(event.target.checked)}>
       <span className="sprix-agreement-check-text">
         我已阅读并同意
-        <button type="button" className="sprix-agreement-link" onClick={() => openAgreement("用户协议")}>
+        <button type="button" className="sprix-agreement-link" onClick={() => openAgreement("user")}>
           《用户协议》
         </button>
         和
-        <button type="button" className="sprix-agreement-link" onClick={() => openAgreement("隐私政策")}>
+        <button type="button" className="sprix-agreement-link" onClick={() => openAgreement("privacy")}>
           《隐私政策》
         </button>
       </span>

@@ -68,6 +68,10 @@ function isAppealDone(status: AdminAppeal["appealStatus"]) {
   return ["申诉通过", "申诉不通过"].includes(status);
 }
 
+export function isTaskSlotFull(task: Pick<Task, "offlineReason" | "remainingSlots" | "totalSlots">) {
+  return task.offlineReason === "名额已满" || (task.totalSlots > 0 && task.remainingSlots >= task.totalSlots);
+}
+
 function AdminDetailPage({ children }: { children: ReactNode }) {
   return <div className="sprix-detail-page">{children}</div>;
 }
@@ -395,6 +399,17 @@ export function AdminTaskCenter() {
       return;
     }
     if (action.kind === "republish") {
+      if (isTaskSlotFull(task)) {
+        Modal.confirm({
+          title: "名额已满，无法重新发布",
+          content: "该任务名额已满，不能重新发布。如需继续投放，请新建任务。",
+          okText: "去新建",
+          cancelText: "取消",
+          onOk: () => navigate("/tasks/new")
+        });
+        return;
+      }
+
       Modal.confirm({
         title: "确认重新发布该任务？",
         content: task.title,
