@@ -1606,8 +1606,8 @@ export function AdminAppealDetail() {
     { label: "验收标准", value: appeal.acceptanceCriteria }
   ];
   const appealInfoFields = [
-    { label: "问题摘要", value: appeal.issueSummary },
     { label: "申诉原因", value: appeal.appealReason },
+    { label: "处理说明", value: appeal.resultDescription },
     { label: "补充说明", value: appeal.userSupplement }
   ];
   const canReviewAppeal = appeal.appealStatus === "待处理";

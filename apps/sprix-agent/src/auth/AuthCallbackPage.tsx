@@ -10,10 +10,6 @@ type CallbackState =
   | { kind: "bind_success" }
   | { kind: "bind_failed" };
 
-function getProviderCopy(provider?: string) {
-  return provider === "wechat" ? "微信" : "支付宝";
-}
-
 function getSearchValue(searchParams: URLSearchParams, keys: string[]) {
   for (const key of keys) {
     const value = searchParams.get(key);
@@ -47,7 +43,6 @@ export function AuthCallbackPage() {
   const scene = searchParams.get("scene")?.trim();
   const resultStatus = searchParams.get("status")?.trim();
   const isAlipayBindScene = normalizedProvider === "alipay" && scene === "bind";
-  const providerLabel = getProviderCopy(normalizedProvider);
 
   const callbackParams = useMemo(() => {
     const stateValue = getSearchValue(searchParams, ["state", "sessionId", "session_id"]);
@@ -99,7 +94,7 @@ export function AuthCallbackPage() {
 
   const isLoading = state.kind === "loading";
   const isError = state.kind === "bind_failed";
-  const copy = getCallbackCopy(state, providerLabel, isLoading, isAlipayBindScene);
+  const copy = getCallbackCopy(state, isLoading, isAlipayBindScene);
 
   return (
     <main className="sprix-auth-callback-page">
@@ -108,7 +103,6 @@ export function AuthCallbackPage() {
           {isLoading ? <Loader2 size={30} /> : isError ? <XCircle size={32} /> : <CheckCircle2 size={32} />}
         </div>
         <div>
-          <span className="sprix-auth-callback-kicker">{copy.kicker}</span>
           <h1>{copy.title}</h1>
           <p>{copy.description}</p>
         </div>
@@ -121,36 +115,32 @@ function isMissingAlipayLoginSession(error: unknown) {
   return error instanceof Error && error.message.includes("Alipay login session not found");
 }
 
-function getCallbackCopy(state: CallbackState, providerLabel: string, isLoading: boolean, isAlipayBindScene: boolean) {
+function getCallbackCopy(state: CallbackState, isLoading: boolean, isAlipayBindScene: boolean) {
   if (isAlipayBindScene) {
     if (isLoading) {
       return {
-        kicker: "收款支付宝绑定",
         title: "正在确认授权",
         description: "正在确认收款支付宝绑定结果，请不要关闭页面。"
       };
     }
     if (state.kind === "bind_success") {
       return {
-        kicker: "收款支付宝绑定",
         title: "成功",
         description: "授权已完成，请回到 Sprix 页面继续使用。"
       };
     }
     return {
-      kicker: "收款支付宝绑定",
       title: "收款支付宝绑定未完成",
       description: "请回到 Sprix 页面刷新二维码后重试。"
     };
   }
 
   return {
-    kicker: `${providerLabel}扫码登录`,
     title: isLoading ? "正在确认授权" : "成功",
     description: isLoading
       ? "正在确认扫码结果，请不要关闭页面。"
       : state.kind === "phone_bind"
         ? "授权已完成，请回到电脑端继续绑定手机号。"
-        : "授权已完成，请回到电脑端继续使用 Sprix AI。"
+        : "请回到电脑端继续使用 Sprix AI。"
   };
 }
