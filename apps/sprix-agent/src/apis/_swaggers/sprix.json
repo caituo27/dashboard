@@ -3448,6 +3448,36 @@
         }
       }
     },
+    "/api/v1/earnings/settlements": {
+      "get": {
+        "tags": [
+          "earnings-controller"
+        ],
+        "operationId": "settlements",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSettlementRecordRow"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/wechat/scan-sessions/{sessionId}": {
       "get": {
         "tags": [
@@ -3973,7 +4003,7 @@
         "tags": [
           "admin-funds-controller"
         ],
-        "operationId": "settlements",
+        "operationId": "settlements_1",
         "responses": {
           "200": {
             "description": "OK",
@@ -4703,6 +4733,10 @@
             "type": "string",
             "format": "uuid"
           },
+          "sourceSettlementId": {
+            "type": "string",
+            "format": "uuid"
+          },
           "amount": {
             "type": "number"
           },
@@ -4847,6 +4881,7 @@
             "enum": [
               "NOT_POSTED",
               "SETTLING",
+              "SETTLED",
               "POSTED",
               "EXCEPTION"
             ]
@@ -6025,6 +6060,7 @@
             "enum": [
               "NOT_POSTED",
               "SETTLING",
+              "SETTLED",
               "POSTED",
               "EXCEPTION"
             ]
@@ -7530,6 +7566,102 @@
           }
         }
       },
+      "ApiResponseListSettlementRecordRow": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SettlementRecordRow"
+            }
+          }
+        }
+      },
+      "SettlementRecordRow": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "settlementNo": {
+            "type": "string"
+          },
+          "executionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "taskId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userName": {
+            "type": "string"
+          },
+          "userPhone": {
+            "type": "string"
+          },
+          "agentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "agentName": {
+            "type": "string"
+          },
+          "taskIncome": {
+            "type": "number"
+          },
+          "platformFee": {
+            "type": "number"
+          },
+          "netIncome": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "NOT_POSTED",
+              "SETTLING",
+              "SETTLED",
+              "POSTED",
+              "EXCEPTION"
+            ]
+          },
+          "createdAtBusiness": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "paidAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "AgentListResponse": {
         "type": "object",
         "properties": {
@@ -8056,101 +8188,6 @@
             "format": "date-time"
           },
           "reviewedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "version": {
-            "type": "integer",
-            "format": "int64"
-          }
-        }
-      },
-      "ApiResponseListSettlementRecordRow": {
-        "type": "object",
-        "properties": {
-          "success": {
-            "type": "boolean"
-          },
-          "code": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          },
-          "data": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/SettlementRecordRow"
-            }
-          }
-        }
-      },
-      "SettlementRecordRow": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "settlementNo": {
-            "type": "string"
-          },
-          "executionId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "taskId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "userId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "userName": {
-            "type": "string"
-          },
-          "userPhone": {
-            "type": "string"
-          },
-          "agentId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "agentName": {
-            "type": "string"
-          },
-          "taskIncome": {
-            "type": "number"
-          },
-          "platformFee": {
-            "type": "number"
-          },
-          "netIncome": {
-            "type": "number"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "NOT_POSTED",
-              "SETTLING",
-              "POSTED",
-              "EXCEPTION"
-            ]
-          },
-          "createdAtBusiness": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "paidAt": {
             "type": "string",
             "format": "date-time"
           },

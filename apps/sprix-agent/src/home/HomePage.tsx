@@ -27,7 +27,7 @@ type HomePageProps = {
   onLogout?: () => void;
 };
 
-const ICP_RECORD_NO = import.meta.env.VITE_ICP_RECORD_NO ?? "ICP备案号待补充";
+const ICP_RECORD_NO = import.meta.env.VITE_ICP_RECORD_NO ?? "粤ICP备2025376732号-3";
 
 function isEvaluationTerminal(status: AgentEvaluation["status"]) {
   return status === "completed" || status === "failed";
@@ -213,10 +213,10 @@ export function HomePage({ openLogin, openContact, onLogout }: HomePageProps) {
         <HomeStats overview={platformOverview} />
         <footer className="sprix-landing-footer">
           <span>© Sprix AI</span>
-          <button type="button" onClick={openContact}>联系我们</button>
           <a href="https://beian.miit.gov.cn/" target="_blank" rel="noreferrer">
             {ICP_RECORD_NO}
           </a>
+          {!account.isLoggedIn && <button type="button" onClick={openContact}>联系我们</button>}
         </footer>
       </section>
       <HomeAgentPickerModal

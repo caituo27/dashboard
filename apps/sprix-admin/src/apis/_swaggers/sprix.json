@@ -1313,6 +1313,46 @@
         }
       }
     },
+    "/api/v1/admin/tasks/pricing-estimates": {
+      "post": {
+        "tags": [
+          "admin-task-controller"
+        ],
+        "operationId": "pricingEstimate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskPricingEstimateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseTaskPricingEstimateResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/tasks/executions/{executionId}/acceptance/reject": {
       "post": {
         "tags": [
@@ -3348,6 +3388,36 @@
         }
       }
     },
+    "/api/v1/earnings/withdrawals": {
+      "get": {
+        "tags": [
+          "earnings-controller"
+        ],
+        "operationId": "withdrawals",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListWithdrawalRecord"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/earnings/withdrawable": {
       "get": {
         "tags": [
@@ -3361,6 +3431,36 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponseBigDecimal"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/earnings/settlements": {
+      "get": {
+        "tags": [
+          "earnings-controller"
+        ],
+        "operationId": "settlements",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSettlementRecordRow"
                 }
               }
             }
@@ -3843,7 +3943,7 @@
         "tags": [
           "admin-funds-controller"
         ],
-        "operationId": "withdrawals",
+        "operationId": "withdrawals_1",
         "responses": {
           "200": {
             "description": "OK",
@@ -3903,7 +4003,7 @@
         "tags": [
           "admin-funds-controller"
         ],
-        "operationId": "settlements",
+        "operationId": "settlements_1",
         "responses": {
           "200": {
             "description": "OK",
@@ -4457,14 +4557,14 @@
             "type": "string",
             "minLength": 1
           },
-          "reward": {
-            "type": "number",
-            "minimum": 0.01
-          },
           "totalSlots": {
             "type": "integer",
             "format": "int32",
             "minimum": 1
+          },
+          "pricingQuoteId": {
+            "type": "string",
+            "format": "uuid"
           }
         },
         "required": [
@@ -4472,7 +4572,6 @@
           "category",
           "deliverables",
           "description",
-          "reward",
           "sourceType",
           "title"
         ]
@@ -4532,6 +4631,31 @@
           },
           "reward": {
             "type": "number"
+          },
+          "estimatedTokens": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tokenBillingUnit": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tokenUnitPrice": {
+            "type": "number"
+          },
+          "totalAmount": {
+            "type": "number"
+          },
+          "pricingModel": {
+            "type": "string"
+          },
+          "pricingQuoteId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pricingEstimatedAt": {
+            "type": "string",
+            "format": "date-time"
           },
           "totalSlots": {
             "type": "integer",
@@ -4606,6 +4730,10 @@
             "type": "string"
           },
           "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceSettlementId": {
             "type": "string",
             "format": "uuid"
           },
@@ -4753,6 +4881,7 @@
             "enum": [
               "NOT_POSTED",
               "SETTLING",
+              "SETTLED",
               "POSTED",
               "EXCEPTION"
             ]
@@ -5692,6 +5821,101 @@
           "reason"
         ]
       },
+      "TaskPricingEstimateRequest": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "category": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sourceType": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "deliverables": {
+            "type": "string",
+            "minLength": 1
+          },
+          "acceptanceCriteria": {
+            "type": "string",
+            "minLength": 1
+          },
+          "totalSlots": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "acceptanceCriteria",
+          "category",
+          "deliverables",
+          "description",
+          "sourceType",
+          "title"
+        ]
+      },
+      "ApiResponseTaskPricingEstimateResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/TaskPricingEstimateResponse"
+          }
+        }
+      },
+      "TaskPricingEstimateResponse": {
+        "type": "object",
+        "properties": {
+          "quoteId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "estimatedTokens": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tokensPerUnit": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unitPriceYuan": {
+            "type": "number"
+          },
+          "perParticipantAmount": {
+            "type": "number"
+          },
+          "totalAmount": {
+            "type": "number"
+          },
+          "model": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "summary": {
+            "type": "string"
+          }
+        }
+      },
       "AcceptanceReviewRequest": {
         "type": "object",
         "properties": {
@@ -5836,6 +6060,7 @@
             "enum": [
               "NOT_POSTED",
               "SETTLING",
+              "SETTLED",
               "POSTED",
               "EXCEPTION"
             ]
@@ -7337,6 +7562,102 @@
           }
         }
       },
+      "ApiResponseListSettlementRecordRow": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SettlementRecordRow"
+            }
+          }
+        }
+      },
+      "SettlementRecordRow": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "settlementNo": {
+            "type": "string"
+          },
+          "executionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "taskId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "userName": {
+            "type": "string"
+          },
+          "userPhone": {
+            "type": "string"
+          },
+          "agentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "agentName": {
+            "type": "string"
+          },
+          "taskIncome": {
+            "type": "number"
+          },
+          "platformFee": {
+            "type": "number"
+          },
+          "netIncome": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "NOT_POSTED",
+              "SETTLING",
+              "SETTLED",
+              "POSTED",
+              "EXCEPTION"
+            ]
+          },
+          "createdAtBusiness": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "paidAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "AgentListResponse": {
         "type": "object",
         "properties": {
@@ -7863,101 +8184,6 @@
             "format": "date-time"
           },
           "reviewedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "version": {
-            "type": "integer",
-            "format": "int64"
-          }
-        }
-      },
-      "ApiResponseListSettlementRecordRow": {
-        "type": "object",
-        "properties": {
-          "success": {
-            "type": "boolean"
-          },
-          "code": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          },
-          "data": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/SettlementRecordRow"
-            }
-          }
-        }
-      },
-      "SettlementRecordRow": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "settlementNo": {
-            "type": "string"
-          },
-          "executionId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "taskId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "userId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "userName": {
-            "type": "string"
-          },
-          "userPhone": {
-            "type": "string"
-          },
-          "agentId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "agentName": {
-            "type": "string"
-          },
-          "taskIncome": {
-            "type": "number"
-          },
-          "platformFee": {
-            "type": "number"
-          },
-          "netIncome": {
-            "type": "number"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "NOT_POSTED",
-              "SETTLING",
-              "POSTED",
-              "EXCEPTION"
-            ]
-          },
-          "createdAtBusiness": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "paidAt": {
             "type": "string",
             "format": "date-time"
           },

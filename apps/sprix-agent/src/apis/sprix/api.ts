@@ -983,6 +983,7 @@ export interface SettlementRecord {
 export enum SettlementRecordStatusEnum {
     NotPosted = 'NOT_POSTED',
     Settling = 'SETTLING',
+    Settled = 'SETTLED',
     Posted = 'POSTED',
     Exception = 'EXCEPTION'
 }
@@ -1011,6 +1012,7 @@ export interface SettlementRecordRow {
 export enum SettlementRecordRowStatusEnum {
     NotPosted = 'NOT_POSTED',
     Settling = 'SETTLING',
+    Settled = 'SETTLED',
     Posted = 'POSTED',
     Exception = 'EXCEPTION'
 }
@@ -1110,6 +1112,7 @@ export enum TaskExecutionAppealStatusEnum {
 export enum TaskExecutionSettlementStatusEnum {
     NotPosted = 'NOT_POSTED',
     Settling = 'SETTLING',
+    Settled = 'SETTLED',
     Posted = 'POSTED',
     Exception = 'EXCEPTION'
 }
@@ -1264,6 +1267,7 @@ export interface WithdrawalRecord {
     'updatedAt'?: string;
     'withdrawalNo'?: string;
     'userId'?: string;
+    'sourceSettlementId'?: string;
     'amount'?: number;
     'alipayAccount'?: string;
     'realNameMatchStatus'?: string;
@@ -3324,7 +3328,7 @@ export const AdminFundsControllerApiAxiosParamCreator = function (configuration?
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        settlements: async (options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+        settlements1: async (options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/api/v1/admin/funds/settlements`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -3583,10 +3587,10 @@ export const AdminFundsControllerApiFp = function(configuration?: Configuration)
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async settlements(options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseListSettlementRecordRow>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.settlements(options);
+        async settlements1(options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseListSettlementRecordRow>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.settlements1(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['AdminFundsControllerApi.settlements']?.[localVarOperationServerIndex]?.url;
+            const localVarOperationServerBasePath = operationServerMap['AdminFundsControllerApi.settlements1']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -3755,8 +3759,8 @@ export const AdminFundsControllerApiFactory = function (configuration?: Configur
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        settlements(options?: AxiosRequestConfig): AxiosPromise<ApiResponseListSettlementRecordRow> {
-            return localVarFp.settlements(options).then((request) => request(axios, basePath));
+        settlements1(options?: AxiosRequestConfig): AxiosPromise<ApiResponseListSettlementRecordRow> {
+            return localVarFp.settlements1(options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -4032,8 +4036,8 @@ export class AdminFundsControllerApi extends BaseAPI {
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public settlements(options?: AxiosRequestConfig) {
-        return AdminFundsControllerApiFp(this.configuration).settlements(options).then((request) => request(this.axios, this.basePath));
+    public settlements1(options?: AxiosRequestConfig) {
+        return AdminFundsControllerApiFp(this.configuration).settlements1(options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -8049,6 +8053,35 @@ export const EarningsControllerApiAxiosParamCreator = function (configuration?: 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
+        settlements: async (options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/v1/earnings/settlements`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
         withdrawable: async (options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/api/v1/earnings/withdrawable`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -8116,6 +8149,17 @@ export const EarningsControllerApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
+        async settlements(options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseListSettlementRecordRow>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.settlements(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['EarningsControllerApi.settlements']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
         async withdrawable(options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseBigDecimal>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.withdrawable(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
@@ -8147,6 +8191,14 @@ export const EarningsControllerApiFactory = function (configuration?: Configurat
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
+        settlements(options?: AxiosRequestConfig): AxiosPromise<ApiResponseListSettlementRecordRow> {
+            return localVarFp.settlements(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
         withdrawable(options?: AxiosRequestConfig): AxiosPromise<ApiResponseBigDecimal> {
             return localVarFp.withdrawable(options).then((request) => request(axios, basePath));
         },
@@ -8165,6 +8217,15 @@ export const EarningsControllerApiFactory = function (configuration?: Configurat
  * EarningsControllerApi - object-oriented interface
  */
 export class EarningsControllerApi extends BaseAPI {
+    /**
+     * 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public settlements(options?: AxiosRequestConfig) {
+        return EarningsControllerApiFp(this.configuration).settlements(options).then((request) => request(this.axios, this.basePath));
+    }
+
     /**
      * 
      * @param {*} [options] Override http request option.

@@ -295,8 +295,8 @@ export async function readRemoteAppeals(): Promise<AdminAppeal[]> {
 export async function readRemoteFunds(): Promise<AdminFundsSnapshot> {
   const [tasksResponse, settlementsResponse, withdrawalsResponse, flowsResponse] = await Promise.all([
     adminTaskApi.tasks(),
-    adminFundsApi.settlements(),
-    adminFundsApi.withdrawals(),
+    adminFundsApi.settlements1(),
+    adminFundsApi.withdrawals1(),
     adminFundsApi.flows()
   ]);
   const tasks = listValue<TaskEntity>(tasksResponse).map(mapTask);

@@ -159,7 +159,7 @@ select {
   flex-wrap: wrap;
   justify-content: center;
   gap: 6px 12px;
-  margin-top: 12px;
+  margin-bottom: 12px;
   color: var(--color-ink-soft);
   font-size: 12px;
   line-height: 1.5;
@@ -1786,7 +1786,7 @@ select {
 }
 
 .sprix-task-detail-shell {
-  width: min(1120px, 100%);
+  width: min(1360px, 100%);
   margin: 0 auto;
 }
 
@@ -1983,6 +1983,7 @@ select {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 24px;
   align-items: center;
+  margin-bottom: 18px;
 }
 
 .sprix-execution-hero-side {

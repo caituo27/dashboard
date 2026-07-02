@@ -10,7 +10,7 @@ import { logoutConsumer } from "../services/sprixApi";
 import { isGlobalAuthError } from "../utils/http";
 import { LOCAL_AGENT_DOWNLOAD_URL } from "../localAgentDownload";
 
-const ICP_RECORD_NO = import.meta.env.VITE_ICP_RECORD_NO ?? "ICP备案号待补充";
+const ICP_RECORD_NO = import.meta.env.VITE_ICP_RECORD_NO ?? "粤ICP备2025376732号-3";
 
 function Sidebar({
   onOpenLogin,
@@ -85,6 +85,11 @@ function UserMenu({
   const logout = useSprixStore((state) => state.logout);
   return (
     <div className="sprix-sidebar-user">
+      <div className="sprix-sidebar-footer">
+        <a href="https://beian.miit.gov.cn/" target="_blank" rel="noreferrer">
+          {ICP_RECORD_NO}
+        </a>
+      </div>
       <div className="flex w-full min-w-0 items-center gap-2">
         {account.isLoggedIn ? (
           <Dropdown
@@ -146,12 +151,6 @@ function UserMenu({
         ) : (
           <ActionButton className="w-full justify-center" onClick={onOpenLogin}>登录 / 注册</ActionButton>
         )}
-      </div>
-      <div className="sprix-sidebar-footer">
-        <button type="button" onClick={onOpenContact}>联系我们</button>
-        <a href="https://beian.miit.gov.cn/" target="_blank" rel="noreferrer">
-          {ICP_RECORD_NO}
-        </a>
       </div>
     </div>
   );

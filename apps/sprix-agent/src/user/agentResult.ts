@@ -43,7 +43,7 @@ export function getAgentAdmissionSummary(agent: Agent): AgentAdmissionSummary {
     status: agent.status,
     role: agent.role,
     score: scoreText(agent.score),
-    lastEvaluatedAt: agent.lastEvaluatedAt || "待后端返回",
+    lastEvaluatedAt: agent.evaluation?.lastEvaluatedAt || "待后端返回",
     summary: agent.summary,
     tags: agent.tags
   };

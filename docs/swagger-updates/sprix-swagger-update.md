@@ -7,7 +7,7 @@
 - Swagger UI: http://42.194.150.73:8084/swagger-ui/index.html
 - Swagger JSON: http://42.194.150.73:8084/v3/api-docs
 - 生成范围: `apps/sprix-agent/src/apis/sprix`, `apps/sprix-admin/src/apis/sprix`
-- 是否有生成 diff: 2026-07-02 本地后端新增任务智能定价接口，但生成器配置仍指向远端 `http://42.194.150.73:8084/v3/api-docs`，远端尚未部署本次接口，因此未运行生成器覆盖；已手动同步 admin/agent 生成类型中的任务定价 DTO 字段。2026-07-01 有 Swagger JSON 和生成客户端 diff，新增头像接口、协议签署时间字段和后台执行行验收字段。2026-06-29 有 `api.ts` 注释空白格式 diff，但 Swagger JSON 无 diff，接口合同无变化。2026-06-27 曾新增支付宝登录/绑定、后台登录、Agent 评测、验收审核、支付宝打款/查询、我的任务详情等接口与 DTO。
+- 是否有生成 diff: 2026-07-02 已从远端 `http://42.194.150.73:8084/v3/api-docs` 重新生成 agent/admin 客户端；远端已返回任务智能定价接口与 `TaskEntity.estimatedTokens` 等字段。2026-07-01 有 Swagger JSON 和生成客户端 diff，新增头像接口、协议签署时间字段和后台执行行验收字段。2026-06-29 有 `api.ts` 注释空白格式 diff，但 Swagger JSON 无 diff，接口合同无变化。2026-06-27 曾新增支付宝登录/绑定、后台登录、Agent 评测、验收审核、支付宝打款/查询、我的任务详情等接口与 DTO。
 
 ## 接口变化
 
@@ -16,6 +16,7 @@
     - 管理端任务智能定价接口：`POST /api/v1/admin/tasks/pricing-estimates`。
     - `TaskPricingEstimateRequest` / `TaskPricingEstimateResponse`。
     - `TaskEntity` / `TaskSnapshot` 新增 `estimatedTokens`、`tokenBillingUnit`、`tokenUnitPrice`、`totalAmount`、`pricingModel`、`pricingQuoteId`、`pricingEstimatedAt`。
+    - 用户端任务列表和任务详情可直接读取 `TaskEntity.estimatedTokens` 展示预计 Token。
   - Removed:
     - `UpsertTaskRequest.reward` 不再作为管理端发布/编辑任务的价格来源。
   - Changed:

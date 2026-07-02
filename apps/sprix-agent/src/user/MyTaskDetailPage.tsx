@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Modal, Spin, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
-import { RotateCw } from "lucide-react";
+import { ChevronLeft, RotateCw } from "lucide-react";
 import type { ArtifactSnapshot, MyTaskExecutionDetail } from "../apis/sprix";
 import { ActionButton, EmptyState, SecondaryButton, SoftTag, StatusTag, Surface } from "../components/Primitives";
 import { cancelRemoteTask, readRemoteMyTaskDetail } from "../services/sprixApi";
@@ -145,69 +145,73 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
 
   return (
     <div className="sprix-task-detail-page">
-      <div className="sprix-detail-toolbar">
-        <SecondaryButton href="/agent/my-tasks">返回我的任务</SecondaryButton>
-      </div>
+      <div className="sprix-task-detail-shell">
+        <div className="sprix-detail-back-row">
+          <SecondaryButton href="/agent/my-tasks" icon={<ChevronLeft size={16} />}>
+            返回我的任务
+          </SecondaryButton>
+        </div>
 
-      <Surface className="sprix-execution-hero p-6">
-        <div className="min-w-0">
-          <div className="mb-3 flex flex-wrap gap-2">
-            {showPrimaryStatus && <StatusTag status={summary.status} />}
-            {shouldShowAppealStatus(summary.appealStatus) && <StatusTag status={summary.appealStatus} />}
-          </div>
-          <h1 className="text-3xl font-semibold leading-tight text-ink">{summary.title}</h1>
-          <p className="mt-3 text-sm leading-7 text-ink-soft">
-            {detail.task?.category || "-"} · {summary.agentName} · {summary.reward}
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2 text-sm text-ink-soft">
-            <span>开始：{summary.startedAt}</span>
-            <span>完成：{summary.completedAt}</span>
-            <span>结算：{summary.settlementStatus}</span>
-          </div>
-          {summary.terminationReason && (summary.status === "已终止" || summary.status === "验收未通过") && (
-            <div className="mt-4 rounded-2xl border border-[#ffd9d9] bg-[#fff4f4] px-4 py-3 text-sm leading-7 text-[#b42318]">
-              {summary.terminationReason}
+        <Surface className="sprix-execution-hero p-6">
+          <div className="min-w-0">
+            <div className="mb-3 flex flex-wrap gap-2">
+              {showPrimaryStatus && <StatusTag status={summary.status} />}
+              {shouldShowAppealStatus(summary.appealStatus) && <StatusTag status={summary.appealStatus} />}
             </div>
-          )}
-        </div>
-        <div className="sprix-execution-hero-side">
-          <div className="sprix-execution-hero-progress">
-            <span>执行进度</span>
-            <strong>{summary.progress}</strong>
+            <h1 className="text-3xl font-semibold leading-tight text-ink">{summary.title}</h1>
+            <p className="mt-3 text-sm leading-7 text-ink-soft">
+              {detail.task?.category || "-"} · {summary.agentName} · {summary.reward}
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2 text-sm text-ink-soft">
+              <span>开始：{summary.startedAt}</span>
+              <span>完成：{summary.completedAt}</span>
+              <span>结算：{summary.settlementStatus}</span>
+            </div>
+            {summary.terminationReason && (summary.status === "已终止" || summary.status === "验收未通过") && (
+              <div className="mt-4 rounded-2xl border border-[#ffd9d9] bg-[#fff4f4] px-4 py-3 text-sm leading-7 text-[#b42318]">
+                {summary.terminationReason}
+              </div>
+            )}
           </div>
-          {actions?.terminateLabel && (
-            <SecondaryButton danger disabled={!actions.terminateEnabled || canceling} loading={canceling} onClick={cancelTask}>
-              {actions.terminateLabel}
-            </SecondaryButton>
-          )}
-          {actions?.rerun && (
-            <SecondaryButton icon={<RotateCw size={15} />} onClick={() => rerunTask(detail.id ?? id)}>
-              重新执行
-            </SecondaryButton>
-          )}
-        </div>
-      </Surface>
+          <div className="sprix-execution-hero-side">
+            <div className="sprix-execution-hero-progress">
+              <span>执行进度</span>
+              <strong>{summary.progress}</strong>
+            </div>
+            {actions?.terminateLabel && (
+              <SecondaryButton danger disabled={!actions.terminateEnabled || canceling} loading={canceling} onClick={cancelTask}>
+                {actions.terminateLabel}
+              </SecondaryButton>
+            )}
+            {actions?.rerun && (
+              <SecondaryButton icon={<RotateCw size={15} />} onClick={() => rerunTask(detail.id ?? id)}>
+                重新执行
+              </SecondaryButton>
+            )}
+          </div>
+        </Surface>
 
-      <div className="sprix-execution-detail-layout">
-        <div className="sprix-execution-main-stack">
-          <OutputSection detail={detail} />
-          <AcceptanceSection
-            detail={detail}
-            action={
-              actions?.appealLabel ? (
-                <ActionButton disabled={!actions.appealEnabled} onClick={() => actions.appealEnabled && openAppeal(detail.id ?? id)}>
-                  {actions.appealLabel}
-                </ActionButton>
-              ) : undefined
-            }
-          />
-          <ArtifactsSection compact executionId={detail.id ?? id} artifacts={detail.artifacts ?? []} />
+        <div className="sprix-execution-detail-layout">
+          <div className="sprix-execution-main-stack">
+            <OutputSection detail={detail} />
+            <AcceptanceSection
+              detail={detail}
+              action={
+                actions?.appealLabel ? (
+                  <ActionButton disabled={!actions.appealEnabled} onClick={() => actions.appealEnabled && openAppeal(detail.id ?? id)}>
+                    {actions.appealLabel}
+                  </ActionButton>
+                ) : undefined
+              }
+            />
+            <ArtifactsSection compact executionId={detail.id ?? id} artifacts={detail.artifacts ?? []} />
+          </div>
+          <aside className="sprix-execution-side-rail">
+            <TaskRequirementSection detail={detail} />
+            <TimelineSection detail={detail} />
+            <HistorySection detail={detail} />
+          </aside>
         </div>
-        <aside className="sprix-execution-side-rail">
-          <TaskRequirementSection detail={detail} />
-          <TimelineSection detail={detail} />
-          <HistorySection detail={detail} />
-        </aside>
       </div>
     </div>
   );

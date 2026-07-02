@@ -672,7 +672,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
     return () => {
       cancelled = true;
     };
-  }, [account.isLoggedIn, current?.id, current?.lastEvaluatedAt, current?.evaluation?.result?.status]);
+  }, [account.isLoggedIn, current?.id, current?.evaluation?.lastEvaluatedAt, current?.evaluation?.result?.status]);
 
   const closeEvaluation = () => {
     setEvaluationModalOpen(false);
