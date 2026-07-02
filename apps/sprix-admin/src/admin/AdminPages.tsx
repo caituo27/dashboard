@@ -1097,25 +1097,7 @@ function AdminExecutionRecords({
     { title: "Agent 本次任务评分", dataIndex: "agentScore" },
     { title: "当前节点", dataIndex: "currentNode", width: 120, render: (value) => <span className="whitespace-nowrap">{value}</span> },
     { title: "当前进度", dataIndex: "progress" },
-    { title: "开始时间", dataIndex: "startedAt" },
-    {
-      title: "操作",
-      width: 220,
-      render: (_, record) => (
-        <AdminExecutionActionButtons
-          actions={[
-            {
-              label: "查看执行详情",
-              onClick: () => showRunningExecutionDetail(record)
-            },
-            {
-              label: "查看 Agent 信息",
-              onClick: () => showExecutionAgentInfo(record)
-            }
-          ]}
-        />
-      )
-    }
+    { title: "开始时间", dataIndex: "startedAt" }
   ];
   const terminatedColumns: ColumnsType<TerminatedExecution> = [
     { title: "执行用户", dataIndex: "userName" },
@@ -1123,29 +1105,7 @@ function AdminExecutionRecords({
     { title: "执行 Agent", dataIndex: "agentName" },
     { title: "终止原因", dataIndex: "terminationReason" },
     { title: "终止节点", dataIndex: "terminatedNode", width: 120, render: (value) => <span className="whitespace-nowrap">{value}</span> },
-    { title: "终止时间", dataIndex: "terminatedAt" },
-    {
-      title: "操作",
-      width: 300,
-      render: (_, record) => (
-        <AdminExecutionActionButtons
-          actions={[
-            {
-              label: "查看执行记录",
-              onClick: () => showTerminatedExecutionDetail(record)
-            },
-            {
-              label: "查看用户信息",
-              onClick: () => showExecutionUserInfo(record)
-            },
-            {
-              label: "查看 Agent 信息",
-              onClick: () => showExecutionAgentInfo(record)
-            }
-          ]}
-        />
-      )
-    }
+    { title: "终止时间", dataIndex: "terminatedAt" }
   ];
   const completedColumns: ColumnsType<CompletedExecution> = [
     { title: "执行用户", dataIndex: "userName" },
@@ -1192,7 +1152,7 @@ function AdminExecutionRecords({
           {
             key: "running",
             label: "执行中",
-            children: <Table rowKey={(record) => record.executionId ?? record.startedAt} columns={runningColumns} dataSource={records?.running ?? []} pagination={false} locale={{ emptyText: "暂无执行中记录" }} scroll={{ x: 900 }} />
+            children: <Table rowKey={(record) => record.executionId ?? record.startedAt} columns={runningColumns} dataSource={records?.running ?? []} pagination={false} locale={{ emptyText: "暂无执行中记录" }} scroll={{ x: 680 }} />
           },
           {
             key: "reviewing",
@@ -1208,7 +1168,7 @@ function AdminExecutionRecords({
           {
             key: "terminated",
             label: "已终止",
-            children: <Table rowKey={(record) => record.executionId ?? record.terminatedAt} columns={terminatedColumns} dataSource={records?.terminated ?? []} pagination={false} locale={{ emptyText: "暂无已终止记录" }} scroll={{ x: 900 }} />
+            children: <Table rowKey={(record) => record.executionId ?? record.terminatedAt} columns={terminatedColumns} dataSource={records?.terminated ?? []} pagination={false} locale={{ emptyText: "暂无已终止记录" }} scroll={{ x: 600 }} />
           },
           {
             key: "completed",
@@ -1495,8 +1455,6 @@ export function AdminFundCenter() {
   });
   const settlements = fundsQuery.data?.settlements ?? [];
   const withdrawals = fundsQuery.data?.withdrawals ?? [];
-  const payouts = fundsQuery.data?.payouts ?? [];
-  const exceptions = fundsQuery.data?.fundExceptions ?? [];
   const settlementPagination = useStableTablePagination(settlements.length, 10, { storageKey: "sprix-admin:funds:settlements:page" });
   if (fundsQuery.isLoading) return <Surface className="p-8">资金数据加载中</Surface>;
   if (fundsQuery.isError) {
@@ -1505,17 +1463,13 @@ export function AdminFundCenter() {
   }
   const sumBy = <T,>(records: T[], pickAmount: (record: T) => number) => records.reduce((sum, record) => sum + pickAmount(record), 0);
   const stats = [
-    ["可提现余额总额", sumBy(withdrawals, (item) => item.withdrawableBalance)],
     ["结算中金额", sumBy(settlements.filter((item) => item.settlementStatus === "结算中"), (item) => item.netIncome)],
-    ["提现审核中金额", sumBy(withdrawals.filter((item) => item.withdrawStatus === "提现审核中"), (item) => item.applyAmount)],
-    ["待打款金额", sumBy(payouts.filter((item) => item.withdrawStatus === "待打款"), (item) => item.payoutAmount)],
-    ["已打款金额", sumBy(withdrawals.filter((item) => item.withdrawStatus === "已提现"), (item) => item.applyAmount)],
-    ["打款失败金额", sumBy(exceptions, (item) => item.exceptionAmount)]
+    ["已打款金额", sumBy(withdrawals.filter((item) => item.withdrawStatus === "已提现"), (item) => item.applyAmount)]
   ];
   return (
     <>
       <PageHeader title="资金管理中心" subtitle="管理结算记录、提现审核、待打款、打款异常和资金流水。" />
-      <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+      <div className="mb-4 grid gap-3 md:grid-cols-2">
         {stats.map(([label, value]) => (
           <MetricCard key={label} title={String(label)} value={currency(Number(value))} icon={<CircleDollarSign size={19} />} />
         ))}
