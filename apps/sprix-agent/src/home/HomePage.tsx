@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { message } from "antd";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import type { Agent, AgentEvaluation } from "../types";
 import { useSprixStore } from "../store/sprixStore";
 import {
@@ -50,6 +50,7 @@ export function HomePage({ openLogin, openContact, onLogout }: HomePageProps) {
   useHomeBootstrap();
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const account = useSprixStore((state) => state.account);
   const agents = useSprixStore((state) => state.agents);
   const localAgent = useSprixStore((state) => state.localAgent);
@@ -66,6 +67,7 @@ export function HomePage({ openLogin, openContact, onLogout }: HomePageProps) {
   const [evaluationLoading, setEvaluationLoading] = useState(false);
   const [evaluationError, setEvaluationError] = useState<string>();
   const shouldOpenConnectModal = Boolean((location.state as { openConnectAgentModal?: boolean } | null)?.openConnectAgentModal);
+  const shouldOpenAgentPicker = searchParams.get("modal") === "agent-picker";
 
   const availableAgents = useMemo(() => agents.filter((agent) => agent.status !== "离线"), [agents]);
 
@@ -194,6 +196,13 @@ export function HomePage({ openLogin, openContact, onLogout }: HomePageProps) {
       navigate(".", { replace: true, state: null });
     }
   }, [navigate, shouldOpenConnectModal]);
+
+  useEffect(() => {
+    if (shouldOpenAgentPicker) {
+      setAgentPickerOpen(true);
+      navigate(".", { replace: true });
+    }
+  }, [navigate, shouldOpenAgentPicker]);
 
   useEffect(() => {
     if (account.isLoggedIn && currentAgent && !connectModalOpen && !shouldOpenConnectModal) {
