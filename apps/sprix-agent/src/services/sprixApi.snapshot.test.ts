@@ -24,6 +24,13 @@ const apiMocks = vi.hoisted(() => ({
   }
 }));
 
+const httpMocks = vi.hoisted(() => ({
+  delete: vi.fn(),
+  get: vi.fn(),
+  patch: vi.fn(),
+  post: vi.fn()
+}));
+
 vi.mock("../apis/sprix", () => ({
   AccountControllerApiFactory: () => apiMocks.account,
   AgentControllerApiFactory: () => apiMocks.agent,
@@ -33,6 +40,11 @@ vi.mock("../apis/sprix", () => ({
   MyTaskControllerApiFactory: () => apiMocks.myTask,
   PlatformControllerApiFactory: () => apiMocks.platform,
   TaskControllerApiFactory: () => apiMocks.task
+}));
+
+vi.mock("../utils/http", () => ({
+  http: httpMocks,
+  isGlobalAuthError: () => false
 }));
 
 import { readAgentSnapshot, readRemoteAgents } from "./sprixApi";
@@ -77,6 +89,7 @@ function mockLoggedInSnapshotDefaults() {
   });
   apiMocks.account.currentWithdrawalAccount.mockResolvedValue(undefined);
   apiMocks.earnings.withdrawable.mockResolvedValue(0);
+  httpMocks.get.mockResolvedValue([]);
 }
 
 describe("readAgentSnapshot", () => {
@@ -250,5 +263,45 @@ describe("readAgentSnapshot", () => {
     expect(snapshot.agents?.[0]?.evaluation?.result.improvements).toEqual([]);
     expect(snapshot.agents?.[0]?.evaluation?.result.steps).toEqual([]);
     expect(snapshot.agents?.[0]?.evaluation?.result.transcript).toEqual([]);
+  });
+
+  it("loads payout records from current user earnings withdrawals", async () => {
+    apiMocks.task.market.mockResolvedValue([]);
+    apiMocks.task.recommendations.mockResolvedValue([]);
+    apiMocks.agent.list1.mockResolvedValue([]);
+    apiMocks.agent.current.mockResolvedValue(undefined);
+    apiMocks.myTask.list.mockResolvedValue([]);
+    httpMocks.get.mockResolvedValue([
+      {
+        id: "withdrawal-1",
+        withdrawalNo: "WD20260701001",
+        userId: "00000000-0000-0000-0000-000000000101",
+        amount: 88.5,
+        alipayAccount: "payee@example.com",
+        realNameMatchStatus: "PASSED",
+        estimatedArrivalTime: "T+1",
+        status: "PAID",
+        reviewer: "平台",
+        appliedAt: "2026-07-01T10:00:00.000+08:00",
+        reviewedAt: "2026-07-01T10:05:00.000+08:00"
+      }
+    ]);
+
+    const snapshot = await readAgentSnapshot();
+
+    expect(httpMocks.get).toHaveBeenCalledWith("/api/v1/earnings/withdrawals");
+    expect(snapshot.payouts).toEqual([
+      {
+        backendId: "withdrawal-1",
+        withdrawalNo: "WD20260701001",
+        userName: "用户-0101",
+        userPhone: "",
+        alipayAccount: "payee@example.com",
+        payoutAmount: 88.5,
+        estimatedArrivalTime: "T+1",
+        approvedAt: "2026-07-01 10:05",
+        withdrawStatus: "已提现"
+      }
+    ]);
   });
 });

@@ -42,6 +42,7 @@ import type {
   LocalAgentInventoryStatus,
   MyTask,
   MyTaskStatus,
+  Payout,
   PlatformOverview,
   SettlementStatus,
   SprixState,
@@ -492,12 +493,13 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
   }
 
   const accountResponse = await accountApi.current1();
-  const [agentsResponse, currentAgentResponse, myTasksResponse, withdrawableResponse, withdrawalAccountResponse] = await Promise.all([
+  const [agentsResponse, currentAgentResponse, myTasksResponse, withdrawableResponse, withdrawalAccountResponse, withdrawalRecordsResponse] = await Promise.all([
     optionalSnapshotRequest<RemoteAgentListResponse | undefined>(() => agentApi.list1(), undefined),
     optionalSnapshotRequest<AgentProfileResponse | undefined>(() => agentApi.current(), undefined),
     optionalSnapshotRequest(() => myTaskApi.list(), []),
     optionalSnapshotRequest<number | undefined>(() => earningsApi.withdrawable(), undefined),
-    optionalSnapshotRequest<WithdrawalAccount | undefined>(() => accountApi.currentWithdrawalAccount(), undefined)
+    optionalSnapshotRequest<WithdrawalAccount | undefined>(() => accountApi.currentWithdrawalAccount(), undefined),
+    optionalSnapshotRequest<WithdrawalRecord[]>(() => readRemoteEarningsWithdrawals(), [])
   ]);
 
   const account = accountResponse;
@@ -509,6 +511,8 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
   const agentById = new Map(agents.map((agent) => [agent.id, agent]));
   const myTasks = listValue<MyTaskExecutionDetail>(myTasksResponse).map((item) => mapMyTask(item, taskById, agentById));
   const withdrawableAmount = withdrawableResponse;
+  const withdrawals = withdrawalRecordsResponse.map(mapRemoteWithdrawal);
+  const payouts = withdrawalRecordsResponse.map(mapRemotePayout);
 
   return {
     tasks,
@@ -518,6 +522,8 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
     currentAgentId: agentsResult.currentAgentId,
     currentAgent,
     myTasks,
+    withdrawals,
+    payouts,
     account: {
       ...(account ? mapAccount(account) : {}),
       ...(withdrawalAccountResponse !== undefined ? mapWithdrawalAccountState(withdrawalAccountResponse) : {}),
@@ -525,6 +531,11 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
       ...(typeof withdrawableAmount === "number" ? { withdrawableAmount } : {})
     }
   };
+}
+
+async function readRemoteEarningsWithdrawals(): Promise<WithdrawalRecord[]> {
+  const response = await http.get<unknown, WithdrawalRecord[]>("/api/v1/earnings/withdrawals");
+  return listValue<WithdrawalRecord>(response);
 }
 
 export async function readPlatformOverview(): Promise<PlatformOverview> {
@@ -751,6 +762,20 @@ export function mapRemoteWithdrawal(record: WithdrawalRecord): Withdrawal {
     appliedAt: formatDateTime(record.appliedAt ?? record.createdAt),
     withdrawStatus: mapWithdrawStatus(record.status),
     reviewer: record.reviewer ?? "-"
+  };
+}
+
+function mapRemotePayout(record: WithdrawalRecord): Payout {
+  return {
+    backendId: record.id,
+    withdrawalNo: record.withdrawalNo ?? record.id ?? "",
+    userName: compactId(record.userId, "用户"),
+    userPhone: "",
+    alipayAccount: record.alipayAccount ?? "-",
+    payoutAmount: record.amount ?? 0,
+    estimatedArrivalTime: record.estimatedArrivalTime ?? "-",
+    approvedAt: formatDateTime(record.payoutCompletedAt ?? record.reviewedAt ?? record.appliedAt ?? record.createdAt),
+    withdrawStatus: mapWithdrawStatus(record.status)
   };
 }
 
