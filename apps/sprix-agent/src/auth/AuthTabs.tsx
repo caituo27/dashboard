@@ -22,11 +22,6 @@ export function AuthTabs({ activeKey, onChange, onAuthenticated }: AuthTabsProps
           children: <QrLoginPanel provider="alipay" active={activeKey === "alipay"} onAuthenticated={onAuthenticated} />
         },
         {
-          key: "wechat",
-          label: "微信扫码登录",
-          children: <QrLoginPanel provider="wechat" active={activeKey === "wechat"} onAuthenticated={onAuthenticated} />
-        },
-        {
           key: "phone",
           label: "手机号验证码",
           children: <SmsLoginPanel active={activeKey === "phone"} onAuthenticated={onAuthenticated} />

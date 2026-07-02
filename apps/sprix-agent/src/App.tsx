@@ -24,7 +24,7 @@ import {
 } from "./user/UserPages";
 import { LocalAgentClaimPage } from "./user/LocalAgentClaimPage";
 import { HomePage } from "./home/HomePage";
-import { AuthCallbackPage, FaceVerificationCallbackPage } from "./auth/AuthCallbackPage";
+import { AuthCallbackPage } from "./auth/AuthCallbackPage";
 import { useRemoteSprixBootstrap } from "./services/useRemoteSprixBootstrap";
 import { logoutConsumer } from "./services/sprixApi";
 import { useSprixStore } from "./store/sprixStore";
@@ -133,7 +133,7 @@ function ConsumerAppRoutes() {
       <RemoteSprixBridge enabled={location.pathname.startsWith("/agent")} />
       <Routes>
         <Route path="/" element={<HomePage openLogin={openLogin} openContact={() => open("contact")} onLogout={handleLogout} />} />
-        <Route path="/auth/callback/alipay/face" element={<FaceVerificationCallbackPage />} />
+        <Route path="/auth/callback/alipay/face" element={<AuthCallbackPage />} />
         <Route path="/auth/callback/:provider" element={<AuthCallbackPage />} />
         <Route path="/local-agent/claim" element={<LocalAgentClaimPage />} />
         <Route

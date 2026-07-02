@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
-import { Navigate, useLocation, useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { buildRemoteAlipayBindCallbackUrl, confirmAlipayLoginCallback, confirmWechatLoginCallback } from "../services/sprixApi";
 
 type CallbackState =
@@ -16,11 +16,6 @@ function getSearchValue(searchParams: URLSearchParams, keys: string[]) {
     if (value?.trim()) return value.trim();
   }
   return "";
-}
-
-export function FaceVerificationCallbackPage() {
-  const location = useLocation();
-  return <Navigate to={`/auth/callback/alipay${location.search}${location.hash}`} replace />;
 }
 
 export function AuthCallbackPage() {
