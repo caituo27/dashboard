@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Form, Input, Modal, message } from "antd";
+import { Form, Input, Modal, Tabs, message } from "antd";
 import { ActionButton } from "./Primitives";
 import { submitRemoteAppeal } from "../services/sprixApi";
 import { showRequestError } from "./requestErrors";
+import { AgreementContent } from "./AgreementContent";
+import { agreementDocuments } from "../content/agreementDocuments";
 
 export { BindAlipayModal } from "./BindAlipayModal";
 export { AuthModal } from "../auth/AuthModal";
@@ -33,25 +35,26 @@ export function useGlobalModalState() {
 
 export function AgreementModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
-    <Modal title="相关协议" open={open} onCancel={onClose} footer={<ActionButton onClick={onClose}>我知道了</ActionButton>}>
-      <div className="space-y-4 text-sm leading-7 text-ink-soft">
-        <section className="rounded-2xl bg-[#fff7e8] px-4 py-3">
-          <h3 className="font-semibold text-ink">正式协议全文待接入</h3>
-          <p>当前仅展示产品流程摘要，正式用户协议、隐私协议和自由职业者服务框架协议全文待法务/后端配置后接入。</p>
-        </section>
-        <section>
-          <h3 className="font-semibold text-ink">《用户协议》</h3>
-          <p>用户应遵守平台任务规则，按页面提示完成接单、交付、申诉和账户管理。</p>
-        </section>
-        <section>
-          <h3 className="font-semibold text-ink">《隐私协议》</h3>
-          <p>平台仅在业务流程中处理必要账户、认证、任务和资金状态信息。</p>
-        </section>
-        <section>
-          <h3 className="font-semibold text-ink">《自由职业者服务框架协议》</h3>
-          <p>用户以自由职业者身份接取任务，确认交付、验收、结算、申诉和自动打款规则。</p>
-        </section>
-      </div>
+    <Modal
+      title="相关协议"
+      open={open}
+      onCancel={onClose}
+      footer={<ActionButton onClick={onClose}>我知道了</ActionButton>}
+      width={640}
+      className="sprix-agreement-modal"
+    >
+      <Tabs
+        className="sprix-agreement-tabs"
+        items={agreementDocuments.map((document) => ({
+          key: document.key,
+          label: document.tabLabel,
+          children: (
+            <div className="sprix-agreement-scroll">
+              <AgreementContent compact markdown={document.markdown} />
+            </div>
+          )
+        }))}
+      />
     </Modal>
   );
 }

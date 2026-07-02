@@ -34,8 +34,10 @@ import {
 } from "../services/sprixApi";
 import { ActionButton, EmptyState, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface } from "../components/Primitives";
 import { AgentEvaluationProgressModal } from "../components/AgentEvaluationProgressModal";
+import { AgreementContent } from "../components/AgreementContent";
 import { compactText, currency, scoreText } from "../utils/format";
 import { isGlobalAuthError } from "../utils/http";
+import { freelancerAgreementDocument } from "../content/agreementDocuments";
 import { getLocalAgentEmptyMessage } from "../home/localAgentInventory";
 import { QrPayloadBox } from "../components/QrSession";
 import { getAgentAbilityResult, getAgentAdmissionSummary, getAgentTagLabels, hasPendingAgentEvaluation } from "./agentResult";
@@ -1524,29 +1526,6 @@ function FaceVerificationModal({
   );
 }
 
-const placeholderAgreementSections = [
-  {
-    title: "一、服务身份",
-    body: "用户以自由职业者身份在 Sprix 平台接取任务，并确认任务执行、交付、验收和结算行为均由本人授权的 Agent 或本人操作完成。"
-  },
-  {
-    title: "二、任务交付与验收",
-    body: "用户应根据任务说明、交付标准和验收标准完成交付。平台可依据任务要求进行自动或人工验收，并展示验收结果。"
-  },
-  {
-    title: "三、收益结算",
-    body: "任务验收通过后，平台按页面展示的任务奖励进入结算流程。提现、打款、实名一致性校验和异常处理以后续平台规则及真实接口结果为准。"
-  },
-  {
-    title: "四、争议与申诉",
-    body: "如用户对验收结果、结算状态或任务处理存在异议，可按平台提供的申诉入口提交说明，平台将根据任务记录和交付证据处理。"
-  },
-  {
-    title: "五、占位说明",
-    body: "当前展示的是协议占位摘要；签署动作已接后端接口，正式协议全文、版本号、签署记录和配置来源将在后端或法务文本完成后替换。"
-  }
-];
-
 function FreelancerAgreementModal({
   open,
   secondsRemaining,
@@ -1572,16 +1551,7 @@ function FreelancerAgreementModal({
       styles={{ body: { maxHeight: "calc(100dvh - 160px)", overflowY: "auto" } }}
     >
       <div className="space-y-4 text-sm leading-7 text-ink-soft">
-        <section className="rounded-2xl bg-[#fff7e8] px-4 py-3">
-          <h3 className="font-semibold text-ink">正式协议全文待接入</h3>
-          <p>以下为占位协议内容。请阅读满 10 秒后签署；签署动作会提交后端，后续将替换为正式协议全文。</p>
-        </section>
-        {placeholderAgreementSections.map((section) => (
-          <section key={section.title} className="rounded-2xl bg-[#fafafa] px-4 py-3">
-            <h3 className="font-semibold text-ink">{section.title}</h3>
-            <p className="mt-1">{section.body}</p>
-          </section>
-        ))}
+        <AgreementContent compact markdown={freelancerAgreementDocument.markdown} />
         <ActionButton
           block
           disabled={!canSign || submitting}

@@ -1588,6 +1588,77 @@ select {
   color: var(--color-accent);
 }
 
+.sprix-agreement-modal .ant-modal-content {
+  max-height: min(680px, calc(100dvh - 72px));
+  display: flex;
+  flex-direction: column;
+}
+
+.sprix-agreement-modal .ant-modal-body {
+  min-height: 0;
+  padding-bottom: 12px;
+}
+
+.sprix-agreement-modal .ant-modal-footer {
+  margin-top: 0;
+  padding-top: 12px;
+}
+
+.sprix-agreement-tabs {
+  min-height: 0;
+}
+
+.sprix-agreement-tabs .ant-tabs-nav {
+  margin-bottom: 10px;
+}
+
+.sprix-agreement-tabs .ant-tabs-content-holder,
+.sprix-agreement-tabs .ant-tabs-content,
+.sprix-agreement-tabs .ant-tabs-tabpane {
+  min-height: 0;
+}
+
+.sprix-agreement-scroll {
+  max-height: min(430px, calc(100dvh - 260px));
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.sprix-agreement-content {
+  display: grid;
+  gap: 14px;
+  color: var(--color-ink-soft);
+  font-size: 14px;
+  line-height: 1.72;
+}
+
+.sprix-agreement-content-compact {
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.62;
+}
+
+.sprix-agreement-content h3 {
+  margin: 0;
+  color: var(--color-ink);
+  font-weight: 700;
+}
+
+.sprix-agreement-content h3[data-level="1"] {
+  font-size: 18px;
+  line-height: 1.45;
+}
+
+.sprix-agreement-content h3:not([data-level="1"]) {
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.sprix-agreement-content p {
+  margin: 0;
+  white-space: pre-line;
+}
+
 .sprix-login-submit-button.ant-btn {
   font-size: 16px;
   font-weight: 700;
@@ -2343,10 +2414,12 @@ select {
   display: grid;
   min-height: 112px;
   align-content: center;
+  justify-items: center;
   border: 1px solid rgba(15, 118, 110, 0.16);
   border-radius: 18px;
   background: rgba(231, 247, 242, 0.72);
   padding: 16px;
+  text-align: center;
 }
 
 .sprix-acceptance-score-card p {
