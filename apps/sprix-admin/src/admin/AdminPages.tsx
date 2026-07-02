@@ -521,7 +521,7 @@ export function AdminTaskCenter() {
                     columns={taskColumns}
                     dataSource={visibleTasks}
                     pagination={taskPagination}
-                    scroll={{ x: 1650, y: scrollY }}
+                    scroll={{ x: 1760, y: scrollY }}
                     rowClassName="cursor-pointer"
                     locale={{ emptyText: "暂无任务" }}
                     onRow={(task) => ({ onClick: () => navigate(`/tasks/${task.id}`) })}
