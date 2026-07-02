@@ -742,7 +742,7 @@ function mapOperationStatus(status?: string) {
     SETTLING: "结算中",
     SETTLED: "已结算",
     COMPLETED: "已完成",
-    POSTED: "已入账",
+    POSTED: "已打款",
     FAILED: "失败",
     PENDING: "待处理",
     PROCESSING: "处理中",
@@ -766,7 +766,8 @@ function mapAppealStatus(status?: string): AppealStatus {
 
 function mapSettlementStatus(status?: string): SettlementStatus {
   if (status === "SETTLING") return "结算中";
-  if (status === "POSTED" || status === "SETTLED") return "已入账";
+  if (status === "SETTLED") return "已结算";
+  if (status === "POSTED") return "已打款";
   if (status === "FAILED") return "结算异常";
   return "未入账";
 }

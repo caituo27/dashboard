@@ -7,7 +7,7 @@ export type AdminExecutionRecordAction = {
 };
 
 const noAppealStatuses = new Set(["无申诉", "未申诉"]);
-const settlementActionStatuses = new Set(["结算中", "已结算", "已入账"]);
+const settlementActionStatuses = new Set(["结算中", "已结算", "已打款"]);
 
 function hasAppealRecord(status?: string) {
   const normalizedStatus = status?.trim();

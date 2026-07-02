@@ -13,7 +13,7 @@ export type AppealStatus =
   | "申诉通过"
   | "申诉不通过"
   | "高风险";
-export type SettlementStatus = "未入账" | "结算中" | "已入账" | "结算异常";
+export type SettlementStatus = "未入账" | "结算中" | "已结算" | "已打款" | "结算异常";
 export type WithdrawStatus =
   | "提现审核中"
   | "待打款"
