@@ -3,7 +3,7 @@ import { Modal, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { rerunRemoteTask } from "../services/sprixApi";
-import { isGlobalAuthError } from "../utils/http";
+import { isGlobalAuthError, localizeApiMessage } from "../utils/http";
 
 export function useRerunTask() {
   const navigate = useNavigate();
@@ -26,7 +26,7 @@ export function useRerunTask() {
             }
           } catch (error) {
             if (isGlobalAuthError(error)) return;
-            message.error(error instanceof Error ? `重新执行失败：${error.message}` : "重新执行失败");
+            message.error(error instanceof Error ? `重新执行失败：${localizeApiMessage(error.message, "重新执行失败")}` : "重新执行失败");
           }
         }
       });

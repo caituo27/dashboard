@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { buildRemoteAlipayBindCallbackUrl, confirmAlipayLoginCallback, confirmWechatLoginCallback } from "../services/sprixApi";
+import { localizeApiMessage } from "../utils/http";
 
 type CallbackState =
   | { kind: "loading" }
@@ -101,7 +102,7 @@ export function AuthCallbackPage() {
 }
 
 function isMissingAlipayLoginSession(error: unknown) {
-  return error instanceof Error && error.message.includes("Alipay login session not found");
+  return error instanceof Error && localizeApiMessage(error.message) === "Alipay 登录会话不存在";
 }
 
 function getCallbackCopy(state: CallbackState, providerLabel: string, isLoading: boolean, isAlipayBindScene: boolean) {

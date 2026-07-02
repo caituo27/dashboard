@@ -1,5 +1,6 @@
 import type { ArtifactSnapshot } from "../apis/sprix";
 import { downloadRemoteMyTaskArtifact } from "../services/sprixApi";
+import { localizeApiMessage } from "../utils/http";
 import { getArtifactTitle } from "./executionDetailView";
 
 const JSON_MIME_TYPE = "application/json";
@@ -42,7 +43,7 @@ async function readApiErrorMessage(blob: Blob): Promise<string | undefined> {
   }
 
   if (!isRecord(parsed) || parsed.success !== false) return undefined;
-  return typeof parsed.message === "string" ? parsed.message : "文件下载失败";
+  return localizeApiMessage(typeof parsed.message === "string" ? parsed.message : undefined, "文件下载失败");
 }
 
 function downloadFilename(artifact: ArtifactSnapshot): string {

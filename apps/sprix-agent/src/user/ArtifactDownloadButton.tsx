@@ -3,6 +3,7 @@ import { message } from "antd";
 import { Download } from "lucide-react";
 import type { ArtifactSnapshot } from "../apis/sprix";
 import { SecondaryButton } from "../components/Primitives";
+import { localizeApiMessage } from "../utils/http";
 import { saveTaskArtifact } from "./artifactDownload";
 
 type ArtifactDownloadButtonProps = {
@@ -20,7 +21,7 @@ export function ArtifactDownloadButton({ executionId, artifact, fileId }: Artifa
       await saveTaskArtifact(executionId, artifact, fileId);
     } catch (error) {
       if (error instanceof Error) {
-        message.error(error.message);
+        message.error(localizeApiMessage(error.message, "文件下载失败"));
         return;
       }
       message.error("文件下载失败");

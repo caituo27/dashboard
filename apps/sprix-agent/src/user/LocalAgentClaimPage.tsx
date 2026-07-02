@@ -3,7 +3,7 @@ import { Button, Result, Spin, message } from "antd";
 import { useSearchParams } from "react-router-dom";
 import { AuthModal } from "../auth/AuthModal";
 import { buildLocalAgentClaimUrl, createLocalAgentEnrollment, hasStoredAuthToken } from "../services/sprixApi";
-import { isGlobalAuthError } from "../utils/http";
+import { isGlobalAuthError, localizeApiMessage } from "../utils/http";
 
 type ClaimStatus = "checking" | "login-required" | "enrolling" | "redirecting" | "invalid" | "failed";
 
@@ -46,7 +46,7 @@ export function LocalAgentClaimPage() {
         setLoginOpen(true);
         return;
       }
-      const messageText = error instanceof Error ? error.message : "本机 Agent 连接失败";
+      const messageText = error instanceof Error ? localizeApiMessage(error.message, "本机 Agent 连接失败") : "本机 Agent 连接失败";
       setErrorMessage(messageText);
       setStatus("failed");
       message.error(messageText);

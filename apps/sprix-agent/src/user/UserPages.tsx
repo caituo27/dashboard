@@ -25,7 +25,7 @@ import {
 import { ActionButton, EmptyState, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface } from "../components/Primitives";
 import { AgentEvaluationProgressModal } from "../components/AgentEvaluationProgressModal";
 import { compactText, currency, scoreText } from "../utils/format";
-import { isGlobalAuthError } from "../utils/http";
+import { isGlobalAuthError, localizeApiMessage } from "../utils/http";
 import { getLocalAgentEmptyMessage } from "../home/localAgentInventory";
 import { QrPayloadBox } from "../components/QrSession";
 import { getAgentAbilityResult, getAgentAdmissionSummary, getAgentTagLabels, hasPendingAgentEvaluation } from "./agentResult";
@@ -73,7 +73,11 @@ const FACE_VERIFICATION_POLL_INTERVAL_MS = 2_000;
 
 function showRequestError(error: unknown, fallback: string, prefix = "") {
   if (isGlobalAuthError(error)) return;
-  message.error(error instanceof Error ? `${prefix}${error.message}` : fallback);
+  message.error(error instanceof Error ? `${prefix}${localizeApiMessage(error.message, fallback)}` : fallback);
+}
+
+function requestErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? localizeApiMessage(error.message, fallback) : fallback;
 }
 
 const agentEvaluationStatusLabels: Record<AgentEvaluation["status"], string> = {
@@ -463,7 +467,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       await refreshAgents(preferredCurrentAgent);
       message.success("已设置当前执行 Agent");
     } catch (error) {
-      if (error instanceof Error && error.message === "Agent evaluation not found") {
+      if (isAgentEvaluationNotFound(error)) {
         message.warning("请先完成该 Agent 测评后再设为当前执行 Agent");
         return;
       }
@@ -526,7 +530,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         message.success("评测已开始");
       }
     } catch (error) {
-      setEvaluationError(error instanceof Error ? error.message : "评测操作失败");
+      setEvaluationError(requestErrorMessage(error, "评测操作失败"));
       showRequestError(error, "评测操作失败", "评测操作失败：");
     } finally {
       setEvaluationLoading(false);
@@ -557,7 +561,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         }
       } catch (error) {
         if (cancelled) return;
-        setEvaluationError(error instanceof Error ? error.message : "评测状态获取失败");
+        setEvaluationError(requestErrorMessage(error, "评测状态获取失败"));
         window.clearInterval(poll);
       }
     }, 1_500);
@@ -651,7 +655,7 @@ function isCompletedAgentEvaluation(evaluation: AgentEvaluation) {
 }
 
 function isAgentEvaluationNotFound(error: unknown) {
-  return error instanceof Error && error.message === "Agent evaluation not found";
+  return error instanceof Error && localizeApiMessage(error.message) === "Agent 测评记录不存在";
 }
 
 function hasReusableEvaluation(evaluation: AgentEvaluation | undefined): evaluation is AgentEvaluation {

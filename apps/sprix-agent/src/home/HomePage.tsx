@@ -11,7 +11,7 @@ import {
   readRemoteAgents,
   startRemoteAgentEvaluation
 } from "../services/sprixApi";
-import { isGlobalAuthError } from "../utils/http";
+import { isGlobalAuthError, localizeApiMessage } from "../utils/http";
 import { AgentEvaluationProgressModal } from "../components/AgentEvaluationProgressModal";
 import { useHomeBootstrap } from "./useHomeBootstrap";
 import { useHomeAgentState } from "./useHomeAgentState";
@@ -36,7 +36,15 @@ function isCompletedAgentEvaluation(evaluation: AgentEvaluation) {
 
 function showHomeRequestError(error: unknown, fallback: string, prefix = "") {
   if (isGlobalAuthError(error)) return;
-  message.error(error instanceof Error ? `${prefix}${error.message}` : fallback);
+  message.error(error instanceof Error ? `${prefix}${localizeApiMessage(error.message, fallback)}` : fallback);
+}
+
+function requestErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? localizeApiMessage(error.message, fallback) : fallback;
+}
+
+function isAgentEvaluationNotFound(error: unknown) {
+  return error instanceof Error && localizeApiMessage(error.message) === "Agent 测评记录不存在";
 }
 
 export function HomePage({ openLogin, onLogout }: HomePageProps) {
@@ -109,7 +117,7 @@ export function HomePage({ openLogin, onLogout }: HomePageProps) {
         try {
           nextEvaluation = await readLatestRemoteAgentEvaluation(agent.id);
         } catch (error) {
-          if (!(error instanceof Error && error.message === "Agent evaluation not found")) {
+          if (!isAgentEvaluationNotFound(error)) {
             throw error;
           }
           nextEvaluation = await startRemoteAgentEvaluation(agent.id);
@@ -125,7 +133,7 @@ export function HomePage({ openLogin, onLogout }: HomePageProps) {
       }
     } catch (error) {
       autoSetCurrentAgentIdRef.current = undefined;
-      setEvaluationError(error instanceof Error ? error.message : "评测操作失败");
+      setEvaluationError(requestErrorMessage(error, "评测操作失败"));
       showHomeRequestError(error, "评测操作失败", "评测操作失败：");
     } finally {
       setEvaluationLoading(false);
@@ -153,7 +161,7 @@ export function HomePage({ openLogin, onLogout }: HomePageProps) {
         }
       } catch (error) {
         if (cancelled) return;
-        setEvaluationError(error instanceof Error ? error.message : "评测状态获取失败");
+        setEvaluationError(requestErrorMessage(error, "评测状态获取失败"));
         window.clearInterval(poll);
       }
     }, 1_500);

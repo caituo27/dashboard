@@ -6,6 +6,7 @@ import { Bot, LogOut, Menu } from "lucide-react";
 import { adminRoutes } from "../navigation";
 import { logoutAdmin } from "../services/sprixApi";
 import { useSprixStore } from "../store/sprixStore";
+import { localizeApiMessage } from "../utils/http";
 
 function Sidebar() {
   const location = useLocation();
@@ -18,7 +19,7 @@ function Sidebar() {
       await logoutAdmin();
       message.success("已退出登录");
     } catch (error) {
-      message.warning(error instanceof Error ? `已清除本地登录状态，服务端退出失败：${error.message}` : "已清除本地登录状态");
+      message.warning(error instanceof Error ? `已清除本地登录状态，服务端退出失败：${localizeApiMessage(error.message)}` : "已清除本地登录状态");
     } finally {
       logout();
       queryClient.clear();
