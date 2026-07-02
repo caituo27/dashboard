@@ -5,16 +5,22 @@ import type { ColumnsType } from "antd/es/table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import {
+  Activity,
+  ArchiveX,
   ArrowLeft,
   Bot,
   CheckCircle2,
   CircleDollarSign,
+  ClipboardCheck,
   ClipboardList,
   Gauge,
   Inbox,
+  MessageSquareWarning,
   RefreshCw,
   Route,
-  ShieldCheck
+  Send,
+  ShieldCheck,
+  UsersRound
 } from "lucide-react";
 import type { AdminAppeal, AdminOperationLog, CompletedExecution, Payout, ReviewingExecution, RunningExecution, Settlement, Task, TerminatedExecution, Withdrawal } from "../types";
 import {
@@ -38,7 +44,7 @@ import {
   type TaskPricingEstimateRequest,
   type UpsertAdminTaskPayload
 } from "../services/sprixApi";
-import { ActionButton, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface, primitiveIcons } from "../components/Primitives";
+import { ActionButton, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface } from "../components/Primitives";
 import { currency } from "../utils/format";
 import { isGlobalAuthError } from "../utils/http";
 import {
@@ -499,11 +505,11 @@ export function AdminTaskCenter() {
       />
       <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         <MetricCard title="全部任务" value={tasks.filter((task) => task.taskStatus !== "已删除").length} icon={<ClipboardList size={19} />} active={tab === "全部"} onClick={() => selectTaskTab("全部")} />
-        <MetricCard title="已发布任务" value={tasks.filter((task) => task.taskStatus === "已发布").length} active={tab === "已发布"} onClick={() => selectTaskTab("已发布")} />
-        <MetricCard title="已下线任务" value={tasks.filter((task) => task.taskStatus === "已下线").length} active={tab === "已下线"} onClick={() => selectTaskTab("已下线")} />
-        <MetricCard title="执行记录" value={executionCount} icon={primitiveIcons.clock} onClick={() => selectTaskTab("全部")} />
-        <MetricCard title="待平台审核" value={reviewCount} icon={<ShieldCheck size={19} />} onClick={() => navigate("/acceptance")} />
-        <MetricCard title="申诉记录" value={appealCount} icon={<ShieldCheck size={19} />} onClick={() => navigate("/appeals")} />
+        <MetricCard title="已发布任务" value={tasks.filter((task) => task.taskStatus === "已发布").length} icon={<Send size={19} />} active={tab === "已发布"} onClick={() => selectTaskTab("已发布")} />
+        <MetricCard title="已下线任务" value={tasks.filter((task) => task.taskStatus === "已下线").length} icon={<ArchiveX size={19} />} active={tab === "已下线"} onClick={() => selectTaskTab("已下线")} />
+        <MetricCard title="执行记录" value={executionCount} icon={<Activity size={19} />} onClick={() => selectTaskTab("全部")} />
+        <MetricCard title="待平台审核" value={reviewCount} icon={<ClipboardCheck size={19} />} onClick={() => navigate("/acceptance")} />
+        <MetricCard title="申诉记录" value={appealCount} icon={<MessageSquareWarning size={19} />} onClick={() => navigate("/appeals")} />
       </div>
       <Surface className="sprix-table-card p-4">
         <Tabs
@@ -565,9 +571,9 @@ export function AdminAcceptanceCenter() {
         subtitle="集中审核 Agent 提交的任务验收结果，确认通过后进入结算和打款流程。"
       />
       <div className="mb-4 grid gap-3 md:grid-cols-3">
-        <MetricCard title="待审核记录" value={acceptanceReviews.length} icon={<ShieldCheck size={19} />} />
+        <MetricCard title="待审核记录" value={acceptanceReviews.length} icon={<ClipboardCheck size={19} />} />
         <MetricCard title="涉及任务" value={taskCount} icon={<ClipboardList size={19} />} />
-        <MetricCard title="执行用户" value={userCount} />
+        <MetricCard title="执行用户" value={userCount} icon={<UsersRound size={19} />} />
       </div>
       <Surface className="sprix-table-card p-4">
         <AcceptanceReviewTable

@@ -53,6 +53,17 @@ const nodeLabels: Record<string, string> = {
   settling: "报酬入账"
 };
 
+const terminationReasonLabels: Record<string, string> = {
+  AGENT_SWITCHED_DURING_EXECUTION: "执行中切换 Agent，任务已终止",
+  agent_switched_during_execution: "执行中切换 Agent，任务已终止",
+  AGENT_DISCONNECTED_DURING_EXECUTION: "执行中 Agent 连接断开，任务已终止",
+  agent_disconnected_during_execution: "执行中 Agent 连接断开，任务已终止",
+  USER_CANCELLED: "用户主动终止任务",
+  user_cancelled: "用户主动终止任务",
+  CANCELLED_BY_USER: "用户主动终止任务",
+  cancelled_by_user: "用户主动终止任务"
+};
+
 export type ExecutionSummary = {
   title: string;
   status: MyTaskStatus;
@@ -79,7 +90,7 @@ export function getExecutionSummary(detail: MyTaskExecutionDetail): ExecutionSum
     reward: currency(detail.task?.reward ?? 0),
     startedAt: formatDateTime(detail.startedAt ?? detail.createdAt),
     completedAt: formatDateTime(detail.completedAt),
-    terminationReason: detail.terminationReason ?? ""
+    terminationReason: getTerminationReasonLabel(detail.terminationReason)
   };
 }
 
@@ -103,6 +114,12 @@ export function getCurrentNodeLabel(node?: string) {
   if (!node) return "-";
   const normalized = node.trim();
   return nodeLabels[normalized] ?? nodeLabels[normalized.toUpperCase()] ?? node;
+}
+
+function getTerminationReasonLabel(reason?: string) {
+  if (!reason?.trim()) return "";
+  const normalized = reason.trim();
+  return terminationReasonLabels[normalized] ?? terminationReasonLabels[normalized.toUpperCase()] ?? normalized;
 }
 
 export function getTaskRequirementRows(detail: MyTaskExecutionDetail) {

@@ -1545,7 +1545,6 @@ function FreelancerAgreementModal({
 
   return (
     <Modal
-      title="自由职业者服务框架协议"
       open={open}
       onCancel={onClose}
       footer={null}
