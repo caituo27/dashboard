@@ -3348,6 +3348,36 @@
         }
       }
     },
+    "/api/v1/earnings/withdrawals": {
+      "get": {
+        "tags": [
+          "earnings-controller"
+        ],
+        "operationId": "withdrawals",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListWithdrawalRecord"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/earnings/withdrawable": {
       "get": {
         "tags": [
@@ -3843,7 +3873,7 @@
         "tags": [
           "admin-funds-controller"
         ],
-        "operationId": "withdrawals",
+        "operationId": "withdrawals_1",
         "responses": {
           "200": {
             "description": "OK",

@@ -1383,7 +1383,7 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
           {qualificationRows.map((row) => (
             <div key={row.label} className="flex items-center justify-between rounded-2xl bg-[#fafafa] px-4 py-3 text-sm">
               <span className="text-ink-soft">{row.label}</span>
-              {row.value === "待后端返回" ? <span className="text-ink-soft">{row.value}</span> : <StatusTag status={row.value} />}
+              {row.variant === "text" || row.value === "待后端返回" ? <span className="text-ink-soft">{row.value}</span> : <StatusTag status={row.value} />}
             </div>
           ))}
         </div>

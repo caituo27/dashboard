@@ -17,6 +17,7 @@ export function createInitialSprixState(): SprixState {
       qualificationStatus: "未开通",
       realPersonVerified: false,
       freelancerAgreementSigned: false,
+      freelancerAgreementSignedAt: "",
       alipayBound: false,
       alipayAccountMasked: "",
       alipayVerifiedName: "",

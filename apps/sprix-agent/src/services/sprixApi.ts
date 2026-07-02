@@ -807,6 +807,7 @@ function mapAccount(account: UserAccount): Partial<SprixState["account"]> {
     qualificationStatus: mapQualificationStatus(account.qualificationStatus),
     realPersonVerified: Boolean(account.realPersonVerified),
     freelancerAgreementSigned: Boolean(account.freelancerAgreementSigned),
+    freelancerAgreementSignedAt: formatDateTime(account.freelancerAgreementSignedAt),
     withdrawableAmount: account.withdrawableAmount ?? 0
   };
 }

@@ -41,6 +41,7 @@ export type Account = {
   qualificationStatus: "未开通" | "已开通" | "已冻结";
   realPersonVerified: boolean;
   freelancerAgreementSigned: boolean;
+  freelancerAgreementSignedAt: string;
   alipayBound: boolean;
   alipayAccountMasked: string;
   alipayVerifiedName: string;

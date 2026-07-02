@@ -4,6 +4,7 @@ import type { FaceVerificationSession } from "../apis/sprix";
 export type QualificationRecordRow = {
   label: string;
   value: string;
+  variant?: "status" | "text";
 };
 
 export type FaceVerificationStartState =
@@ -36,7 +37,7 @@ export function getQualificationRecordRows(account: Account): QualificationRecor
     { label: "接单资格", value: account.qualificationStatus },
     { label: "支付宝人脸核验", value: account.realPersonVerified ? "已完成" : "未完成" },
     { label: "服务协议", value: account.freelancerAgreementSigned ? "已签署" : "未签署" },
-    { label: "签署时间", value: pending }
+    { label: "签署时间", value: account.freelancerAgreementSignedAt || "-", variant: "text" }
   ];
 }
 
