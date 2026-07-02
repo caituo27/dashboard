@@ -52,6 +52,7 @@ import type {
 } from "../types";
 import type { SprixRemoteStatePatch } from "../store/sprixStore";
 import { http, isGlobalAuthError } from "../utils/http";
+import { formatEstimatedArrivalTime } from "./arrivalTime";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/sprix-api";
 const CONFIGURED_LOCAL_AGENT_CLAIM_BASE_URL = import.meta.env.VITE_LOCAL_AGENT_CLAIM_BASE_URL ?? "";
@@ -745,7 +746,7 @@ export function mapRemoteWithdrawal(record: WithdrawalRecord): Withdrawal {
     realNameMatchStatus: record.realNameMatchStatus === "PASSED" ? "可用" : "待授权",
     withdrawableBalance: record.amount ?? 0,
     applyAmount: record.amount ?? 0,
-    estimatedArrivalTime: record.estimatedArrivalTime ?? "-",
+    estimatedArrivalTime: formatEstimatedArrivalTime(record.estimatedArrivalTime),
     appliedAt: formatDateTime(record.appliedAt ?? record.createdAt),
     withdrawStatus: mapWithdrawStatus(record.status),
     reviewer: record.reviewer ?? "-"
@@ -760,7 +761,7 @@ function mapRemotePayout(record: WithdrawalRecord): Payout {
     userPhone: "",
     alipayAccount: record.alipayAccount ?? "-",
     payoutAmount: record.amount ?? 0,
-    estimatedArrivalTime: record.estimatedArrivalTime ?? "-",
+    estimatedArrivalTime: formatEstimatedArrivalTime(record.estimatedArrivalTime),
     approvedAt: formatDateTime(record.payoutCompletedAt ?? record.reviewedAt ?? record.appliedAt ?? record.createdAt),
     withdrawStatus: mapWithdrawStatus(record.status)
   };
