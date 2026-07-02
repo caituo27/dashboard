@@ -92,6 +92,9 @@ function isApiPath(value: string): boolean {
 http.interceptors.request.use((config) => {
   const token = localStorage.getItem("sprix-auth-token");
   if (token) config.headers.token = token;
+  if (config.data instanceof FormData) {
+    config.headers.delete("Content-Type");
+  }
   return config;
 });
 
