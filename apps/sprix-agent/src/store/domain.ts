@@ -33,6 +33,7 @@ export function createInitialSprixState(): SprixState {
     localAgent: undefined,
     currentAgentId: null,
     currentAgent: undefined,
+    smartAcceptEnabled: false,
     tasks: [],
     myTasks: [],
     adminExecutionRecords: {},
@@ -57,6 +58,7 @@ export function logOut(state: SprixState): SprixState {
     localAgent: undefined,
     currentAgentId: null,
     currentAgent: undefined,
+    smartAcceptEnabled: state.smartAcceptEnabled,
     agents: [],
     tasks: state.tasks
   };

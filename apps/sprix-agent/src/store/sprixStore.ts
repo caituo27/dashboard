@@ -9,6 +9,7 @@ export type SprixRemoteStatePatch = Omit<Partial<SprixState>, "account"> & {
 
 type SprixActions = {
   mergeRemoteState: (remoteState: SprixRemoteStatePatch) => void;
+  setSmartAcceptEnabled: (enabled: boolean) => void;
   logout: () => void;
 };
 
@@ -22,6 +23,7 @@ export const useSprixStore = create<SprixState & SprixActions>()(
           ...remoteState,
           account: remoteState.account ? { ...state.account, ...remoteState.account } : state.account
         })),
+      setSmartAcceptEnabled: (enabled) => set({ smartAcceptEnabled: enabled }),
       logout: () => set((state) => logOut(state))
     }),
     {

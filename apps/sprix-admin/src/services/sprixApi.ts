@@ -845,7 +845,7 @@ function mapAcceptanceStatus(status?: string) {
 function mapAcceptanceScore(row: RemoteAcceptanceReviewRow | RemoteAdminExecutionRow) {
   const payload = parseAcceptancePayload(row.acceptancePayload ?? row.acceptance?.acceptancePayload);
   const score = row.acceptanceScore ?? row.score ?? row.acceptance?.score ?? numberFromUnknown(payload?.score);
-  return score == null ? "-" : `${score}/100`;
+  return score == null ? "--/100" : `${score}/100`;
 }
 
 function mapAcceptanceSummary(row: RemoteAcceptanceReviewRow | RemoteAdminExecutionRow) {

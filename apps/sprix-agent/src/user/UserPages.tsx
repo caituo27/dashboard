@@ -1,8 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Form, Input, Modal, Progress, Steps, Tabs, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { Bot, BrainCircuit, ClipboardList, PlugZap, UsersRound } from "lucide-react";
+import {
+  Bot,
+  BrainCircuit,
+  CheckCircle2,
+  ChevronLeft,
+  ClipboardList,
+  FileText,
+  ListChecks,
+  PlugZap,
+  ShieldCheck,
+  UsersRound
+} from "lucide-react";
 import type { FaceVerificationSession } from "../apis/sprix";
 import type { Account, Agent, AgentEvaluation, MyTask, Task } from "../types";
 import { useSprixStore } from "../store/sprixStore";
@@ -19,7 +30,6 @@ import {
   readRemoteAgentEvaluation,
   readRemoteWithdrawalAccountState,
   signRemoteFreelancerAgreement,
-  smartAcceptRemoteTask,
   startRemoteAgentEvaluation
 } from "../services/sprixApi";
 import { ActionButton, EmptyState, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface } from "../components/Primitives";
@@ -37,7 +47,6 @@ import {
   getPayoutRecordState
 } from "./earningsView";
 import { getQualificationRecordRows } from "./qualificationView";
-import { getRecommendationPanelState, getSmartAcceptMessage } from "./recommendationView";
 import { getEstimatedTokenField } from "./tokenEstimateView";
 import {
   getAgreementSignButtonText,
@@ -104,20 +113,11 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
   const tasks = useSprixStore((state) => state.tasks);
   const myTasks = useSprixStore((state) => state.myTasks);
   const account = useSprixStore((state) => state.account);
-  const [smartAccepting, setSmartAccepting] = useState(false);
-  const [smartAcceptMessage, setSmartAcceptMessage] = useState<string>();
   const currentAgent = useSprixStore((state) => state.currentAgent);
+  const smartAcceptEnabled = useSprixStore((state) => state.smartAcceptEnabled);
+  const setSmartAcceptEnabled = useSprixStore((state) => state.setSmartAcceptEnabled);
+  const [smartAcceptModalOpen, setSmartAcceptModalOpen] = useState(false);
   const availableTasks = useMemo(() => tasks.filter((task) => task.taskStatus === "已发布"), [tasks]);
-  const recommendationState = useMemo(
-    () =>
-      getRecommendationPanelState({
-        tasks: availableTasks,
-        currentAgent,
-        isLoggedIn: account.isLoggedIn,
-        smartAcceptMessage
-      }),
-    [account.isLoggedIn, availableTasks, currentAgent, smartAcceptMessage]
-  );
 
   const handleAccept = (task: Task) => {
     const gate = getTaskAcceptGate(account, currentAgent, task);
@@ -163,49 +163,30 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
     });
   };
 
-  const handleSmartAccept = async () => {
-    const bestTask = recommendationState.bestTask ?? availableTasks[0];
-    if (!bestTask) {
-      message.info("暂无可推荐任务");
-      return;
-    }
-    const gate = getTaskAcceptGate(account, currentAgent, bestTask);
-    if (gate.kind === "login") {
+  const openSmartAcceptModal = () => {
+    if (!account.isLoggedIn) {
       openLogin?.();
       return;
     }
-    if (gate.kind === "qualification") {
-      message.warning(gate.message);
-      openQualificationPrompt?.(bestTask.id);
-      return;
-    }
-    if (gate.kind === "current-agent") {
-      message.warning(gate.message);
-      navigate(gate.path);
-      return;
-    }
-    if (gate.kind === "task-unavailable") {
-      message.warning(gate.message);
+    if (!currentAgent) {
+      message.warning("请先设置当前执行 Agent");
+      navigate("/agent/center");
       return;
     }
 
-    setSmartAccepting(true);
-    try {
-      const response = await smartAcceptRemoteTask();
-      const statusMessage = getSmartAcceptMessage(response.accepted, response.message);
-      setSmartAcceptMessage(response.accepted ? "已接单" : "未自动接单");
-      if (response.accepted) {
-        await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
-        message.success(statusMessage);
-        navigate("/agent/my-tasks");
-        return;
-      }
-      message.info(statusMessage);
-    } catch (error) {
-      showRequestError(error, "智能接单失败", "智能接单失败：");
-    } finally {
-      setSmartAccepting(false);
-    }
+    setSmartAcceptModalOpen(true);
+  };
+
+  const enableSmartAccept = () => {
+    setSmartAcceptEnabled(true);
+    setSmartAcceptModalOpen(false);
+    message.success("智能接单已开启");
+  };
+
+  const disableSmartAccept = () => {
+    setSmartAcceptEnabled(false);
+    setSmartAcceptModalOpen(false);
+    message.success("智能接单已关闭");
   };
 
   return (
@@ -214,41 +195,112 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
         eyebrow="任务市场"
         title="可接取任务"
         subtitle="浏览当前可接取的任务，选择适合你的 Agent 执行的工作，并持续跟踪执行进度与收益。"
+        actions={
+          <ActionButton icon={<PlugZap size={16} />} onClick={openSmartAcceptModal}>
+            {smartAcceptEnabled ? "智能接单已开启" : "智能接单"}
+          </ActionButton>
+        }
       />
       <div className="mb-5 grid gap-4 md:grid-cols-3">
         <MetricCard title="已发布任务" value={availableTasks.length || "-"} />
         <MetricCard title="当前执行 Agent" value={currentAgent?.name ?? "-"} icon={<Bot size={19} />} />
         <MetricCard title="我的任务" value={myTasks.length || "-"} icon={<UsersRound size={19} />} />
       </div>
-      <Surface className="mb-5 p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-ink">{recommendationState.title}</h2>
-            <p className="mt-2 text-sm leading-7 text-ink-soft">{recommendationState.description}</p>
-            {recommendationState.bestReason && <p className="mt-2 text-sm leading-7 text-ink-soft">{recommendationState.bestReason}</p>}
-          </div>
-          <div className="flex flex-col gap-3 lg:items-end">
-            <div className="grid min-w-[280px] gap-2 sm:grid-cols-3">
-              {recommendationState.metrics.map((item) => (
-                <div key={item.label} className="rounded-2xl bg-[#fafafa] px-4 py-3 text-sm">
-                  <span className="block text-ink-soft">{item.label}</span>
-                  <b className="text-ink">{item.value}</b>
-                </div>
-              ))}
-            </div>
-            <ActionButton loading={smartAccepting} icon={<PlugZap size={16} />} onClick={handleSmartAccept}>
-              智能接单
-            </ActionButton>
-          </div>
-        </div>
-      </Surface>
       <div className="sprix-grid-auto">
         {availableTasks.map((task) => (
           <TaskCard key={task.id} task={task} onAccept={() => handleAccept(task)} />
         ))}
       </div>
       {availableTasks.length === 0 && <EmptyState title="暂无可接取任务" description="当前暂时没有新的任务，稍后再来查看适合 Agent 执行的工作。" />}
+      <SmartAcceptModal
+        agent={currentAgent}
+        enabled={smartAcceptEnabled}
+        open={smartAcceptModalOpen}
+        onCancel={() => setSmartAcceptModalOpen(false)}
+        onDisable={disableSmartAccept}
+        onEnable={enableSmartAccept}
+      />
     </>
+  );
+}
+
+function SmartAcceptModal({
+  agent,
+  enabled,
+  open,
+  onCancel,
+  onDisable,
+  onEnable
+}: {
+  agent?: Agent;
+  enabled: boolean;
+  open: boolean;
+  onCancel: () => void;
+  onDisable: () => void;
+  onEnable: () => void;
+}) {
+  const agentName = agent?.name ?? "当前 Agent";
+  const agentScore = agent?.score ?? 94;
+
+  return (
+    <Modal
+      title={enabled ? "智能接单已开启" : "开启智能接单"}
+      open={open}
+      onCancel={onCancel}
+      width={620}
+      className="sprix-smart-accept-modal"
+      footer={
+        enabled ? (
+          <div className="sprix-modal-actions">
+            <SecondaryButton onClick={onDisable}>关闭智能接单</SecondaryButton>
+            <ActionButton onClick={onCancel}>我知道了</ActionButton>
+          </div>
+        ) : (
+          <div className="sprix-modal-actions">
+            <SecondaryButton onClick={onCancel}>取消</SecondaryButton>
+            <ActionButton onClick={onEnable}>开启智能接单</ActionButton>
+          </div>
+        )
+      }
+    >
+      <div className="sprix-smart-accept-agent">
+        <div className="sprix-smart-accept-agent-icon">
+          <Bot size={24} />
+        </div>
+        <div className="sprix-smart-accept-agent-copy">
+          <div className="sprix-smart-accept-agent-title">
+            <strong>{agentName}</strong>
+            <span>{enabled ? "智能接单中" : "已连接"}</span>
+          </div>
+          <p>{enabled ? "系统会持续按当前执行 Agent 的能力画像匹配任务。" : "开启后将使用当前执行 Agent 自动判断可接取任务。"}</p>
+        </div>
+      </div>
+      <div className="sprix-smart-accept-metrics">
+        <div>
+          <span>Agent 综合评分</span>
+          <strong>{agentScore}</strong>
+        </div>
+        <div>
+          <span>自动接单阈值</span>
+          <strong>95%</strong>
+        </div>
+        <div>
+          <span>当前状态</span>
+          <strong>{enabled ? "已开启" : "待开启"}</strong>
+        </div>
+      </div>
+      <div className="sprix-smart-accept-copy">
+        <ShieldCheck size={18} />
+        <div>
+          <strong>{enabled ? "已开启智能接单" : "开启后自动接取高匹配任务"}</strong>
+          <p>
+            {enabled
+              ? "系统将持续根据任务与当前执行 Agent 的匹配度判断是否接单。"
+              : "当平台任务与当前执行 Agent 的匹配度达到 95% 及以上时，系统将自动为你接取该任务。"}
+          </p>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -287,7 +339,6 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
   const task = useSprixStore((state) => state.tasks.find((item) => item.id === id));
   const account = useSprixStore((state) => state.account);
   const currentAgent = useSprixStore((state) => state.currentAgent);
-  const executionAgentName = currentAgent?.name;
   const estimatedToken = getEstimatedTokenField();
 
   if (!task) return <EmptyState title="任务不存在" description="当前任务已不可访问" action={<SecondaryButton href="/agent/market">返回任务市场</SecondaryButton>} />;
@@ -332,68 +383,91 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
   };
 
   return (
-    <>
-      <div className="sprix-detail-back-row">
-        <SecondaryButton href="/agent/market">返回任务列表</SecondaryButton>
-      </div>
-      <PageHeader
-        title={task.title}
-        titleClassName="sprix-task-detail-title"
-        subtitle={
-          <>
-            {task.category} · {task.sourceName} · 奖励 <span className="sprix-number-text">{currency(task.reward)}</span>
-          </>
-        }
-      />
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-5">
-          <Surface className="p-6">
-            <div className="flex flex-wrap items-center gap-2">
-              <SoftTag>剩余名额 {task.remainingSlots}/{task.totalSlots}</SoftTag>
-              <SoftTag tone="neutral">{estimatedToken.label}：{estimatedToken.value}</SoftTag>
-            </div>
-          </Surface>
-          <InfoBlock title="详细任务描述" body={task.description} />
-          <InfoBlock title="交付标准" body={task.deliverables} />
-          <InfoBlock title="验收标准" body={task.acceptanceCriteria} />
+    <div className="sprix-task-detail-page">
+      <div className="sprix-task-detail-shell">
+        <div className="sprix-detail-back-row">
+          <SecondaryButton href="/agent/market" icon={<ChevronLeft size={16} />}>
+            返回任务列表
+          </SecondaryButton>
         </div>
-        <aside className="space-y-5">
-          {task.agentMatchScore > 0 && (
-            <Surface className="p-5">
-              <h3 className="text-lg font-semibold">匹配推荐</h3>
-              <div className="mt-4 space-y-3 text-sm text-ink-soft">
-                <p className="inline-flex items-baseline gap-2">匹配度：<b className="text-ink">{task.agentMatchScore}%</b></p>
+
+        <header className="sprix-task-detail-hero">
+          <div className="sprix-hero-kicker">Sprix AI Platform</div>
+          <h1 className="sprix-task-detail-title">{task.title}</h1>
+          <div className="sprix-task-detail-meta">
+            <span>{task.category}</span>
+            <span>奖励 <b>{currency(task.reward)}</b></span>
+            <span className="is-success">剩余名额 {task.remainingSlots}/{task.totalSlots}</span>
+            <span>{estimatedToken.label}: {estimatedToken.value}</span>
+          </div>
+        </header>
+
+        <div className="sprix-task-detail-layout">
+          <main className="sprix-task-detail-main">
+            <InfoBlock icon={<FileText size={18} />} title="详细任务描述" body={task.description} />
+            <InfoBlock icon={<ListChecks size={18} />} title="交付标准" body={task.deliverables} />
+            <InfoBlock icon={<CheckCircle2 size={18} />} title="验收标准" body={task.acceptanceCriteria} />
+          </main>
+
+          <aside className="sprix-task-detail-aside">
+            <Surface className="sprix-task-side-card">
+              <h3>匹配信息</h3>
+              <div className="sprix-task-side-score">
+                <span>系统评估匹配度</span>
+                <b>{task.agentMatchScore > 0 ? `${task.agentMatchScore}%` : "-"}</b>
               </div>
+              <div className="sprix-task-side-divider" />
+              <h3 className="is-muted">来源信息</h3>
+              <InfoRow label="来源平台" value={task.sourceName} />
+              <InfoRow label="任务类型" value={task.sourceType} />
             </Surface>
-          )}
-          <Surface className="p-5">
-            <h3 className="text-lg font-semibold">任务来源信息</h3>
-            <p className="mt-3 text-sm leading-7 text-ink-soft">{task.sourceName}</p>
-            <p className="text-sm text-ink-soft">来源类型：{task.sourceType}</p>
-          </Surface>
-          <Surface className="p-5">
-            <h3 className="text-lg font-semibold">接单确认</h3>
-            <div className="mt-4 space-y-3 text-sm text-ink-soft">
-              <p>当前执行 Agent：<b className="text-ink">{executionAgentName ?? "未设置"}</b></p>
-              <p>当前连接状态：{currentAgent ? "后端已连接" : "未连接"}</p>
-              <p>接单后将立即进入执行中。</p>
-            </div>
-            <ActionButton className="mt-5 w-full" onClick={handleAccept}>
-              接单
-            </ActionButton>
-          </Surface>
-        </aside>
+
+            <Surface className="sprix-task-side-card">
+              <h3>执行与接单</h3>
+              <div className="sprix-task-agent-row">
+                <span>当前 Agent</span>
+                <b>
+                  <Bot size={15} />
+                  {currentAgent?.name ?? "未设置"}
+                </b>
+              </div>
+              <div className="sprix-task-agent-row">
+                <span>连接状态</span>
+                <b className={currentAgent ? "is-online" : "is-offline"}>
+                  <span />
+                  {currentAgent ? "后端已连接" : "未连接"}
+                </b>
+              </div>
+              <ActionButton className="sprix-task-accept-button" onClick={handleAccept}>
+                确认接单
+              </ActionButton>
+              <p className="sprix-task-accept-note">接单后将立即进入执行队列</p>
+            </Surface>
+          </aside>
+        </div>
       </div>
-    </>
+    </div>
   );
 }
 
-function InfoBlock({ title, body }: { title: string; body: string }) {
+function InfoBlock({ icon, title, body }: { icon: ReactNode; title: string; body: string }) {
   return (
-    <Surface className="p-6">
-      <h3 className="text-lg font-semibold text-ink">{title}</h3>
-      <p className="sprix-detail-prose mt-3 text-[15px]">{body}</p>
+    <Surface className="sprix-task-info-card">
+      <h3>
+        <span>{icon}</span>
+        {title}
+      </h3>
+      <p className="sprix-detail-prose">{body}</p>
     </Surface>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="sprix-task-info-row">
+      <span>{label}</span>
+      <b>{value}</b>
+    </div>
   );
 }
 

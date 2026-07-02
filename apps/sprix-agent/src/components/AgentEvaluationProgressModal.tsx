@@ -1,5 +1,6 @@
 import { Modal } from "antd";
 import { Check, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
 import type { Agent, AgentEvaluation } from "../types";
 import { ActionButton, SoftTag } from "./Primitives";
 import { scoreText } from "../utils/format";
@@ -33,15 +34,18 @@ const evaluationSteps = [
   { label: "验证习惯", description: "归纳测试、检查和结果确认习惯。" }
 ];
 
+const lastEvaluationStepIndex = evaluationSteps.length - 1;
+const fakeEvaluationStepIntervalMs = 1_650;
+
 function completedEvaluationStepCount(evaluation: AgentEvaluation | undefined) {
   const steps = evaluation?.steps?.length ? evaluation.steps : evaluation?.result?.steps ?? [];
   return steps.filter((step) => step.status.toLowerCase() === "completed").length;
 }
 
 function activeEvaluationStepIndex(evaluation: AgentEvaluation | undefined, status: AgentEvaluation["status"]) {
-  if (status === "completed" || status === "judging") return evaluationSteps.length - 1;
+  if (status === "completed" || status === "judging") return lastEvaluationStepIndex;
   if (status === "failed") return Math.max(0, completedEvaluationStepCount(evaluation));
-  return Math.min(evaluationSteps.length - 1, Math.max(0, completedEvaluationStepCount(evaluation)));
+  return Math.min(lastEvaluationStepIndex, Math.max(0, completedEvaluationStepCount(evaluation)));
 }
 
 function evaluationStepClass(index: number, activeIndex: number, status: AgentEvaluation["status"]) {
@@ -74,9 +78,43 @@ export function AgentEvaluationProgressModal({
   const isCompleted = status === "completed";
   const hasResultDetails = Boolean(completedResult?.summary) || Boolean(completedResult?.improvements.length);
   const agentName = agent?.name ?? "Agent";
-  const activeStepIndex = activeEvaluationStepIndex(evaluation, status);
-  const activeStep = evaluationSteps[activeStepIndex];
   const isFailed = status === "failed" || result?.status === "failed" || Boolean(error);
+  const serverActiveStepIndex = activeEvaluationStepIndex(evaluation, status);
+  const [displayStepIndex, setDisplayStepIndex] = useState(0);
+  const shouldUseFakeProgress = isActive && !isCompleted && !isFailed;
+  const activeStepIndex = shouldUseFakeProgress ? Math.max(displayStepIndex, serverActiveStepIndex) : serverActiveStepIndex;
+  const activeStep = evaluationSteps[activeStepIndex];
+  const heroClassName = [
+    "sprix-evaluation-step-hero",
+    isActive ? "is-active" : "",
+    isCompleted ? "is-completed" : "",
+    status === "failed" ? "is-error" : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  useEffect(() => {
+    if (!open || !agent) {
+      setDisplayStepIndex(0);
+      return;
+    }
+
+    setDisplayStepIndex((currentStepIndex) => {
+      if (status === "completed" || status === "judging") return lastEvaluationStepIndex;
+      if (status === "failed") return serverActiveStepIndex;
+      return Math.max(currentStepIndex, serverActiveStepIndex);
+    });
+  }, [agent?.id, open, serverActiveStepIndex, status]);
+
+  useEffect(() => {
+    if (!open || !agent || !shouldUseFakeProgress) return undefined;
+
+    const timer = window.setInterval(() => {
+      setDisplayStepIndex((currentStepIndex) => Math.min(lastEvaluationStepIndex, currentStepIndex + 1));
+    }, fakeEvaluationStepIntervalMs);
+
+    return () => window.clearInterval(timer);
+  }, [agent?.id, open, shouldUseFakeProgress]);
 
   return (
     <Modal
@@ -97,7 +135,7 @@ export function AgentEvaluationProgressModal({
       <div className="sprix-evaluation-progress">
         {error && result?.status !== "failed" && <p className="sprix-evaluation-error">生成失败了</p>}
 
-        <div className={`sprix-evaluation-step-hero ${isActive ? "is-active" : ""} ${isCompleted ? "is-completed" : ""} ${status === "failed" ? "is-error" : ""}`}>
+        <div className={heroClassName}>
           <div className="sprix-evaluation-step-core">
             <span />
             {isCompleted ? <Check size={18} /> : <Sparkles size={18} />}

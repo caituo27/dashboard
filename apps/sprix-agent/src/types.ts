@@ -334,6 +334,7 @@ export type SprixState = {
   localAgent?: LocalAgentDiagnostic;
   currentAgentId?: string | null;
   currentAgent?: Agent;
+  smartAcceptEnabled: boolean;
   tasks: Task[];
   myTasks: MyTask[];
   adminExecutionRecords: AdminExecutionRecords;

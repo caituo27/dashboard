@@ -678,8 +678,8 @@ function AcceptanceResultDetail({
       <AdminDetailHeading title={record.taskTitle || "验收详情"} onBack={onBack} />
       <div className="mb-4 grid gap-3 md:grid-cols-4">
         <MetricCard title="验收状态" value={<StatusTag status={record.acceptanceStatus} />} icon={<ShieldCheck size={19} />} />
-        <MetricCard title="验收评分" value={record.acceptanceScore} icon={<Gauge size={19} />} />
-        <MetricCard title="Agent 本次任务评分" value={record.agentScore} icon={<Bot size={19} />} />
+        <MetricCard title="任务验收分" value={record.acceptanceScore} icon={<Gauge size={19} />} />
+        <MetricCard title="执行 Agent" value={<span className="text-lg">{record.agentName}</span>} icon={<Bot size={19} />} />
         <MetricCard title="当前节点" value={<span className="text-lg">{record.currentNode}</span>} icon={<Route size={19} />} />
       </div>
       {reviewActions}
@@ -826,9 +826,8 @@ function AcceptanceReviewTable({
     { title: "执行用户", dataIndex: "userName", width: 130, render: (value) => <EllipsisCell value={value} /> },
     { title: "手机号", dataIndex: "phone", width: 140, render: (value) => <EllipsisCell value={value} /> },
     { title: "执行 Agent", dataIndex: "agentName", width: 160, render: (value) => <EllipsisCell value={value} /> },
-    { title: "Agent 本次任务评分", dataIndex: "agentScore", width: 150 },
     { title: "验收状态", dataIndex: "acceptanceStatus", width: 140, render: (value) => <StatusTag status={value} /> },
-    { title: "验收评分", dataIndex: "acceptanceScore", width: 110 },
+    { title: "任务验收分", dataIndex: "acceptanceScore", width: 110 },
     { title: "验收摘要", dataIndex: "acceptanceSummary", width: 260, render: (value) => <EllipsisCell value={value} /> },
     { title: "问题记录", dataIndex: "acceptanceIssues", width: 280, render: (value) => <EllipsisCell value={value} /> },
     { title: "当前节点", dataIndex: "currentNode", width: 130, render: (value) => <EllipsisCell value={value} /> },
@@ -1256,7 +1255,7 @@ function AdminExecutionRecords({
     { title: "执行用户", dataIndex: "userName", width: 160, render: (value) => <EllipsisCell value={value} /> },
     { title: "手机号", dataIndex: "phone" },
     { title: "执行 Agent", dataIndex: "agentName" },
-    { title: "Agent 本次任务评分", dataIndex: "agentScore" },
+    { title: "Agent 评分", dataIndex: "agentScore" },
     { title: "当前节点", dataIndex: "currentNode", width: 120, render: (value) => <span className="whitespace-nowrap">{value}</span> },
     { title: "当前进度", dataIndex: "progress" },
     { title: "开始时间", dataIndex: "startedAt" }
@@ -1384,7 +1383,7 @@ function showRunningExecutionDetail(record: RunningExecution) {
     ["执行用户", record.userName],
     ["手机号", record.phone],
     ["执行 Agent", record.agentName],
-    ["Agent 本次任务评分", record.agentScore],
+    ["Agent 评分", record.agentScore],
     ["当前节点", record.currentNode],
     ["当前进度", record.progress],
     ["开始时间", record.startedAt]
@@ -1415,7 +1414,7 @@ function showExecutionUserInfo(record: ExecutionUserRecord) {
 function showExecutionAgentInfo(record: ExecutionAgentRecord) {
   showAdminRecordDetail("Agent 信息", [
     ["执行 Agent", record.agentName],
-    ["Agent 本次任务评分", record.agentScore ?? "-"],
+    ["Agent 评分", record.agentScore ?? "-"],
     ["关联执行记录ID", record.executionId ?? "-"]
   ]);
 }
