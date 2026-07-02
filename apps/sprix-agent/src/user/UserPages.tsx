@@ -707,7 +707,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
           return agent.role === "当前执行 Agent" ? (
             <>
               <SecondaryButton disabled>当前执行 Agent</SecondaryButton>
-              {showEvaluationAction && <ActionButton onClick={() => openAgentEvaluation(agent)}>{getAgentEvaluationActionLabel(agent)}</ActionButton>}
+              {showEvaluationAction && <SecondaryButton onClick={() => openAgentEvaluation(agent)}>{getAgentEvaluationActionLabel(agent)}</SecondaryButton>}
               {canRestartEvaluation && <SecondaryButton onClick={() => openAgentEvaluation(agent, { forceStart: true })}>重新评测</SecondaryButton>}
             </>
           ) : (
