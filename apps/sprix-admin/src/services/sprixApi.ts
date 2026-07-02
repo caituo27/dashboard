@@ -208,7 +208,7 @@ type RemoteAdminAppealDetail = {
   deliverables: string;
   acceptanceCriteria: string;
   userName: string;
-  userPhone: string;
+  userPhone?: string | null;
   agentName: string;
   agentScore?: number | null;
   executionStatus?: string;
@@ -581,7 +581,7 @@ function mapAppealDetail(detail: RemoteAdminAppealDetail): AdminAppeal {
     taskTitle: requireText(detail.taskTitle, "taskTitle"),
     taskCategory: requireText(detail.taskCategory, "taskCategory"),
     userName: requireText(detail.userName, "userName"),
-    userPhone: requireText(detail.userPhone, "userPhone"),
+    userPhone: detail.userPhone?.trim() || "-",
     agentName: requireText(detail.agentName, "agentName"),
     issueSummary: reason.slice(0, 32),
     appealReason: reason,
