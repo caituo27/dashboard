@@ -51,7 +51,7 @@ import type {
   Withdrawal
 } from "../types";
 import type { SprixRemoteStatePatch } from "../store/sprixStore";
-import { http, isGlobalAuthError } from "../utils/http";
+import { http, isGlobalAuthError, resolveApiAssetUrl } from "../utils/http";
 import { formatEstimatedArrivalTime } from "./arrivalTime";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/sprix-api";
@@ -788,7 +788,7 @@ function mapAccount(account: UserAccount): Partial<SprixState["account"]> {
   const phoneVerified = accountWithPhone.phoneVerified === true;
   return {
     nickname: account.nickname ?? "",
-    avatarUrl: account.avatarUrl ?? "",
+    avatarUrl: resolveApiAssetUrl(account.avatarUrl),
     phone: account.phone ?? "",
     maskedPhone: phoneVerified ? maskPhone(account.phone) : "",
     phoneVerified,

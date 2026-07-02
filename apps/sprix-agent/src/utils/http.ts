@@ -7,6 +7,8 @@ declare module "axios" {
 }
 
 const DEFAULT_API_BASE_URL = "/sprix-api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL;
+const API_PATH_PREFIX = "/api/";
 
 const ERROR_MESSAGES: Record<number, string> = {
   400: "请求参数错误",
@@ -49,10 +51,43 @@ function requestLogin(message: string) {
 }
 
 export const http = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL,
+  baseURL: API_BASE_URL,
   timeout: 15_000,
   headers: { "Content-Type": "application/json" }
 });
+
+export function resolveApiAssetUrl(value?: string | null): string {
+  const trimmedValue = value?.trim() ?? "";
+  if (!trimmedValue) return "";
+
+  const absoluteApiPath = apiPathFromAbsoluteUrl(trimmedValue);
+  if (absoluteApiPath) return resolveApiPath(absoluteApiPath);
+  if (isApiPath(trimmedValue)) return resolveApiPath(trimmedValue);
+  return trimmedValue;
+}
+
+function apiPathFromAbsoluteUrl(value: string): string {
+  try {
+    const url = new URL(value);
+    if (isApiPath(url.pathname)) {
+      return `${url.pathname}${url.search}${url.hash}`;
+    }
+  } catch (error) {
+    if (error instanceof TypeError) return "";
+    throw error;
+  }
+  return "";
+}
+
+function resolveApiPath(value: string): string {
+  const baseUrl = API_BASE_URL.replace(/\/+$/, "");
+  const path = value.startsWith("/") ? value : `/${value}`;
+  return `${baseUrl}${path}`;
+}
+
+function isApiPath(value: string): boolean {
+  return value.startsWith(API_PATH_PREFIX);
+}
 
 http.interceptors.request.use((config) => {
   const token = localStorage.getItem("sprix-auth-token");

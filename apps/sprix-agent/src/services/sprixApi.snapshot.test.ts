@@ -44,7 +44,8 @@ vi.mock("../apis/sprix", () => ({
 
 vi.mock("../utils/http", () => ({
   http: httpMocks,
-  isGlobalAuthError: () => false
+  isGlobalAuthError: () => false,
+  resolveApiAssetUrl: (value?: string | null) => value?.trim() ?? ""
 }));
 
 import { readAgentSnapshot, readRemoteAgents } from "./sprixApi";
