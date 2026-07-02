@@ -244,19 +244,6 @@ type RemoteAgentEvaluation = {
   updatedAt?: string | null;
 };
 
-const tagText: Record<string, string> = {
-  "software-development": "软件开发",
-  "web-generation": "网页生成",
-  "code-repair": "代码修复",
-  workflow: "流程执行",
-  documents: "文档处理",
-  automation: "自动化办公",
-  search: "信息检索",
-  research: "报告归纳",
-  "fact-checking": "事实校验",
-  "data-processing": "数据处理"
-};
-
 const localAgentInventoryStatuses = new Set<LocalAgentInventoryStatus>([
   "NOT_BOUND",
   "DEVICE_OFFLINE",
@@ -950,7 +937,13 @@ function mapAgent(agent: RemoteAgentProfileResponse): Agent {
 }
 
 function normalizeOptionalAgentEvaluation(evaluation?: RemoteAgentEvaluation | null) {
-  if (!evaluation?.evaluationId) return undefined;
+  if (!evaluation) return undefined;
+  const hasEvaluation =
+    Boolean(evaluation.evaluationId || evaluation.status || evaluation.result?.status || evaluation.summary || evaluation.error) ||
+    evaluation.overallScore != null ||
+    evaluation.result?.overallScore != null ||
+    listValue(evaluation.steps).length > 0;
+  if (!hasEvaluation) return undefined;
   return normalizeAgentEvaluation(evaluation);
 }
 
@@ -986,7 +979,7 @@ function normalizeAgentEvaluation(evaluation: RemoteAgentEvaluation): AgentEvalu
     result: normalizeEvaluationResult(resultPayload, status, steps, transcript),
     startedAt: evaluation.startedAt ?? "",
     completedAt: evaluation.completedAt ?? null,
-    lastEvaluatedAt: evaluation.lastEvaluatedAt ?? null,
+    lastEvaluatedAt: formatDateTime(evaluation.lastEvaluatedAt) || null,
     createdAt: evaluation.createdAt ?? "",
     updatedAt: evaluation.updatedAt ?? ""
   };
@@ -1172,8 +1165,7 @@ function splitTags(tags?: string) {
   return (tags ?? "")
     .split(",")
     .map((tag) => tag.trim())
-    .filter(Boolean)
-    .map((tag) => tagText[tag] ?? tag);
+    .filter(Boolean);
 }
 
 function formatDateTime(value?: string | null) {

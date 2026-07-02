@@ -1470,7 +1470,7 @@ export function AdminAppealCenter() {
   };
   return (
     <>
-      <PageHeader title="申诉处理中心" subtitle="复核验收争议并同步任务状态、结算状态和用户资金记录。" />
+      <PageHeader title="申诉处理中心" subtitle="复核验收争议并同步任务状态、结算状态" />
       <div className="mb-4 grid gap-3 md:grid-cols-2">
         <MetricCard
           title="待处理申诉"
@@ -1500,7 +1500,7 @@ export function AdminAppealCenter() {
                     dataSource={visible}
                     pagination={appealPagination}
                     tableLayout="fixed"
-                    scroll={{ x: 1380, y: scrollY }}
+                    scroll={{ x: 1540, y: scrollY }}
                     columns={[
                       {
                         title: "申诉编号",
@@ -1680,7 +1680,7 @@ export function AdminFundCenter() {
   ];
   return (
     <>
-      <PageHeader title="资金管理中心" subtitle="管理结算记录、提现审核、待打款、打款异常和资金流水。" />
+      <PageHeader title="资金管理中心" subtitle="管理结算记录" />
       <div className="mb-4 grid gap-3 md:grid-cols-2">
         {stats.map(([label, value]) => (
           <MetricCard key={label} title={String(label)} value={currency(Number(value))} icon={<CircleDollarSign size={19} />} />

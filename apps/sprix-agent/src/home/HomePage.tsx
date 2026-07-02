@@ -33,6 +33,10 @@ function isEvaluationTerminal(status: AgentEvaluation["status"]) {
   return status === "completed" || status === "failed";
 }
 
+function isEvaluationActive(status: AgentEvaluation["status"]) {
+  return status === "running" || status === "judging";
+}
+
 function isCompletedAgentEvaluation(evaluation: AgentEvaluation) {
   return evaluation.status === "completed" || evaluation.result?.status === "completed";
 }
@@ -107,23 +111,28 @@ export function HomePage({ openLogin, openContact, onLogout }: HomePageProps) {
     setEvaluationModalOpen(true);
     setEvaluationLoading(true);
     try {
-      let nextEvaluation: AgentEvaluation;
-      if (agent.evaluation && agent.evaluation.status !== "failed") {
+      let nextEvaluation: AgentEvaluation | undefined;
+      let startedEvaluation = false;
+      if (agent.evaluation && isEvaluationActive(agent.evaluation.status)) {
         try {
-          nextEvaluation = await readLatestRemoteAgentEvaluation(agent.id);
+          const latestEvaluation = await readLatestRemoteAgentEvaluation(agent.id);
+          if (isEvaluationActive(latestEvaluation.status)) {
+            nextEvaluation = latestEvaluation;
+          }
         } catch (error) {
           if (!(error instanceof Error && error.message === "Agent evaluation not found")) {
             throw error;
           }
-          nextEvaluation = await startRemoteAgentEvaluation(agent.id);
         }
-      } else {
+      }
+      if (!nextEvaluation) {
+        startedEvaluation = true;
         nextEvaluation = await startRemoteAgentEvaluation(agent.id);
       }
       setEvaluation(nextEvaluation);
       await refreshAgents();
       await markCurrentAfterCompletedEvaluation(agent, nextEvaluation);
-      if (!agent.evaluation || agent.evaluation.status === "failed" || nextEvaluation.status === "running") {
+      if (startedEvaluation && isEvaluationActive(nextEvaluation.status)) {
         message.success("测评已开始");
       }
     } catch (error) {

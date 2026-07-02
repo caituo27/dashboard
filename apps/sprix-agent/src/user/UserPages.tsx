@@ -502,20 +502,27 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
     setEvaluationError(undefined);
     setEvaluationLoading(true);
     try {
-      let latestEvaluation: AgentEvaluation | undefined;
-      try {
-        latestEvaluation = await readLatestRemoteAgentEvaluation(agent.id);
-      } catch (error) {
-        if (!isAgentEvaluationNotFound(error)) {
-          throw error;
+      const shouldReuseRunningEvaluation = !forceStart && agent.evaluation && isEvaluationActive(agent.evaluation.status);
+      let shouldStartEvaluation = false;
+      let nextEvaluation: AgentEvaluation | undefined;
+
+      if (shouldReuseRunningEvaluation) {
+        try {
+          const latestEvaluation = await readLatestRemoteAgentEvaluation(agent.id);
+          if (isEvaluationActive(latestEvaluation.status)) {
+            nextEvaluation = latestEvaluation;
+          }
+        } catch (error) {
+          if (!isAgentEvaluationNotFound(error)) {
+            throw error;
+          }
         }
       }
-      const reusableLatestEvaluation =
-        !forceStart && agent.evaluation && hasReusableEvaluation(latestEvaluation)
-          ? latestEvaluation
-          : undefined;
-      const shouldStartEvaluation = !reusableLatestEvaluation;
-      const nextEvaluation = reusableLatestEvaluation ?? await startRemoteAgentEvaluation(agent.id);
+
+      if (!nextEvaluation) {
+        shouldStartEvaluation = true;
+        nextEvaluation = await startRemoteAgentEvaluation(agent.id);
+      }
       setEvaluation(nextEvaluation);
       if (current?.id === agent.id) {
         setCurrentEvaluation(nextEvaluation);
@@ -652,10 +659,6 @@ function isCompletedAgentEvaluation(evaluation: AgentEvaluation) {
 
 function isAgentEvaluationNotFound(error: unknown) {
   return error instanceof Error && error.message === "Agent evaluation not found";
-}
-
-function hasReusableEvaluation(evaluation: AgentEvaluation | undefined): evaluation is AgentEvaluation {
-  return Boolean(evaluation && evaluation.status !== "failed");
 }
 
 function evaluationDimensions(result: AgentEvaluation["result"]) {
@@ -880,16 +883,17 @@ function AgentList({
         <div className="space-y-3">
           {agents.map((agent) => {
             const completedEvaluation = agent.evaluation?.result?.status === "completed" ? agent.evaluation.result : undefined;
+            const lastEvaluatedAt = agent.evaluation?.lastEvaluatedAt;
             return (
               <div key={agent.id} className="flex flex-col gap-4 rounded-[18px] border border-line bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex gap-4">
                   <div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="sprix-agent-list-title-row">
                       <h4 className="text-lg font-semibold">{agent.name}</h4>
                       {agent.evaluation && <StatusTag status={getAgentEvaluationStatusLabel(agent.evaluation)} />}
                     </div>
                     <p className="mt-1 text-sm text-ink-soft">
-                      {completedEvaluation ? `综合评分：${scoreText(completedEvaluation.overallScore)} · ` : ""}最近评测时间：{agent.lastEvaluatedAt}
+                      {completedEvaluation ? `综合评分：${scoreText(completedEvaluation.overallScore)} · ` : ""}最近评测时间：{lastEvaluatedAt || "-"}
                     </p>
                     {agent.tags.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-2">

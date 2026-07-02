@@ -466,17 +466,17 @@ export interface ApiResponseTaskEntity {
     'message'?: string;
     'data'?: TaskEntity;
 }
-export interface ApiResponseTaskPricingEstimateResponse {
-    'success'?: boolean;
-    'code'?: string;
-    'message'?: string;
-    'data'?: TaskPricingEstimateResponse;
-}
 export interface ApiResponseTaskExecution {
     'success'?: boolean;
     'code'?: string;
     'message'?: string;
     'data'?: TaskExecution;
+}
+export interface ApiResponseTaskPricingEstimateResponse {
+    'success'?: boolean;
+    'code'?: string;
+    'message'?: string;
+    'data'?: TaskPricingEstimateResponse;
 }
 export interface ApiResponseUserAccount {
     'success'?: boolean;
@@ -1114,6 +1114,26 @@ export enum TaskExecutionSettlementStatusEnum {
     Exception = 'EXCEPTION'
 }
 
+export interface TaskPricingEstimateRequest {
+    'title': string;
+    'category': string;
+    'sourceType': string;
+    'description': string;
+    'deliverables': string;
+    'acceptanceCriteria': string;
+    'totalSlots'?: number;
+}
+export interface TaskPricingEstimateResponse {
+    'quoteId'?: string;
+    'estimatedTokens'?: number;
+    'tokensPerUnit'?: number;
+    'unitPriceYuan'?: number;
+    'perParticipantAmount'?: number;
+    'totalAmount'?: number;
+    'model'?: string;
+    'expiresAt'?: string;
+    'summary'?: string;
+}
 export interface TaskRecommendationResponse {
     'task'?: TaskEntity;
     'matchScore'?: number;
@@ -1134,38 +1154,11 @@ export interface TaskSnapshot {
     'deliverables'?: string;
     'acceptanceCriteria'?: string;
     'reward'?: number;
-    'estimatedTokens'?: number;
-    'tokenBillingUnit'?: number;
-    'tokenUnitPrice'?: number;
-    'totalAmount'?: number;
-    'pricingModel'?: string;
-    'pricingQuoteId'?: string;
-    'pricingEstimatedAt'?: string;
     'totalSlots'?: number;
     'remainingSlots'?: number;
     'status'?: string;
     'offlineReason'?: string;
     'publishedAt'?: string;
-}
-export interface TaskPricingEstimateRequest {
-    'title': string;
-    'category': string;
-    'sourceType': string;
-    'description': string;
-    'deliverables': string;
-    'acceptanceCriteria': string;
-    'totalSlots'?: number;
-}
-export interface TaskPricingEstimateResponse {
-    'quoteId'?: string;
-    'estimatedTokens'?: number;
-    'tokensPerUnit'?: number;
-    'unitPriceYuan'?: number;
-    'perParticipantAmount'?: number;
-    'totalAmount'?: number;
-    'model'?: string;
-    'expiresAt'?: string;
-    'summary'?: string;
 }
 export interface TaskStateRequest {
     'reason': string;
@@ -4299,6 +4292,40 @@ export const AdminTaskControllerApiAxiosParamCreator = function (configuration?:
         },
         /**
          * 
+         * @param {TaskPricingEstimateRequest} taskPricingEstimateRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        pricingEstimate: async (taskPricingEstimateRequest: TaskPricingEstimateRequest, options: AxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'taskPricingEstimateRequest' is not null or undefined
+            assertParamExists('pricingEstimate', 'taskPricingEstimateRequest', taskPricingEstimateRequest)
+            const localVarPath = `/api/v1/admin/tasks/pricing-estimates`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(taskPricingEstimateRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @param {string} executionId 
          * @param {AcceptanceReviewRequest} acceptanceReviewRequest 
          * @param {*} [options] Override http request option.
@@ -4560,6 +4587,18 @@ export const AdminTaskControllerApiFp = function(configuration?: Configuration) 
         },
         /**
          * 
+         * @param {TaskPricingEstimateRequest} taskPricingEstimateRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async pricingEstimate(taskPricingEstimateRequest: TaskPricingEstimateRequest, options?: AxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiResponseTaskPricingEstimateResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.pricingEstimate(taskPricingEstimateRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AdminTaskControllerApi.pricingEstimate']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @param {string} executionId 
          * @param {AcceptanceReviewRequest} acceptanceReviewRequest 
          * @param {*} [options] Override http request option.
@@ -4691,6 +4730,15 @@ export const AdminTaskControllerApiFactory = function (configuration?: Configura
         },
         /**
          * 
+         * @param {AdminTaskControllerApiPricingEstimateRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        pricingEstimate(requestParameters: AdminTaskControllerApiPricingEstimateRequest, options?: AxiosRequestConfig): AxiosPromise<ApiResponseTaskPricingEstimateResponse> {
+            return localVarFp.pricingEstimate(requestParameters.taskPricingEstimateRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @param {AdminTaskControllerApiRejectAcceptanceReviewRequest} requestParameters Request parameters.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -4779,6 +4827,13 @@ export interface AdminTaskControllerApiOfflineRequest {
     readonly taskId: string
 
     readonly taskStateRequest: TaskStateRequest
+}
+
+/**
+ * Request parameters for pricingEstimate operation in AdminTaskControllerApi.
+ */
+export interface AdminTaskControllerApiPricingEstimateRequest {
+    readonly taskPricingEstimateRequest: TaskPricingEstimateRequest
 }
 
 /**
@@ -4877,6 +4932,16 @@ export class AdminTaskControllerApi extends BaseAPI {
      */
     public offline(requestParameters: AdminTaskControllerApiOfflineRequest, options?: AxiosRequestConfig) {
         return AdminTaskControllerApiFp(this.configuration).offline(requestParameters.taskId, requestParameters.taskStateRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {AdminTaskControllerApiPricingEstimateRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public pricingEstimate(requestParameters: AdminTaskControllerApiPricingEstimateRequest, options?: AxiosRequestConfig) {
+        return AdminTaskControllerApiFp(this.configuration).pricingEstimate(requestParameters.taskPricingEstimateRequest, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

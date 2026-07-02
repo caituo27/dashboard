@@ -393,6 +393,25 @@ select {
   font-weight: 800;
 }
 
+.sprix-agent-list-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.sprix-agent-list-title-row h4 {
+  margin: 0;
+  line-height: 1.35;
+}
+
+.sprix-agent-list-title-row .ant-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  line-height: 1.2;
+}
+
 .sprix-topbar {
   min-height: 66px;
   display: flex;

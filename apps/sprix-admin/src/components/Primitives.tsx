@@ -7,7 +7,7 @@ export function PageHeader({
   title,
   subtitle,
   actions,
-  eyebrow = "Sprix AI"
+  eyebrow = "Sprix 管理后台"
 }: {
   title: string;
   subtitle?: string;
