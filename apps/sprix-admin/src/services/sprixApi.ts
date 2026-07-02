@@ -480,7 +480,7 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
         userName: row.userName ?? "-",
         phone: row.userPhone ?? "-",
         agentName: row.agentName ?? "-",
-        terminationReason: row.terminationReason ?? "-",
+        terminationReason: mapTerminationReason(row.terminationReason),
         terminatedNode: mapCurrentNode(row.currentNode, row.currentNodeLabel),
         terminatedAt: formatDateTime(row.completedAt ?? row.updatedAt)
       });
@@ -825,6 +825,20 @@ function mapCurrentNode(node?: string, label?: string) {
     QUALITY_CHECKING: "质量检查"
   };
   return normalized ? nodes[normalized] ?? node : "执行中";
+}
+
+function mapTerminationReason(reason?: string) {
+  const trimmedReason = reason?.trim();
+  if (!trimmedReason) return "-";
+
+  const normalized = trimmedReason.replace(/-/g, "_").toUpperCase();
+  const reasons: Record<string, string> = {
+    AGENT_SWITCHED_DURING_EXECUTION: "执行中切换 Agent，任务已终止",
+    AGENT_DISCONNECTED_DURING_EXECUTION: "执行中 Agent 连接断开，任务已终止",
+    USER_CANCELLED: "用户主动终止任务",
+    CANCELLED_BY_USER: "用户主动终止任务"
+  };
+  return reasons[normalized] ?? trimmedReason;
 }
 
 function mapFlowType(type?: string) {
