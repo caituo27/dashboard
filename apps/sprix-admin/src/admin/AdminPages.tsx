@@ -1551,7 +1551,7 @@ export function AdminAppealCenter() {
                       { title: "提交用户", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
                       { title: "用户手机号", dataIndex: "userPhone", width: 130, render: (value) => <EllipsisCell value={value} /> },
                       { title: "执行 Agent", dataIndex: "agentName", width: 140, render: (value) => <EllipsisCell value={value} /> },
-                      { title: "问题摘要", dataIndex: "issueSummary", width: 220, render: (value) => <EllipsisCell value={value} /> },
+                      { title: "申诉原因", dataIndex: "issueSummary", width: 220, render: (value) => <EllipsisCell value={value} /> },
                       { title: "当前状态", dataIndex: "appealStatus", width: 120, render: (value) => <StatusTag status={value} /> },
                       { title: "优先级", dataIndex: "priority", width: 100, render: (value) => <EllipsisCell value={value} /> },
                       { title: "提交时间", dataIndex: "submittedAt", width: 150, render: (value) => <EllipsisCell value={value} /> },
