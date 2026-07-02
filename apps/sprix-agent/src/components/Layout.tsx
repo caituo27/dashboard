@@ -83,7 +83,7 @@ function UserMenu({
   const logout = useSprixStore((state) => state.logout);
   return (
     <div className="sprix-sidebar-user">
-      <div className="flex min-w-0 items-center gap-2">
+      <div className="flex w-full min-w-0 items-center gap-2">
         {account.isLoggedIn ? (
           <Dropdown
             trigger={["click"]}
@@ -92,9 +92,9 @@ function UserMenu({
                 {
                   key: "profile",
                   label: (
-                    <div className="py-1">
-                      <div className="font-semibold text-ink">{account.nickname}</div>
-                      <div className="text-xs text-ink-soft">{account.maskedPhone || "手机号未绑定"}</div>
+                    <div className="max-w-[220px] py-1">
+                      <div className="truncate font-semibold text-ink" title={account.nickname}>{account.nickname}</div>
+                      <div className="truncate text-xs text-ink-soft" title={account.maskedPhone || "手机号未绑定"}>{account.maskedPhone || "手机号未绑定"}</div>
                     </div>
                   ),
                   disabled: true
@@ -130,7 +130,7 @@ function UserMenu({
               ]
             }}
           >
-            <button className="sprix-sidebar-user-button">
+            <button className="sprix-sidebar-user-button" title={account.nickname}>
               <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#e7f7f2] text-accent">
                 {account.avatarUrl ? (
                   <img src={account.avatarUrl} alt="" className="size-full rounded-full object-cover" />
@@ -138,7 +138,7 @@ function UserMenu({
                   <UserRound size={17} />
                 )}
               </span>
-              <span className="truncate">{account.nickname}</span>
+              <span className="min-w-0 flex-1 truncate text-left">{account.nickname}</span>
             </button>
           </Dropdown>
         ) : (
