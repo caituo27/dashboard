@@ -25,7 +25,7 @@ export function AuthModal({ open, onClose, onLoginSuccess }: AuthModalProps) {
     }
     mergeRemoteState(remoteState);
     queryClient.setQueryData(["sprix-agent", "snapshot"], remoteState);
-    message.success("登录 / 注册成功");
+    message.success("成功");
     onClose();
     try {
       onLoginSuccess?.();

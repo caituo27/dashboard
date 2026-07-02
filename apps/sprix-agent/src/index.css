@@ -2017,6 +2017,15 @@ select {
   padding: 13px 14px;
 }
 
+.sprix-task-agent-row.is-current-agent span {
+  flex: 0 0 auto;
+}
+
+.sprix-task-agent-row.is-current-agent b {
+  flex: 1;
+  line-height: 1.35;
+}
+
 .sprix-task-agent-row b.is-online {
   color: #0f9f65;
 }

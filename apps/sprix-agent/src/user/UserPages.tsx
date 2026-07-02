@@ -429,12 +429,9 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
 
             <Surface className="sprix-task-side-card">
               <h3>执行与接单</h3>
-              <div className="sprix-task-agent-row">
+              <div className="sprix-task-agent-row is-current-agent">
                 <span>当前 Agent</span>
-                <b>
-                  <Bot size={15} />
-                  {currentAgent?.name ?? "未设置"}
-                </b>
+                <b>{currentAgent?.name ?? "未设置"}</b>
               </div>
               <div className="sprix-task-agent-row">
                 <span>连接状态</span>
