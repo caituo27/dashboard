@@ -32,7 +32,6 @@ export function BindAlipayModal({ open, onClose, afterBind }: BindAlipayModalPro
   const [session, setSession] = useState<AlipayBindSession>();
   const [status, setStatus] = useState("WAITING");
   const [expiresInSeconds, setExpiresInSeconds] = useState(0);
-  const [rebinding, setRebinding] = useState(false);
 
   useEffect(() => {
     if (open) return;
@@ -41,7 +40,6 @@ export function BindAlipayModal({ open, onClose, afterBind }: BindAlipayModalPro
     setStatus("WAITING");
     setExpiresInSeconds(0);
     setSubmitting(false);
-    setRebinding(false);
   }, [form, open]);
 
   useEffect(() => {
@@ -89,17 +87,9 @@ export function BindAlipayModal({ open, onClose, afterBind }: BindAlipayModalPro
   }, [afterBind, mergeRemoteState, onClose, open, queryClient, session]);
 
   const payoutAccountBound = hasBoundPayoutAccount(account);
-  const showBindForm = !payoutAccountBound || rebinding;
+  const showBindForm = !payoutAccountBound;
   const alipayStatusText = getAlipayStatusText(status, expiresInSeconds, Boolean(session));
   const title = showBindForm ? "绑定收款支付宝" : "收款支付宝绑定信息";
-
-  const startRebinding = () => {
-    form.resetFields();
-    setSession(undefined);
-    setStatus("WAITING");
-    setExpiresInSeconds(0);
-    setRebinding(true);
-  };
 
   return (
     <Modal
@@ -134,7 +124,7 @@ export function BindAlipayModal({ open, onClose, afterBind }: BindAlipayModalPro
           }}
         />
       ) : (
-        <BoundAlipayInfo account={account} onClose={onClose} onRebind={startRebinding} />
+        <BoundAlipayInfo account={account} onClose={onClose} />
       )}
     </Modal>
   );
@@ -142,12 +132,10 @@ export function BindAlipayModal({ open, onClose, afterBind }: BindAlipayModalPro
 
 function BoundAlipayInfo({
   account,
-  onClose,
-  onRebind
+  onClose
 }: {
   account: Account;
   onClose: () => void;
-  onRebind: () => void;
 }) {
   return (
     <div className="space-y-4">
@@ -169,7 +157,6 @@ function BoundAlipayInfo({
         <BoundAlipayInfoRow label="账户状态" value={<StatusTag status={account.withdrawAccountStatus} />} />
       </div>
       <div className="flex flex-wrap justify-end gap-2">
-        <SecondaryButton onClick={onRebind}>重新绑定</SecondaryButton>
         <ActionButton onClick={onClose}>我知道了</ActionButton>
       </div>
     </div>

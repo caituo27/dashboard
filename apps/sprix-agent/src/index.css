@@ -2178,8 +2178,8 @@ select {
 
 .sprix-timeline-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 10px;
   align-items: start;
   min-width: 0;
   border-bottom: 1px solid rgba(238, 238, 238, 0.88);
@@ -2199,7 +2199,7 @@ select {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 6px;
-  min-width: 210px;
+  min-width: 0;
 }
 
 .sprix-timeline-title {

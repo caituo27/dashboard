@@ -746,8 +746,6 @@ function AcceptanceReviewTable({
     { title: "执行用户", dataIndex: "userName", width: 130, render: (value) => <EllipsisCell value={value} /> },
     { title: "手机号", dataIndex: "phone", width: 140, render: (value) => <EllipsisCell value={value} /> },
     { title: "执行 Agent", dataIndex: "agentName", width: 160, render: (value) => <EllipsisCell value={value} /> },
-    ...(!showTask ? [{ title: "第几次执行", dataIndex: "executionIndex", width: 120, render: (value) => (value ? `第 ${value} 次` : "-") }] satisfies ColumnsType<ReviewingExecution> : []),
-    { title: "执行记录ID", dataIndex: "executionId", width: 220, render: (value) => <EllipsisCell value={value ?? "-"} /> },
     { title: "Agent 本次任务评分", dataIndex: "agentScore", width: 150 },
     { title: "验收状态", dataIndex: "acceptanceStatus", width: 140, render: (value) => <StatusTag status={value} /> },
     { title: "验收评分", dataIndex: "acceptanceScore", width: 110 },
@@ -761,7 +759,7 @@ function AcceptanceReviewTable({
       width: 240,
       render: (_, record) => (
         <div className="flex flex-nowrap items-center gap-1 whitespace-nowrap" onClick={(event) => event.stopPropagation()}>
-          {onOpenDetail && <Button size="small" type="link" onClick={() => onOpenDetail(record)}>查看</Button>}
+          {onOpenDetail && <Button size="small" type="link" onClick={() => onOpenDetail(record)}>查看详情</Button>}
           <Button size="small" type="link" onClick={() => onApprove(record)}>通过</Button>
           <Button size="small" type="link" danger onClick={() => onReject(record)}>不通过</Button>
         </div>
@@ -776,7 +774,7 @@ function AcceptanceReviewTable({
       columns={columns}
       pagination={pagination}
       locale={{ emptyText: "暂无待平台审核记录" }}
-      scroll={{ x: showTask ? 2080 : 1800 }}
+      scroll={{ x: showTask ? 1860 : 1460 }}
       rowClassName={onOpenDetail ? "cursor-pointer" : undefined}
       onRow={onOpenDetail ? (record) => ({ onClick: () => onOpenDetail(record) }) : undefined}
     />
@@ -1160,6 +1158,7 @@ function AdminExecutionRecords({
             children: (
               <AcceptanceReviewTable
                 data={records?.reviewing ?? []}
+                onOpenDetail={(record) => navigate(`/acceptance/${encodeURIComponent(record.executionId)}`)}
                 onApprove={approveAcceptanceReview}
                 onReject={rejectAcceptanceReview}
               />
