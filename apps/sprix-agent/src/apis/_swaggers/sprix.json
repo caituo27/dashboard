@@ -7393,6 +7393,10 @@
           "reward": {
             "type": "number"
           },
+          "estimatedTokens": {
+            "type": "integer",
+            "format": "int32"
+          },
           "totalSlots": {
             "type": "integer",
             "format": "int32"

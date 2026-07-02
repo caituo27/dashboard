@@ -1154,6 +1154,7 @@ export interface TaskSnapshot {
     'deliverables'?: string;
     'acceptanceCriteria'?: string;
     'reward'?: number;
+    'estimatedTokens'?: number;
     'totalSlots'?: number;
     'remainingSlots'?: number;
     'status'?: string;
@@ -9566,6 +9567,5 @@ export class WithdrawalControllerApi extends BaseAPI {
         return WithdrawalControllerApiFp(this.configuration).apply(requestParameters.applyWithdrawalRequest, options).then((request) => request(this.axios, this.basePath));
     }
 }
-
 
 

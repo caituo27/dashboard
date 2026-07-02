@@ -120,8 +120,8 @@ export function getQualificationSuccessAction(search: string) {
   };
 }
 
-export function getMyTaskMetaItems(task: Pick<MyTask, "category" | "agentName" | "startedAt" | "reward">) {
-  const tokenField = getEstimatedTokenField();
+export function getMyTaskMetaItems(task: Pick<MyTask, "category" | "agentName" | "startedAt" | "reward" | "estimatedTokens">) {
+  const tokenField = getEstimatedTokenField(task.estimatedTokens);
   return [task.category, task.agentName, task.startedAt, currency(task.reward), `${tokenField.label}：${tokenField.value}`].filter(Boolean);
 }
 

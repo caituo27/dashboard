@@ -305,7 +305,7 @@ function SmartAcceptModal({
 }
 
 function TaskCard({ task, onAccept }: { task: Task; onAccept: () => void }) {
-  const estimatedToken = getEstimatedTokenField();
+  const estimatedToken = getEstimatedTokenField(task.estimatedTokens);
   return (
     <Surface className="flex min-h-[332px] flex-col p-5">
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -339,7 +339,7 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
   const task = useSprixStore((state) => state.tasks.find((item) => item.id === id));
   const account = useSprixStore((state) => state.account);
   const currentAgent = useSprixStore((state) => state.currentAgent);
-  const estimatedToken = getEstimatedTokenField();
+  const estimatedToken = getEstimatedTokenField(task?.estimatedTokens);
 
   if (!task) return <EmptyState title="任务不存在" description="当前任务已不可访问" action={<SecondaryButton href="/agent/market">返回任务市场</SecondaryButton>} />;
 

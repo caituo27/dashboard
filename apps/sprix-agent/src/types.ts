@@ -155,6 +155,7 @@ export type Task = {
   deliverables: string;
   acceptanceCriteria: string;
   reward: number;
+  estimatedTokens: number | null;
   totalSlots: number;
   remainingSlots: number;
   publishedAt: string;
@@ -177,6 +178,7 @@ export type MyTask = {
   title: string;
   category: string;
   reward: number;
+  estimatedTokens: number | null;
   status: MyTaskStatus;
   agentId: string;
   agentName: string;

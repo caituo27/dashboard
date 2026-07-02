@@ -24,6 +24,7 @@ const task: Task = {
   deliverables: "结构化表格",
   acceptanceCriteria: "字段完整",
   reward: 20,
+  estimatedTokens: 2400,
   totalSlots: 2,
   remainingSlots: 1,
   publishedAt: "2026-06-29 10:00",
