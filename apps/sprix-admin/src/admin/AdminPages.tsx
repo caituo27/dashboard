@@ -12,6 +12,7 @@ import {
   ClipboardList,
   Gauge,
   Inbox,
+  RefreshCw,
   Route,
   ShieldCheck
 } from "lucide-react";
