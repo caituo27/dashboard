@@ -69,6 +69,13 @@ export type Task = {
   deliverables: string;
   acceptanceCriteria: string;
   reward: number;
+  estimatedTokens: number;
+  tokenBillingUnit: number;
+  tokenUnitPrice: number;
+  totalAmount: number;
+  pricingModel: string;
+  pricingQuoteId: string;
+  pricingEstimatedAt: string;
   totalSlots: number;
   remainingSlots: number;
   publishedAt: string;

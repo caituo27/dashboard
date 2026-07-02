@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Key, ReactNode } from "react";
 import { Button, Form, Input, InputNumber, Modal, Select, Table, Tabs, Tooltip, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -21,6 +21,7 @@ import {
   approveRemoteAppeal,
   createRemoteAdminTask,
   deleteRemoteAdminTask,
+  estimateRemoteTaskPricing,
   offlineRemoteAdminTask,
   readRemoteAppeals,
   readRemoteAppealDetail,
@@ -32,6 +33,8 @@ import {
   rejectRemoteAppeal,
   republishRemoteAdminTask,
   updateRemoteAdminTask,
+  type TaskPricingEstimate,
+  type TaskPricingEstimateRequest,
   type UpsertAdminTaskPayload
 } from "../services/sprixApi";
 import { ActionButton, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface, primitiveIcons } from "../components/Primitives";
@@ -43,7 +46,6 @@ import {
   type AdminPendingFundAction
 } from "./adminFundView";
 import { getAdminTaskWriteAction, type AdminTaskWriteAction } from "./adminTaskActions";
-import { getAdminEstimatedTokenField } from "./tokenEstimateView";
 
 function getAppealBackendId(record: AdminAppeal) {
   return record.backendId ?? record.appealNo;
@@ -167,7 +169,7 @@ function useStableTablePagination(total: number, pageSize: number, options?: str
 }
 
 const taskCategoryOptions = ["等待产品输入"].map((value) => ({ value, label: value }));
-const taskFormFields = ["title", "category", "sourceType", "description", "deliverables", "acceptanceCriteria", "reward", "totalSlots"] as const;
+const taskFormFields = ["title", "category", "sourceType", "description", "deliverables", "acceptanceCriteria", "totalSlots"] as const;
 const taskTextLimits = {
   title: 30,
   category: 100,
@@ -213,7 +215,6 @@ function buildTaskFormInitialValues(task?: Task): Partial<UpsertAdminTaskPayload
     description: task.description,
     deliverables: task.deliverables,
     acceptanceCriteria: task.acceptanceCriteria,
-    reward: task.reward,
     totalSlots: task.totalSlots
   };
 }
@@ -223,20 +224,46 @@ function normalizeTaskFormValue(value: unknown) {
   return typeof value === "string" ? value.trim() : value;
 }
 
-function normalizeTaskPayload(values: UpsertAdminTaskPayload): UpsertAdminTaskPayload {
+function normalizeTaskPricingRequest(values: UpsertAdminTaskPayload): TaskPricingEstimateRequest {
   return {
-    ...values,
     title: values.title.trim(),
     category: values.category.trim(),
     sourceType: values.sourceType.trim(),
     description: values.description.trim(),
     deliverables: values.deliverables.trim(),
-    acceptanceCriteria: values.acceptanceCriteria.trim()
+    acceptanceCriteria: values.acceptanceCriteria.trim(),
+    totalSlots: values.totalSlots
   };
+}
+
+function normalizeTaskPayload(values: UpsertAdminTaskPayload, pricingEstimate: TaskPricingEstimate | null): UpsertAdminTaskPayload {
+  const payload = normalizeTaskPricingRequest(values);
+  return pricingEstimate ? { ...payload, pricingQuoteId: pricingEstimate.quoteId } : payload;
 }
 
 function hasTaskFormChanges(currentValues: Partial<UpsertAdminTaskPayload>, initialValues: Partial<UpsertAdminTaskPayload>) {
   return taskFormFields.some((field) => normalizeTaskFormValue(currentValues[field]) !== normalizeTaskFormValue(initialValues[field]));
+}
+
+function isFormValidationError(error: unknown) {
+  return typeof error === "object" && error !== null && "errorFields" in error;
+}
+
+function formatTokenCount(value?: number | null) {
+  return value && value > 0 ? value.toLocaleString("zh-CN") : "--";
+}
+
+function formatPricingAmount(value?: number | null) {
+  return value && value > 0 ? currency(value) : "--";
+}
+
+function PricingMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-line bg-[#fafafa] px-4 py-3">
+      <p className="text-sm font-medium text-ink-soft">{label}</p>
+      <p className="mt-2 text-xl font-semibold text-ink">{value}</p>
+    </div>
+  );
 }
 
 export function getPublishTaskConfirmOptions(onConfirm: () => void | Promise<void>) {
@@ -350,7 +377,8 @@ export function AdminTaskCenter() {
         </div>
       )
     },
-    { title: "奖励", dataIndex: "reward", width: 110, render: currency },
+    { title: "人均金额", dataIndex: "reward", width: 110, render: currency },
+    { title: "总金额", dataIndex: "totalAmount", width: 110, render: formatPricingAmount },
     {
       title: "名额",
       width: 110,
@@ -786,21 +814,25 @@ export function AdminTaskForm() {
   const queryClient = useQueryClient();
   const { id: editTaskId } = useParams();
   const [form] = Form.useForm<UpsertAdminTaskPayload>();
+  const [pricingEstimate, setPricingEstimate] = useState<TaskPricingEstimate | null>(null);
+  const [pricingDirty, setPricingDirty] = useState(!editTaskId);
   const editTaskQuery = useQuery({
     queryKey: ["sprix-admin", "task-detail", editTaskId],
     queryFn: () => readRemoteTaskDetail(editTaskId as string),
     enabled: Boolean(editTaskId),
     retry: 1
   });
+  const pricingMutation = useMutation({ mutationFn: estimateRemoteTaskPricing });
   const editTask = editTaskQuery.data?.task;
   const isEdit = Boolean(editTaskId);
-  const estimatedToken = getAdminEstimatedTokenField();
 
   const initialValues = buildTaskFormInitialValues(editTask);
 
   useEffect(() => {
     if (!editTask) return;
     form.setFieldsValue(buildTaskFormInitialValues(editTask));
+    setPricingEstimate(null);
+    setPricingDirty(false);
   }, [editTask, form]);
 
   const writeAction = getAdminTaskWriteAction(isEdit ? "edit" : "publish");
@@ -812,8 +844,24 @@ export function AdminTaskForm() {
         editTaskRecords.terminated.length > 0 ||
         editTaskRecords.completed.length > 0)
   );
+  const pricingRequired = !isEdit || pricingDirty;
+  const displayedTotalAmount = pricingEstimate?.totalAmount ?? (!pricingDirty ? editTask?.totalAmount : undefined);
+  const displayedPerParticipantAmount = pricingEstimate?.perParticipantAmount ?? (!pricingDirty ? editTask?.reward : undefined);
+  const displayedEstimatedTokens = pricingEstimate?.estimatedTokens ?? (!pricingDirty ? editTask?.estimatedTokens : undefined);
+  const estimateTaskPricing = async () => {
+    try {
+      const values = await form.validateFields([...taskFormFields]);
+      const estimate = await pricingMutation.mutateAsync(normalizeTaskPricingRequest(values));
+      setPricingEstimate(estimate);
+      setPricingDirty(false);
+      message.success("智能定价已生成");
+    } catch (error) {
+      if (isFormValidationError(error)) return;
+      showRequestError(error, "智能定价失败", "智能定价失败：");
+    }
+  };
   const submitTask = async (values: UpsertAdminTaskPayload) => {
-    const payload = normalizeTaskPayload(values);
+    const payload = normalizeTaskPayload(values, pricingEstimate);
     try {
       if (isEdit && editTaskId) {
         await updateRemoteAdminTask(editTaskId, payload);
@@ -829,6 +877,10 @@ export function AdminTaskForm() {
     }
   };
   const confirmAndSubmitTask = (values: UpsertAdminTaskPayload) => {
+    if (pricingRequired && !pricingEstimate) {
+      message.warning("请先完成智能定价");
+      return;
+    }
     if (isEdit) {
       if (hasExistingExecutions) {
         Modal.confirm({
@@ -869,13 +921,19 @@ export function AdminTaskForm() {
 
   return (
     <>
-      <PageHeader title={isEdit ? "编辑任务" : "发布新任务"} subtitle="维护任务基础信息、交付要求、验收口径和接单奖励。" />
+      <PageHeader title={isEdit ? "编辑任务" : "发布新任务"} subtitle="维护任务基础信息、交付要求、验收口径和智能定价结果。" />
       <Surface className="p-4">
         <Form
           form={form}
           layout="vertical"
           initialValues={initialValues}
           onFinish={confirmAndSubmitTask}
+          onValuesChange={(changedValues) => {
+            if (!taskFormFields.some((field) => Object.prototype.hasOwnProperty.call(changedValues, field))) return;
+            const currentValues = form.getFieldsValue([...taskFormFields]);
+            setPricingEstimate(null);
+            setPricingDirty(isEdit ? hasTaskFormChanges(currentValues, initialValues) : true);
+          }}
         >
           <div className="grid gap-4 lg:grid-cols-3">
             <Form.Item label="任务名称" name="title" rules={requiredTrimmedTextRules("任务名称", taskTextLimits.title)}>
@@ -900,20 +958,42 @@ export function AdminTaskForm() {
             </Form.Item>
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
-            <Form.Item label="任务奖励" name="reward" rules={integerFieldRules("任务奖励", 999999)}>
-              <InputNumber min={1} max={999999} step={1} precision={0} className="w-full" />
-            </Form.Item>
             <Form.Item label="总名额" name="totalSlots" rules={integerFieldRules("总名额", 9999)}>
               <InputNumber min={1} max={9999} step={1} precision={0} className="w-full" />
             </Form.Item>
           </div>
-          <div className="mb-4 rounded-2xl bg-[#fafafa] p-4 text-sm leading-7 text-ink-soft">
-            <b className="mr-2 text-ink">{estimatedToken.label}：</b>
-            <span>{estimatedToken.value}</span>
-            <p className="mt-1">{estimatedToken.helper}</p>
+          <div className="mb-4 border-t border-line pt-4">
+            <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-base font-semibold text-ink">
+                  <CircleDollarSign size={18} />
+                  <span>智能定价</span>
+                  {pricingRequired && !pricingEstimate ? (
+                    <SoftTag tone="amber">需重新定价</SoftTag>
+                  ) : (
+                    <SoftTag tone="teal">{pricingEstimate ? "报价有效" : "沿用已有报价"}</SoftTag>
+                  )}
+                </div>
+                <p className="mt-1 text-sm text-ink-soft">根据任务内容预测单人执行 Token，并按总名额计算任务总金额。</p>
+              </div>
+              <ActionButton
+                icon={<RefreshCw size={16} />}
+                loading={pricingMutation.isPending}
+                disabled={writeAction.disabled}
+                onClick={estimateTaskPricing}
+              >
+                智能定价
+              </ActionButton>
+            </div>
+            <div className="grid gap-3 lg:grid-cols-3">
+              <PricingMetric label="任务总金额" value={formatPricingAmount(displayedTotalAmount)} />
+              <PricingMetric label="人均金额" value={formatPricingAmount(displayedPerParticipantAmount)} />
+              <PricingMetric label="预计消耗 Token" value={formatTokenCount(displayedEstimatedTokens)} />
+            </div>
+            {pricingEstimate?.summary && <p className="mt-3 text-sm text-ink-soft">{pricingEstimate.summary}</p>}
           </div>
           <div className="flex gap-2">
-            <ActionButton htmlType="submit" disabled={writeAction.disabled}>{writeAction.label}</ActionButton>
+            <ActionButton htmlType="submit" disabled={writeAction.disabled || (pricingRequired && !pricingEstimate)}>{writeAction.label}</ActionButton>
             <SecondaryButton onClick={cancelTaskForm}>
               取消
             </SecondaryButton>
@@ -943,7 +1023,6 @@ export function AdminTaskDetail() {
   const records = taskDetailQuery.data?.records;
   const operationLogs = taskDetailQuery.data?.operationLogs ?? [];
   if (!task) return <Surface className="p-8">任务不存在</Surface>;
-  const estimatedToken = getAdminEstimatedTokenField();
   const taskOverviewStats = [
     ["执行中", records?.running.length ?? 0],
     ["待平台审核", records?.reviewing.length ?? 0],
@@ -975,10 +1054,11 @@ export function AdminTaskDetail() {
           <span><strong>任务分类</strong>{task.category}</span>
           <span><strong>任务来源名称</strong>{task.sourceName}</span>
           <span><strong>任务来源类型</strong>{task.sourceType}</span>
-          <span><strong>任务奖励</strong>{currency(task.reward)}</span>
+          <span><strong>人均金额</strong>{currency(task.reward)}</span>
+          <span><strong>任务总金额</strong>{formatPricingAmount(task.totalAmount)}</span>
           <span><strong>总名额</strong>{task.totalSlots}</span>
           <span><strong>剩余名额</strong>{task.remainingSlots}</span>
-          <span><strong>预计消耗Token</strong>{estimatedToken.value}</span>
+          <span><strong>预计消耗 Token</strong>{formatTokenCount(task.estimatedTokens)}</span>
         </div>
       </Surface>
       <div className="mb-4 grid gap-4 xl:grid-cols-3">

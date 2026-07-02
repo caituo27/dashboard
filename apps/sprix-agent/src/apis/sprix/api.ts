@@ -466,6 +466,12 @@ export interface ApiResponseTaskEntity {
     'message'?: string;
     'data'?: TaskEntity;
 }
+export interface ApiResponseTaskPricingEstimateResponse {
+    'success'?: boolean;
+    'code'?: string;
+    'message'?: string;
+    'data'?: TaskPricingEstimateResponse;
+}
 export interface ApiResponseTaskExecution {
     'success'?: boolean;
     'code'?: string;
@@ -1046,6 +1052,13 @@ export interface TaskEntity {
     'deliverables'?: string;
     'acceptanceCriteria'?: string;
     'reward'?: number;
+    'estimatedTokens'?: number;
+    'tokenBillingUnit'?: number;
+    'tokenUnitPrice'?: number;
+    'totalAmount'?: number;
+    'pricingModel'?: string;
+    'pricingQuoteId'?: string;
+    'pricingEstimatedAt'?: string;
     'totalSlots'?: number;
     'remainingSlots'?: number;
     'status'?: TaskEntityStatusEnum;
@@ -1121,11 +1134,38 @@ export interface TaskSnapshot {
     'deliverables'?: string;
     'acceptanceCriteria'?: string;
     'reward'?: number;
+    'estimatedTokens'?: number;
+    'tokenBillingUnit'?: number;
+    'tokenUnitPrice'?: number;
+    'totalAmount'?: number;
+    'pricingModel'?: string;
+    'pricingQuoteId'?: string;
+    'pricingEstimatedAt'?: string;
     'totalSlots'?: number;
     'remainingSlots'?: number;
     'status'?: string;
     'offlineReason'?: string;
     'publishedAt'?: string;
+}
+export interface TaskPricingEstimateRequest {
+    'title': string;
+    'category': string;
+    'sourceType': string;
+    'description': string;
+    'deliverables': string;
+    'acceptanceCriteria': string;
+    'totalSlots'?: number;
+}
+export interface TaskPricingEstimateResponse {
+    'quoteId'?: string;
+    'estimatedTokens'?: number;
+    'tokensPerUnit'?: number;
+    'unitPriceYuan'?: number;
+    'perParticipantAmount'?: number;
+    'totalAmount'?: number;
+    'model'?: string;
+    'expiresAt'?: string;
+    'summary'?: string;
 }
 export interface TaskStateRequest {
     'reason': string;
@@ -1161,8 +1201,8 @@ export interface UpsertTaskRequest {
     'description': string;
     'deliverables': string;
     'acceptanceCriteria': string;
-    'reward': number;
     'totalSlots'?: number;
+    'pricingQuoteId'?: string;
 }
 export interface UserAccount {
     'id'?: string;

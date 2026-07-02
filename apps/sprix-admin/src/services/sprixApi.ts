@@ -49,8 +49,22 @@ export type UpsertAdminTaskPayload = {
   description: string;
   deliverables: string;
   acceptanceCriteria: string;
-  reward: number;
   totalSlots: number;
+  pricingQuoteId?: string;
+};
+
+export type TaskPricingEstimateRequest = Omit<UpsertAdminTaskPayload, "pricingQuoteId">;
+
+export type TaskPricingEstimate = {
+  quoteId: string;
+  estimatedTokens: number;
+  tokensPerUnit: number;
+  unitPriceYuan: number;
+  perParticipantAmount: number;
+  totalAmount: number;
+  model: string;
+  expiresAt: string;
+  summary: string;
 };
 
 export type AdminTaskCenterSnapshot = {
@@ -74,8 +88,18 @@ export type AdminFundsSnapshot = {
   fundFlows: FundFlow[];
 };
 
+type RemoteTaskEntity = TaskEntity & {
+  estimatedTokens?: number | null;
+  tokenBillingUnit?: number | null;
+  tokenUnitPrice?: number | null;
+  totalAmount?: number | null;
+  pricingModel?: string | null;
+  pricingQuoteId?: string | null;
+  pricingEstimatedAt?: string | null;
+};
+
 type RemoteAdminTaskDetail = {
-  task: TaskEntity;
+  task: RemoteTaskEntity;
   executions: RemoteAdminExecutionRow[];
   operationLogs?: RemoteAuditLog[];
 };
@@ -94,7 +118,7 @@ type RemoteAuditLog = {
 };
 
 type RemoteAdminTaskSummary = {
-  task: TaskEntity;
+  task: RemoteTaskEntity;
   executionTotal?: number;
   runningExecutionCount?: number;
   reviewingExecutionCount?: number;
@@ -230,13 +254,18 @@ export async function readRemoteTaskDetail(taskId: string): Promise<AdminTaskDet
 }
 
 export async function createRemoteAdminTask(payload: UpsertAdminTaskPayload): Promise<Task> {
-  const task = await adminTaskApi.create({ upsertTaskRequest: payload });
+  const task = await http.post<UpsertAdminTaskPayload, RemoteTaskEntity>("/api/v1/admin/tasks", payload);
   return mapTask(requireValue(task, "任务发布失败"));
 }
 
 export async function updateRemoteAdminTask(taskId: string, payload: UpsertAdminTaskPayload): Promise<Task> {
-  const task = await adminTaskApi.update({ taskId, upsertTaskRequest: payload });
+  const task = await http.put<UpsertAdminTaskPayload, RemoteTaskEntity>(`/api/v1/admin/tasks/${taskId}`, payload);
   return mapTask(requireValue(task, "任务保存失败"));
+}
+
+export async function estimateRemoteTaskPricing(payload: TaskPricingEstimateRequest): Promise<TaskPricingEstimate> {
+  const estimate = await http.post<TaskPricingEstimateRequest, TaskPricingEstimate>("/api/v1/admin/tasks/pricing-estimates", payload);
+  return requireValue(estimate, "智能定价失败");
 }
 
 export async function offlineRemoteAdminTask(taskId: string, reason: string): Promise<Task> {
@@ -385,7 +414,7 @@ function listValue<T>(value: T[] | undefined): T[] {
   return value ?? [];
 }
 
-function mapTask(task: TaskEntity): Task {
+function mapTask(task: RemoteTaskEntity): Task {
   const description = task.description ?? "";
   return {
     id: task.id ?? "",
@@ -398,6 +427,13 @@ function mapTask(task: TaskEntity): Task {
     deliverables: task.deliverables ?? "",
     acceptanceCriteria: task.acceptanceCriteria ?? "",
     reward: task.reward ?? 0,
+    estimatedTokens: numberValue(task.estimatedTokens),
+    tokenBillingUnit: numberValue(task.tokenBillingUnit),
+    tokenUnitPrice: numberValue(task.tokenUnitPrice),
+    totalAmount: numberValue(task.totalAmount),
+    pricingModel: task.pricingModel ?? "",
+    pricingQuoteId: task.pricingQuoteId ?? "",
+    pricingEstimatedAt: formatDateTime(task.pricingEstimatedAt),
     totalSlots: task.totalSlots ?? 0,
     remainingSlots: task.remainingSlots ?? 0,
     publishedAt: formatDateTime(task.publishedAt ?? task.createdAt),

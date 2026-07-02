@@ -9,7 +9,8 @@ import type { AdminTaskDetailView } from "../services/sprixApi";
 const serviceMocks = vi.hoisted(() => ({
   readRemoteTaskDetail: vi.fn(),
   createRemoteAdminTask: vi.fn(),
-  updateRemoteAdminTask: vi.fn()
+  updateRemoteAdminTask: vi.fn(),
+  estimateRemoteTaskPricing: vi.fn()
 }));
 
 vi.mock("../services/sprixApi", async (importOriginal) => {
@@ -18,7 +19,8 @@ vi.mock("../services/sprixApi", async (importOriginal) => {
     ...actual,
     readRemoteTaskDetail: serviceMocks.readRemoteTaskDetail,
     createRemoteAdminTask: serviceMocks.createRemoteAdminTask,
-    updateRemoteAdminTask: serviceMocks.updateRemoteAdminTask
+    updateRemoteAdminTask: serviceMocks.updateRemoteAdminTask,
+    estimateRemoteTaskPricing: serviceMocks.estimateRemoteTaskPricing
   };
 });
 
@@ -56,6 +58,13 @@ function taskDetail(): AdminTaskDetailView {
       deliverables: "原始交付",
       acceptanceCriteria: "原始验收",
       reward: 100,
+      estimatedTokens: 2000,
+      tokenBillingUnit: 1000,
+      tokenUnitPrice: 1,
+      totalAmount: 200,
+      pricingModel: "deepseek-v4-flash",
+      pricingQuoteId: "quote-1",
+      pricingEstimatedAt: "2026-06-30",
       totalSlots: 2,
       remainingSlots: 2,
       publishedAt: "2026-06-30",
@@ -103,6 +112,17 @@ describe("AdminTaskForm cancel confirmation", () => {
     serviceMocks.readRemoteTaskDetail.mockResolvedValue(taskDetail());
     serviceMocks.createRemoteAdminTask.mockResolvedValue({});
     serviceMocks.updateRemoteAdminTask.mockResolvedValue({});
+    serviceMocks.estimateRemoteTaskPricing.mockResolvedValue({
+      quoteId: "quote-new",
+      estimatedTokens: 2500,
+      tokensPerUnit: 1000,
+      unitPriceYuan: 1,
+      perParticipantAmount: 3,
+      totalAmount: 6,
+      model: "deepseek-v4-flash",
+      expiresAt: "2026-07-01T00:30:00+08:00",
+      summary: "预计需要多轮执行"
+    });
     vi.spyOn(Modal, "confirm").mockReturnValue({ destroy: vi.fn(), update: vi.fn() });
   });
 
@@ -136,19 +156,39 @@ describe("AdminTaskForm cancel confirmation", () => {
     expect(screen.queryByText("task-center")).toBeNull();
   });
 
-  it("rejects decimal reward and total slots values", async () => {
+  it("rejects decimal total slots values", async () => {
     renderTaskForm("/tasks/task-1/edit");
 
     expect(await screen.findByRole("button", { name: /保\s*存/ })).toBeTruthy();
 
-    const rewardInput = await screen.findByDisplayValue("100");
     const totalSlotsInput = await screen.findByDisplayValue("2");
-    fireEvent.change(rewardInput, { target: { value: "100.5" } });
     fireEvent.change(totalSlotsInput, { target: { value: "2.5" } });
     fireEvent.click(screen.getByRole("button", { name: /保\s*存/ }));
 
-    expect(await screen.findByText("任务奖励不能输入小数")).toBeTruthy();
-    expect(await screen.findByText("总名额不能输入小数")).toBeTruthy();
+    expect(await screen.findByText("总名额必须是整数")).toBeTruthy();
     expect(serviceMocks.updateRemoteAdminTask).not.toHaveBeenCalled();
+  });
+
+  it("submits a new task only after smart pricing returns a quote", async () => {
+    renderTaskForm("/tasks/new");
+
+    fireEvent.change(screen.getByLabelText("任务名称"), { target: { value: "新任务" } });
+    fireEvent.mouseDown(screen.getByLabelText("任务类型"));
+    fireEvent.click(await screen.findByText("等待产品输入"));
+    fireEvent.change(screen.getByLabelText("任务来源类型"), { target: { value: "平台" } });
+    fireEvent.change(screen.getByLabelText("详细任务描述"), { target: { value: "整理一批客户反馈" } });
+    fireEvent.change(screen.getByLabelText("交付标准"), { target: { value: "结构化表格" } });
+    fireEvent.change(screen.getByLabelText("验收标准"), { target: { value: "字段完整" } });
+    fireEvent.change(screen.getByLabelText("总名额"), { target: { value: "2" } });
+
+    expect((screen.getByRole("button", { name: /发\s*布/ }) as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: /智能定价/ }));
+
+    await waitFor(() => expect(serviceMocks.estimateRemoteTaskPricing).toHaveBeenCalled());
+    expect(await screen.findByText("¥6")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /发\s*布/ }));
+
+    expect(Modal.confirm).toHaveBeenCalledWith(expect.objectContaining({ title: "确认发布任务？" }));
   });
 });
