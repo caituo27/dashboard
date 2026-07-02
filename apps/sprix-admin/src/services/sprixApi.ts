@@ -88,6 +88,10 @@ export type AdminFundsSnapshot = {
   fundFlows: FundFlow[];
 };
 
+type AppealReviewRequest = {
+  reason?: string;
+};
+
 type RemoteTaskEntity = TaskEntity & {
   estimatedTokens?: number | null;
   tokenBillingUnit?: number | null;
@@ -316,12 +320,12 @@ export async function startRemoteAppeal(appealId: string) {
   return adminAppealApi.start({ appealId });
 }
 
-export async function approveRemoteAppeal(appealId: string) {
-  return adminAppealApi.approve({ appealId });
+export async function approveRemoteAppeal(appealId: string, reason?: string) {
+  return http.post<AppealReviewRequest, AppealRecord>(`/api/v1/admin/appeals/${encodeURIComponent(appealId)}/approve`, reviewReasonPayload(reason));
 }
 
-export async function rejectRemoteAppeal(appealId: string) {
-  return adminAppealApi.reject({ appealId });
+export async function rejectRemoteAppeal(appealId: string, reason?: string) {
+  return http.post<AppealReviewRequest, AppealRecord>(`/api/v1/admin/appeals/${encodeURIComponent(appealId)}/reject`, reviewReasonPayload(reason));
 }
 
 export async function readRemoteAppealDetail(appealId: string): Promise<AdminAppeal> {
@@ -595,6 +599,11 @@ function mapAppealDetail(detail: RemoteAdminAppealDetail): AdminAppeal {
     acceptanceCriteria: requireText(detail.acceptanceCriteria, "acceptanceCriteria"),
     processLogs: appeal.resultDescription ? [appeal.resultDescription] : []
   };
+}
+
+function reviewReasonPayload(reason?: string): AppealReviewRequest {
+  const trimmedReason = reason?.trim();
+  return trimmedReason ? { reason: trimmedReason } : {};
 }
 
 function mapSettlement(settlement: RemoteSettlementRecord, taskById: Map<string, Task>): Settlement {

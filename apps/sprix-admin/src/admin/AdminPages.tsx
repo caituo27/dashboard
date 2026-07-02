@@ -1588,6 +1588,10 @@ export function AdminAppealDetail() {
     enabled: Boolean(id),
     retry: 1
   });
+  const [reviewReason, setReviewReason] = useState("");
+  useEffect(() => {
+    setReviewReason("");
+  }, [id]);
   if (!id) return <Surface className="p-8">申诉详情参数缺失</Surface>;
   if (appealDetailQuery.isLoading) return <Surface className="p-8">申诉详情加载中</Surface>;
   if (appealDetailQuery.isError) {
@@ -1630,7 +1634,13 @@ export function AdminAppealDetail() {
         {canReviewAppeal && (
           <Surface className="p-4">
             <h3 className="sprix-section-title">平台复核区</h3>
-            <Input.TextArea rows={8} className="mt-4" placeholder="填写处理说明" />
+            <Input.TextArea
+              rows={8}
+              className="mt-4"
+              value={reviewReason}
+              onChange={(event) => setReviewReason(event.target.value)}
+              placeholder="填写处理说明"
+            />
             <div className="mt-5 flex flex-wrap gap-2">
               <ActionButton
                 onClick={() =>
@@ -1640,7 +1650,7 @@ export function AdminAppealDetail() {
                     okText: "申诉通过",
                     onOk: async () => {
                       try {
-                        await approveRemoteAppeal(getAppealBackendId(appeal));
+                        await approveRemoteAppeal(getAppealBackendId(appeal), reviewReason);
                         await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
                         message.success("申诉已通过，任务已进入结算中");
                         navigate("/appeals");
@@ -1661,7 +1671,7 @@ export function AdminAppealDetail() {
                     okText: "申诉不通过",
                     onOk: async () => {
                       try {
-                        await rejectRemoteAppeal(getAppealBackendId(appeal));
+                        await rejectRemoteAppeal(getAppealBackendId(appeal), reviewReason);
                         await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
                         message.success("已处理为申诉不通过");
                         navigate("/appeals");
