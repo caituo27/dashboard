@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Button, Form, Input, message } from "antd";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { authenticateAdmin } from "../services/sprixApi";
-import { localizeApiMessage } from "../utils/http";
 
 type LoginValues = {
   account: string;
@@ -40,7 +39,7 @@ export function AdminLoginPage() {
       message.success("登录成功");
       navigate(redirect, { replace: true });
     } catch (error) {
-      message.error(error instanceof Error ? localizeApiMessage(error.message, "登录失败") : "登录失败");
+      message.error(error instanceof Error ? error.message : "登录失败");
     } finally {
       setSubmitting(false);
     }

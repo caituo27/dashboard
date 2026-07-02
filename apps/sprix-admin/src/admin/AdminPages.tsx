@@ -40,7 +40,7 @@ import {
 } from "../services/sprixApi";
 import { ActionButton, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface, primitiveIcons } from "../components/Primitives";
 import { currency } from "../utils/format";
-import { isGlobalAuthError, localizeApiMessage } from "../utils/http";
+import { isGlobalAuthError } from "../utils/http";
 import {
   getAdminPayoutBatchActions,
   getAdminWithdrawalBatchActions,
@@ -54,11 +54,7 @@ function getAppealBackendId(record: AdminAppeal) {
 
 function showRequestError(error: unknown, fallback: string, prefix = "") {
   if (isGlobalAuthError(error)) return;
-  message.error(error instanceof Error ? `${prefix}${localizeApiMessage(error.message, fallback)}` : fallback);
-}
-
-function requestErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? localizeApiMessage(error.message, fallback) : fallback;
+  message.error(error instanceof Error ? `${prefix}${error.message}` : fallback);
 }
 
 const taskDetailNoAppealStatuses = new Set(["无申诉", "未申诉"]);
@@ -352,7 +348,7 @@ export function AdminTaskCenter() {
   });
   if (taskCenterQuery.isLoading) return <Surface className="p-8">任务数据加载中</Surface>;
   if (taskCenterQuery.isError) {
-    const messageText = requestErrorMessage(taskCenterQuery.error, "任务数据加载失败");
+    const messageText = taskCenterQuery.error instanceof Error ? taskCenterQuery.error.message : "任务数据加载失败";
     return <Surface className="p-8">任务数据加载失败：{messageText}</Surface>;
   }
   const executionCount = tasks.reduce((sum, task) => sum + (task.executionTotal ?? 0), 0);
@@ -527,7 +523,7 @@ export function AdminAcceptanceCenter() {
 
   if (acceptanceQuery.isLoading) return <Surface className="p-8">平台验收中心数据加载中</Surface>;
   if (acceptanceQuery.isError) {
-    const messageText = requestErrorMessage(acceptanceQuery.error, "平台验收中心数据加载失败");
+    const messageText = acceptanceQuery.error instanceof Error ? acceptanceQuery.error.message : "平台验收中心数据加载失败";
     return <Surface className="p-8">平台验收中心数据加载失败：{messageText}</Surface>;
   }
 
@@ -578,7 +574,7 @@ export function AdminAcceptanceDetail() {
   if (!executionId) return <Surface className="p-8">验收详情参数缺失</Surface>;
   if (acceptanceQuery.isLoading) return <Surface className="p-8">验收详情加载中</Surface>;
   if (acceptanceQuery.isError) {
-    const messageText = requestErrorMessage(acceptanceQuery.error, "验收详情加载失败");
+    const messageText = acceptanceQuery.error instanceof Error ? acceptanceQuery.error.message : "验收详情加载失败";
     return <Surface className="p-8">验收详情加载失败：{messageText}</Surface>;
   }
 
@@ -631,7 +627,7 @@ export function AdminTaskExecutionResultDetail() {
   if (!taskId || !executionId) return <Surface className="p-8">结果详情参数缺失</Surface>;
   if (taskDetailQuery.isLoading) return <Surface className="p-8">结果详情加载中</Surface>;
   if (taskDetailQuery.isError) {
-    const messageText = requestErrorMessage(taskDetailQuery.error, "结果详情加载失败");
+    const messageText = taskDetailQuery.error instanceof Error ? taskDetailQuery.error.message : "结果详情加载失败";
     return <Surface className="p-8">结果详情加载失败：{messageText}</Surface>;
   }
 
@@ -726,7 +722,7 @@ function useAcceptanceReviewActions(afterAction: () => Promise<unknown>) {
           await afterAction();
           message.success("平台审核已通过，已发起直接打款");
         } catch (error) {
-          message.error(error instanceof Error ? `审核通过失败：${localizeApiMessage(error.message, "审核通过失败")}` : "审核通过失败");
+          message.error(error instanceof Error ? `审核通过失败：${error.message}` : "审核通过失败");
         }
       }
     });
@@ -744,7 +740,7 @@ function useAcceptanceReviewActions(afterAction: () => Promise<unknown>) {
           await afterAction();
           message.success("已处理为平台审核不通过");
         } catch (error) {
-          message.error(error instanceof Error ? `审核驳回失败：${localizeApiMessage(error.message, "审核驳回失败")}` : "审核驳回失败");
+          message.error(error instanceof Error ? `审核驳回失败：${error.message}` : "审核驳回失败");
         }
       }
     });
@@ -974,7 +970,7 @@ export function AdminTaskForm() {
 
   if (editTaskId && editTaskQuery.isLoading) return <Surface className="p-8">任务详情加载中</Surface>;
   if (editTaskQuery.isError) {
-    const messageText = requestErrorMessage(editTaskQuery.error, "任务详情加载失败");
+    const messageText = editTaskQuery.error instanceof Error ? editTaskQuery.error.message : "任务详情加载失败";
     return <Surface className="p-8">任务详情加载失败：{messageText}</Surface>;
   }
   if (editTaskId && !editTask) return <Surface className="p-8">任务不存在</Surface>;
@@ -1076,7 +1072,7 @@ export function AdminTaskDetail() {
   if (!id) return <Surface className="p-8">任务详情参数缺失</Surface>;
   if (taskDetailQuery.isLoading) return <Surface className="p-8">任务详情加载中</Surface>;
   if (taskDetailQuery.isError) {
-    const messageText = requestErrorMessage(taskDetailQuery.error, "任务详情加载失败");
+    const messageText = taskDetailQuery.error instanceof Error ? taskDetailQuery.error.message : "任务详情加载失败";
     return <Surface className="p-8">任务详情加载失败：{messageText}</Surface>;
   }
   const task = taskDetailQuery.data?.task;
@@ -1220,7 +1216,7 @@ function AdminExecutionRecords({
           await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
           message.success("平台审核已通过，已发起直接打款");
         } catch (error) {
-          message.error(error instanceof Error ? `审核通过失败：${localizeApiMessage(error.message, "审核通过失败")}` : "审核通过失败");
+          message.error(error instanceof Error ? `审核通过失败：${error.message}` : "审核通过失败");
         }
       }
     });
@@ -1238,7 +1234,7 @@ function AdminExecutionRecords({
           await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
           message.success("已处理为平台审核不通过");
         } catch (error) {
-          message.error(error instanceof Error ? `审核驳回失败：${localizeApiMessage(error.message, "审核驳回失败")}` : "审核驳回失败");
+          message.error(error instanceof Error ? `审核驳回失败：${error.message}` : "审核驳回失败");
         }
       }
     });
@@ -1465,7 +1461,7 @@ export function AdminAppealCenter() {
   });
   if (appealsQuery.isLoading) return <Surface className="p-8">申诉数据加载中</Surface>;
   if (appealsQuery.isError) {
-    const messageText = requestErrorMessage(appealsQuery.error, "申诉数据加载失败");
+    const messageText = appealsQuery.error instanceof Error ? appealsQuery.error.message : "申诉数据加载失败";
     return <Surface className="p-8">申诉数据加载失败：{messageText}</Surface>;
   }
   const stats = {
@@ -1571,7 +1567,7 @@ export function AdminAppealDetail() {
   if (!id) return <Surface className="p-8">申诉详情参数缺失</Surface>;
   if (appealDetailQuery.isLoading) return <Surface className="p-8">申诉详情加载中</Surface>;
   if (appealDetailQuery.isError) {
-    const messageText = requestErrorMessage(appealDetailQuery.error, "申诉详情加载失败");
+    const messageText = appealDetailQuery.error instanceof Error ? appealDetailQuery.error.message : "申诉详情加载失败";
     return <Surface className="p-8">申诉详情加载失败：{messageText}</Surface>;
   }
   const appeal = appealDetailQuery.data;
@@ -1676,7 +1672,7 @@ export function AdminFundCenter() {
   const settlementPagination = useStableTablePagination(settlements.length, tablePageSize, { storageKey: "sprix-admin:funds:settlements:page" });
   if (fundsQuery.isLoading) return <Surface className="p-8">资金数据加载中</Surface>;
   if (fundsQuery.isError) {
-    const messageText = requestErrorMessage(fundsQuery.error, "资金数据加载失败");
+    const messageText = fundsQuery.error instanceof Error ? fundsQuery.error.message : "资金数据加载失败";
     return <Surface className="p-8">资金数据加载失败：{messageText}</Surface>;
   }
   const sumBy = <T,>(records: T[], pickAmount: (record: T) => number) => records.reduce((sum, record) => sum + pickAmount(record), 0);
