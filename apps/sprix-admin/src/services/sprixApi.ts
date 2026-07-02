@@ -522,7 +522,7 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
         score: row.agentScore == null ? "-" : `${row.agentScore}/100`,
         currentNode: mapCurrentNode(row.currentNode, row.currentNodeLabel),
         progress: row.progress ?? "-",
-        appealStatus: row.executionStatus === "ACCEPTANCE_FAILED" ? mapAppealStatus(row.appealStatus) : "无申诉",
+        appealStatus: ["", "NOT_APPEALED", "NONE"].includes(row.appealStatus?.trim().toUpperCase() ?? "") ? "无申诉" : mapAppealStatus(row.appealStatus),
         settlementStatus: mapSettlementStatus(row.settlementStatus),
         completedAt: formatDateTime(row.completedAt ?? row.updatedAt)
       });
@@ -876,7 +876,7 @@ function mapAcceptanceIssues(row: RemoteAcceptanceReviewRow | RemoteAdminExecuti
 function parseAcceptancePayload(payload?: string) {
   if (!payload?.trim()) return undefined;
   try {
-    const parsed = JSON.parse(payload) as unknown;
+    const parsed: unknown = JSON.parse(payload);
     return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : undefined;
   } catch {
     return undefined;
@@ -895,10 +895,10 @@ function parseTextList(value: unknown): string[] {
   return text ? [text] : [];
 }
 
-function parseJsonText(text: string) {
+function parseJsonText(text: string): unknown {
   if (!text || !["[", "{"].includes(text.charAt(0))) return undefined;
   try {
-    return JSON.parse(text) as unknown;
+    return JSON.parse(text);
   } catch {
     return undefined;
   }
