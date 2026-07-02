@@ -11,18 +11,22 @@ type MarkdownBlock =
 
 export function AgreementContent({
   markdown,
-  compact = false
+  compact = false,
+  hideFirstHeading = false
 }: {
   markdown: string;
   compact?: boolean;
+  hideFirstHeading?: boolean;
 }) {
   const className = compact
     ? "sprix-agreement-content sprix-agreement-content-compact"
     : "sprix-agreement-content";
+  const blocks = parseAgreementMarkdown(markdown);
+  const visibleBlocks = hideFirstHeading && blocks[0]?.type === "heading" && blocks[0].level === 1 ? blocks.slice(1) : blocks;
 
   return (
     <article className={className}>
-      {parseAgreementMarkdown(markdown).map((block, index) => (
+      {visibleBlocks.map((block, index) => (
         <AgreementBlock key={`${block.type}-${index}`} block={block} />
       ))}
     </article>

@@ -18,7 +18,7 @@ export function AgreementCheck({ agreed, onChange }: AgreementCheckProps) {
       className: "sprix-agreement-modal",
       content: (
         <div className="sprix-agreement-scroll">
-          <AgreementContent compact markdown={document.markdown} />
+          <AgreementContent compact hideFirstHeading markdown={document.markdown} />
         </div>
       )
     });
