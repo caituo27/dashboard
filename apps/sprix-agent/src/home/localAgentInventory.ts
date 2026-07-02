@@ -26,8 +26,8 @@ export function getLocalAgentEmptyMessage(localAgent?: LocalAgentDiagnostic) {
 }
 
 export function getLocalAgentPrimaryActionLabel(localAgent?: LocalAgentDiagnostic) {
-  if (shouldPollLocalAgentInventory(localAgent?.inventoryStatus)) return "检测中";
-  if (localAgent?.inventoryStatus === "DEVICE_OFFLINE") return "重新检测本地客户端";
+  if (shouldPollLocalAgentInventory(localAgent?.inventoryStatus)) return "下载本地 Agent";
+  if (localAgent?.inventoryStatus === "DEVICE_OFFLINE") return "下载本地 Agent";
   if (localAgent?.inventoryStatus === "NO_AVAILABLE_AGENT") return "安装可用 CLI";
   return "连接本地 Agent";
 }

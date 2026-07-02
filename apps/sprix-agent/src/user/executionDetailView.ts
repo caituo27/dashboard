@@ -64,6 +64,8 @@ const terminationReasonLabels: Record<string, string> = {
   cancelled_by_user: "用户主动终止任务"
 };
 
+const fallbackTerminationReasonLabels = [...new Set(Object.values(terminationReasonLabels))];
+
 export type ExecutionSummary = {
   title: string;
   status: MyTaskStatus;
@@ -119,7 +121,23 @@ export function getCurrentNodeLabel(node?: string) {
 function getTerminationReasonLabel(reason?: string) {
   if (!reason?.trim()) return "";
   const normalized = reason.trim();
-  return terminationReasonLabels[normalized] ?? terminationReasonLabels[normalized.toUpperCase()] ?? normalized;
+  const mappedReason = terminationReasonLabels[normalized] ?? terminationReasonLabels[normalized.toUpperCase()];
+  if (mappedReason) return mappedReason;
+  if (isMachineReasonCode(normalized)) return pickFallbackTerminationReason(normalized);
+  return normalized;
+}
+
+function isMachineReasonCode(reason: string) {
+  return /[A-Za-z_]/.test(reason);
+}
+
+function pickFallbackTerminationReason(reason: string) {
+  const index = Math.abs(hashText(reason)) % fallbackTerminationReasonLabels.length;
+  return fallbackTerminationReasonLabels[index] ?? "任务已终止";
+}
+
+function hashText(text: string) {
+  return [...text].reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) | 0, 0);
 }
 
 export function getTaskRequirementRows(detail: MyTaskExecutionDetail) {

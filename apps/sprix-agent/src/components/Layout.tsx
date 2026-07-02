@@ -16,14 +16,12 @@ function Sidebar({
   onOpenLogin,
   onOpenAccount,
   onOpenAgreements,
-  onOpenContact,
-  onReconnectLocalAgent
+  onOpenContact
 }: {
   onOpenLogin: () => void;
   onOpenAccount: () => void;
   onOpenAgreements: () => void;
   onOpenContact: () => void;
-  onReconnectLocalAgent: () => void;
 }) {
   const location = useLocation();
   return (
@@ -65,7 +63,6 @@ function Sidebar({
         onOpenAccount={onOpenAccount}
         onOpenAgreements={onOpenAgreements}
         onOpenContact={onOpenContact}
-        onReconnectLocalAgent={onReconnectLocalAgent}
       />
     </aside>
   );
@@ -75,14 +72,12 @@ function UserMenu({
   onOpenLogin,
   onOpenAccount,
   onOpenAgreements,
-  onOpenContact,
-  onReconnectLocalAgent
+  onOpenContact
 }: {
   onOpenLogin: () => void;
   onOpenAccount: () => void;
   onOpenAgreements: () => void;
   onOpenContact: () => void;
-  onReconnectLocalAgent: () => void;
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -114,7 +109,6 @@ function UserMenu({
                 { key: "account", label: "账户信息", onClick: onOpenAccount },
                 { key: "agreements", label: "相关协议", onClick: onOpenAgreements },
                 { key: "contact", label: "联系我们", onClick: onOpenContact },
-                { key: "reconnectLocalAgent", label: "重新检测", onClick: onReconnectLocalAgent },
                 {
                   key: "clientUpdate",
                   label: (
@@ -166,8 +160,7 @@ export function UserShell({
   onOpenLogin,
   onOpenAccount,
   onOpenAgreements,
-  onOpenContact,
-  onReconnectLocalAgent
+  onOpenContact
 }: {
   title: string;
   children: ReactNode;
@@ -175,7 +168,6 @@ export function UserShell({
   onOpenAccount: () => void;
   onOpenAgreements: () => void;
   onOpenContact: () => void;
-  onReconnectLocalAgent: () => void;
 }) {
   return (
     <div className="sprix-shell">
@@ -184,7 +176,6 @@ export function UserShell({
         onOpenAccount={onOpenAccount}
         onOpenAgreements={onOpenAgreements}
         onOpenContact={onOpenContact}
-        onReconnectLocalAgent={onReconnectLocalAgent}
       />
       <main className="sprix-main">
         <div className="sprix-container">

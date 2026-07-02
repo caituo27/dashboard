@@ -1,9 +1,7 @@
 import { Modal } from "antd";
-import { Download, PlugZap, RefreshCw } from "lucide-react";
+import { Download, PlugZap } from "lucide-react";
 import { LOCAL_AGENT_DOWNLOAD_URL } from "../localAgentDownload";
 import { ActionButton, SecondaryButton } from "../components/Primitives";
-import { useAgentBindPolling } from "./useAgentBindPolling";
-import { getLocalAgentEmptyMessage } from "./localAgentInventory";
 import type { HomeAgentStateResult } from "./homeTypes";
 
 type HomeAgentEntryProps = {
@@ -25,9 +23,6 @@ export function HomeAgentEntry({
   onOpenAgentPicker,
   onEnterMarket
 }: HomeAgentEntryProps) {
-  const bindPolling = useAgentBindPolling({ open: connectModalOpen, localAgent: state.localAgent });
-  const localAgentMessage = getLocalAgentEmptyMessage(state.localAgent);
-
   const handlePrimaryAction = () => {
     if (state.state === "guest") {
       onOpenLogin();
@@ -55,11 +50,8 @@ export function HomeAgentEntry({
         <div className="sprix-connect-agent-modal">
           <div className="sprix-hero-kicker">Sprix AI</div>
           <h2>连接本地 Agent</h2>
-          <p>{bindPolling.recognizing ? "正在检测本机 Agent，请稍候。" : localAgentMessage}</p>
+          <p>未检测到本地 Agent，请重新下载。</p>
           <div className="sprix-hero-actions">
-            <ActionButton icon={<RefreshCw size={16} />} loading={bindPolling.recognizing} onClick={() => void bindPolling.start({ announceCompletion: true, minimumVisibleMs: 700 })}>
-              {bindPolling.recognizing ? "检测中" : "我已安装，重新检测"}
-            </ActionButton>
             <SecondaryButton href={LOCAL_AGENT_DOWNLOAD_URL} target="_blank" rel="noreferrer" icon={<Download size={16} />}>
               下载安装包
             </SecondaryButton>
