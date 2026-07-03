@@ -1,8 +1,10 @@
+import { useEffect } from "react";
 import { Modal } from "antd";
 import { Download, PlugZap } from "lucide-react";
 import { LOCAL_AGENT_CLI_MODE_URL, LOCAL_AGENT_DOWNLOAD_URL } from "../localAgentDownload";
 import { ActionButton } from "../components/Primitives";
 import type { HomeAgentStateResult } from "./homeTypes";
+import { useAgentBindPolling } from "./useAgentBindPolling";
 
 type HomeAgentEntryProps = {
   state: HomeAgentStateResult;
@@ -23,6 +25,25 @@ export function HomeAgentEntry({
   onOpenAgentPicker,
   onEnterMarket
 }: HomeAgentEntryProps) {
+  const { start } = useAgentBindPolling({ open: connectModalOpen, localAgent: state.localAgent });
+
+  useEffect(() => {
+    if (!connectModalOpen) return;
+    start({ announceCompletion: true, minimumVisibleMs: 800 });
+  }, [connectModalOpen, start]);
+
+  useEffect(() => {
+    if (!connectModalOpen) return;
+    if (state.state === "logged_in_with_agents_without_current") {
+      onCloseConnectModal();
+      onOpenAgentPicker();
+      return;
+    }
+    if (state.state === "logged_in_with_current_agent") {
+      onCloseConnectModal();
+    }
+  }, [connectModalOpen, onCloseConnectModal, onOpenAgentPicker, state.state]);
+
   const handlePrimaryAction = () => {
     if (state.state === "guest") {
       onOpenLogin();

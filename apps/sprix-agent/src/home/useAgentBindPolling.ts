@@ -4,7 +4,6 @@ import { readRemoteAgents } from "../services/sprixApi";
 import { useSprixStore } from "../store/sprixStore";
 import { showRequestError } from "../components/requestErrors";
 import type { LocalAgentDiagnostic } from "../types";
-import { shouldPollLocalAgentInventory } from "./localAgentInventory";
 
 type UseAgentBindPollingOptions = {
   open: boolean;
@@ -16,26 +15,41 @@ type AgentBindPollingStartOptions = {
   minimumVisibleMs?: number;
 };
 
+const FAST_POLLING_INTERVAL_MS = 5000;
+const SLOW_POLLING_INTERVAL_MS = 15_000;
+const SLOW_POLLING_AFTER_MS = 60_000;
+
 export function useAgentBindPolling({ open }: UseAgentBindPollingOptions) {
   const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
   const [recognizing, setRecognizing] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
+  const elapsedMsRef = useRef(0);
   const timerRef = useRef<number>();
+  const delayedStopRef = useRef<number>();
+  const pollingActiveRef = useRef(false);
   const announceCompletionRef = useRef(false);
   const minimumVisibleUntilRef = useRef(0);
 
-  const stop = useCallback(() => {
+  const stop = useCallback((announceCompletion = false) => {
     if (timerRef.current) {
-      window.clearInterval(timerRef.current);
+      window.clearTimeout(timerRef.current);
       timerRef.current = undefined;
     }
+    if (delayedStopRef.current) {
+      window.clearTimeout(delayedStopRef.current);
+      delayedStopRef.current = undefined;
+    }
+    pollingActiveRef.current = false;
     setRecognizing(false);
+    elapsedMsRef.current = 0;
     setElapsedMs(0);
     minimumVisibleUntilRef.current = 0;
-    if (announceCompletionRef.current) {
+    if (announceCompletion && announceCompletionRef.current) {
       announceCompletionRef.current = false;
       message.success("检测完成，本地 Agent 可用");
+      return;
     }
+    announceCompletionRef.current = false;
   }, []);
 
   const refreshOnce = useCallback(async () => {
@@ -49,19 +63,22 @@ export function useAgentBindPolling({ open }: UseAgentBindPollingOptions) {
       return result;
     } catch (error) {
       showRequestError(error, "Agent 识别失败", "Agent 识别失败：");
-      return { agents: [], localAgent: undefined, currentAgentId: null };
+      stop(false);
+      return undefined;
     }
-  }, [mergeRemoteState]);
+  }, [mergeRemoteState, stop]);
 
   const recognize = useCallback(async () => {
     const result = await refreshOnce();
-    if (result.agents.length > 0 || !shouldPollLocalAgentInventory(result.localAgent?.inventoryStatus)) {
+    if (!result) return;
+    const hasDetectedAgents = result.agents.length > 0;
+    if (hasDetectedAgents) {
       const remainingMs = minimumVisibleUntilRef.current - Date.now();
       if (remainingMs > 0) {
-        window.setTimeout(stop, remainingMs);
+        delayedStopRef.current = window.setTimeout(() => stop(true), remainingMs);
         return;
       }
-      stop();
+      stop(true);
     }
   }, [refreshOnce, stop]);
 
@@ -69,19 +86,25 @@ export function useAgentBindPolling({ open }: UseAgentBindPollingOptions) {
     stop();
     announceCompletionRef.current = options?.announceCompletion === true;
     minimumVisibleUntilRef.current = options?.minimumVisibleMs ? Date.now() + options.minimumVisibleMs : 0;
+    elapsedMsRef.current = 0;
+    pollingActiveRef.current = true;
     setRecognizing(true);
-    void recognize();
-    timerRef.current = window.setInterval(() => {
-      setElapsedMs((value) => {
-        const nextValue = value + 3000;
-        if (nextValue >= 60_000) {
-          stop();
-          return 60_000;
-        }
-        void recognize();
-        return nextValue;
-      });
-    }, 3000);
+    const scheduleNextPoll = (intervalMs: number) => {
+      if (!pollingActiveRef.current) return;
+      timerRef.current = window.setTimeout(async () => {
+        timerRef.current = undefined;
+        await recognize();
+        if (!pollingActiveRef.current) return;
+        elapsedMsRef.current += intervalMs;
+        setElapsedMs(elapsedMsRef.current);
+        const nextIntervalMs = elapsedMsRef.current >= SLOW_POLLING_AFTER_MS ? SLOW_POLLING_INTERVAL_MS : FAST_POLLING_INTERVAL_MS;
+        scheduleNextPoll(nextIntervalMs);
+      }, intervalMs);
+    };
+    void (async () => {
+      await recognize();
+      scheduleNextPoll(FAST_POLLING_INTERVAL_MS);
+    })();
   }, [recognize, stop]);
 
   useEffect(() => {
