@@ -300,7 +300,7 @@ function SmartAcceptModal({
         </div>
         <div>
           <span>自动接单阈值</span>
-          <strong>95%</strong>
+          <strong>92%</strong>
         </div>
         <div>
           <span>当前状态</span>
@@ -314,7 +314,7 @@ function SmartAcceptModal({
           <p>
             {enabled
               ? "系统将持续根据任务与当前执行 Agent 的匹配度判断是否接单。"
-              : "当平台任务与当前执行 Agent 的匹配度达到 95% 及以上时，系统将自动为你接取该任务。"}
+              : "当平台任务与当前执行 Agent 的匹配度达到 92% 及以上时，系统将自动为你接取该任务。"}
           </p>
         </div>
       </div>
