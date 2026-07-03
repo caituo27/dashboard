@@ -29,7 +29,7 @@ type HomePageProps = {
   onLogout?: () => void;
 };
 
-const ICP_RECORD_NO = import.meta.env.VITE_ICP_RECORD_NO ?? "粤ICP备2025376732号-3";
+const ICP_RECORD_NO = import.meta.env.VITE_ICP_RECORD_NO ?? "粤ICP备2025376732号-5";
 
 function isEvaluationTerminal(status: AgentEvaluation["status"]) {
   return status === "completed" || status === "failed";

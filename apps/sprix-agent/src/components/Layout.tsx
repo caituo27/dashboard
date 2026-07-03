@@ -10,7 +10,7 @@ import { logoutConsumer } from "../services/sprixApi";
 import { isGlobalAuthError } from "../utils/http";
 import { LOCAL_AGENT_DOWNLOAD_URL } from "../localAgentDownload";
 
-const ICP_RECORD_NO = import.meta.env.VITE_ICP_RECORD_NO ?? "粤ICP备2025376732号-3";
+const ICP_RECORD_NO = import.meta.env.VITE_ICP_RECORD_NO ?? "粤ICP备2025376732号-5";
 
 function Sidebar({
   onOpenLogin,
