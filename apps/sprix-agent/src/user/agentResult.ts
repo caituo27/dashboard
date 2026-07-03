@@ -1,13 +1,21 @@
-import type { Agent } from "../types";
+import type { Agent, AgentEvaluation } from "../types";
 import { scoreText } from "../utils/format";
 
-const evaluationDimensionLabels: Record<string, string> = {
+export const evaluationDimensionLabels: Record<string, string> = {
   clarity: "表达清晰",
   completeness: "覆盖完整",
   safety: "安全边界",
   maintainability: "改动边界",
   specificity: "项目理解",
   efficiency: "执行效率"
+};
+
+const agentEvaluationStatusLabels: Record<AgentEvaluation["status"], string> = {
+  not_started: "未测评",
+  running: "能力画像生成中",
+  judging: "能力画像评分中",
+  completed: "能力画像已生成",
+  failed: "测评失败"
 };
 
 export type AgentAdmissionSummary = {
@@ -51,6 +59,10 @@ export function getAgentAdmissionSummary(agent: Agent): AgentAdmissionSummary {
 
 export function getAgentTagLabels(tags: string[]) {
   return tags;
+}
+
+export function getAgentEvaluationStatusLabel(evaluation?: Agent["evaluation"]) {
+  return evaluation ? agentEvaluationStatusLabels[evaluation.status] : "未测评";
 }
 
 export function getAgentAbilityResult(agent?: Agent): AgentAbilityResult {

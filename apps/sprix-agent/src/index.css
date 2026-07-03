@@ -836,6 +836,60 @@ select {
   font-weight: 760;
 }
 
+.sprix-agent-ability-result-modal .ant-modal-content {
+  overflow: hidden;
+}
+
+.sprix-agent-ability-result-modal .ant-modal-body {
+  max-height: min(calc(100vh - 132px), 820px);
+  overflow-y: auto;
+  padding: 24px 34px 14px;
+}
+
+.sprix-agent-ability-result-modal .ant-modal-footer {
+  margin-top: 0;
+  border-top: 1px solid rgba(238, 238, 238, 0.86);
+  padding: 14px 34px 18px;
+}
+
+.sprix-agent-ability-result {
+  display: grid;
+  gap: 18px;
+}
+
+.sprix-agent-ability-result-head {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.sprix-agent-ability-result-head h2 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 28px;
+  font-weight: 840;
+  line-height: 1.2;
+}
+
+.sprix-agent-ability-result-head > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.sprix-agent-ability-result-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.sprix-agent-ability-result-footer .ant-btn {
+  min-width: 140px;
+  min-height: 44px;
+  font-weight: 800;
+}
+
 .sprix-connect-agent-modal {
   display: grid;
   justify-items: center;

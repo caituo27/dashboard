@@ -1,10 +1,9 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Form, Input, Modal, Progress, Steps, Tabs, message } from "antd";
+import { Form, Input, Modal, Steps, Tabs, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Bot,
-  BrainCircuit,
   CheckCircle2,
   ChevronLeft,
   ClipboardList,
@@ -40,7 +39,8 @@ import { isGlobalAuthError } from "../utils/http";
 import { freelancerAgreementDocument } from "../content/agreementDocuments";
 import { getLocalAgentEmptyMessage } from "../home/localAgentInventory";
 import { QrPayloadBox } from "../components/QrSession";
-import { getAgentAbilityResult, getAgentAdmissionSummary, getAgentTagLabels, hasPendingAgentEvaluation } from "./agentResult";
+import { AgentAbilityProfile, EvaluationRadar } from "./AgentAbilityProfile";
+import { getAgentAdmissionSummary, getAgentEvaluationStatusLabel, getAgentTagLabels } from "./agentResult";
 import {
   getPayoutAccountActionLabel,
   getPayoutAccountText,
@@ -62,15 +62,6 @@ import {
 import { useRerunTask } from "./useRerunTask";
 export { MyTaskDetailPage } from "./MyTaskDetailPage";
 
-const evaluationDimensionLabels: Record<string, string> = {
-  clarity: "表达清晰",
-  completeness: "覆盖完整",
-  safety: "安全边界",
-  maintainability: "改动边界",
-  specificity: "项目理解",
-  efficiency: "执行效率"
-};
-
 type UserPageProps = {
   openLogin: () => void;
   openAccount: () => void;
@@ -82,19 +73,26 @@ type UserPageProps = {
 type FaceVerificationFormValues = FaceVerificationIdentity;
 
 const FACE_VERIFICATION_POLL_INTERVAL_MS = 2_000;
+const TASK_MARKET_SCROLL_TOP_KEY = "sprix-task-market-scroll-top";
 
 function showRequestError(error: unknown, fallback: string, prefix = "") {
   if (isGlobalAuthError(error)) return;
   message.error(error instanceof Error ? `${prefix}${error.message}` : fallback);
 }
 
-const agentEvaluationStatusLabels: Record<AgentEvaluation["status"], string> = {
-  not_started: "未测评",
-  running: "能力画像生成中",
-  judging: "能力画像评分中",
-  completed: "能力画像已生成",
-  failed: "测评失败"
-};
+function getTaskMarketScrollContainer() {
+  return document.querySelector<HTMLElement>(".sprix-main");
+}
+
+function saveTaskMarketScrollTop() {
+  const scrollTop = getTaskMarketScrollContainer()?.scrollTop ?? window.scrollY;
+  sessionStorage.setItem(TASK_MARKET_SCROLL_TOP_KEY, String(Math.max(0, Math.round(scrollTop))));
+}
+
+function readSavedTaskMarketScrollTop() {
+  const value = Number(sessionStorage.getItem(TASK_MARKET_SCROLL_TOP_KEY));
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
 
 const agentEvaluationActionLabels: Record<AgentEvaluation["status"], string> = {
   not_started: "开始评测",
@@ -103,10 +101,6 @@ const agentEvaluationActionLabels: Record<AgentEvaluation["status"], string> = {
   completed: "评测完成",
   failed: "重新评测"
 };
-
-function getAgentEvaluationStatusLabel(evaluation?: AgentEvaluation) {
-  return evaluation ? agentEvaluationStatusLabels[evaluation.status] : "未测评";
-}
 
 function getAgentEvaluationActionLabel(agent: Agent) {
   return agent.evaluation ? agentEvaluationActionLabels[agent.evaluation.status] : "开始评测";
@@ -123,6 +117,25 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
   const setSmartAcceptEnabled = useSprixStore((state) => state.setSmartAcceptEnabled);
   const [smartAcceptModalOpen, setSmartAcceptModalOpen] = useState(false);
   const availableTasks = useMemo(() => tasks.filter((task) => task.taskStatus === "已发布"), [tasks]);
+
+  useEffect(() => {
+    const scrollTop = readSavedTaskMarketScrollTop();
+    if (scrollTop === null || availableTasks.length === 0) return;
+
+    let timeout = 0;
+    const frame = window.requestAnimationFrame(() => {
+      getTaskMarketScrollContainer()?.scrollTo({ top: scrollTop, behavior: "auto" });
+      timeout = window.setTimeout(() => {
+        getTaskMarketScrollContainer()?.scrollTo({ top: scrollTop, behavior: "auto" });
+        sessionStorage.removeItem(TASK_MARKET_SCROLL_TOP_KEY);
+      }, 80);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timeout);
+    };
+  }, [availableTasks.length]);
 
   const handleAccept = (task: Task) => {
     const gate = getTaskAcceptGate(account, currentAgent, task);
@@ -213,7 +226,7 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
       </div>
       <div className="sprix-grid-auto">
         {availableTasks.map((task) => (
-          <TaskCard key={task.id} task={task} onAccept={() => handleAccept(task)} />
+          <TaskCard key={task.id} task={task} onAccept={() => handleAccept(task)} onOpenDetail={saveTaskMarketScrollTop} />
         ))}
       </div>
       {availableTasks.length === 0 && <EmptyState title="暂无可接取任务" description="当前暂时没有新的任务，稍后再来查看适合 Agent 执行的工作。" />}
@@ -309,7 +322,7 @@ function SmartAcceptModal({
   );
 }
 
-function TaskCard({ task, onAccept }: { task: Task; onAccept: () => void }) {
+function TaskCard({ task, onAccept, onOpenDetail }: { task: Task; onAccept: () => void; onOpenDetail: () => void }) {
   const estimatedToken = getEstimatedTokenField(task.estimatedTokens);
   return (
     <Surface className="flex min-h-[332px] flex-col p-5">
@@ -318,7 +331,7 @@ function TaskCard({ task, onAccept }: { task: Task; onAccept: () => void }) {
         <SoftTag tone="neutral">{task.category}</SoftTag>
         {task.agentMatchScore > 0 && <SoftTag>匹配 {task.agentMatchScore}%</SoftTag>}
       </div>
-      <Link to={`/agent/task/${task.id}`} className="text-xl font-semibold leading-7 text-ink no-underline hover:text-accent">
+      <Link to={`/agent/task/${task.id}`} className="text-xl font-semibold leading-7 text-ink no-underline hover:text-accent" onClick={onOpenDetail}>
         {task.title}
       </Link>
       <p className="mt-3 flex-1 text-sm leading-7 text-ink-soft">{compactText(task.cardSummary, 104)}</p>
@@ -331,7 +344,9 @@ function TaskCard({ task, onAccept }: { task: Task; onAccept: () => void }) {
       </div>
       <div className="mt-5 flex gap-2">
         <ActionButton onClick={onAccept}>接单</ActionButton>
-        <SecondaryButton href={`/agent/task/${task.id}`}>查看详情</SecondaryButton>
+        <Link to={`/agent/task/${task.id}`} className="no-underline" onClick={onOpenDetail}>
+          <SecondaryButton>查看详情</SecondaryButton>
+        </Link>
       </div>
     </Surface>
   );
@@ -340,6 +355,7 @@ function TaskCard({ task, onAccept }: { task: Task; onAccept: () => void }) {
 export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageProps) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const task = useSprixStore((state) => state.tasks.find((item) => item.id === id));
   const account = useSprixStore((state) => state.account);
@@ -387,11 +403,19 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
     });
   };
 
+  const handleBackToTaskList = () => {
+    if (location.key === "default") {
+      navigate("/agent/market");
+      return;
+    }
+    navigate(-1);
+  };
+
   return (
     <div className="sprix-task-detail-page">
       <div className="sprix-task-detail-shell">
         <div className="sprix-detail-back-row">
-          <SecondaryButton href="/agent/market" icon={<ChevronLeft size={16} />}>
+          <SecondaryButton onClick={handleBackToTaskList} icon={<ChevronLeft size={16} />}>
             返回任务列表
           </SecondaryButton>
         </div>
@@ -737,61 +761,6 @@ function isAgentEvaluationNotFound(error: unknown) {
   return error instanceof Error && error.message === "Agent evaluation not found";
 }
 
-function evaluationDimensions(result: AgentEvaluation["result"]) {
-  return Object.entries(evaluationDimensionLabels).map(([key, label]) => ({
-    key,
-    label,
-    score: Number(result.dimensions[key]?.score) || 0,
-    comment: result.dimensions[key]?.comment
-  }));
-}
-
-function EvaluationRadar({ result }: { result: AgentEvaluation["result"] }) {
-  const dimensions = evaluationDimensions(result);
-  const size = 220;
-  const center = size / 2;
-  const radius = 76;
-  const rings = [20, 40, 60, 80, 100];
-  const pointFor = (index: number, value: number) => {
-    const angle = -Math.PI / 2 + (Math.PI * 2 * index) / dimensions.length;
-    const nextRadius = radius * (value / 100);
-    return `${center + Math.cos(angle) * nextRadius},${center + Math.sin(angle) * nextRadius}`;
-  };
-  const polygon = dimensions.map((item, index) => pointFor(index, item.score)).join(" ");
-
-  return (
-    <svg className="sprix-evaluation-radar" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="六维能力雷达图">
-      {rings.map((ring) => (
-        <polygon
-          key={ring}
-          points={dimensions.map((_, index) => pointFor(index, ring)).join(" ")}
-          className="sprix-evaluation-radar-ring"
-        />
-      ))}
-      {dimensions.map((item, index) => {
-        const axisEnd = pointFor(index, 100);
-        const [x, y] = axisEnd.split(",").map(Number);
-        const labelX = center + (x - center) * 1.18;
-        const labelY = center + (y - center) * 1.18;
-        return (
-          <g key={item.key}>
-            <line x1={center} y1={center} x2={x} y2={y} className="sprix-evaluation-radar-axis" />
-            <text x={labelX} y={labelY} textAnchor="middle" dominantBaseline="middle" className="sprix-evaluation-radar-label">
-              {item.label}
-            </text>
-          </g>
-        );
-      })}
-      <polygon points={polygon} className="sprix-evaluation-radar-area" />
-      <polyline points={`${polygon} ${polygon.split(" ")[0]}`} className="sprix-evaluation-radar-line" />
-      {dimensions.map((item, index) => {
-        const [x, y] = pointFor(index, item.score).split(",").map(Number);
-        return <circle key={item.key} cx={x} cy={y} r="3.8" className="sprix-evaluation-radar-dot" />;
-      })}
-    </svg>
-  );
-}
-
 function CurrentAgentCard({ agent }: { agent?: Agent }) {
   const summary = agent ? getAgentAdmissionSummary(agent) : undefined;
   const tagLabels = summary ? getAgentTagLabels(summary.tags) : [];
@@ -823,7 +792,7 @@ function CurrentAgentCard({ agent }: { agent?: Agent }) {
             </div>
           </div>
           <div className="sprix-agent-ability-section">
-            <AbilityProfile agent={agent} embedded showScore={false} />
+            <AgentAbilityProfile agent={agent} embedded showScore={false} />
           </div>
         </>
       ) : (
@@ -835,108 +804,6 @@ function CurrentAgentCard({ agent }: { agent?: Agent }) {
       )}
     </Surface>
   );
-}
-
-function AbilityProfile({ agent, embedded = false, showScore = true }: { agent?: Agent; embedded?: boolean; showScore?: boolean }) {
-  const ability = getAgentAbilityResult(agent);
-  const summary = agent ? getAgentAdmissionSummary(agent) : undefined;
-  const evaluationResult = agent?.evaluation?.result?.status === "completed" ? agent.evaluation.result : undefined;
-  const dimensions = evaluationResult ? evaluationDimensions(evaluationResult) : [];
-  const careerRoleName = evaluationResult?.careerProfile?.roleName?.trim();
-  const careerSummary = careerRoleName ? evaluationResult?.summary?.trim() : "";
-  const isAbilityPending = !evaluationResult && hasPendingAgentEvaluation(agent);
-  const content = (
-    <>
-      {careerRoleName && (
-        <div className="sprix-ability-career-block">
-          <div className="sprix-ability-career-panel">
-            <span>职位定位：</span>
-            <strong>{careerRoleName}</strong>
-          </div>
-          {careerSummary && <p className="sprix-ability-career-summary">{careerSummary}</p>}
-        </div>
-      )}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-lg font-semibold">能力画像</h3>
-        {agent?.evaluation && <StatusTag status={getAgentEvaluationStatusLabel(agent.evaluation)} />}
-      </div>
-      <p className="mt-3 text-sm leading-6 text-ink-soft">最近评测：{summary?.lastEvaluatedAt ?? "-"}</p>
-      {evaluationResult ? (
-        <div className={`sprix-ability-profile mt-5 ${showScore ? "" : "is-bars-only"}`}>
-          {showScore && (
-            <div className="sprix-ability-score">
-              <strong>{evaluationResult.overallScore ?? "-"}</strong>
-              <span>综合评分</span>
-              <EvaluationRadar result={evaluationResult} />
-            </div>
-          )}
-          <div className="sprix-ability-detail">
-            <div className="sprix-ability-bars">
-              {dimensions.map((dimension, index) => (
-                <div key={dimension.key} className="sprix-ability-dimension">
-                  <div className="sprix-ability-dimension-row">
-                    <span>{dimension.label}</span>
-                    <div>
-                      <span style={{ width: `${dimension.score}%`, transitionDelay: `${index * 60}ms` }} />
-                    </div>
-                    <strong>{dimension.score}</strong>
-                  </div>
-                  {dimension.comment && <p>{dimension.comment}</p>}
-                </div>
-              ))}
-            </div>
-            {evaluationResult.summary && !careerRoleName && <p className="sprix-ability-summary">{evaluationResult.summary}</p>}
-            {evaluationResult.improvements.length > 0 && (
-              <div className="sprix-ability-improvements">
-                {evaluationResult.improvements.map((item) => (
-                  <SoftTag key={item} tone="amber">
-                    {item}
-                  </SoftTag>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      ) : isAbilityPending ? (
-        <div className="sprix-ability-pending mt-5">
-          <div className="sprix-ability-pending-head">
-            <span>能力画像生成中</span>
-          </div>
-          <div className="sprix-ability-pending-bars">
-            {Object.values(evaluationDimensionLabels).map((label, index) => (
-              <div key={label} className="sprix-ability-pending-row">
-                <span>{label}</span>
-                <div>
-                  <i style={{ animationDelay: `${index * 90}ms` }} />
-                </div>
-                <em>待生成</em>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : ability.kind === "profile" ? (
-        <div className="mt-5 space-y-4">
-          {ability.rows.map((row) => (
-            <div key={row.label}>
-              <div className="mb-1 flex justify-between text-sm">
-                <span className="text-ink-soft">{row.label}</span>
-                <span className="font-semibold text-ink">{row.value}</span>
-              </div>
-              <Progress percent={row.value} showInfo={false} strokeColor="#0f766e" />
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="mt-8 rounded-[22px] border border-dashed border-line p-7 text-center">
-          <BrainCircuit className="mx-auto text-ink-soft" />
-          <h4 className="mt-3 text-lg font-semibold">{ability.title}</h4>
-          <p className="mt-2 text-sm text-ink-soft">{ability.description}</p>
-        </div>
-      )}
-    </>
-  );
-
-  return embedded ? <div className="sprix-embedded-ability-profile">{content}</div> : <Surface className="p-6">{content}</Surface>;
 }
 
 function AgentList({

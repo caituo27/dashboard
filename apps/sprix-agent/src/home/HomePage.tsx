@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { message } from "antd";
+import { Modal, message } from "antd";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import type { Agent, AgentEvaluation } from "../types";
 import { useSprixStore } from "../store/sprixStore";
@@ -13,6 +13,8 @@ import {
 } from "../services/sprixApi";
 import { isGlobalAuthError } from "../utils/http";
 import { AgentEvaluationProgressModal } from "../components/AgentEvaluationProgressModal";
+import { ActionButton, SoftTag } from "../components/Primitives";
+import { AgentAbilityProfile } from "../user/AgentAbilityProfile";
 import { useHomeBootstrap } from "./useHomeBootstrap";
 import { useHomeAgentState } from "./useHomeAgentState";
 import { HomeAgentCard } from "./HomeAgentCard";
@@ -66,6 +68,9 @@ export function HomePage({ openLogin, openContact, onLogout }: HomePageProps) {
   const [evaluationModalOpen, setEvaluationModalOpen] = useState(false);
   const [evaluationLoading, setEvaluationLoading] = useState(false);
   const [evaluationError, setEvaluationError] = useState<string>();
+  const [abilityResultAgent, setAbilityResultAgent] = useState<Agent | null>(null);
+  const [abilityResultModalOpen, setAbilityResultModalOpen] = useState(false);
+  const abilityResultFlowRef = useRef(false);
   const shouldOpenConnectModal = Boolean((location.state as { openConnectAgentModal?: boolean } | null)?.openConnectAgentModal);
   const shouldOpenAgentPicker = searchParams.get("modal") === "agent-picker";
 
@@ -91,9 +96,23 @@ export function HomePage({ openLogin, openContact, onLogout }: HomePageProps) {
       try {
         const updatedCurrentAgent = await markRemoteCurrentAgent(agent.id);
         const preferredCurrentAgent = updatedCurrentAgent ?? { ...agent, role: "当前执行 Agent" as const };
-        mergeRemoteState({ currentAgent: preferredCurrentAgent });
+        const completedCurrentAgent = {
+          ...preferredCurrentAgent,
+          role: "当前执行 Agent" as const,
+          score: nextEvaluation.result.overallScore ?? preferredCurrentAgent.score,
+          evaluation: nextEvaluation
+        };
+        abilityResultFlowRef.current = true;
+        setAbilityResultAgent(completedCurrentAgent);
+        setAbilityResultModalOpen(true);
+        mergeRemoteState({ currentAgent: completedCurrentAgent });
         autoSetCurrentAgentIdRef.current = undefined;
-        await refreshAgents(preferredCurrentAgent);
+        await refreshAgents(completedCurrentAgent);
+        setEvaluationModalOpen(false);
+        setEvaluationAgent(null);
+        setEvaluation(undefined);
+        setEvaluationError(undefined);
+        setEvaluationLoading(false);
         message.success("测评完成，已设置当前执行 Agent");
       } catch (error) {
         showHomeRequestError(error, "设置当前执行 Agent 失败", "设置当前执行 Agent 失败：");
@@ -190,6 +209,11 @@ export function HomePage({ openLogin, openContact, onLogout }: HomePageProps) {
     setEvaluationLoading(false);
   };
 
+  const enterMarketFromAbilityResult = () => {
+    abilityResultFlowRef.current = false;
+    navigate("/agent/market");
+  };
+
   useEffect(() => {
     if (shouldOpenConnectModal) {
       setConnectModalOpen(true);
@@ -205,12 +229,12 @@ export function HomePage({ openLogin, openContact, onLogout }: HomePageProps) {
   }, [navigate, shouldOpenAgentPicker]);
 
   useEffect(() => {
-    if (account.isLoggedIn && currentAgent && !connectModalOpen && !shouldOpenConnectModal) {
+    if (account.isLoggedIn && currentAgent && !connectModalOpen && !shouldOpenConnectModal && !abilityResultModalOpen && !abilityResultFlowRef.current) {
       navigate("/agent/market", { replace: true });
     }
-  }, [account.isLoggedIn, connectModalOpen, currentAgent, navigate, shouldOpenConnectModal]);
+  }, [abilityResultModalOpen, account.isLoggedIn, connectModalOpen, currentAgent, navigate, shouldOpenConnectModal]);
 
-  if (account.isLoggedIn && currentAgent && !connectModalOpen && !shouldOpenConnectModal) {
+  if (account.isLoggedIn && currentAgent && !connectModalOpen && !shouldOpenConnectModal && !abilityResultModalOpen && !abilityResultFlowRef.current) {
     return null;
   }
 
@@ -251,6 +275,37 @@ export function HomePage({ openLogin, openContact, onLogout }: HomePageProps) {
         error={evaluationError}
         onClose={closeEvaluation}
       />
+      <Modal
+        centered
+        open={abilityResultModalOpen}
+        title={null}
+        width={960}
+        className="sprix-agent-ability-result-modal"
+        closable={false}
+        maskClosable={false}
+        footer={
+          <div className="sprix-agent-ability-result-footer">
+            <ActionButton onClick={enterMarketFromAbilityResult}>去任务市场</ActionButton>
+          </div>
+        }
+      >
+        {abilityResultAgent && (
+          <div className="sprix-agent-ability-result">
+            <div className="sprix-agent-ability-result-head">
+              <span className="sprix-agent-current-label">当前执行 Agent</span>
+              <h2>{abilityResultAgent.name}</h2>
+              {abilityResultAgent.tags.length > 0 && (
+                <div>
+                  {abilityResultAgent.tags.map((tag) => (
+                    <SoftTag key={tag}>{tag}</SoftTag>
+                  ))}
+                </div>
+              )}
+            </div>
+            <AgentAbilityProfile agent={abilityResultAgent} embedded />
+          </div>
+        )}
+      </Modal>
     </main>
   );
 }
