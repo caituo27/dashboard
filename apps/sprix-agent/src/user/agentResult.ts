@@ -81,7 +81,7 @@ export function getAgentAbilityResult(agent?: Agent): AgentAbilityResult {
     return {
       kind: "empty",
       title: "测评失败，可重新评测",
-      description: evaluationResult?.error || "本次评测未完成，可以从 Agent 列表重新发起。"
+      description: "本次测评未完成，可以从 Agent 列表重新发起。"
     };
   }
 
