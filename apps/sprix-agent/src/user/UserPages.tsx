@@ -84,6 +84,16 @@ function getTaskMarketScrollContainer() {
   return document.querySelector<HTMLElement>(".sprix-main");
 }
 
+function scrollTaskMarketTo(scrollTop: number) {
+  const scrollContainer = getTaskMarketScrollContainer();
+  if (scrollContainer) {
+    scrollContainer.scrollTo({ top: scrollTop, behavior: "auto" });
+    return;
+  }
+
+  window.scrollTo({ top: scrollTop, behavior: "auto" });
+}
+
 function saveTaskMarketScrollTop() {
   const scrollTop = getTaskMarketScrollContainer()?.scrollTop ?? window.scrollY;
   sessionStorage.setItem(TASK_MARKET_SCROLL_TOP_KEY, String(Math.max(0, Math.round(scrollTop))));
@@ -124,9 +134,9 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
 
     let timeout = 0;
     const frame = window.requestAnimationFrame(() => {
-      getTaskMarketScrollContainer()?.scrollTo({ top: scrollTop, behavior: "auto" });
+      scrollTaskMarketTo(scrollTop);
       timeout = window.setTimeout(() => {
-        getTaskMarketScrollContainer()?.scrollTo({ top: scrollTop, behavior: "auto" });
+        scrollTaskMarketTo(scrollTop);
         sessionStorage.removeItem(TASK_MARKET_SCROLL_TOP_KEY);
       }, 80);
     });
@@ -362,7 +372,27 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
   const currentAgent = useSprixStore((state) => state.currentAgent);
   const estimatedToken = getEstimatedTokenField(task?.estimatedTokens);
 
-  if (!task) return <EmptyState title="任务不存在" description="当前任务已不可访问" action={<SecondaryButton href="/agent/market">返回任务市场</SecondaryButton>} />;
+  const returnToTaskMarket = () => {
+    navigate("/agent/market");
+  };
+
+  useEffect(() => {
+    const frameId = window.requestAnimationFrame(() => {
+      scrollTaskMarketTo(0);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [id]);
+
+  if (!task) {
+    return (
+      <EmptyState
+        title="任务不存在"
+        description="当前任务已不可访问"
+        action={<SecondaryButton onClick={returnToTaskMarket}>返回任务市场</SecondaryButton>}
+      />
+    );
+  }
 
   const handleAccept = () => {
     const gate = getTaskAcceptGate(account, currentAgent, task);

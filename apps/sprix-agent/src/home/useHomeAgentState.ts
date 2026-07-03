@@ -11,7 +11,7 @@ export function useHomeAgentState(account: Account, agents: Agent[], currentAgen
       localAgent,
       currentAgent: undefined,
       canOpenAgentPicker: false,
-      primaryActionLabel: "连接本地 Agent"
+      primaryActionLabel: "登录/注册"
     };
   }
 

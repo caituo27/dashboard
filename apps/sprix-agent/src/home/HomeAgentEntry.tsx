@@ -1,7 +1,7 @@
 import { Modal } from "antd";
 import { Download, PlugZap } from "lucide-react";
-import { LOCAL_AGENT_DOWNLOAD_URL } from "../localAgentDownload";
-import { ActionButton, SecondaryButton } from "../components/Primitives";
+import { LOCAL_AGENT_CLI_MODE_URL, LOCAL_AGENT_DOWNLOAD_URL } from "../localAgentDownload";
+import { ActionButton } from "../components/Primitives";
 import type { HomeAgentStateResult } from "./homeTypes";
 
 type HomeAgentEntryProps = {
@@ -50,11 +50,23 @@ export function HomeAgentEntry({
         <div className="sprix-connect-agent-modal">
           <div className="sprix-hero-kicker">Sprix AI</div>
           <h2>连接本地 Agent</h2>
-          <p>未检测到本地 Agent，请重新下载。</p>
+          <p className="sprix-connect-agent-primary-copy">安装连接插件后，即可识别本机 Agent CLI。</p>
+          <p className="sprix-connect-agent-helper">
+            仅支持 Agent CLI，单独安装桌面 App 无法识别。
+            <a href={LOCAL_AGENT_CLI_MODE_URL} target="_blank" rel="noreferrer">
+              了解 CLI 模式
+            </a>
+          </p>
           <div className="sprix-hero-actions">
-            <SecondaryButton href={LOCAL_AGENT_DOWNLOAD_URL} target="_blank" rel="noreferrer" icon={<Download size={16} />}>
-              下载安装包
-            </SecondaryButton>
+            <ActionButton
+              href={LOCAL_AGENT_DOWNLOAD_URL}
+              target="_blank"
+              rel="noreferrer"
+              icon={<Download size={16} />}
+              className="sprix-connect-agent-download-button"
+            >
+              下载 Sprix AI 连接插件（Mac 版）
+            </ActionButton>
           </div>
         </div>
       </Modal>

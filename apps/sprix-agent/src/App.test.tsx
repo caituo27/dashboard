@@ -65,7 +65,7 @@ describe("App auth-required flow", () => {
   it("shows login only for manual login, not for login-expired events", () => {
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: "连接本地 Agent" }));
+    fireEvent.click(screen.getByRole("button", { name: "登录/注册" }));
     expect(screen.getByText("login-modal-open")).toBeTruthy();
 
     act(() => {
@@ -92,7 +92,7 @@ describe("App auth-required flow", () => {
       window.dispatchEvent(new CustomEvent("sprix-auth-required"));
     });
 
-    expect(screen.getByRole("button", { name: "连接本地 Agent" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "登录/注册" })).toBeTruthy();
     expect(screen.queryByText("退出登录")).toBeNull();
     expect(localStorage.getItem("sprix-auth-token")).toBeNull();
   });

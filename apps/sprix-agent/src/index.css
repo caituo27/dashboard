@@ -913,6 +913,35 @@ select {
   line-height: 1.8;
 }
 
+.sprix-connect-agent-modal .sprix-connect-agent-primary-copy {
+  color: var(--color-ink);
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.sprix-connect-agent-modal .sprix-connect-agent-helper {
+  color: var(--color-ink-soft);
+  font-size: 14px;
+}
+
+.sprix-connect-agent-helper a {
+  margin-left: 4px;
+  color: #1677ff;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.sprix-connect-agent-helper a:hover {
+  text-decoration: underline;
+}
+
+.sprix-connect-agent-download-button.ant-btn {
+  min-height: 56px;
+  padding: 0 28px;
+  font-size: 16px;
+  font-weight: 800;
+}
+
 .sprix-agent-setup-modal .ant-modal-content {
   overflow: hidden;
   border-radius: 24px;

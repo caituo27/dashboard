@@ -19,7 +19,7 @@ const baseState: HomeAgentStateResult = {
   agents: [],
   currentAgent: undefined,
   canOpenAgentPicker: false,
-  primaryActionLabel: "连接本地 Agent"
+  primaryActionLabel: "登录/注册"
 };
 
 beforeAll(() => {
@@ -47,10 +47,10 @@ describe("HomeAgentEntry", () => {
   it("uses one homepage action and sends logged-out users to login first", () => {
     const props = renderEntry(baseState);
 
-    expect(screen.getByRole("button", { name: "连接本地 Agent" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "登录/注册" })).toBeTruthy();
     expect(screen.queryByRole("link", { name: "下载客户端" })).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "连接本地 Agent" }));
+    fireEvent.click(screen.getByRole("button", { name: "登录/注册" }));
 
     expect(props.onOpenLogin).toHaveBeenCalledOnce();
     expect(props.onOpenConnectModal).not.toHaveBeenCalled();
@@ -61,14 +61,16 @@ describe("HomeAgentEntry", () => {
       {
         ...baseState,
         state: "logged_in_without_agents",
-        isLoggedIn: true
+        isLoggedIn: true,
+        primaryActionLabel: "连接本地agent（仅限Mac）"
       },
       true
     );
 
-    const downloadLink = screen.getByRole("link", { name: "下载安装包" });
+    const downloadLink = screen.getByRole("link", { name: "下载 Sprix AI 连接插件（Mac 版）" });
 
-    expect(screen.getByRole("button", { name: "连接本地 Agent" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "连接本地agent（仅限Mac）" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "了解 CLI 模式" })).toBeTruthy();
     expect(downloadLink).toHaveAttribute("href", "https://cnb.cool/yztx_qxun/LocalCLIAgentRelease/-/git/raw/main/LocalCLIAgent-latest.dmg");
     expect(screen.queryByRole("link", { name: "下载客户端" })).toBeNull();
   });
