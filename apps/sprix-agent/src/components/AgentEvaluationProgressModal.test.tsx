@@ -42,6 +42,16 @@ const runningEvaluation: AgentEvaluation = {
   updatedAt: ""
 };
 
+const failedEvaluation: AgentEvaluation = {
+  ...runningEvaluation,
+  status: "failed",
+  result: {
+    ...runningEvaluation.result,
+    status: "failed",
+    error: "Agent CLI unavailable"
+  }
+};
+
 describe("AgentEvaluationProgressModal", () => {
   beforeAll(() => {
     const getComputedStyle = window.getComputedStyle;
@@ -72,5 +82,16 @@ describe("AgentEvaluationProgressModal", () => {
     expect(within(steps[0]).getByText("评测中")).toBeTruthy();
     expect(within(steps[1]).getByText("准备中")).toBeTruthy();
     expect(within(steps[2]).getByText("准备中")).toBeTruthy();
+  });
+
+  it("shows a recovery-focused failure state when the evaluation fails", () => {
+    render(<AgentEvaluationProgressModal open agent={agent} evaluation={failedEvaluation} loading={false} onClose={vi.fn()} />);
+
+    expect(screen.getByText("生成 Agent 能力画像")).toBeTruthy();
+    expect(screen.getByText("评测未完成")).toBeTruthy();
+    expect(screen.getByText("本次评测暂未完成")).toBeTruthy();
+    expect(screen.getByText("可能与网络连接、Agent CLI 登录状态、账号额度或本机连接状态有关。请检查后稍后重试。")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "稍后再试" })).toBeTruthy();
+    expect(screen.queryByTestId("evaluation-step")).toBeNull();
   });
 });

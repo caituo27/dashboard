@@ -1439,14 +1439,10 @@ function FreelancerAgreementModal({
 
   return (
     <Modal
+      title="Sprix AI 自由职业者服务框架协议"
       open={open}
       onCancel={onClose}
-      footer={null}
-      width={640}
-      styles={{ body: { maxHeight: "calc(100dvh - 160px)", overflowY: "auto" } }}
-    >
-      <div className="space-y-4 text-sm leading-7 text-ink-soft">
-        <AgreementContent compact markdown={freelancerAgreementDocument.markdown} />
+      footer={
         <ActionButton
           block
           disabled={!canSign || submitting}
@@ -1455,6 +1451,12 @@ function FreelancerAgreementModal({
         >
           {getAgreementSignButtonText(secondsRemaining)}
         </ActionButton>
+      }
+      width={640}
+      className="sprix-agreement-modal sprix-freelancer-agreement-modal"
+    >
+      <div className="sprix-freelancer-agreement-scroll">
+        <AgreementContent compact hideFirstHeading markdown={freelancerAgreementDocument.markdown} />
       </div>
     </Modal>
   );

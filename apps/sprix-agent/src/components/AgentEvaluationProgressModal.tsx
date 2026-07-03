@@ -1,5 +1,5 @@
 import { Modal } from "antd";
-import { Check, Sparkles } from "lucide-react";
+import { AlertTriangle, Check, CircleAlert, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Agent, AgentEvaluation } from "../types";
 import { ActionButton, SoftTag } from "./Primitives";
@@ -64,6 +64,25 @@ function evaluationStepState(index: number, activeIndex: number, status: AgentEv
   return "准备中";
 }
 
+function AgentEvaluationFailureState() {
+  return (
+    <div className="sprix-evaluation-failure">
+      <div className="sprix-evaluation-failure-status">
+        <CircleAlert size={20} />
+        <span>评测未完成</span>
+      </div>
+
+      <div className="sprix-evaluation-failure-card">
+        <div className="sprix-evaluation-failure-icon">
+          <AlertTriangle size={38} />
+        </div>
+        <strong>本次评测暂未完成</strong>
+        <p>可能与网络连接、Agent CLI 登录状态、账号额度或本机连接状态有关。请检查后稍后重试。</p>
+      </div>
+    </div>
+  );
+}
+
 export function AgentEvaluationProgressModal({
   open,
   agent,
@@ -75,11 +94,11 @@ export function AgentEvaluationProgressModal({
   const status = evaluation?.status ?? "running";
   const result = evaluation?.result;
   const completedResult = result?.status === "completed" ? result : undefined;
-  const isActive = loading || isEvaluationActive(status);
-  const isCompleted = status === "completed";
-  const hasResultDetails = Boolean(completedResult?.summary) || Boolean(completedResult?.improvements.length);
   const agentName = agent?.name ?? "Agent";
   const isFailed = status === "failed" || result?.status === "failed" || Boolean(error);
+  const isActive = !isFailed && (loading || isEvaluationActive(status));
+  const isCompleted = !isFailed && status === "completed";
+  const hasResultDetails = Boolean(completedResult?.summary) || Boolean(completedResult?.improvements.length);
   const serverActiveStepIndex = activeEvaluationStepIndex(evaluation, status);
   const [displayStepIndex, setDisplayStepIndex] = useState(0);
   const shouldUseFakeProgress = isActive && !isCompleted && !isFailed;
@@ -89,10 +108,22 @@ export function AgentEvaluationProgressModal({
     "sprix-evaluation-step-hero",
     isActive ? "is-active" : "",
     isCompleted ? "is-completed" : "",
-    status === "failed" ? "is-error" : ""
+    isFailed ? "is-error" : ""
   ]
     .filter(Boolean)
     .join(" ");
+  const footer = isFailed ? (
+    <div className="sprix-evaluation-footer is-failed">
+      <ActionButton onClick={onClose}>稍后再试</ActionButton>
+    </div>
+  ) : (
+    <div className="sprix-evaluation-footer">
+      <span className={isActive ? "is-active" : ""}>
+        {isActive ? "处理中，关闭弹框不会取消后端任务" : isCompleted ? "测评完成" : "尚未开始"}
+      </span>
+      <ActionButton onClick={onClose}>关闭</ActionButton>
+    </div>
+  );
 
   useEffect(() => {
     if (!open || !agent) {
@@ -124,87 +155,82 @@ export function AgentEvaluationProgressModal({
       onCancel={onClose}
       width={640}
       className="sprix-evaluation-modal sprix-evaluation-progress-modal"
-      footer={
-        <div className="sprix-evaluation-footer">
-          <span className={isActive ? "is-active" : ""}>
-            {isActive ? "处理中，关闭弹框不会取消后端任务" : status === "completed" ? "测评完成" : status === "failed" ? "生成失败了" : "尚未开始"}
-          </span>
-          <ActionButton onClick={onClose}>关闭</ActionButton>
-        </div>
-      }
+      footer={footer}
     >
       <div className="sprix-evaluation-progress">
-        {error && result?.status !== "failed" && <p className="sprix-evaluation-error">生成失败了</p>}
-
-        <div className={heroClassName}>
-          <div className="sprix-evaluation-step-core">
-            <span />
-            {isCompleted ? <Check size={18} /> : <Sparkles size={18} />}
-          </div>
-          <div className="sprix-evaluation-step-copy">
-            <strong>{isActive ? `正在分析${activeStep.label}` : getStatusCopy(status, agentName)}</strong>
-            <p>{isCompleted ? `${agentName} 已完成 6 项能力测评。` : isFailed ? "生成失败了，请稍后重新发起。" : "Sprix 正在逐项完成 Agent 能力画像，完成后会自动生成综合评分和改进建议。"}</p>
-          </div>
-          {isCompleted && completedResult && (
-            <div className="sprix-evaluation-step-score">
-              <span>综合评分</span>
-              <strong>{scoreText(completedResult.overallScore)}</strong>
+        {isFailed ? (
+          <AgentEvaluationFailureState />
+        ) : (
+          <>
+            <div className={heroClassName}>
+              <div className="sprix-evaluation-step-core">
+                <span />
+                {isCompleted ? <Check size={18} /> : <Sparkles size={18} />}
+              </div>
+              <div className="sprix-evaluation-step-copy">
+                <strong>{isActive ? `正在分析${activeStep.label}` : getStatusCopy(status, agentName)}</strong>
+                <p>{isCompleted ? `${agentName} 已完成 6 项能力测评。` : "Sprix 正在逐项完成 Agent 能力画像，完成后会自动生成综合评分和改进建议。"}</p>
+              </div>
+              {isCompleted && completedResult && (
+                <div className="sprix-evaluation-step-score">
+                  <span>综合评分</span>
+                  <strong>{scoreText(completedResult.overallScore)}</strong>
+                </div>
+              )}
+              {!isCompleted && <div className="sprix-evaluation-step-count\">{`${activeStepIndex + 1}/6`}</div>}
             </div>
-          )}
-          {!isCompleted && <div className="sprix-evaluation-step-count">{`${activeStepIndex + 1}/6`}</div>}
-        </div>
 
-        {isCompleted ? (
-          <div className="sprix-evaluation-complete-list">
-            {evaluationSteps.map((step) => (
-              <div className="sprix-evaluation-complete-item" data-testid="evaluation-complete-item" key={step.label}>
-                <span>
-                  <Check size={14} />
-                </span>
+            {isCompleted ? (
+              <div className="sprix-evaluation-complete-list">
+                {evaluationSteps.map((step) => (
+                  <div className="sprix-evaluation-complete-item" data-testid="evaluation-complete-item" key={step.label}>
+                    <span>
+                      <Check size={14} />
+                    </span>
+                    <div>
+                      <strong>{step.label}</strong>
+                      <p>{step.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="sprix-evaluation-step-track">
+                {evaluationSteps.map((step, index) => {
+                  const stepClass = evaluationStepClass(index, activeStepIndex, status);
+                  const isDone = stepClass === "is-done";
+                  return (
+                    <div className={`sprix-evaluation-step ${stepClass}`} data-testid="evaluation-step" key={step.label}>
+                      <div className="sprix-evaluation-step-dot">{isDone ? <Check size={14} /> : index + 1}</div>
+                      <div className="sprix-evaluation-step-text">
+                        <span>{step.label}</span>
+                        <p>{index === activeStepIndex || isDone ? step.description : ""}</p>
+                      </div>
+                      <div className="sprix-evaluation-step-state">{evaluationStepState(index, activeStepIndex, status)}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {hasResultDetails && (
+              <div className="sprix-evaluation-result is-compact">
                 <div>
-                  <strong>{step.label}</strong>
-                  <p>{step.description}</p>
+                  {completedResult?.summary && <p>{completedResult.summary}</p>}
+                  {completedResult?.improvements.length ? (
+                    <div className="sprix-evaluation-result-tags">
+                      {completedResult.improvements.slice(0, 4).map((item) => (
+                        <SoftTag key={item} tone="amber">
+                          {item}
+                        </SoftTag>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="sprix-evaluation-step-track">
-            {evaluationSteps.map((step, index) => {
-              const stepClass = evaluationStepClass(index, activeStepIndex, status);
-              const isDone = stepClass === "is-done";
-              return (
-                <div className={`sprix-evaluation-step ${stepClass}`} data-testid="evaluation-step" key={step.label}>
-                  <div className="sprix-evaluation-step-dot">{isDone ? <Check size={14} /> : index + 1}</div>
-                  <div className="sprix-evaluation-step-text">
-                    <span>{step.label}</span>
-                    <p>{index === activeStepIndex || isDone ? step.description : ""}</p>
-                  </div>
-                  <div className="sprix-evaluation-step-state">{evaluationStepState(index, activeStepIndex, status)}</div>
-                </div>
-              );
-            })}
-          </div>
+            )}
+          </>
         )}
-
-        {hasResultDetails && (
-          <div className="sprix-evaluation-result is-compact">
-            <div>
-              {completedResult?.summary && <p>{completedResult.summary}</p>}
-              {completedResult?.improvements.length ? (
-                <div className="sprix-evaluation-result-tags">
-                  {completedResult.improvements.slice(0, 4).map((item) => (
-                    <SoftTag key={item} tone="amber">
-                      {item}
-                    </SoftTag>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          </div>
-        )}
-
-        {result?.status === "failed" && <p className="sprix-evaluation-error">生成失败了</p>}
       </div>
     </Modal>
   );
