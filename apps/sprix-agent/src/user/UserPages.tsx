@@ -1,5 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Form, Input, Modal, Steps, Tabs, message } from "antd";
+import { Form, Input, Modal, Pagination, Steps, Tabs, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
@@ -74,6 +74,8 @@ type FaceVerificationFormValues = FaceVerificationIdentity;
 
 const FACE_VERIFICATION_POLL_INTERVAL_MS = 2_000;
 const TASK_MARKET_SCROLL_TOP_KEY = "sprix-task-market-scroll-top";
+const TASK_MARKET_PAGE_KEY = "sprix-task-market-page";
+const TASK_MARKET_PAGE_SIZE = 24;
 
 function showRequestError(error: unknown, fallback: string, prefix = "") {
   if (isGlobalAuthError(error)) return;
@@ -104,6 +106,11 @@ function readSavedTaskMarketScrollTop() {
   return Number.isFinite(value) && value > 0 ? value : null;
 }
 
+function readSavedTaskMarketPage() {
+  const value = Number(sessionStorage.getItem(TASK_MARKET_PAGE_KEY));
+  return Number.isInteger(value) && value > 0 ? value : 1;
+}
+
 const agentEvaluationActionLabels: Record<AgentEvaluation["status"], string> = {
   not_started: "开始评测",
   running: "查看进度",
@@ -126,11 +133,26 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
   const smartAcceptEnabled = useSprixStore((state) => state.smartAcceptEnabled);
   const setSmartAcceptEnabled = useSprixStore((state) => state.setSmartAcceptEnabled);
   const [smartAcceptModalOpen, setSmartAcceptModalOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(readSavedTaskMarketPage);
   const availableTasks = useMemo(() => tasks.filter((task) => task.taskStatus === "已发布"), [tasks]);
+  const pageCount = Math.max(1, Math.ceil(availableTasks.length / TASK_MARKET_PAGE_SIZE));
+  const effectivePage = Math.min(currentPage, pageCount);
+  const pagedTasks = useMemo(() => {
+    const start = (effectivePage - 1) * TASK_MARKET_PAGE_SIZE;
+    return availableTasks.slice(start, start + TASK_MARKET_PAGE_SIZE);
+  }, [availableTasks, effectivePage]);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, pageCount));
+  }, [pageCount]);
+
+  useEffect(() => {
+    sessionStorage.setItem(TASK_MARKET_PAGE_KEY, String(currentPage));
+  }, [currentPage]);
 
   useEffect(() => {
     const scrollTop = readSavedTaskMarketScrollTop();
-    if (scrollTop === null || availableTasks.length === 0) return;
+    if (scrollTop === null || pagedTasks.length === 0) return;
 
     let timeout = 0;
     const frame = window.requestAnimationFrame(() => {
@@ -145,7 +167,12 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
       window.cancelAnimationFrame(frame);
       window.clearTimeout(timeout);
     };
-  }, [availableTasks.length]);
+  }, [pagedTasks.length]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    scrollTaskMarketTo(0);
+  };
 
   const handleAccept = (task: Task) => {
     const gate = getTaskAcceptGate(account, currentAgent, task);
@@ -235,10 +262,16 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
         <MetricCard title="我的任务" value={myTasks.length || "-"} icon={<UsersRound size={19} />} />
       </div>
       <div className="sprix-grid-auto">
-        {availableTasks.map((task) => (
+        {pagedTasks.map((task) => (
           <TaskCard key={task.id} task={task} onAccept={() => handleAccept(task)} onOpenDetail={saveTaskMarketScrollTop} />
         ))}
       </div>
+      {availableTasks.length > TASK_MARKET_PAGE_SIZE && (
+        <div className="sprix-task-market-pagination">
+          <span>共 {availableTasks.length} 个任务</span>
+          <Pagination current={effectivePage} pageSize={TASK_MARKET_PAGE_SIZE} total={availableTasks.length} showSizeChanger={false} onChange={handlePageChange} />
+        </div>
+      )}
       {availableTasks.length === 0 && <EmptyState title="暂无可接取任务" description="当前暂时没有新的任务，稍后再来查看适合 Agent 执行的工作。" />}
       <SmartAcceptModal
         agent={currentAgent}

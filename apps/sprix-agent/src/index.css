@@ -1509,6 +1509,16 @@ select {
   gap: 16px;
 }
 
+.sprix-task-market-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 24px;
+  color: var(--color-ink-soft);
+  font-size: 14px;
+}
+
 .sprix-home-workbench {
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(360px, 0.75fr);
@@ -4326,6 +4336,11 @@ select {
 
   .sprix-grid-auto {
     grid-template-columns: 1fr;
+  }
+
+  .sprix-task-market-pagination {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .sprix-agent-option {
