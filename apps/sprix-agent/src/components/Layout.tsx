@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Dropdown, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Bot, UserRound } from "lucide-react";
+import { UserRound } from "lucide-react";
 import { useSprixStore } from "../store/sprixStore";
 import { ActionButton } from "./Primitives";
 import { userRoutes } from "../navigation";
@@ -28,7 +28,7 @@ function Sidebar({
     <aside className="sprix-sidebar">
       <Link to="/" className="mb-8 flex items-center gap-3 no-underline">
         <div className="flex size-10 items-center justify-center rounded-2xl bg-pill text-white">
-          <Bot size={20} />
+          <img src="/favicon.svg" alt="" className="size-6 invert" />
         </div>
         <div>
           <div className="sprix-title text-2xl leading-none text-ink">Sprix AI</div>

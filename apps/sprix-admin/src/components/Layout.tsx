@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Bot, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import { adminRoutes } from "../navigation";
 
 function Sidebar() {
@@ -10,7 +10,7 @@ function Sidebar() {
     <aside className="sprix-sidebar">
       <Link to="/" className="mb-5 flex items-center gap-3 no-underline">
         <div className="flex size-9 items-center justify-center rounded-xl bg-pill text-white">
-          <Bot size={18} />
+          <img src="/favicon.svg" alt="" className="size-5 invert" />
         </div>
         <div>
           <div className="text-base font-semibold leading-none text-ink">Sprix 管理后台</div>
