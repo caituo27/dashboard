@@ -1,5 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Form, Input, Modal, Pagination, Steps, Tabs, message } from "antd";
+import { Form, Input, Modal, Steps, Tabs, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
@@ -74,8 +74,9 @@ type FaceVerificationFormValues = FaceVerificationIdentity;
 
 const FACE_VERIFICATION_POLL_INTERVAL_MS = 2_000;
 const TASK_MARKET_SCROLL_TOP_KEY = "sprix-task-market-scroll-top";
+const TASK_MARKET_VISIBLE_COUNT_KEY = "sprix-task-market-visible-count";
 const TASK_MARKET_PAGE_KEY = "sprix-task-market-page";
-const TASK_MARKET_PAGE_SIZE = 24;
+const TASK_MARKET_BATCH_SIZE = 24;
 
 function showRequestError(error: unknown, fallback: string, prefix = "") {
   if (isGlobalAuthError(error)) return;
@@ -83,7 +84,12 @@ function showRequestError(error: unknown, fallback: string, prefix = "") {
 }
 
 function getTaskMarketScrollContainer() {
-  return document.querySelector<HTMLElement>(".sprix-main");
+  const container = document.querySelector<HTMLElement>(".sprix-main");
+  if (!container) return null;
+
+  const overflowY = window.getComputedStyle(container).overflowY;
+  const canScroll = container.scrollHeight > container.clientHeight;
+  return canScroll && overflowY !== "visible" && overflowY !== "clip" ? container : null;
 }
 
 function scrollTaskMarketTo(scrollTop: number) {
@@ -101,14 +107,30 @@ function saveTaskMarketScrollTop() {
   sessionStorage.setItem(TASK_MARKET_SCROLL_TOP_KEY, String(Math.max(0, Math.round(scrollTop))));
 }
 
+function saveTaskMarketReturnState(visibleCount: number) {
+  saveTaskMarketScrollTop();
+  sessionStorage.setItem(TASK_MARKET_VISIBLE_COUNT_KEY, String(Math.max(TASK_MARKET_BATCH_SIZE, visibleCount)));
+}
+
 function readSavedTaskMarketScrollTop() {
   const value = Number(sessionStorage.getItem(TASK_MARKET_SCROLL_TOP_KEY));
   return Number.isFinite(value) && value > 0 ? value : null;
 }
 
-function readSavedTaskMarketPage() {
+function readSavedTaskMarketVisibleCount() {
+  if (readSavedTaskMarketScrollTop() === null) return TASK_MARKET_BATCH_SIZE;
+
+  const savedCount = Number(sessionStorage.getItem(TASK_MARKET_VISIBLE_COUNT_KEY));
+  if (Number.isInteger(savedCount) && savedCount >= TASK_MARKET_BATCH_SIZE) return savedCount;
+
   const value = Number(sessionStorage.getItem(TASK_MARKET_PAGE_KEY));
-  return Number.isInteger(value) && value > 0 ? value : 1;
+  return Number.isInteger(value) && value > 0 ? value * TASK_MARKET_BATCH_SIZE : TASK_MARKET_BATCH_SIZE;
+}
+
+function clearTaskMarketReturnState() {
+  sessionStorage.removeItem(TASK_MARKET_SCROLL_TOP_KEY);
+  sessionStorage.removeItem(TASK_MARKET_VISIBLE_COUNT_KEY);
+  sessionStorage.removeItem(TASK_MARKET_PAGE_KEY);
 }
 
 const agentEvaluationActionLabels: Record<AgentEvaluation["status"], string> = {
@@ -133,33 +155,28 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
   const smartAcceptEnabled = useSprixStore((state) => state.smartAcceptEnabled);
   const setSmartAcceptEnabled = useSprixStore((state) => state.setSmartAcceptEnabled);
   const [smartAcceptModalOpen, setSmartAcceptModalOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(readSavedTaskMarketPage);
+  const [visibleCount, setVisibleCount] = useState(readSavedTaskMarketVisibleCount);
+  const loadMoreRef = useRef<HTMLButtonElement | null>(null);
   const availableTasks = useMemo(() => tasks.filter((task) => task.taskStatus === "已发布"), [tasks]);
-  const pageCount = Math.max(1, Math.ceil(availableTasks.length / TASK_MARKET_PAGE_SIZE));
-  const effectivePage = Math.min(currentPage, pageCount);
-  const pagedTasks = useMemo(() => {
-    const start = (effectivePage - 1) * TASK_MARKET_PAGE_SIZE;
-    return availableTasks.slice(start, start + TASK_MARKET_PAGE_SIZE);
-  }, [availableTasks, effectivePage]);
+  const effectiveVisibleCount = Math.min(visibleCount, availableTasks.length || TASK_MARKET_BATCH_SIZE);
+  const visibleTasks = useMemo(() => availableTasks.slice(0, effectiveVisibleCount), [availableTasks, effectiveVisibleCount]);
+  const hasMoreTasks = effectiveVisibleCount < availableTasks.length;
 
   useEffect(() => {
-    setCurrentPage((page) => Math.min(page, pageCount));
-  }, [pageCount]);
-
-  useEffect(() => {
-    sessionStorage.setItem(TASK_MARKET_PAGE_KEY, String(currentPage));
-  }, [currentPage]);
+    if (availableTasks.length === 0) return;
+    setVisibleCount((count) => Math.min(count, Math.max(availableTasks.length, TASK_MARKET_BATCH_SIZE)));
+  }, [availableTasks.length]);
 
   useEffect(() => {
     const scrollTop = readSavedTaskMarketScrollTop();
-    if (scrollTop === null || pagedTasks.length === 0) return;
+    if (scrollTop === null || visibleTasks.length === 0) return;
 
     let timeout = 0;
     const frame = window.requestAnimationFrame(() => {
       scrollTaskMarketTo(scrollTop);
       timeout = window.setTimeout(() => {
         scrollTaskMarketTo(scrollTop);
-        sessionStorage.removeItem(TASK_MARKET_SCROLL_TOP_KEY);
+        clearTaskMarketReturnState();
       }, 80);
     });
 
@@ -167,12 +184,36 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
       window.cancelAnimationFrame(frame);
       window.clearTimeout(timeout);
     };
-  }, [pagedTasks.length]);
+  }, [visibleTasks.length]);
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    scrollTaskMarketTo(0);
-  };
+  const loadMoreTasks = useCallback(() => {
+    setVisibleCount((count) => Math.min(count + TASK_MARKET_BATCH_SIZE, availableTasks.length));
+  }, [availableTasks.length]);
+
+  const saveTaskMarketReturnPosition = useCallback(() => {
+    saveTaskMarketReturnState(effectiveVisibleCount);
+  }, [effectiveVisibleCount]);
+
+  useEffect(() => {
+    if (!hasMoreTasks) return;
+    const marker = loadMoreRef.current;
+    if (!marker) return;
+    if (typeof IntersectionObserver === "undefined") return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          loadMoreTasks();
+        }
+      },
+      {
+        root: getTaskMarketScrollContainer(),
+        rootMargin: "360px 0px"
+      }
+    );
+    observer.observe(marker);
+    return () => observer.disconnect();
+  }, [hasMoreTasks, loadMoreTasks]);
 
   const handleAccept = (task: Task) => {
     const gate = getTaskAcceptGate(account, currentAgent, task);
@@ -257,20 +298,19 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
         }
       />
       <div className="mb-5 grid gap-4 md:grid-cols-3">
-        <MetricCard title="已发布任务" value={availableTasks.length || "-"} />
+        <MetricCard title="已发布任务" value="3W+" />
         <MetricCard title="当前执行 Agent" value={currentAgent?.name ?? "-"} icon={<Bot size={19} />} />
         <MetricCard title="我的任务" value={myTasks.length || "-"} icon={<UsersRound size={19} />} />
       </div>
       <div className="sprix-grid-auto">
-        {pagedTasks.map((task) => (
-          <TaskCard key={task.id} task={task} onAccept={() => handleAccept(task)} onOpenDetail={saveTaskMarketScrollTop} />
+        {visibleTasks.map((task) => (
+          <TaskCard key={task.id} task={task} onAccept={() => handleAccept(task)} onOpenDetail={saveTaskMarketReturnPosition} />
         ))}
       </div>
-      {availableTasks.length > TASK_MARKET_PAGE_SIZE && (
-        <div className="sprix-task-market-pagination">
-          <span>共 {availableTasks.length} 个任务</span>
-          <Pagination current={effectivePage} pageSize={TASK_MARKET_PAGE_SIZE} total={availableTasks.length} showSizeChanger={false} onChange={handlePageChange} />
-        </div>
+      {hasMoreTasks && (
+        <button ref={loadMoreRef} type="button" className="sprix-task-market-load-more" onClick={loadMoreTasks}>
+          继续下滑加载更多
+        </button>
       )}
       {availableTasks.length === 0 && <EmptyState title="暂无可接取任务" description="当前暂时没有新的任务，稍后再来查看适合 Agent 执行的工作。" />}
       <SmartAcceptModal
