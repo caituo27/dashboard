@@ -1693,18 +1693,19 @@ export function AdminFundCenter() {
     return <Surface className="p-8">资金数据加载失败：{messageText}</Surface>;
   }
   const sumBy = <T,>(records: T[], pickAmount: (record: T) => number) => records.reduce((sum, record) => sum + pickAmount(record), 0);
-  const stats = [
-    ["结算中金额", formatAdminMetricCurrency(sumBy(settlements.filter((item) => item.settlementStatus === "结算中"), (item) => item.netIncome), 24192)],
-    ["已打款金额", formatAdminMetricCurrency(sumBy(withdrawals.filter((item) => item.withdrawStatus === "已提现"), (item) => item.applyAmount), 261504)]
-  ];
+  const paidAmount = formatAdminMetricCurrency(sumBy(withdrawals.filter((item) => item.withdrawStatus === "已提现"), (item) => item.applyAmount), 261504);
   return (
     <>
-      <PageHeader title="资金管理中心" subtitle="管理结算记录" />
-      <div className="mb-4 grid gap-3 md:grid-cols-2">
-        {stats.map(([label, value]) => (
-          <MetricCard key={label} title={String(label)} value={value} icon={<CircleDollarSign size={19} />} />
-        ))}
-      </div>
+      <PageHeader
+        title="资金管理中心"
+        subtitle="管理结算记录"
+        actions={
+          <div className="text-right">
+            <p className="text-xs font-medium text-ink-soft">已打款金额</p>
+            <div className="mt-1 text-2xl font-semibold leading-none text-ink">{paidAmount}</div>
+          </div>
+        }
+      />
       <Surface className="sprix-table-card p-4">
         <AdminTableViewport>
           {() => (
