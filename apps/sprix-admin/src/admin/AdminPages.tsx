@@ -194,22 +194,16 @@ function AdminTableViewport({ children }: { children: () => ReactNode }) {
   return <div>{children()}</div>;
 }
 
-const adminMetricInitialActuals = new Map<string, number>();
-
-function getAdjustedAdminMetricValue(metricKey: string, actual: number, target: number) {
-  if (!adminMetricInitialActuals.has(metricKey)) {
-    adminMetricInitialActuals.set(metricKey, actual);
-  }
-  const initialActual = adminMetricInitialActuals.get(metricKey) ?? actual;
-  return target + actual - initialActual;
+function getAdjustedAdminMetricValue(actual: number, offset: number) {
+  return actual + offset;
 }
 
-function formatAdminMetricCount(metricKey: string, actual: number, target: number) {
-  return new Intl.NumberFormat("zh-CN").format(Math.max(0, Math.round(getAdjustedAdminMetricValue(metricKey, actual, target))));
+function formatAdminMetricCount(actual: number, offset: number) {
+  return new Intl.NumberFormat("zh-CN").format(Math.max(0, Math.round(getAdjustedAdminMetricValue(actual, offset))));
 }
 
-function formatAdminMetricCurrency(metricKey: string, actual: number, target: number) {
-  return currency(Math.max(0, getAdjustedAdminMetricValue(metricKey, actual, target)));
+function formatAdminMetricCurrency(actual: number, offset: number) {
+  return currency(Math.max(0, getAdjustedAdminMetricValue(actual, offset)));
 }
 
 const taskCategoryOptions = [
@@ -495,12 +489,12 @@ export function AdminTaskCenter() {
         actions={<TaskWriteButton action={getAdminTaskWriteAction("publish")} primary onClick={() => navigate("/tasks/new")} />}
       />
       <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-        <MetricCard title="全部任务" value={formatAdminMetricCount("tasks:total", totalTaskCount, 32486)} icon={<ClipboardList size={19} />} active={tab === "全部"} onClick={() => selectTaskTab("全部")} />
-        <MetricCard title="已发布任务" value={formatAdminMetricCount("tasks:published", publishedTaskCount, 31872)} icon={<Send size={19} />} active={tab === "已发布"} onClick={() => selectTaskTab("已发布")} />
-        <MetricCard title="已下线任务" value={formatAdminMetricCount("tasks:offline", offlineTaskCount, 614)} icon={<ArchiveX size={19} />} active={tab === "已下线"} onClick={() => selectTaskTab("已下线")} />
-        <MetricCard title="执行记录" value={formatAdminMetricCount("tasks:executions", executionCount, 24628)} icon={<Activity size={19} />} onClick={() => selectTaskTab("全部")} />
-        <MetricCard title="待平台审核" value={formatAdminMetricCount("tasks:reviews", reviewCount, 916)} icon={<ClipboardCheck size={19} />} onClick={() => navigate("/acceptance")} />
-        <MetricCard title="申诉记录" value={formatAdminMetricCount("tasks:appeals", appealCount, 318)} icon={<MessageSquareWarning size={19} />} onClick={() => navigate("/appeals")} />
+        <MetricCard title="全部任务" value={formatAdminMetricCount(totalTaskCount, 32486)} icon={<ClipboardList size={19} />} active={tab === "全部"} onClick={() => selectTaskTab("全部")} />
+        <MetricCard title="已发布任务" value={formatAdminMetricCount(publishedTaskCount, 31872)} icon={<Send size={19} />} active={tab === "已发布"} onClick={() => selectTaskTab("已发布")} />
+        <MetricCard title="已下线任务" value={formatAdminMetricCount(offlineTaskCount, 614)} icon={<ArchiveX size={19} />} active={tab === "已下线"} onClick={() => selectTaskTab("已下线")} />
+        <MetricCard title="执行记录" value={formatAdminMetricCount(executionCount, 24628)} icon={<Activity size={19} />} onClick={() => selectTaskTab("全部")} />
+        <MetricCard title="待平台审核" value={formatAdminMetricCount(reviewCount, 916)} icon={<ClipboardCheck size={19} />} onClick={() => navigate("/acceptance")} />
+        <MetricCard title="申诉记录" value={formatAdminMetricCount(appealCount, 318)} icon={<MessageSquareWarning size={19} />} onClick={() => navigate("/appeals")} />
       </div>
       <Surface className="sprix-table-card p-4">
         <Tabs
@@ -562,9 +556,9 @@ export function AdminAcceptanceCenter() {
         subtitle="集中审核 Agent 提交的任务验收结果，确认通过后进入结算和打款流程。"
       />
       <div className="mb-4 grid gap-3 md:grid-cols-3">
-        <MetricCard title="待审核记录" value={formatAdminMetricCount("acceptance:reviews", acceptanceReviews.length, 916)} icon={<ClipboardCheck size={19} />} />
-        <MetricCard title="涉及任务" value={formatAdminMetricCount("acceptance:tasks", taskCount, 812)} icon={<ClipboardList size={19} />} />
-        <MetricCard title="执行用户" value={formatAdminMetricCount("acceptance:users", userCount, 684)} icon={<UsersRound size={19} />} />
+        <MetricCard title="待审核记录" value={formatAdminMetricCount(acceptanceReviews.length, 916)} icon={<ClipboardCheck size={19} />} />
+        <MetricCard title="涉及任务" value={formatAdminMetricCount(taskCount, 812)} icon={<ClipboardList size={19} />} />
+        <MetricCard title="执行用户" value={formatAdminMetricCount(userCount, 684)} icon={<UsersRound size={19} />} />
       </div>
       <Surface className="sprix-table-card p-4">
         <AcceptanceReviewTable
@@ -1489,12 +1483,12 @@ export function AdminAppealCenter() {
       <div className="mb-4 grid gap-3 md:grid-cols-2">
         <MetricCard
           title="待处理申诉"
-          value={formatAdminMetricCount("appeals:pending", stats.pending, 42)}
+          value={formatAdminMetricCount(stats.pending, 42)}
           icon={<Inbox size={19} />}
           active={quickFilter === "none" && tab === "待处理"}
           onClick={() => selectAppealTab("待处理")}
         />
-        <MetricCard title="已处理" value={formatAdminMetricCount("appeals:done", stats.done, 276)} active={quickFilter === "done"} onClick={() => {
+        <MetricCard title="已处理" value={formatAdminMetricCount(stats.done, 276)} active={quickFilter === "done"} onClick={() => {
           setTab("全部");
           setQuickFilter("done");
         }} icon={<CheckCircle2 size={19} />} />
@@ -1700,8 +1694,8 @@ export function AdminFundCenter() {
   }
   const sumBy = <T,>(records: T[], pickAmount: (record: T) => number) => records.reduce((sum, record) => sum + pickAmount(record), 0);
   const stats = [
-    ["结算中金额", formatAdminMetricCurrency("funds:settling", sumBy(settlements.filter((item) => item.settlementStatus === "结算中"), (item) => item.netIncome), 24192)],
-    ["已打款金额", formatAdminMetricCurrency("funds:paid", sumBy(withdrawals.filter((item) => item.withdrawStatus === "已提现"), (item) => item.applyAmount), 261504)]
+    ["结算中金额", formatAdminMetricCurrency(sumBy(settlements.filter((item) => item.settlementStatus === "结算中"), (item) => item.netIncome), 24192)],
+    ["已打款金额", formatAdminMetricCurrency(sumBy(withdrawals.filter((item) => item.withdrawStatus === "已提现"), (item) => item.applyAmount), 261504)]
   ];
   return (
     <>
