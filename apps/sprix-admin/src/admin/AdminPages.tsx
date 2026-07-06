@@ -75,7 +75,10 @@ function isAppealDone(status: AdminAppeal["appealStatus"]) {
 }
 
 export function isTaskSlotFull(task: Pick<Task, "offlineReason" | "remainingSlots" | "totalSlots">) {
-  return task.offlineReason === "名额已满" || (task.totalSlots > 0 && task.remainingSlots >= task.totalSlots);
+  if (task.totalSlots > 0) {
+    return task.remainingSlots <= 0;
+  }
+  return task.offlineReason === "名额已满";
 }
 
 function AdminDetailPage({ children }: { children: ReactNode }) {
