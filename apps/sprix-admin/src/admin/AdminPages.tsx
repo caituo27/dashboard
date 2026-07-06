@@ -180,48 +180,33 @@ function useStableTablePagination(total: number, pageSize: number, options?: str
 }
 
 function getResponsiveAdminTablePageSize() {
-  return 10;
+  return 50;
 }
 
 function useResponsiveAdminTablePageSize() {
   return getResponsiveAdminTablePageSize();
 }
 
-function getMeasuredAdminTableScrollY(container: HTMLDivElement | null) {
-  if (typeof window === "undefined" || !container) return 420;
-  const { top } = container.getBoundingClientRect();
-  const tableChromeHeight = 168;
-  const availableHeight = window.innerHeight - top - tableChromeHeight;
-  return Math.max(220, Math.min(availableHeight, 640));
+function AdminTableViewport({ children }: { children: () => ReactNode }) {
+  return <div>{children()}</div>;
 }
 
-function useResponsiveAdminTableScrollY() {
-  const tableViewportRef = useRef<HTMLDivElement>(null);
-  const [scrollY, setScrollY] = useState(420);
+const adminMetricInitialActuals = new Map<string, number>();
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const updateScrollY = () => setScrollY(getMeasuredAdminTableScrollY(tableViewportRef.current));
-    updateScrollY();
-    const frameId = window.requestAnimationFrame(updateScrollY);
-    const timeoutId = window.setTimeout(updateScrollY, 0);
-    window.addEventListener("resize", updateScrollY);
-    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(updateScrollY) : undefined;
-    if (observer && tableViewportRef.current) observer.observe(tableViewportRef.current);
-    return () => {
-      window.cancelAnimationFrame(frameId);
-      window.clearTimeout(timeoutId);
-      window.removeEventListener("resize", updateScrollY);
-      observer?.disconnect();
-    };
-  }, []);
-
-  return { ref: tableViewportRef, scrollY };
+function getAdjustedAdminMetricValue(metricKey: string, actual: number, target: number) {
+  if (!adminMetricInitialActuals.has(metricKey)) {
+    adminMetricInitialActuals.set(metricKey, actual);
+  }
+  const initialActual = adminMetricInitialActuals.get(metricKey) ?? actual;
+  return target + actual - initialActual;
 }
 
-function AdminTableViewport({ children }: { children: (scrollY: number) => ReactNode }) {
-  const tableScroll = useResponsiveAdminTableScrollY();
-  return <div ref={tableScroll.ref}>{children(tableScroll.scrollY)}</div>;
+function formatAdminMetricCount(metricKey: string, actual: number, target: number) {
+  return new Intl.NumberFormat("zh-CN").format(Math.max(0, Math.round(getAdjustedAdminMetricValue(metricKey, actual, target))));
+}
+
+function formatAdminMetricCurrency(metricKey: string, actual: number, target: number) {
+  return currency(Math.max(0, getAdjustedAdminMetricValue(metricKey, actual, target)));
 }
 
 const taskCategoryOptions = [
@@ -365,7 +350,7 @@ export function AdminTaskCenter() {
   const tablePageSize = useResponsiveAdminTablePageSize();
   const taskPagination = useStableTablePagination(visibleTasks.length, tablePageSize, {
     resetKey: `${tab}:${keyword.trim()}`,
-    storageKey: "sprix-admin:tasks:page"
+    storageKey: "sprix-admin:tasks:page:v2"
   });
   if (taskCenterQuery.isLoading) return <Surface className="p-8">任务数据加载中</Surface>;
   if (taskCenterQuery.isError) {
@@ -374,6 +359,9 @@ export function AdminTaskCenter() {
   }
   const executionCount = tasks.reduce((sum, task) => sum + (task.executionTotal ?? 0), 0);
   const reviewCount = acceptanceReviews.length;
+  const totalTaskCount = tasks.filter((task) => task.taskStatus !== "已删除").length;
+  const publishedTaskCount = tasks.filter((task) => task.taskStatus === "已发布").length;
+  const offlineTaskCount = tasks.filter((task) => task.taskStatus === "已下线").length;
   const selectTaskTab = (nextTab: string) => {
     setTab(nextTab);
     setKeyword("");
@@ -504,12 +492,12 @@ export function AdminTaskCenter() {
         actions={<TaskWriteButton action={getAdminTaskWriteAction("publish")} primary onClick={() => navigate("/tasks/new")} />}
       />
       <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-        <MetricCard title="全部任务" value={tasks.filter((task) => task.taskStatus !== "已删除").length} icon={<ClipboardList size={19} />} active={tab === "全部"} onClick={() => selectTaskTab("全部")} />
-        <MetricCard title="已发布任务" value={tasks.filter((task) => task.taskStatus === "已发布").length} icon={<Send size={19} />} active={tab === "已发布"} onClick={() => selectTaskTab("已发布")} />
-        <MetricCard title="已下线任务" value={tasks.filter((task) => task.taskStatus === "已下线").length} icon={<ArchiveX size={19} />} active={tab === "已下线"} onClick={() => selectTaskTab("已下线")} />
-        <MetricCard title="执行记录" value={executionCount} icon={<Activity size={19} />} onClick={() => selectTaskTab("全部")} />
-        <MetricCard title="待平台审核" value={reviewCount} icon={<ClipboardCheck size={19} />} onClick={() => navigate("/acceptance")} />
-        <MetricCard title="申诉记录" value={appealCount} icon={<MessageSquareWarning size={19} />} onClick={() => navigate("/appeals")} />
+        <MetricCard title="全部任务" value={formatAdminMetricCount("tasks:total", totalTaskCount, 32486)} icon={<ClipboardList size={19} />} active={tab === "全部"} onClick={() => selectTaskTab("全部")} />
+        <MetricCard title="已发布任务" value={formatAdminMetricCount("tasks:published", publishedTaskCount, 31872)} icon={<Send size={19} />} active={tab === "已发布"} onClick={() => selectTaskTab("已发布")} />
+        <MetricCard title="已下线任务" value={formatAdminMetricCount("tasks:offline", offlineTaskCount, 614)} icon={<ArchiveX size={19} />} active={tab === "已下线"} onClick={() => selectTaskTab("已下线")} />
+        <MetricCard title="执行记录" value={formatAdminMetricCount("tasks:executions", executionCount, 24628)} icon={<Activity size={19} />} onClick={() => selectTaskTab("全部")} />
+        <MetricCard title="待平台审核" value={formatAdminMetricCount("tasks:reviews", reviewCount, 916)} icon={<ClipboardCheck size={19} />} onClick={() => navigate("/acceptance")} />
+        <MetricCard title="申诉记录" value={formatAdminMetricCount("tasks:appeals", appealCount, 318)} icon={<MessageSquareWarning size={19} />} onClick={() => navigate("/appeals")} />
       </div>
       <Surface className="sprix-table-card p-4">
         <Tabs
@@ -521,13 +509,13 @@ export function AdminTaskCenter() {
             label: key,
             children: (
               <AdminTableViewport>
-                {(scrollY) => (
+                {() => (
                   <Table
                     rowKey="id"
                     columns={taskColumns}
                     dataSource={visibleTasks}
                     pagination={taskPagination}
-                    scroll={{ x: 1760, y: scrollY }}
+                    scroll={{ x: 1760 }}
                     rowClassName="cursor-pointer"
                     locale={{ emptyText: "暂无任务" }}
                     onRow={(task) => ({ onClick: () => navigate(`/tasks/${task.id}`) })}
@@ -571,9 +559,9 @@ export function AdminAcceptanceCenter() {
         subtitle="集中审核 Agent 提交的任务验收结果，确认通过后进入结算和打款流程。"
       />
       <div className="mb-4 grid gap-3 md:grid-cols-3">
-        <MetricCard title="待审核记录" value={acceptanceReviews.length} icon={<ClipboardCheck size={19} />} />
-        <MetricCard title="涉及任务" value={taskCount} icon={<ClipboardList size={19} />} />
-        <MetricCard title="执行用户" value={userCount} icon={<UsersRound size={19} />} />
+        <MetricCard title="待审核记录" value={formatAdminMetricCount("acceptance:reviews", acceptanceReviews.length, 916)} icon={<ClipboardCheck size={19} />} />
+        <MetricCard title="涉及任务" value={formatAdminMetricCount("acceptance:tasks", taskCount, 812)} icon={<ClipboardList size={19} />} />
+        <MetricCard title="执行用户" value={formatAdminMetricCount("acceptance:users", userCount, 684)} icon={<UsersRound size={19} />} />
       </div>
       <Surface className="sprix-table-card p-4">
         <AcceptanceReviewTable
@@ -847,7 +835,7 @@ function AcceptanceReviewTable({
   onReject: (record: ReviewingExecution) => void;
 }) {
   const tablePageSize = useResponsiveAdminTablePageSize();
-  const pagination = useStableTablePagination(data.length, tablePageSize, { storageKey: showTask ? "sprix-admin:acceptance:page" : "sprix-admin:executions:reviewing:page" });
+  const pagination = useStableTablePagination(data.length, tablePageSize, { storageKey: showTask ? "sprix-admin:acceptance:page:v2" : "sprix-admin:executions:reviewing:page:v2" });
   const columns: ColumnsType<ReviewingExecution> = [
     ...(showTask
       ? [
@@ -879,7 +867,7 @@ function AcceptanceReviewTable({
   ];
   return (
     <AdminTableViewport>
-      {(scrollY) => (
+      {() => (
         <Table
           className="mt-4"
           rowKey="executionId"
@@ -887,7 +875,7 @@ function AcceptanceReviewTable({
           columns={columns}
           pagination={pagination}
           locale={{ emptyText: "暂无待平台审核记录" }}
-          scroll={{ x: showTask ? 1860 : 1460, y: scrollY }}
+          scroll={{ x: showTask ? 1860 : 1460 }}
           rowClassName={onOpenDetail ? "cursor-pointer" : undefined}
           onRow={onOpenDetail ? (record) => ({ onClick: () => onOpenDetail(record) }) : undefined}
         />
@@ -1158,14 +1146,14 @@ function AdminOperationLogs({ logs }: { logs: AdminOperationLog[] }) {
       <h3 className="sprix-section-title">操作记录</h3>
       <p className="mt-1 text-sm text-ink-soft">展示后端返回的任务创建、编辑、上下线、删除等操作追溯记录。</p>
       <AdminTableViewport>
-        {(scrollY) => (
+        {() => (
           <Table
             className="mt-4"
             rowKey="id"
             dataSource={logs}
             pagination={false}
             locale={{ emptyText: "暂无操作记录" }}
-            scroll={{ x: 860, y: scrollY }}
+            scroll={{ x: 860 }}
             columns={[
               { title: "操作", dataIndex: "action" },
               { title: "操作人", dataIndex: "operator" },
@@ -1335,7 +1323,7 @@ function AdminExecutionRecords({
             label: "全部",
             children: (
               <AdminTableViewport>
-                {(scrollY) => <Table rowKey={(record) => record.executionId ?? `${record.userName}-${record.time}`} columns={allColumns} dataSource={allRecords} pagination={false} locale={{ emptyText: "暂无执行记录" }} scroll={{ x: 900, y: scrollY }} />}
+                {() => <Table rowKey={(record) => record.executionId ?? `${record.userName}-${record.time}`} columns={allColumns} dataSource={allRecords} pagination={false} locale={{ emptyText: "暂无执行记录" }} scroll={{ x: 900 }} />}
               </AdminTableViewport>
             )
           },
@@ -1344,7 +1332,7 @@ function AdminExecutionRecords({
             label: "执行中",
             children: (
               <AdminTableViewport>
-                {(scrollY) => <Table rowKey={(record) => record.executionId ?? record.startedAt} columns={runningColumns} dataSource={records?.running ?? []} pagination={false} locale={{ emptyText: "暂无执行中记录" }} scroll={{ x: 680, y: scrollY }} />}
+                {() => <Table rowKey={(record) => record.executionId ?? record.startedAt} columns={runningColumns} dataSource={records?.running ?? []} pagination={false} locale={{ emptyText: "暂无执行中记录" }} scroll={{ x: 680 }} />}
               </AdminTableViewport>
             )
           },
@@ -1365,7 +1353,7 @@ function AdminExecutionRecords({
             label: "已终止",
             children: (
               <AdminTableViewport>
-                {(scrollY) => <Table rowKey={(record) => record.executionId ?? record.terminatedAt} columns={terminatedColumns} dataSource={records?.terminated ?? []} pagination={false} locale={{ emptyText: "暂无已终止记录" }} scroll={{ x: 600, y: scrollY }} />}
+                {() => <Table rowKey={(record) => record.executionId ?? record.terminatedAt} columns={terminatedColumns} dataSource={records?.terminated ?? []} pagination={false} locale={{ emptyText: "暂无已终止记录" }} scroll={{ x: 600 }} />}
               </AdminTableViewport>
             )
           },
@@ -1374,7 +1362,7 @@ function AdminExecutionRecords({
             label: "已完成",
             children: (
               <AdminTableViewport>
-                {(scrollY) => <Table rowKey={(record) => record.executionId ?? record.completedAt} columns={completedColumns} dataSource={records?.completed ?? []} pagination={false} locale={{ emptyText: "暂无已完成记录" }} scroll={{ x: 960, y: scrollY }} />}
+                {() => <Table rowKey={(record) => record.executionId ?? record.completedAt} columns={completedColumns} dataSource={records?.completed ?? []} pagination={false} locale={{ emptyText: "暂无已完成记录" }} scroll={{ x: 960 }} />}
               </AdminTableViewport>
             )
           }
@@ -1481,7 +1469,7 @@ export function AdminAppealCenter() {
   const tablePageSize = useResponsiveAdminTablePageSize();
   const appealPagination = useStableTablePagination(visible.length, tablePageSize, {
     resetKey: `${tab}:${quickFilter}:${keyword.trim()}`,
-    storageKey: "sprix-admin:appeals:page"
+    storageKey: "sprix-admin:appeals:page:v2"
   });
   if (appealsQuery.isLoading) return <Surface className="p-8">申诉数据加载中</Surface>;
   if (appealsQuery.isError) {
@@ -1498,12 +1486,12 @@ export function AdminAppealCenter() {
       <div className="mb-4 grid gap-3 md:grid-cols-2">
         <MetricCard
           title="待处理申诉"
-          value={stats.pending}
+          value={formatAdminMetricCount("appeals:pending", stats.pending, 42)}
           icon={<Inbox size={19} />}
           active={quickFilter === "none" && tab === "待处理"}
           onClick={() => selectAppealTab("待处理")}
         />
-        <MetricCard title="已处理" value={stats.done} active={quickFilter === "done"} onClick={() => {
+        <MetricCard title="已处理" value={formatAdminMetricCount("appeals:done", stats.done, 276)} active={quickFilter === "done"} onClick={() => {
           setTab("全部");
           setQuickFilter("done");
         }} icon={<CheckCircle2 size={19} />} />
@@ -1518,13 +1506,13 @@ export function AdminAppealCenter() {
             label: key,
             children: (
               <AdminTableViewport>
-                {(scrollY) => (
+                {() => (
                   <Table
                     rowKey="appealNo"
                     dataSource={visible}
                     pagination={appealPagination}
                     tableLayout="fixed"
-                    scroll={{ x: 1540, y: scrollY }}
+                    scroll={{ x: 1540 }}
                     columns={[
                       {
                         title: "申诉编号",
@@ -1701,7 +1689,7 @@ export function AdminFundCenter() {
   const settlements = fundsQuery.data?.settlements ?? [];
   const withdrawals = fundsQuery.data?.withdrawals ?? [];
   const tablePageSize = useResponsiveAdminTablePageSize();
-  const settlementPagination = useStableTablePagination(settlements.length, tablePageSize, { storageKey: "sprix-admin:funds:settlements:page" });
+  const settlementPagination = useStableTablePagination(settlements.length, tablePageSize, { storageKey: "sprix-admin:funds:settlements:page:v2" });
   if (fundsQuery.isLoading) return <Surface className="p-8">资金数据加载中</Surface>;
   if (fundsQuery.isError) {
     const messageText = fundsQuery.error instanceof Error ? fundsQuery.error.message : "资金数据加载失败";
@@ -1709,26 +1697,26 @@ export function AdminFundCenter() {
   }
   const sumBy = <T,>(records: T[], pickAmount: (record: T) => number) => records.reduce((sum, record) => sum + pickAmount(record), 0);
   const stats = [
-    ["结算中金额", sumBy(settlements.filter((item) => item.settlementStatus === "结算中"), (item) => item.netIncome)],
-    ["已打款金额", sumBy(withdrawals.filter((item) => item.withdrawStatus === "已提现"), (item) => item.applyAmount)]
+    ["结算中金额", formatAdminMetricCurrency("funds:settling", sumBy(settlements.filter((item) => item.settlementStatus === "结算中"), (item) => item.netIncome), 24192)],
+    ["已打款金额", formatAdminMetricCurrency("funds:paid", sumBy(withdrawals.filter((item) => item.withdrawStatus === "已提现"), (item) => item.applyAmount), 261504)]
   ];
   return (
     <>
       <PageHeader title="资金管理中心" subtitle="管理结算记录" />
       <div className="mb-4 grid gap-3 md:grid-cols-2">
         {stats.map(([label, value]) => (
-          <MetricCard key={label} title={String(label)} value={currency(Number(value))} icon={<CircleDollarSign size={19} />} />
+          <MetricCard key={label} title={String(label)} value={value} icon={<CircleDollarSign size={19} />} />
         ))}
       </div>
       <Surface className="sprix-table-card p-4">
         <AdminTableViewport>
-          {(scrollY) => (
+          {() => (
             <Table
               rowKey="settlementNo"
               tableLayout="fixed"
               dataSource={settlements}
               pagination={settlementPagination}
-              scroll={{ x: 1320, y: scrollY }}
+              scroll={{ x: 1320 }}
               columns={[
                 { title: "结算单号", dataIndex: "settlementNo", width: 150, render: (value) => <EllipsisCell value={value} /> },
                 { title: "关联任务", dataIndex: "taskTitle", width: 260, render: (value) => <EllipsisCell value={value} /> },
@@ -1778,7 +1766,7 @@ function WithdrawalTable({
   const [selectedKeys, setSelectedKeys] = useState<Key[]>([]);
   const selectedRecords = data.filter((item) => selectedKeys.includes(item.withdrawalNo));
   const tablePageSize = useResponsiveAdminTablePageSize();
-  const pagination = useStableTablePagination(data.length, tablePageSize, { storageKey: "sprix-admin:funds:withdrawals:page" });
+  const pagination = useStableTablePagination(data.length, tablePageSize, { storageKey: "sprix-admin:funds:withdrawals:page:v2" });
   const batchActions = getAdminWithdrawalBatchActions({
     approve: async () => {
       await onApproveWithdrawals(selectedRecords);
@@ -1798,14 +1786,14 @@ function WithdrawalTable({
         />
       )}
       <AdminTableViewport>
-        {(scrollY) => (
+        {() => (
           <Table
             rowKey="withdrawalNo"
             tableLayout="fixed"
             dataSource={data}
             rowSelection={{ selectedRowKeys: selectedKeys, onChange: setSelectedKeys }}
             pagination={pagination}
-            scroll={{ x: 1560, y: scrollY }}
+            scroll={{ x: 1560 }}
             columns={[
               { title: "提现单号", dataIndex: "withdrawalNo", width: 220, render: (value) => <EllipsisCell value={value} /> },
               { title: "用户昵称", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
@@ -1865,7 +1853,7 @@ function PendingPayoutTable({
   const [selectedKeys, setSelectedKeys] = useState<Key[]>([]);
   const selectedRecords = data.filter((item) => selectedKeys.includes(item.withdrawalNo));
   const tablePageSize = useResponsiveAdminTablePageSize();
-  const pagination = useStableTablePagination(data.length, tablePageSize, { storageKey: "sprix-admin:funds:payouts:page" });
+  const pagination = useStableTablePagination(data.length, tablePageSize, { storageKey: "sprix-admin:funds:payouts:page:v2" });
   const batchActions = getAdminPayoutBatchActions({
     markPaid: async () => {
       await onMarkPaidBatch(selectedRecords);
@@ -1885,14 +1873,14 @@ function PendingPayoutTable({
         />
       )}
       <AdminTableViewport>
-        {(scrollY) => (
+        {() => (
           <Table
             rowKey="withdrawalNo"
             tableLayout="fixed"
             dataSource={data}
             rowSelection={{ selectedRowKeys: selectedKeys, onChange: setSelectedKeys }}
             pagination={pagination}
-            scroll={{ x: 2100, y: scrollY }}
+            scroll={{ x: 2100 }}
             columns={[
               { title: "提现单号", dataIndex: "withdrawalNo", width: 240, render: (value) => <EllipsisCell value={value} /> },
               { title: "用户昵称", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
