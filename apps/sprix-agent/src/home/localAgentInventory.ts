@@ -17,7 +17,7 @@ export function getLocalAgentEmptyMessage(localAgent?: LocalAgentDiagnostic) {
     case "INVENTORY_STALE":
       return "正在刷新本地 Agent 状态";
     case "NO_AVAILABLE_AGENT":
-      return "未检测到可用的 codex、opencode 或 claude";
+      return "未检测到可用的 codex、opencode、claude 或 hermes";
     case "READY":
       return "暂无可展示 Agent";
     default:
