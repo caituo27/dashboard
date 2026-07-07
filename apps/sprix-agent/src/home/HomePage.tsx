@@ -15,6 +15,7 @@ import { isGlobalAuthError } from "../utils/http";
 import { AgentEvaluationProgressModal } from "../components/AgentEvaluationProgressModal";
 import { ActionButton, SoftTag } from "../components/Primitives";
 import { AgentAbilityProfile } from "../user/AgentAbilityProfile";
+import { useAgentBindPolling } from "./useAgentBindPolling";
 import { useHomeBootstrap } from "./useHomeBootstrap";
 import { useHomeAgentState } from "./useHomeAgentState";
 import { HomeAgentCard } from "./HomeAgentCard";
@@ -63,6 +64,10 @@ export function HomePage({ openLogin, openContact, onLogout }: HomePageProps) {
   const autoSetCurrentAgentIdRef = useRef<string>();
   const [agentPickerOpen, setAgentPickerOpen] = useState(false);
   const [connectModalOpen, setConnectModalOpen] = useState(false);
+  const {
+    recognizing: pickerRecognizing,
+    start: startPickerPolling
+  } = useAgentBindPolling({ open: agentPickerOpen });
   const [evaluationAgent, setEvaluationAgent] = useState<Agent | null>(null);
   const [evaluation, setEvaluation] = useState<AgentEvaluation | undefined>();
   const [evaluationModalOpen, setEvaluationModalOpen] = useState(false);
@@ -229,6 +234,11 @@ export function HomePage({ openLogin, openContact, onLogout }: HomePageProps) {
   }, [navigate, shouldOpenAgentPicker]);
 
   useEffect(() => {
+    if (!agentPickerOpen) return;
+    startPickerPolling();
+  }, [agentPickerOpen, startPickerPolling]);
+
+  useEffect(() => {
     if (account.isLoggedIn && currentAgent && !connectModalOpen && !shouldOpenConnectModal && !abilityResultModalOpen && !abilityResultFlowRef.current) {
       navigate("/agent/market", { replace: true });
     }
@@ -264,6 +274,7 @@ export function HomePage({ openLogin, openContact, onLogout }: HomePageProps) {
       <HomeAgentPickerModal
         open={agentPickerOpen}
         agents={availableAgents}
+        recognizing={pickerRecognizing}
         onSelect={selectAgentForEvaluation}
         onClose={() => setAgentPickerOpen(false)}
       />

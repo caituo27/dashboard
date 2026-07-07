@@ -71,7 +71,7 @@ export function useAgentBindPolling({ open }: UseAgentBindPollingOptions) {
   const recognize = useCallback(async () => {
     const result = await refreshOnce();
     if (!result) return;
-    const hasDetectedAgents = result.agents.length > 0;
+    const hasDetectedAgents = result.agents.some((agent) => agent.status !== "离线");
     if (hasDetectedAgents) {
       const remainingMs = minimumVisibleUntilRef.current - Date.now();
       if (remainingMs > 0) {

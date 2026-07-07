@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Modal } from "antd";
+import { Empty, Modal, Spin } from "antd";
 import { Bot, CheckCircle2 } from "lucide-react";
 import { ActionButton, SecondaryButton, StatusTag } from "../components/Primitives";
 import type { Agent } from "../types";
@@ -7,13 +7,21 @@ import type { Agent } from "../types";
 type HomeAgentPickerModalProps = {
   open: boolean;
   agents: Agent[];
+  recognizing: boolean;
   onSelect: (agent: Agent) => void;
   onClose: () => void;
 };
 
-export function HomeAgentPickerModal({ open, agents, onSelect, onClose }: HomeAgentPickerModalProps) {
+export function HomeAgentPickerModal({
+  open,
+  agents,
+  recognizing,
+  onSelect,
+  onClose
+}: HomeAgentPickerModalProps) {
   const [selectedAgentId, setSelectedAgentId] = useState<string>();
   const selectedAgent = useMemo(() => agents.find((agent) => agent.id === selectedAgentId) ?? agents[0], [agents, selectedAgentId]);
+  const showInitialLoading = recognizing && agents.length === 0;
 
   useEffect(() => {
     if (open) {
@@ -28,35 +36,55 @@ export function HomeAgentPickerModal({ open, agents, onSelect, onClose }: HomeAg
         <h2>选择当前执行 Agent</h2>
         <p>选择一台本地 Agent，系统会先生成能力画像，完成后设为当前执行 Agent。</p>
       </div>
-      <div className="sprix-agent-picker-grid">
-        {agents.map((agent) => {
-          const isSelected = agent.id === selectedAgent?.id;
-          return (
-            <button
-              key={agent.id}
-              type="button"
-              className={`sprix-agent-picker-item ${isSelected ? "is-selected" : ""}`}
-              onClick={() => setSelectedAgentId(agent.id)}
-              onDoubleClick={() => onSelect(agent)}
-              aria-pressed={isSelected}
-            >
-              <span className="sprix-agent-picker-main">
-                <span className="sprix-agent-picker-icon">
-                  <Bot size={18} />
+      {showInitialLoading ? (
+        <div className="grid min-h-[240px] place-items-center px-6 py-10 text-center">
+          <div>
+            <Spin size="large" />
+            <h3 className="mt-6 text-lg font-semibold text-ink">正在同步本地 Agent</h3>
+            <p className="mt-2 text-sm text-ink-soft">绑定已完成，正在持续拉取当前设备上的可用 Agent，请保持弹框打开。</p>
+          </div>
+        </div>
+      ) : agents.length === 0 ? (
+        <div className="px-6 py-4">
+          <Empty
+            description={recognizing ? "暂时还没拿到可选 Agent，系统仍在自动刷新。" : "当前还没有可选 Agent。"}
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+          />
+          <p className="mt-3 text-center text-sm text-ink-soft">
+            {recognizing ? "你可以先稍等一会，弹框会继续自动刷新。" : "关闭后重新打开，系统会再次尝试同步。"}
+          </p>
+        </div>
+      ) : (
+        <div className="sprix-agent-picker-grid">
+          {agents.map((agent) => {
+            const isSelected = agent.id === selectedAgent?.id;
+            return (
+              <button
+                key={agent.id}
+                type="button"
+                className={`sprix-agent-picker-item ${isSelected ? "is-selected" : ""}`}
+                onClick={() => setSelectedAgentId(agent.id)}
+                onDoubleClick={() => onSelect(agent)}
+                aria-pressed={isSelected}
+              >
+                <span className="sprix-agent-picker-main">
+                  <span className="sprix-agent-picker-icon">
+                    <Bot size={18} />
+                  </span>
+                  <span className="sprix-agent-picker-copy">
+                    <strong>{agent.name}</strong>
+                    <span>{agent.evaluation ? "已有能力画像，可重新评测并设为当前执行 Agent" : "未生成能力画像，评测完成后设为当前执行 Agent"}</span>
+                  </span>
                 </span>
-                <span className="sprix-agent-picker-copy">
-                  <strong>{agent.name}</strong>
-                  <span>{agent.evaluation ? "已有能力画像，可重新评测并设为当前执行 Agent" : "未生成能力画像，评测完成后设为当前执行 Agent"}</span>
+                <span className="sprix-agent-picker-meta">
+                  <StatusTag status={agent.status} />
+                  <span className="sprix-agent-picker-check">{isSelected ? <CheckCircle2 size={18} /> : "选择"}</span>
                 </span>
-              </span>
-              <span className="sprix-agent-picker-meta">
-                <StatusTag status={agent.status} />
-                <span className="sprix-agent-picker-check">{isSelected ? <CheckCircle2 size={18} /> : "选择"}</span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
       <div className="sprix-agent-picker-footer">
         <SecondaryButton onClick={onClose}>取消</SecondaryButton>
         <ActionButton disabled={!selectedAgent} onClick={() => selectedAgent && onSelect(selectedAgent)}>
