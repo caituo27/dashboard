@@ -50,9 +50,6 @@ export function HomeAgentPickerModal({
             description={recognizing ? "暂时还没拿到可选 Agent，系统仍在自动刷新。" : "当前还没有可选 Agent。"}
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           />
-          <p className="mt-3 text-center text-sm text-ink-soft">
-            {recognizing ? "你可以先稍等一会，弹框会继续自动刷新。" : "关闭后重新打开，系统会再次尝试同步。"}
-          </p>
         </div>
       ) : (
         <div className="sprix-agent-picker-grid">

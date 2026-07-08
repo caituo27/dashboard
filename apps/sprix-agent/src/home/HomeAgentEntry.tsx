@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Modal } from "antd";
 import { Download, PlugZap } from "lucide-react";
-import { LOCAL_AGENT_CLI_MODE_URL, LOCAL_AGENT_DOWNLOAD_URL } from "../localAgentDownload";
+import { LOCAL_AGENT_DOWNLOAD_URL } from "../localAgentDownload";
 import { ActionButton } from "../components/Primitives";
 import type { HomeAgentStateResult } from "./homeTypes";
 import { useAgentBindPolling } from "./useAgentBindPolling";
@@ -15,6 +15,25 @@ type HomeAgentEntryProps = {
   onOpenAgentPicker: () => void;
   onEnterMarket: () => void;
 };
+
+const SUPPORTED_AGENTS = [
+  {
+    name: "Codex",
+    iconSrc: "/agent-icons/gpt.png"
+  },
+  {
+    name: "Hermes",
+    iconSrc: "/agent-icons/hermes.png"
+  },
+  {
+    name: "Claude",
+    iconSrc: "/agent-icons/claude.png"
+  },
+  {
+    name: "OpenCode",
+    iconSrc: "/agent-icons/opencode.png"
+  }
+] as const;
 
 export function HomeAgentEntry({
   state,
@@ -67,18 +86,19 @@ export function HomeAgentEntry({
           {state.primaryActionLabel}
         </ActionButton>
       </div>
-      <Modal centered footer={null} open={connectModalOpen} width={620} onCancel={onCloseConnectModal}>
+      <Modal
+        centered
+        footer={null}
+        open={connectModalOpen}
+        width={540}
+        onCancel={onCloseConnectModal}
+        className="sprix-connect-agent-dialog"
+      >
         <div className="sprix-connect-agent-modal">
           <div className="sprix-hero-kicker">Sprix AI</div>
           <h2>连接本地 Agent</h2>
-          <p className="sprix-connect-agent-primary-copy">安装连接插件后，即可识别本机 Agent CLI。</p>
-          <p className="sprix-connect-agent-helper">
-            仅支持 Agent CLI，单独安装桌面 App 无法识别。
-            <a href={LOCAL_AGENT_CLI_MODE_URL} target="_blank" rel="noreferrer">
-              了解 CLI 模式
-            </a>
-          </p>
-          <div className="sprix-hero-actions">
+          <p className="sprix-connect-agent-primary-copy">安装连接插件后，即可识别本机 Agent。</p>
+          <div className="sprix-connect-agent-cta">
             <ActionButton
               href={LOCAL_AGENT_DOWNLOAD_URL}
               target="_blank"
@@ -88,6 +108,19 @@ export function HomeAgentEntry({
             >
               下载 Sprix AI 连接插件（Mac 版）
             </ActionButton>
+          </div>
+          <div className="sprix-supported-agent-section" aria-label="支持的 Agent 列表">
+            <p className="sprix-supported-agent-copy">目前仅支持以下 Agent</p>
+            <div className="sprix-supported-agent-grid">
+              {SUPPORTED_AGENTS.map((agent) => (
+                <div key={agent.name} className="sprix-supported-agent-card">
+                  <span className="sprix-supported-agent-icon" aria-hidden="true">
+                    <img src={agent.iconSrc} alt="" loading="lazy" />
+                  </span>
+                  <strong>{agent.name}</strong>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </Modal>

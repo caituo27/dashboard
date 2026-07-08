@@ -70,8 +70,14 @@ describe("HomeAgentEntry", () => {
     const downloadLink = screen.getByRole("link", { name: "下载 Sprix AI 连接插件（Mac 版）" });
 
     expect(screen.getByRole("button", { name: "连接本地agent（仅限Mac）" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "了解 CLI 模式" })).toBeTruthy();
+    expect(screen.getByText("安装连接插件后，即可识别本机 Agent。")).toBeTruthy();
     expect(downloadLink).toHaveAttribute("href", "https://cnb.cool/yztx_qxun/LocalCLIAgentRelease/-/git/raw/main/LocalCLIAgent-latest.dmg");
+    expect(screen.getByText("目前仅支持以下 Agent")).toBeTruthy();
+    expect(screen.getByText("Codex")).toBeTruthy();
+    expect(screen.getByText("Hermes")).toBeTruthy();
+    expect(screen.getByText("Claude")).toBeTruthy();
+    expect(screen.getByText("OpenCode")).toBeTruthy();
+    expect(screen.queryByText("了解 CLI 模式")).toBeNull();
     expect(screen.queryByRole("link", { name: "下载客户端" })).toBeNull();
   });
 });
