@@ -835,6 +835,7 @@ function mapTerminationReason(reason?: string) {
   const reasons: Record<string, string> = {
     AGENT_SWITCHED_DURING_EXECUTION: "执行中切换 Agent，任务已终止",
     AGENT_DISCONNECTED_DURING_EXECUTION: "执行中 Agent 连接断开，任务已终止",
+    LOCAL_PROCESS_FAILED: "本地 Agent 执行失败",
     USER_CANCELLED: "用户主动终止任务",
     CANCELLED_BY_USER: "用户主动终止任务"
   };
