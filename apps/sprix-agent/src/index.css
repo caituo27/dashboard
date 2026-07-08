@@ -963,11 +963,28 @@ select {
 }
 
 .sprix-supported-agent-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
   margin: 0;
   color: rgba(26, 26, 26, 0.46);
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Inter", ui-sans-serif, system-ui, sans-serif;
   font-size: 11px;
   font-weight: 620;
   line-height: 1.35;
+}
+
+.sprix-supported-agent-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(26, 26, 26, 0.34);
+  cursor: default;
+}
+
+.sprix-supported-agent-hint:hover {
+  color: rgba(26, 26, 26, 0.62);
 }
 
 .sprix-supported-agent-grid {

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { Modal } from "antd";
+import { ExclamationCircleOutlined } from "@ant-design/icons";
+import { Modal, Tooltip } from "antd";
 import { Download, PlugZap } from "lucide-react";
 import { LOCAL_AGENT_DOWNLOAD_URL } from "../localAgentDownload";
 import { ActionButton } from "../components/Primitives";
@@ -110,7 +111,14 @@ export function HomeAgentEntry({
             </ActionButton>
           </div>
           <div className="sprix-supported-agent-section" aria-label="支持的 Agent 列表">
-            <p className="sprix-supported-agent-copy">目前仅支持以下 Agent</p>
+            <p className="sprix-supported-agent-copy">
+              <span>目前仅支持以下 Agent</span>
+              <Tooltip title="更多 Agent 陆续开放中" placement="top">
+                <span className="sprix-supported-agent-hint">
+                  <ExclamationCircleOutlined />
+                </span>
+              </Tooltip>
+            </p>
             <div className="sprix-supported-agent-grid">
               {SUPPORTED_AGENTS.map((agent) => (
                 <div key={agent.name} className="sprix-supported-agent-card">
