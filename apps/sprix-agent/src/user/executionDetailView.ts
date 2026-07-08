@@ -61,10 +61,18 @@ const terminationReasonLabels: Record<string, string> = {
   USER_CANCELLED: "用户主动终止任务",
   user_cancelled: "用户主动终止任务",
   CANCELLED_BY_USER: "用户主动终止任务",
-  cancelled_by_user: "用户主动终止任务"
+  cancelled_by_user: "用户主动终止任务",
+  LOCAL_PROCESS_FAILED: "平台异常终止",
+  local_process_failed: "平台异常终止",
+  PLATFORM_ERROR: "平台异常终止",
+  platform_error: "平台异常终止",
+  INPUT_DOWNLOAD_FAILED: "平台异常终止",
+  input_download_failed: "平台异常终止",
+  ARTIFACT_UPLOAD_FAILED: "平台异常终止",
+  artifact_upload_failed: "平台异常终止",
+  LOCAL_ACCEPTANCE_FAILED: "平台异常终止",
+  local_acceptance_failed: "平台异常终止"
 };
-
-const fallbackTerminationReasonLabels = [...new Set(Object.values(terminationReasonLabels))];
 
 export type ExecutionSummary = {
   title: string;
@@ -123,21 +131,12 @@ function getTerminationReasonLabel(reason?: string) {
   const normalized = reason.trim();
   const mappedReason = terminationReasonLabels[normalized] ?? terminationReasonLabels[normalized.toUpperCase()];
   if (mappedReason) return mappedReason;
-  if (isMachineReasonCode(normalized)) return pickFallbackTerminationReason(normalized);
+  if (isMachineReasonCode(normalized)) return "平台异常终止";
   return normalized;
 }
 
 function isMachineReasonCode(reason: string) {
   return /[A-Za-z_]/.test(reason);
-}
-
-function pickFallbackTerminationReason(reason: string) {
-  const index = Math.abs(hashText(reason)) % fallbackTerminationReasonLabels.length;
-  return fallbackTerminationReasonLabels[index] ?? "任务已终止";
-}
-
-function hashText(text: string) {
-  return [...text].reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) | 0, 0);
 }
 
 export function getTaskRequirementRows(detail: MyTaskExecutionDetail) {
