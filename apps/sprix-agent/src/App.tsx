@@ -6,6 +6,7 @@ import {
   AccountModal,
   AgreementModal,
   AppealModal,
+  AboutModal,
   AuthModal,
   BindAlipayModal,
   ContactModal,
@@ -132,7 +133,17 @@ function ConsumerAppRoutes() {
     <>
       <RemoteSprixBridge enabled={location.pathname.startsWith("/agent")} />
       <Routes>
-        <Route path="/" element={<HomePage openLogin={openLogin} openContact={() => open("contact")} onLogout={handleLogout} />} />
+        <Route
+          path="/"
+          element={
+            <HomePage
+              openLogin={openLogin}
+              openContact={() => open("contact")}
+              openAbout={() => open("about")}
+              onLogout={handleLogout}
+            />
+          }
+        />
         <Route path="/auth/callback/alipay/face" element={<AuthCallbackPage />} />
         <Route path="/auth/callback/:provider" element={<AuthCallbackPage />} />
         <Route path="/local-agent/claim" element={<LocalAgentClaimPage />} />
@@ -177,6 +188,7 @@ function ConsumerAppRoutes() {
       />
       <AgreementModal open={modal.agreements} onClose={() => close("agreements")} />
       <ContactModal open={modal.contact} onClose={() => close("contact")} />
+      <AboutModal open={modal.about} onClose={() => close("about")} />
       <BindAlipayModal
         open={modal.bindAlipay}
         onClose={() => close("bindAlipay")}

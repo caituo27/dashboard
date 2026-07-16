@@ -27,6 +27,7 @@ import { HomeTopAccount } from "./HomeTopAccount";
 type HomePageProps = {
   openLogin: () => void;
   openContact?: () => void;
+  openAbout?: () => void;
   onLogout?: () => void;
 };
 
@@ -49,7 +50,7 @@ function showHomeRequestError(error: unknown, fallback: string, prefix = "") {
   message.error(error instanceof Error ? `${prefix}${error.message}` : fallback);
 }
 
-export function HomePage({ openLogin, openContact, onLogout }: HomePageProps) {
+export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePageProps) {
   useHomeBootstrap();
   const location = useLocation();
   const navigate = useNavigate();
@@ -268,7 +269,12 @@ export function HomePage({ openLogin, openContact, onLogout }: HomePageProps) {
           <a href="https://beian.miit.gov.cn/" target="_blank" rel="noreferrer">
             {ICP_RECORD_NO}
           </a>
-          {!account.isLoggedIn && <button type="button" onClick={openContact}>联系我们</button>}
+          {!account.isLoggedIn && (
+            <>
+              <button type="button" onClick={openContact}>联系我们</button>
+              <button type="button" onClick={openAbout}>关于我们</button>
+            </>
+          )}
         </footer>
       </section>
       <HomeAgentPickerModal
