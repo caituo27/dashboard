@@ -26,14 +26,12 @@ function Sidebar({
   const location = useLocation();
   return (
     <aside className="sprix-sidebar">
-      <Link to="/" className="mb-8 flex items-center gap-3 no-underline">
-        <div className="flex size-10 items-center justify-center rounded-2xl bg-pill text-white">
-          <img src="/favicon.svg" alt="" className="size-6 invert" />
-        </div>
-        <div>
-          <div className="sprix-title text-2xl leading-none text-ink">Sprix AI</div>
-          <div className="mt-1 text-xs text-ink-soft">Agent 任务平台</div>
-        </div>
+      <Link to="/" className="mb-8 block no-underline">
+        <img
+          src="/sprix-logo.png"
+          alt="Sprix AI Agent 任务平台"
+          className="block h-auto w-[156px] max-w-full"
+        />
       </Link>
       <nav className="space-y-2">
         {userRoutes.map((route) => {
