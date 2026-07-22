@@ -51,11 +51,6 @@ export function AuthCallbackPage() {
         return;
       }
 
-      if (normalizedProvider === "alipay" && isAlipayBindState(callbackParams.state)) {
-        window.location.replace(buildRemoteAlipayBindCallbackUrl(callbackParams.code, callbackParams.state));
-        return;
-      }
-
       try {
         const nextStatus =
           normalizedProvider === "wechat"
@@ -100,14 +95,7 @@ export function AuthCallbackPage() {
 }
 
 function isMissingAlipayLoginSession(error: unknown) {
-  return (
-    error instanceof Error &&
-    (error.message.includes("Alipay login session not found") || error.message.includes("Alipay 登录会话不存在"))
-  );
-}
-
-function isAlipayBindState(state: string) {
-  return state.startsWith("bind_");
+  return error instanceof Error && error.message.includes("Alipay login session not found");
 }
 
 function getCallbackCopy(state: CallbackState, isLoading: boolean, isAlipayBindScene: boolean) {
