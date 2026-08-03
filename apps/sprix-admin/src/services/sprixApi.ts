@@ -97,6 +97,7 @@ export type AdminExecutionResult = {
   executionId: string;
   taskId: string;
   executionStatus: string;
+  reviewSource?: "AGENT" | "USER_MANUAL";
   output?: {
     exitCode?: number | null;
     finalMessage?: string | null;
@@ -128,6 +129,29 @@ export type AdminExecutionResult = {
     mappedBusinessStatus?: string | null;
     receivedAt?: string | null;
   } | null;
+  manualSubmissions?: ManualSubmission[];
+};
+
+export type ManualSubmission = {
+  submissionId: string;
+  submissionNo: number;
+  source: "USER_MANUAL";
+  status: "PENDING_REVIEW" | "APPROVED" | "REJECTED";
+  description?: string | null;
+  reviewReason?: string | null;
+  submittedAt: string;
+  reviewedAt?: string | null;
+  files: Array<{
+    id: string;
+    fileId: string;
+    filename: string;
+    mimeType: string;
+    sizeBytes: number;
+    sha256: string;
+    sortOrder: number;
+    downloadUrl: string;
+    createdAt: string;
+  }>;
 };
 
 export type AdminFundsSnapshot = {
@@ -194,6 +218,9 @@ type RemoteAdminExecutionRow = {
   acceptanceSummary?: string;
   acceptanceIssues?: string;
   acceptancePayload?: string;
+  reviewSource?: "AGENT" | "USER_MANUAL";
+  manualSubmissionNo?: number | null;
+  manualSubmissionDescription?: string | null;
   score?: number | null;
   summary?: string;
   issues?: string;
@@ -225,6 +252,9 @@ type RemoteAcceptanceReviewRow = {
   acceptanceSummary?: string;
   acceptanceIssues?: string;
   acceptancePayload?: string;
+  reviewSource?: "AGENT" | "USER_MANUAL";
+  manualSubmissionNo?: number | null;
+  manualSubmissionDescription?: string | null;
   score?: number | null;
   summary?: string;
   issues?: string;
@@ -606,6 +636,9 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
         acceptanceScore: mapAcceptanceScore(row),
         acceptanceSummary: mapAcceptanceSummary(row),
         acceptanceIssues: mapAcceptanceIssues(row),
+        reviewSource: row.reviewSource ?? "AGENT",
+        manualSubmissionNo: row.manualSubmissionNo ?? undefined,
+        manualSubmissionDescription: row.manualSubmissionDescription ?? undefined,
         currentNode: mapCurrentNode(row.currentNode, row.currentNodeLabel),
         progress: row.progress ?? "-",
         submittedAt: formatDateTime(row.submittedAt ?? row.completedAt ?? row.updatedAt)
@@ -650,6 +683,9 @@ function mapAcceptanceReview(row: RemoteAcceptanceReviewRow): ReviewingExecution
     acceptanceScore: mapAcceptanceScore(row),
     acceptanceSummary: mapAcceptanceSummary(row),
     acceptanceIssues: mapAcceptanceIssues(row),
+    reviewSource: row.reviewSource ?? "AGENT",
+    manualSubmissionNo: row.manualSubmissionNo ?? undefined,
+    manualSubmissionDescription: row.manualSubmissionDescription ?? undefined,
     currentNode: mapCurrentNode(row.currentNode, row.currentNodeLabel),
     progress: row.progress ?? "-",
     submittedAt: formatDateTime(row.submittedAt ?? row.updatedAt ?? row.startedAt)
@@ -911,6 +947,7 @@ function mapCurrentNode(node?: string, label?: string) {
     PLATFORM_ACCEPTANCE: "平台验收",
     PLATFORM_REVIEWING: "平台审核中",
     PLATFORM_REJECTED: "平台审核不通过",
+    MANUAL_RESUBMITTED: "人工补交待审核",
     REWARD_RECORDING: "报酬记录中",
     SETTLEMENT: "报酬入账",
     SETTLING: "报酬入账",

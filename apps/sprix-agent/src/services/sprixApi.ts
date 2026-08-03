@@ -56,7 +56,7 @@ import { formatEstimatedArrivalTime } from "./arrivalTime";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/sprix-api";
 const CONFIGURED_LOCAL_AGENT_CLAIM_BASE_URL = import.meta.env.VITE_LOCAL_AGENT_CLAIM_BASE_URL ?? "";
-const DEV_LOCAL_AGENT_CLAIM_BASE_URL = "http://42.194.150.73:8084";
+const DEV_LOCAL_AGENT_CLAIM_BASE_URL = "http://127.0.0.1:8084";
 const DEFAULT_LOCAL_AGENT_CLAIM_BASE_URL = "http://42.194.150.73:8084";
 const TOKEN_KEY = "sprix-auth-token";
 
@@ -166,6 +166,36 @@ export type TaskAttachment = {
   sortOrder: number;
   downloadUrl: string;
   createdAt: string;
+};
+
+export type ManualSubmissionFile = {
+  id: string;
+  fileId: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  sha256: string;
+  sortOrder: number;
+  downloadUrl: string;
+  createdAt: string;
+};
+
+export type ManualSubmission = {
+  submissionId: string;
+  submissionNo: number;
+  source: "USER_MANUAL";
+  status: "PENDING_REVIEW" | "APPROVED" | "REJECTED";
+  description?: string | null;
+  reviewReason?: string | null;
+  submittedAt: string;
+  reviewedAt?: string | null;
+  files: ManualSubmissionFile[];
+};
+
+export type MyTaskExecutionDetailView = MyTaskExecutionDetail & {
+  canManualResubmit?: boolean;
+  reviewSource?: "AGENT" | "USER_MANUAL";
+  manualSubmissions?: ManualSubmission[];
 };
 
 export type AccountProfileUpdate = {
@@ -642,9 +672,38 @@ export async function cancelRemoteTask(executionId: string): Promise<TaskExecuti
   return requireValue<TaskExecution>(response, "任务终止失败");
 }
 
-export async function readRemoteMyTaskDetail(executionId: string): Promise<MyTaskExecutionDetail> {
-  const response = await myTaskApi.detail2({ executionId });
-  return requireValue<MyTaskExecutionDetail>(response, "任务执行详情不可用");
+export async function readRemoteMyTaskDetail(executionId: string): Promise<MyTaskExecutionDetailView> {
+  const response = await http.get<unknown, MyTaskExecutionDetailView>(
+    `/api/v1/my-tasks/${encodeURIComponent(executionId)}`
+  );
+  return requireValue<MyTaskExecutionDetailView>(response, "任务执行详情不可用");
+}
+
+export async function createRemoteManualSubmission(
+  executionId: string,
+  description: string,
+  files: File[]
+): Promise<ManualSubmission> {
+  const body = new FormData();
+  body.append("request", new Blob([JSON.stringify({ description })], { type: "application/json" }));
+  files.forEach((file) => body.append("files", file));
+  const response = await http.post<FormData, ManualSubmission>(
+    `/api/v1/my-tasks/${encodeURIComponent(executionId)}/manual-submissions`,
+    body
+  );
+  return requireValue(response, "交付产物重新上传失败");
+}
+
+export async function downloadRemoteManualSubmissionFile(file: ManualSubmissionFile) {
+  const blob = await http.get<unknown, Blob>(file.downloadUrl, { responseType: "blob" });
+  const url = URL.createObjectURL(requireValue(blob, "人工补交文件下载失败"));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = file.filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 export function getMyTaskArtifactDownloadHref(executionId: string, fileId: string, downloadUrl?: string) {

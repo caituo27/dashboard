@@ -247,6 +247,12 @@ function formatFileSize(sizeBytes?: number | null) {
   return `${(size / (1024 * 1024)).toFixed(1)} MiB`;
 }
 
+function manualSubmissionStatusLabel(status: "PENDING_REVIEW" | "APPROVED" | "REJECTED") {
+  if (status === "APPROVED") return "人工审核通过";
+  if (status === "REJECTED") return "人工审核不通过";
+  return "待人工审核";
+}
+
 function validateTaskAttachment(file: File) {
   const extension = file.name.includes(".") ? file.name.split(".").pop()?.toLowerCase() ?? "" : "";
   if (!taskAttachmentExtensions.has(extension)) return "仅支持图片、文档、表格、文本和常用压缩包格式";
@@ -579,7 +585,7 @@ export function AdminAcceptanceCenter() {
       <PageHeader
         eyebrow="Sprix 管理后台"
         title="平台验收中心"
-        subtitle="集中审核 Agent 提交的任务验收结果，确认通过后进入结算和打款流程。"
+        subtitle="集中审核 Agent 自动交付和用户人工补交，确认通过后进入结算和打款流程。"
       />
       <div className="mb-4 grid gap-3 md:grid-cols-3">
         <MetricCard title="待审核记录" value={formatAdminMetricCount(acceptanceReviews.length, 916)} icon={<ClipboardCheck size={19} />} />
@@ -640,7 +646,9 @@ export function AdminAcceptanceDetail() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h3 className="sprix-section-title">审核操作</h3>
-              <p className="mt-1 text-sm text-ink-soft">确认该执行结果是否满足任务交付和验收要求。</p>
+              <p className="mt-1 text-sm text-ink-soft">
+                {record.reviewSource === "USER_MANUAL" ? "本次为用户人工补交，不执行自动验收或 Agent 评估。" : "确认该执行结果是否满足任务交付和验收要求。"}
+              </p>
             </div>
             <div className="flex flex-wrap gap-2">
               <ActionButton onClick={() => approveAcceptanceReview(record)}>通过</ActionButton>
@@ -726,6 +734,7 @@ function AcceptanceResultDetail({
   });
   const executionResult = executionResultQuery.data;
   const acceptance = executionResult?.acceptance;
+  const manualSubmissions = executionResult?.manualSubmissions ?? [];
   const downloadArtifact = async (artifact: AdminExecutionResult["artifacts"][number]) => {
     try {
       await downloadRemoteAdminFile(artifact.downloadUrl, artifact.name);
@@ -737,12 +746,46 @@ function AcceptanceResultDetail({
     <AdminDetailPage>
       <AdminDetailHeading title={record.taskTitle || "验收详情"} onBack={onBack} />
       <div className="mb-4 grid gap-3 md:grid-cols-4">
-        <MetricCard title="验收状态" value={<StatusTag status={record.acceptanceStatus} />} icon={<ShieldCheck size={19} />} />
-        <MetricCard title="任务验收分" value={record.acceptanceScore} icon={<Gauge size={19} />} />
+        <MetricCard title="审核状态" value={<StatusTag status={record.reviewSource === "USER_MANUAL" ? "待人工审核" : record.acceptanceStatus} />} icon={<ShieldCheck size={19} />} />
+        <MetricCard title="审核来源" value={record.reviewSource === "USER_MANUAL" ? "用户人工补交" : "Agent 自动交付"} icon={<Gauge size={19} />} />
         <MetricCard title="执行 Agent" value={<span className="text-lg">{record.agentName}</span>} icon={<Bot size={19} />} />
         <MetricCard title="当前节点" value={<span className="text-lg">{record.currentNode}</span>} icon={<Route size={19} />} />
       </div>
       {reviewActions}
+      {manualSubmissions.length > 0 && (
+        <Surface className="mb-4 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="sprix-section-title">用户人工补交</h3>
+            <SoftTag tone="amber">不触发自动验收与 Agent 评估</SoftTag>
+          </div>
+          <div className="mt-4 space-y-3">
+            {manualSubmissions.map((submission) => (
+              <div key={submission.submissionId} className="rounded-xl border border-line bg-[#fafafa] p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <strong className="text-sm text-ink">第 {submission.submissionNo} 次人工补交</strong>
+                    <StatusTag status={manualSubmissionStatusLabel(submission.status)} />
+                  </div>
+                  <span className="text-xs text-ink-soft">{submission.submittedAt}</span>
+                </div>
+                {submission.description && <p className="mt-2 text-sm leading-6 text-ink-soft">{submission.description}</p>}
+                {submission.reviewReason && <p className="mt-2 text-sm leading-6 text-red-600">审核说明：{submission.reviewReason}</p>}
+                <div className="mt-3 grid gap-2 md:grid-cols-2">
+                  {submission.files.map((file) => (
+                    <div key={file.id ?? file.fileId} className="flex items-center justify-between gap-3 rounded-lg border border-line bg-white px-3 py-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium text-ink" title={file.filename}>{file.filename}</div>
+                        <div className="text-xs text-ink-soft">人工上传 · {formatFileSize(file.sizeBytes)}</div>
+                      </div>
+                      <Button size="small" type="link" icon={<Download size={15} />} onClick={() => void downloadRemoteAdminFile(file.downloadUrl, file.filename)}>下载</Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Surface>
+      )}
       <Surface className="mb-4 p-4">
         <h3 className="sprix-section-title">Agent 提交结果</h3>
         {executionResultQuery.isLoading ? (
@@ -799,7 +842,8 @@ function AcceptanceResultDetail({
           />
         </Surface>
         <Surface className="p-4">
-          <h3 className="sprix-section-title">验收结果</h3>
+          <h3 className="sprix-section-title">{manualSubmissions.length > 0 ? "历史自动验收结果" : "验收结果"}</h3>
+          {manualSubmissions.length > 0 && <p className="mt-2 text-sm text-ink-soft">以下结果来自 Agent 原始交付，仅用于历史追溯，不代表本次人工补交的验收结果。</p>}
           <LongTextBlock title="验收摘要" body={acceptance?.summary || record.acceptanceSummary} />
           <LongTextBlock title="问题记录" body={acceptance?.issues?.join("\n") || record.acceptanceIssues} />
           <LongTextBlock title="失败原因" body={acceptance?.failureReasons?.join("\n") || "-"} />
@@ -813,7 +857,7 @@ function AcceptanceResultDetail({
 function useAcceptanceReviewActions(afterAction: () => Promise<unknown>) {
   const approveAcceptanceReview = (record: ReviewingExecution) => {
     Modal.confirm({
-      title: "确认平台审核通过",
+      title: record.reviewSource === "USER_MANUAL" ? "确认人工补交审核通过" : "确认平台审核通过",
       content: "审核通过后将生成结算记录、自动入账，并直接发起平台支付宝打款。请确认用户已绑定可出款的支付宝账户。",
       okText: "审核通过",
       cancelText: "取消",
@@ -830,8 +874,10 @@ function useAcceptanceReviewActions(afterAction: () => Promise<unknown>) {
   };
   const rejectAcceptanceReview = (record: ReviewingExecution) => {
     Modal.confirm({
-      title: "确认平台审核不通过",
-      content: "审核不通过后，用户任务将变为验收未通过，并可按现有规则发起申诉。",
+      title: record.reviewSource === "USER_MANUAL" ? "确认人工补交审核不通过" : "确认平台审核不通过",
+      content: record.reviewSource === "USER_MANUAL"
+        ? "审核不通过后，用户任务将恢复为验收未通过，并可以再次人工补交。"
+        : "审核不通过后，用户任务将变为验收未通过，并可按现有规则发起申诉。",
       okText: "审核不通过",
       cancelText: "取消",
       okButtonProps: { danger: true },
@@ -927,6 +973,7 @@ function AcceptanceReviewTable({
     { title: "执行用户", dataIndex: "userName", width: 130, render: (value) => <EllipsisCell value={value} /> },
     { title: "手机号", dataIndex: "phone", width: 140, render: (value) => <EllipsisCell value={value} /> },
     { title: "执行 Agent", dataIndex: "agentName", width: 160, render: (value) => <EllipsisCell value={value} /> },
+    { title: "审核来源", dataIndex: "reviewSource", width: 130, render: (value) => <SoftTag tone={value === "USER_MANUAL" ? "amber" : "neutral"}>{value === "USER_MANUAL" ? "用户人工补交" : "Agent 自动交付"}</SoftTag> },
     { title: "验收状态", dataIndex: "acceptanceStatus", width: 140, render: (value) => <StatusTag status={value} /> },
     { title: "任务验收分", dataIndex: "acceptanceScore", width: 110 },
     { title: "验收摘要", dataIndex: "acceptanceSummary", width: 260, render: (value) => <EllipsisCell value={value} /> },
