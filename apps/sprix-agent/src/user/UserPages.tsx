@@ -1,14 +1,16 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Form, Input, Modal, Steps, Tabs, message } from "antd";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Bot,
   CheckCircle2,
   ChevronLeft,
   ClipboardList,
+  Download,
   FileText,
   ListChecks,
+  Paperclip,
   PlugZap,
   ShieldCheck,
   UsersRound
@@ -20,13 +22,17 @@ import {
   acceptRemoteTask,
   cancelRemoteTask,
   completeRemoteFaceVerification,
+  downloadRemoteTaskAttachment,
   type FaceVerificationIdentity,
+  type TaskAttachment,
   initializeRemoteFaceVerification,
   readCurrentRemoteAgent,
   readLatestRemoteAgentEvaluation,
   markRemoteCurrentAgent,
   readRemoteAgents,
   readRemoteAgentEvaluation,
+  readRemoteTaskAttachmentBlob,
+  readRemoteTaskAttachments,
   readRemoteWithdrawalAccountState,
   signRemoteFreelancerAgreement,
   startRemoteAgentEvaluation
@@ -77,6 +83,12 @@ const TASK_MARKET_SCROLL_TOP_KEY = "sprix-task-market-scroll-top";
 const TASK_MARKET_VISIBLE_COUNT_KEY = "sprix-task-market-visible-count";
 const TASK_MARKET_PAGE_KEY = "sprix-task-market-page";
 const TASK_MARKET_BATCH_SIZE = 24;
+
+function formatTaskAttachmentSize(sizeBytes: number) {
+  if (sizeBytes < 1024) return `${sizeBytes} B`;
+  if (sizeBytes < 1024 * 1024) return `${(sizeBytes / 1024).toFixed(1)} KiB`;
+  return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MiB`;
+}
 
 function showRequestError(error: unknown, fallback: string, prefix = "") {
   if (isGlobalAuthError(error)) return;
@@ -444,6 +456,12 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
   const account = useSprixStore((state) => state.account);
   const currentAgent = useSprixStore((state) => state.currentAgent);
   const estimatedToken = getEstimatedTokenField(task?.estimatedTokens);
+  const taskAttachmentsQuery = useQuery({
+    queryKey: ["sprix-agent", "task-attachments", id],
+    queryFn: () => readRemoteTaskAttachments(id as string),
+    enabled: Boolean(id),
+    retry: 1
+  });
 
   const returnToTaskMarket = () => {
     navigate("/agent/market");
@@ -514,6 +532,40 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
     navigate(-1);
   };
 
+  const requireAttachmentLogin = () => {
+    if (account.isLoggedIn) return true;
+    message.info("登录后可查看或下载任务附件原文件");
+    openLogin();
+    return false;
+  };
+
+  const downloadAttachment = async (attachment: TaskAttachment) => {
+    if (!requireAttachmentLogin()) return;
+    try {
+      await downloadRemoteTaskAttachment(attachment);
+    } catch (error) {
+      showRequestError(error, "任务附件下载失败");
+    }
+  };
+
+  const previewAttachment = async (attachment: TaskAttachment) => {
+    if (!requireAttachmentLogin()) return;
+    try {
+      const blob = await readRemoteTaskAttachmentBlob(attachment);
+      const url = URL.createObjectURL(blob);
+      Modal.info({
+        title: attachment.filename,
+        width: 920,
+        icon: null,
+        okText: "关闭",
+        content: <img className="mt-4 max-h-[70vh] w-full object-contain" src={url} alt={attachment.filename} />,
+        afterClose: () => URL.revokeObjectURL(url)
+      });
+    } catch (error) {
+      showRequestError(error, "任务附件预览失败");
+    }
+  };
+
   return (
     <div className="sprix-task-detail-page">
       <div className="sprix-task-detail-shell">
@@ -539,6 +591,37 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
             <InfoBlock icon={<FileText size={18} />} title="详细任务描述" body={task.description} />
             <InfoBlock icon={<ListChecks size={18} />} title="交付标准" body={task.deliverables} />
             <InfoBlock icon={<CheckCircle2 size={18} />} title="验收标准" body={task.acceptanceCriteria} />
+            <Surface className="sprix-task-info-card">
+              <h3>
+                <span><Paperclip size={18} /></span>
+                任务附件
+              </h3>
+              {taskAttachmentsQuery.isLoading ? (
+                <p className="sprix-detail-prose">附件加载中</p>
+              ) : taskAttachmentsQuery.isError ? (
+                <p className="sprix-detail-prose text-red-600">任务附件加载失败</p>
+              ) : taskAttachmentsQuery.data?.length ? (
+                <div className="mt-3 grid gap-2">
+                  {taskAttachmentsQuery.data.map((attachment) => {
+                    const previewable = attachment.mimeType.startsWith("image/");
+                    return (
+                      <div key={attachment.attachmentId} className="flex flex-col gap-3 rounded-xl border border-line bg-[#fafafa] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-ink" title={attachment.filename}>{attachment.filename}</div>
+                          <div className="mt-1 text-xs text-ink-soft">{attachment.mimeType || "未知类型"} · {formatTaskAttachmentSize(attachment.sizeBytes)}</div>
+                        </div>
+                        <div className="flex shrink-0 gap-2">
+                          {previewable && <SecondaryButton onClick={() => void previewAttachment(attachment)}>预览</SecondaryButton>}
+                          <SecondaryButton icon={<Download size={15} />} onClick={() => void downloadAttachment(attachment)}>下载</SecondaryButton>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="sprix-detail-prose">暂无任务附件</p>
+              )}
+            </Surface>
           </main>
 
           <aside className="sprix-task-detail-aside">

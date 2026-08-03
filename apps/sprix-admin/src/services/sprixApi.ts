@@ -76,8 +76,58 @@ export type AdminTaskCenterSnapshot = {
 
 export type AdminTaskDetailView = {
   task: Task;
+  attachments: TaskAttachment[];
   records: AdminExecutionRecords[string];
   operationLogs: AdminOperationLog[];
+};
+
+export type TaskAttachment = {
+  attachmentId: string;
+  fileId: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  sha256: string;
+  sortOrder: number;
+  downloadUrl: string;
+  createdAt: string;
+};
+
+export type AdminExecutionResult = {
+  executionId: string;
+  taskId: string;
+  executionStatus: string;
+  output?: {
+    exitCode?: number | null;
+    finalMessage?: string | null;
+    inputTokens?: number | null;
+    outputTokens?: number | null;
+    receivedAt?: string | null;
+  } | null;
+  artifacts: Array<{
+    artifactId: string;
+    fileId: string;
+    role: string;
+    name: string;
+    mimeType: string;
+    sizeBytes: number;
+    sha256: string;
+    localRelativePath: string;
+    downloadUrl: string;
+    receivedAt: string;
+  }>;
+  acceptance?: {
+    acceptanceId: string;
+    status: string;
+    score?: number | null;
+    summary?: string | null;
+    issues?: string[] | null;
+    failureReasons?: string[] | null;
+    improvementSuggestions?: string[] | null;
+    details?: Record<string, unknown> | null;
+    mappedBusinessStatus?: string | null;
+    receivedAt?: string | null;
+  } | null;
 };
 
 export type AdminFundsSnapshot = {
@@ -104,6 +154,7 @@ type RemoteTaskEntity = TaskEntity & {
 
 type RemoteAdminTaskDetail = {
   task: RemoteTaskEntity;
+  attachments?: TaskAttachment[];
   executions: RemoteAdminExecutionRow[];
   operationLogs?: RemoteAuditLog[];
 };
@@ -252,19 +303,66 @@ export async function readRemoteTaskDetail(taskId: string): Promise<AdminTaskDet
   const task = mapTask(requireObject(detail.task, "task"));
   return {
     task,
+    attachments: listValue<TaskAttachment>(detail.attachments),
     records: mapAdminExecutionRows(listValue<RemoteAdminExecutionRow>(detail.executions)),
     operationLogs: listValue<RemoteAuditLog>(detail.operationLogs).map(mapOperationLog)
   };
 }
 
-export async function createRemoteAdminTask(payload: UpsertAdminTaskPayload): Promise<Task> {
-  const task = await http.post<UpsertAdminTaskPayload, RemoteTaskEntity>("/api/v1/admin/tasks", payload);
+export async function createRemoteAdminTask(payload: UpsertAdminTaskPayload, files: File[] = []): Promise<Task> {
+  if (files.length === 0) {
+    const task = await http.post<UpsertAdminTaskPayload, RemoteTaskEntity>("/api/v1/admin/tasks", payload);
+    return mapTask(requireValue(task, "任务发布失败"));
+  }
+  const body = taskMultipartBody(payload, files);
+  const task = await http.post<FormData, RemoteTaskEntity>("/api/v1/admin/tasks", body);
   return mapTask(requireValue(task, "任务发布失败"));
 }
 
-export async function updateRemoteAdminTask(taskId: string, payload: UpsertAdminTaskPayload): Promise<Task> {
-  const task = await http.put<UpsertAdminTaskPayload, RemoteTaskEntity>(`/api/v1/admin/tasks/${taskId}`, payload);
+export async function updateRemoteAdminTask(
+  taskId: string,
+  payload: UpsertAdminTaskPayload,
+  files: File[] = [],
+  retainedAttachmentIds?: string[]
+): Promise<Task> {
+  if (files.length === 0 && retainedAttachmentIds === undefined) {
+    const task = await http.put<UpsertAdminTaskPayload, RemoteTaskEntity>(`/api/v1/admin/tasks/${taskId}`, payload);
+    return mapTask(requireValue(task, "任务保存失败"));
+  }
+  const body = taskMultipartBody(payload, files, retainedAttachmentIds);
+  const task = await http.put<FormData, RemoteTaskEntity>(`/api/v1/admin/tasks/${taskId}`, body);
   return mapTask(requireValue(task, "任务保存失败"));
+}
+
+export async function readRemoteAdminExecutionResult(executionId: string): Promise<AdminExecutionResult> {
+  const result = await http.get<unknown, AdminExecutionResult>(
+    `/api/v1/admin/tasks/executions/${encodeURIComponent(executionId)}/result`
+  );
+  return requireValue(result, "执行提交结果不可用");
+}
+
+export async function downloadRemoteAdminFile(url: string, filename: string) {
+  const blob = await http.get<unknown, Blob>(url, { responseType: "blob" });
+  saveBlob(requireValue(blob, "文件下载失败"), filename);
+}
+
+function taskMultipartBody(payload: UpsertAdminTaskPayload, files: File[], retainedAttachmentIds?: string[]) {
+  const body = new FormData();
+  body.append("request", new Blob([JSON.stringify(payload)], { type: "application/json" }));
+  files.forEach((file) => body.append("files", file));
+  retainedAttachmentIds?.forEach((attachmentId) => body.append("retainedAttachmentIds", attachmentId));
+  return body;
+}
+
+function saveBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 export async function estimateRemoteTaskPricing(payload: TaskPricingEstimateRequest): Promise<TaskPricingEstimate> {

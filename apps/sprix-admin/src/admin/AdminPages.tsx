@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { Key, ReactNode } from "react";
-import { Button, Form, Input, InputNumber, Modal, Select, Table, Tabs, Tooltip, message } from "antd";
+import { Button, Form, Input, InputNumber, Modal, Select, Table, Tabs, Tooltip, Upload, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import type { UploadFile } from "antd/es/upload/interface";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -15,7 +16,9 @@ import {
   ClipboardList,
   Gauge,
   Inbox,
+  Download,
   MessageSquareWarning,
+  Paperclip,
   RefreshCw,
   Route,
   Send,
@@ -28,6 +31,7 @@ import {
   approveRemoteAppeal,
   createRemoteAdminTask,
   deleteRemoteAdminTask,
+  downloadRemoteAdminFile,
   estimateRemoteTaskPricing,
   offlineRemoteAdminTask,
   readRemoteAppeals,
@@ -36,12 +40,15 @@ import {
   readRemoteFunds,
   readRemoteTaskCenterSnapshot,
   readRemoteTaskDetail,
+  readRemoteAdminExecutionResult,
   rejectRemoteAcceptanceReview,
   rejectRemoteAppeal,
   republishRemoteAdminTask,
   updateRemoteAdminTask,
   type TaskPricingEstimate,
   type TaskPricingEstimateRequest,
+  type AdminExecutionResult,
+  type TaskAttachment,
   type UpsertAdminTaskPayload
 } from "../services/sprixApi";
 import { ActionButton, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface } from "../components/Primitives";
@@ -227,6 +234,25 @@ const taskTextLimits = {
   deliverables: 1000,
   acceptanceCriteria: 1000
 } as const;
+const taskAttachmentMaxCount = 10;
+const taskAttachmentMaxSizeBytes = 50 * 1024 * 1024;
+const taskAttachmentExtensions = new Set([
+  "png", "jpg", "jpeg", "webp", "gif", "pdf", "doc", "docx", "xls", "xlsx", "csv", "txt", "md", "zip", "rar", "7z"
+]);
+
+function formatFileSize(sizeBytes?: number | null) {
+  const size = Math.max(0, sizeBytes ?? 0);
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KiB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MiB`;
+}
+
+function validateTaskAttachment(file: File) {
+  const extension = file.name.includes(".") ? file.name.split(".").pop()?.toLowerCase() ?? "" : "";
+  if (!taskAttachmentExtensions.has(extension)) return "仅支持图片、文档、表格、文本和常用压缩包格式";
+  if (file.size > taskAttachmentMaxSizeBytes) return "单个附件不能超过 50 MiB";
+  return null;
+}
 
 const requiredTrimmedTextRules = (label: string, max: number) => [
   {
@@ -649,33 +675,35 @@ export function AdminTaskExecutionResultDetail() {
   }
 
   const task = taskDetailQuery.data?.task;
-  const record = taskDetailQuery.data?.records.completed.find((item) => item.executionId === executionId);
-  if (!task || !record) {
+  const completedRecord = taskDetailQuery.data?.records.completed.find((item) => item.executionId === executionId);
+  const reviewingRecord = taskDetailQuery.data?.records.reviewing.find((item) => item.executionId === executionId);
+  if (!task || (!completedRecord && !reviewingRecord)) {
     return (
       <AdminDetailPage>
         <AdminDetailHeading title="查看结果" onBack={backToTaskDetail} />
-        <Surface className="p-8 text-sm text-ink-soft">没有找到对应的已完成执行记录。</Surface>
+        <Surface className="p-8 text-sm text-ink-soft">没有找到对应的执行结果记录。</Surface>
       </AdminDetailPage>
     );
   }
 
-  const resultRecord: ReviewingExecution = {
-    executionId: record.executionId ?? executionId,
-    executionIndex: record.executionIndex,
+  const record = completedRecord;
+  const resultRecord: ReviewingExecution = reviewingRecord ?? {
+    executionId: record?.executionId ?? executionId,
+    executionIndex: record?.executionIndex ?? 0,
     taskId,
     taskTitle: task.title,
     taskCategory: task.category,
-    userName: record.userName,
-    phone: record.phone,
-    agentName: record.agentName,
-    agentScore: record.score,
-    acceptanceStatus: record.acceptanceStatus,
-    acceptanceScore: record.acceptanceScore,
-    acceptanceSummary: record.acceptanceSummary,
-    acceptanceIssues: record.acceptanceIssues,
-    currentNode: record.currentNode,
-    progress: record.progress,
-    submittedAt: record.completedAt
+    userName: record?.userName ?? "-",
+    phone: record?.phone ?? "-",
+    agentName: record?.agentName ?? "-",
+    agentScore: record?.score ?? "-",
+    acceptanceStatus: record?.acceptanceStatus ?? "-",
+    acceptanceScore: record?.acceptanceScore ?? "-",
+    acceptanceSummary: record?.acceptanceSummary ?? "-",
+    acceptanceIssues: record?.acceptanceIssues ?? "-",
+    currentNode: record?.currentNode ?? "-",
+    progress: record?.progress ?? "-",
+    submittedAt: record?.completedAt ?? "-"
   };
 
   return <AcceptanceResultDetail record={resultRecord} onBack={backToTaskDetail} />;
@@ -690,6 +718,21 @@ function AcceptanceResultDetail({
   onBack: () => void;
   reviewActions?: ReactNode;
 }) {
+  const executionResultQuery = useQuery({
+    queryKey: ["sprix-admin", "execution-result", record.executionId],
+    queryFn: () => readRemoteAdminExecutionResult(record.executionId),
+    enabled: Boolean(record.executionId),
+    retry: 1
+  });
+  const executionResult = executionResultQuery.data;
+  const acceptance = executionResult?.acceptance;
+  const downloadArtifact = async (artifact: AdminExecutionResult["artifacts"][number]) => {
+    try {
+      await downloadRemoteAdminFile(artifact.downloadUrl, artifact.name);
+    } catch (error) {
+      showRequestError(error, "提交产物下载失败");
+    }
+  };
   return (
     <AdminDetailPage>
       <AdminDetailHeading title={record.taskTitle || "验收详情"} onBack={onBack} />
@@ -700,6 +743,45 @@ function AcceptanceResultDetail({
         <MetricCard title="当前节点" value={<span className="text-lg">{record.currentNode}</span>} icon={<Route size={19} />} />
       </div>
       {reviewActions}
+      <Surface className="mb-4 p-4">
+        <h3 className="sprix-section-title">Agent 提交结果</h3>
+        {executionResultQuery.isLoading ? (
+          <p className="mt-3 text-sm text-ink-soft">提交结果加载中</p>
+        ) : executionResultQuery.isError ? (
+          <p className="mt-3 text-sm text-red-600">{executionResultQuery.error instanceof Error ? executionResultQuery.error.message : "提交结果加载失败"}</p>
+        ) : (
+          <>
+            <InfoGrid
+              rows={[
+                ["执行状态", executionResult?.executionStatus ?? "-"],
+                ["退出码", executionResult?.output?.exitCode == null ? "-" : String(executionResult.output.exitCode)],
+                ["输入 Token", formatTokenCount(executionResult?.output?.inputTokens)],
+                ["输出 Token", formatTokenCount(executionResult?.output?.outputTokens)],
+                ["结果接收时间", executionResult?.output?.receivedAt ?? "-"]
+              ]}
+            />
+            <LongTextBlock title="最终提交说明" body={executionResult?.output?.finalMessage || "-"} />
+            <div className="mt-4">
+              <div className="text-sm font-semibold text-ink">提交产物</div>
+              {executionResult?.artifacts.length ? (
+                <div className="mt-2 grid gap-2 md:grid-cols-2">
+                  {executionResult.artifacts.map((artifact) => (
+                    <div key={artifact.artifactId} className="flex items-center justify-between gap-3 rounded-lg border border-line bg-[#fafafa] px-3 py-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium text-ink" title={artifact.name}>{artifact.name}</div>
+                        <div className="text-xs text-ink-soft">{artifact.role} · {formatFileSize(artifact.sizeBytes)}</div>
+                      </div>
+                      <Button size="small" type="link" icon={<Download size={15} />} onClick={() => void downloadArtifact(artifact)}>下载</Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-ink-soft">暂无提交产物</p>
+              )}
+            </div>
+          </>
+        )}
+      </Surface>
       <div className="grid gap-4 xl:grid-cols-[1fr_1.2fr]">
         <Surface className="p-4">
           <h3 className="sprix-section-title">执行信息</h3>
@@ -718,8 +800,10 @@ function AcceptanceResultDetail({
         </Surface>
         <Surface className="p-4">
           <h3 className="sprix-section-title">验收结果</h3>
-          <LongTextBlock title="验收摘要" body={record.acceptanceSummary} />
-          <LongTextBlock title="问题记录" body={record.acceptanceIssues} />
+          <LongTextBlock title="验收摘要" body={acceptance?.summary || record.acceptanceSummary} />
+          <LongTextBlock title="问题记录" body={acceptance?.issues?.join("\n") || record.acceptanceIssues} />
+          <LongTextBlock title="失败原因" body={acceptance?.failureReasons?.join("\n") || "-"} />
+          <LongTextBlock title="改进建议" body={acceptance?.improvementSuggestions?.join("\n") || "-"} />
         </Surface>
       </div>
     </AdminDetailPage>
@@ -888,6 +972,8 @@ export function AdminTaskForm() {
   const [form] = Form.useForm<UpsertAdminTaskPayload>();
   const [pricingEstimate, setPricingEstimate] = useState<TaskPricingEstimate | null>(null);
   const [pricingDirty, setPricingDirty] = useState(!editTaskId);
+  const [newAttachmentFiles, setNewAttachmentFiles] = useState<UploadFile[]>([]);
+  const [retainedAttachmentIds, setRetainedAttachmentIds] = useState<string[]>([]);
   const editTaskQuery = useQuery({
     queryKey: ["sprix-admin", "task-detail", editTaskId],
     queryFn: () => readRemoteTaskDetail(editTaskId as string),
@@ -896,6 +982,7 @@ export function AdminTaskForm() {
   });
   const pricingMutation = useMutation({ mutationFn: estimateRemoteTaskPricing });
   const editTask = editTaskQuery.data?.task;
+  const editTaskAttachments = editTaskQuery.data?.attachments ?? [];
   const isEdit = Boolean(editTaskId);
 
   const initialValues = buildTaskFormInitialValues(editTask);
@@ -905,7 +992,9 @@ export function AdminTaskForm() {
     form.setFieldsValue(buildTaskFormInitialValues(editTask));
     setPricingEstimate(null);
     setPricingDirty(false);
-  }, [editTask, form]);
+    setNewAttachmentFiles([]);
+    setRetainedAttachmentIds(editTaskAttachments.map((attachment) => attachment.attachmentId));
+  }, [editTask, editTaskAttachments.length, form]);
 
   const writeAction = getAdminTaskWriteAction(isEdit ? "edit" : "publish");
   const editTaskRecords = editTaskQuery.data?.records;
@@ -934,12 +1023,15 @@ export function AdminTaskForm() {
   };
   const submitTask = async (values: UpsertAdminTaskPayload) => {
     const payload = normalizeTaskPayload(values, pricingEstimate);
+    const files = newAttachmentFiles.flatMap((file) => file.originFileObj ? [file.originFileObj as File] : []);
+    const initialAttachmentIds = editTaskAttachments.map((attachment) => attachment.attachmentId);
+    const attachmentsChanged = files.length > 0 || retainedAttachmentIds.join(",") !== initialAttachmentIds.join(",");
     try {
       if (isEdit && editTaskId) {
-        await updateRemoteAdminTask(editTaskId, payload);
+        await updateRemoteAdminTask(editTaskId, payload, files, attachmentsChanged ? retainedAttachmentIds : undefined);
         message.success("任务已保存");
       } else {
-        await createRemoteAdminTask(payload);
+        await createRemoteAdminTask(payload, files);
         message.success("任务已发布");
       }
       await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
@@ -972,7 +1064,9 @@ export function AdminTaskForm() {
   const returnToTaskCenter = () => navigate("/tasks");
   const cancelTaskForm = () => {
     const currentValues = form.getFieldsValue([...taskFormFields]);
-    if (!hasTaskFormChanges(currentValues, initialValues)) {
+    const initialAttachmentIds = editTaskAttachments.map((attachment) => attachment.attachmentId);
+    const attachmentsChanged = newAttachmentFiles.length > 0 || retainedAttachmentIds.join(",") !== initialAttachmentIds.join(",");
+    if (!hasTaskFormChanges(currentValues, initialValues) && !attachmentsChanged) {
       returnToTaskCenter();
       return;
     }
@@ -1032,6 +1126,69 @@ export function AdminTaskForm() {
               <Input.TextArea rows={4} maxLength={taskTextLimits.acceptanceCriteria} showCount />
             </Form.Item>
           </div>
+          <div className="mb-6 rounded-xl border border-line bg-[#fafafa] p-4">
+            <div className="mb-3 flex items-start gap-2">
+              <Paperclip className="mt-0.5 shrink-0 text-brand" size={18} />
+              <div>
+                <div className="font-semibold text-ink">任务附件</div>
+                <p className="mt-1 text-sm text-ink-soft">
+                  最多 {taskAttachmentMaxCount} 个，每个不超过 50 MiB。附件会在执行前下载到 LocalCLIAgent 的 input/ 目录。
+                </p>
+              </div>
+            </div>
+            {editTaskAttachments.length > 0 && (
+              <div className="mb-3 grid gap-2">
+                {editTaskAttachments.map((attachment) => {
+                  const retained = retainedAttachmentIds.includes(attachment.attachmentId);
+                  return (
+                    <div key={attachment.attachmentId} className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 ${retained ? "border-line bg-white" : "border-dashed border-red-200 bg-red-50 opacity-70"}`}>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium text-ink">{attachment.filename}</div>
+                        <div className="text-xs text-ink-soft">{formatFileSize(attachment.sizeBytes)}</div>
+                      </div>
+                      {!hasExistingExecutions && (
+                        <Button
+                          size="small"
+                          type="link"
+                          danger={retained}
+                          onClick={() => setRetainedAttachmentIds((ids) => retained ? ids.filter((id) => id !== attachment.attachmentId) : [...ids, attachment.attachmentId])}
+                        >
+                          {retained ? "移除" : "保留"}
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {hasExistingExecutions ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                该任务已有执行记录，附件已冻结，不能新增或删除。
+              </div>
+            ) : (
+              <Upload.Dragger
+                multiple
+                maxCount={taskAttachmentMaxCount - retainedAttachmentIds.length}
+                fileList={newAttachmentFiles}
+                beforeUpload={(file) => {
+                  const error = validateTaskAttachment(file);
+                  if (error) {
+                    message.error(`${file.name}：${error}`);
+                    return Upload.LIST_IGNORE;
+                  }
+                  if (retainedAttachmentIds.length + newAttachmentFiles.length >= taskAttachmentMaxCount) {
+                    message.error(`任务附件最多 ${taskAttachmentMaxCount} 个`);
+                    return Upload.LIST_IGNORE;
+                  }
+                  return false;
+                }}
+                onChange={({ fileList }) => setNewAttachmentFiles(fileList.slice(0, taskAttachmentMaxCount - retainedAttachmentIds.length))}
+              >
+                <p className="text-sm font-medium text-ink">点击或拖放文件到这里</p>
+                <p className="mt-1 text-xs text-ink-soft">支持图片、PDF、Office 文档、文本和 zip/rar/7z 压缩包</p>
+              </Upload.Dragger>
+            )}
+          </div>
           <div className="mb-4 pt-4">
             <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
@@ -1086,6 +1243,7 @@ export function AdminTaskDetail() {
   }
   const task = taskDetailQuery.data?.task;
   const records = taskDetailQuery.data?.records;
+  const attachments = taskDetailQuery.data?.attachments ?? [];
   const operationLogs = taskDetailQuery.data?.operationLogs ?? [];
   if (!task) return <Surface className="p-8">任务不存在</Surface>;
   const taskOverviewStats = [
@@ -1131,9 +1289,44 @@ export function AdminTaskDetail() {
         <DetailBlock title="交付标准" body={task.deliverables} />
         <DetailBlock title="验收标准" body={task.acceptanceCriteria} />
       </div>
+      <TaskAttachmentPanel attachments={attachments} />
       <AdminExecutionRecords taskId={task.id} records={records} />
       <AdminOperationLogs logs={operationLogs} />
     </AdminDetailPage>
+  );
+}
+
+function TaskAttachmentPanel({ attachments }: { attachments: TaskAttachment[] }) {
+  const downloadAttachment = async (attachment: TaskAttachment) => {
+    try {
+      await downloadRemoteAdminFile(attachment.downloadUrl, attachment.filename);
+    } catch (error) {
+      showRequestError(error, "任务附件下载失败");
+    }
+  };
+  return (
+    <Surface className="sprix-table-card mb-4 p-4">
+      <h3 className="sprix-section-title">任务附件</h3>
+      <p className="mt-1 text-sm text-ink-soft">发布任务时提供给执行用户和 LocalCLIAgent 的输入文件。</p>
+      {attachments.length === 0 ? (
+        <p className="mt-4 text-sm text-ink-soft">暂无任务附件</p>
+      ) : (
+        <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          {attachments.map((attachment) => (
+            <div key={attachment.attachmentId} className="flex items-center justify-between gap-3 rounded-lg border border-line bg-[#fafafa] px-3 py-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <Paperclip className="shrink-0 text-brand" size={17} />
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium text-ink" title={attachment.filename}>{attachment.filename}</div>
+                  <div className="text-xs text-ink-soft">{formatFileSize(attachment.sizeBytes)}</div>
+                </div>
+              </div>
+              <Button type="link" size="small" icon={<Download size={15} />} onClick={() => void downloadAttachment(attachment)}>下载</Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </Surface>
   );
 }
 
