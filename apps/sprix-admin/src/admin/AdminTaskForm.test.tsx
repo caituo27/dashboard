@@ -80,6 +80,7 @@ function taskDetail(): AdminTaskDetailView {
       resultFiles: [],
       acceptanceResult: ""
     },
+    attachments: [],
     records: {
       running: [],
       reviewing: [],
@@ -156,6 +157,29 @@ describe("AdminTaskForm cancel confirmation", () => {
     expect(screen.queryByText("task-center")).toBeNull();
   });
 
+  it("treats removal of an existing task attachment as an unsaved edit", async () => {
+    const detail = taskDetail();
+    detail.attachments = [{
+      attachmentId: "attachment-1",
+      fileId: "file-1",
+      filename: "requirements.zip",
+      mimeType: "application/zip",
+      sizeBytes: 1024,
+      sha256: "abc",
+      sortOrder: 0,
+      downloadUrl: "/api/v1/tasks/task-1/attachments/attachment-1/download",
+      createdAt: "2026-08-03T10:00:00+08:00"
+    }];
+    serviceMocks.readRemoteTaskDetail.mockResolvedValue(detail);
+    renderTaskForm("/tasks/task-1/edit");
+
+    expect(await screen.findByText("requirements.zip")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "移除" }));
+    fireEvent.click(screen.getByRole("button", { name: /取\s*消/ }));
+
+    expect(Modal.confirm).toHaveBeenCalledWith(expect.objectContaining({ title: "当前填写内容尚未发布，取消后将不会保存。确认取消吗？" }));
+  });
+
   it("rejects decimal total slots values", async () => {
     renderTaskForm("/tasks/task-1/edit");
 
@@ -174,7 +198,7 @@ describe("AdminTaskForm cancel confirmation", () => {
 
     fireEvent.change(screen.getByLabelText("任务名称"), { target: { value: "新任务" } });
     fireEvent.mouseDown(screen.getByLabelText("任务类型"));
-    fireEvent.click(await screen.findByText("等待产品输入"));
+    fireEvent.click((await screen.findAllByText("企业经营 / 投融资咨询"))[1]);
     fireEvent.change(screen.getByLabelText("任务来源类型"), { target: { value: "平台" } });
     fireEvent.change(screen.getByLabelText("详细任务描述"), { target: { value: "整理一批客户反馈" } });
     fireEvent.change(screen.getByLabelText("交付标准"), { target: { value: "结构化表格" } });
@@ -189,6 +213,8 @@ describe("AdminTaskForm cancel confirmation", () => {
     expect(await screen.findByText("¥6")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /发\s*布/ }));
 
-    expect(Modal.confirm).toHaveBeenCalledWith(expect.objectContaining({ title: "确认发布任务？" }));
+    await waitFor(() => expect(Modal.confirm).toHaveBeenCalledWith(expect.objectContaining({
+      content: "确认发布后，该任务将在任务市场展示，用户可查看任务详情并接单。"
+    })));
   });
 });

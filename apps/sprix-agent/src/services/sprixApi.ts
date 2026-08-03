@@ -156,6 +156,18 @@ export type FaceVerificationIdentity = {
   readonly idCardNo: string;
 };
 
+export type TaskAttachment = {
+  attachmentId: string;
+  fileId: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  sha256: string;
+  sortOrder: number;
+  downloadUrl: string;
+  createdAt: string;
+};
+
 export type AccountProfileUpdate = {
   readonly nickname?: string;
   readonly avatarUrl?: string;
@@ -588,6 +600,31 @@ export async function readLatestRemoteAgentEvaluation(agentId: string): Promise<
 export async function acceptRemoteTask(taskId: string): Promise<TaskExecution> {
   const response = await taskApi.accept({ id: taskId });
   return requireValue<TaskExecution>(response, "接单失败");
+}
+
+export async function readRemoteTaskAttachments(taskId: string): Promise<TaskAttachment[]> {
+  const response = await http.get<unknown, TaskAttachment[]>(
+    `/api/v1/tasks/${encodeURIComponent(taskId)}/attachments`,
+    { suppressGlobalAuth: true }
+  );
+  return listValue<TaskAttachment>(response);
+}
+
+export async function readRemoteTaskAttachmentBlob(attachment: TaskAttachment): Promise<Blob> {
+  const response = await http.get<unknown, Blob>(attachment.downloadUrl, { responseType: "blob" });
+  return requireValue(response, "任务附件下载失败");
+}
+
+export async function downloadRemoteTaskAttachment(attachment: TaskAttachment) {
+  const blob = await readRemoteTaskAttachmentBlob(attachment);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = attachment.filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 export async function smartAcceptRemoteTask(): Promise<SmartAcceptResponse> {

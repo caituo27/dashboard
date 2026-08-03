@@ -1,12 +1,18 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Modal, Spin, message } from "antd";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
-import { ChevronLeft, RotateCw } from "lucide-react";
+import { ChevronLeft, Download, RotateCw } from "lucide-react";
 import type { ArtifactSnapshot, MyTaskExecutionDetail } from "../apis/sprix";
 import { ActionButton, EmptyState, SecondaryButton, SoftTag, StatusTag, Surface } from "../components/Primitives";
-import { cancelRemoteTask, readRemoteMyTaskDetail } from "../services/sprixApi";
+import {
+  cancelRemoteTask,
+  downloadRemoteTaskAttachment,
+  readRemoteMyTaskDetail,
+  readRemoteTaskAttachments,
+  type TaskAttachment
+} from "../services/sprixApi";
 import { isGlobalAuthError } from "../utils/http";
 import { ArtifactDownloadButton } from "./ArtifactDownloadButton";
 import {
@@ -208,6 +214,7 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
           </div>
           <aside className="sprix-execution-side-rail">
             <TaskRequirementSection detail={detail} />
+            <TaskAttachmentsSection taskId={detail.task?.id ?? detail.taskId} />
             <TimelineSection detail={detail} />
             <HistorySection detail={detail} />
           </aside>
@@ -237,6 +244,69 @@ function TaskRequirementSection({ detail }: { detail: MyTaskExecutionDetail }) {
         </div>
       ) : (
         <InlineEmpty title="暂无任务要求" description="详情接口暂未返回任务描述、交付要求或验收标准。" />
+      )}
+    </Surface>
+  );
+}
+
+function TaskAttachmentsSection({ taskId }: { taskId?: string }) {
+  const [downloadingId, setDownloadingId] = useState<string>();
+  const taskAttachmentsQuery = useQuery({
+    queryKey: ["sprix-agent", "task-attachments", taskId],
+    queryFn: () => readRemoteTaskAttachments(taskId as string),
+    enabled: Boolean(taskId),
+    retry: 1
+  });
+
+  const downloadAttachment = async (attachment: TaskAttachment) => {
+    setDownloadingId(attachment.attachmentId);
+    try {
+      await downloadRemoteTaskAttachment(attachment);
+    } catch (downloadError) {
+      if (isGlobalAuthError(downloadError)) return;
+      message.error(downloadError instanceof Error ? downloadError.message : "任务附件下载失败");
+    } finally {
+      setDownloadingId(undefined);
+    }
+  };
+
+  return (
+    <Surface className="p-5">
+      <div className="sprix-section-heading">
+        <SectionTitle title="任务附件" />
+        {taskAttachmentsQuery.data?.length ? <SoftTag tone="neutral">{taskAttachmentsQuery.data.length} 个文件</SoftTag> : null}
+      </div>
+      {!taskId ? (
+        <InlineEmpty title="暂无任务附件" description="当前执行详情未返回任务 ID。" />
+      ) : taskAttachmentsQuery.isLoading ? (
+        <div className="mt-4 text-center">
+          <Spin size="small" />
+        </div>
+      ) : taskAttachmentsQuery.isError ? (
+        <InlineEmpty title="附件加载失败" description="任务附件暂时无法读取，请稍后重试。" />
+      ) : taskAttachmentsQuery.data?.length ? (
+        <div className="sprix-artifact-compact-list">
+          {taskAttachmentsQuery.data.map((attachment) => (
+            <div key={attachment.attachmentId} className="sprix-artifact-compact-row">
+              <div className="min-w-0">
+                <p title={attachment.filename}>{attachment.filename}</p>
+                <span>{[attachment.mimeType || "未知类型", formatBytes(attachment.sizeBytes)].filter(Boolean).join(" · ")}</span>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <SecondaryButton
+                  size="small"
+                  icon={<Download size={14} />}
+                  loading={downloadingId === attachment.attachmentId}
+                  onClick={() => void downloadAttachment(attachment)}
+                >
+                  下载
+                </SecondaryButton>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <InlineEmpty title="暂无任务附件" description="发布该任务时没有上传附件。" />
       )}
     </Surface>
   );
