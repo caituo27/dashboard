@@ -154,6 +154,9 @@ export type ReviewingExecution = {
   acceptanceScore: string;
   acceptanceSummary: string;
   acceptanceIssues: string;
+  reviewSource?: "AGENT" | "USER_MANUAL";
+  manualSubmissionNo?: number;
+  manualSubmissionDescription?: string;
   currentNode: string;
   progress: string;
   submittedAt: string;

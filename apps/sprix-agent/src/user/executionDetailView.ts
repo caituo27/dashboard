@@ -42,6 +42,7 @@ const nodeLabels: Record<string, string> = {
   QUALITY_CHECKING: "质量检查",
   PLATFORM_REVIEWING: "平台验收",
   PLATFORM_REJECTED: "平台审核不通过",
+  MANUAL_RESUBMITTED: "人工补交待审核",
   SETTLING: "报酬入账",
   accepted: "已接单",
   parsing: "解析任务",
@@ -50,6 +51,7 @@ const nodeLabels: Record<string, string> = {
   quality_checking: "质量检查",
   platform_reviewing: "平台验收",
   platform_rejected: "平台审核不通过",
+  manual_resubmitted: "人工补交待审核",
   settling: "报酬入账"
 };
 

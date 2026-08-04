@@ -1,16 +1,20 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
-import { Modal, Spin, message } from "antd";
+import type { ChangeEvent, ReactNode } from "react";
+import { Input, Modal, Spin, message } from "antd";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
-import { ChevronLeft, Download, RotateCw } from "lucide-react";
+import { ChevronLeft, Download, RotateCw, UploadCloud, X } from "lucide-react";
 import type { ArtifactSnapshot, MyTaskExecutionDetail } from "../apis/sprix";
 import { ActionButton, EmptyState, SecondaryButton, SoftTag, StatusTag, Surface } from "../components/Primitives";
 import {
   cancelRemoteTask,
+  createRemoteManualSubmission,
+  downloadRemoteManualSubmissionFile,
   downloadRemoteTaskAttachment,
   readRemoteMyTaskDetail,
   readRemoteTaskAttachments,
+  type ManualSubmission,
+  type MyTaskExecutionDetailView,
   type TaskAttachment
 } from "../services/sprixApi";
 import { isGlobalAuthError } from "../utils/http";
@@ -42,7 +46,7 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
   const { id } = useParams();
   const rerunTask = useRerunTask();
   const queryClient = useQueryClient();
-  const [detail, setDetail] = useState<MyTaskExecutionDetail>();
+  const [detail, setDetail] = useState<MyTaskExecutionDetailView>();
   const [loading, setLoading] = useState(true);
   const [canceling, setCanceling] = useState(false);
   const [error, setError] = useState("");
@@ -211,6 +215,11 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
               }
             />
             <ArtifactsSection compact executionId={detail.id ?? id} artifacts={detail.artifacts ?? []} />
+            <ManualSubmissionsSection
+              executionId={detail.id ?? id}
+              detail={detail}
+              onSubmitted={() => loadDetail(true)}
+            />
           </div>
           <aside className="sprix-execution-side-rail">
             <TaskRequirementSection detail={detail} />
@@ -466,7 +475,7 @@ function renderInlineCode(text: string, keyPrefix: string) {
 function ArtifactsSection({ executionId, artifacts, compact = false }: { executionId: string; artifacts: ArtifactSnapshot[]; compact?: boolean }) {
   return (
     <Surface className={compact ? "p-5" : "p-6"}>
-      <SectionTitle title="交付文件" />
+      <SectionTitle title="Agent 原始交付文件" />
       {artifacts.length > 0 ? (
         <div className={compact ? "sprix-artifact-compact-list" : "mt-4 space-y-3"}>
           {artifacts.map((artifact) => {
@@ -505,6 +514,179 @@ function ArtifactsSection({ executionId, artifacts, compact = false }: { executi
   );
 }
 
+function ManualSubmissionsSection({
+  executionId,
+  detail,
+  onSubmitted
+}: {
+  executionId: string;
+  detail: MyTaskExecutionDetailView;
+  onSubmitted: () => Promise<unknown>;
+}) {
+  const submissions = detail.manualSubmissions ?? [];
+  const [open, setOpen] = useState(false);
+  const [description, setDescription] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+
+  const selectFiles = (event: ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(event.currentTarget.files ?? []);
+    event.currentTarget.value = "";
+    const existingKeys = new Set(files.map(manualSubmissionFileKey));
+    const addedFiles = selectedFiles.filter((file) => {
+      const key = manualSubmissionFileKey(file);
+      if (existingKeys.has(key)) return false;
+      existingKeys.add(key);
+      return true;
+    });
+    const nextFiles = [...files, ...addedFiles];
+    if (nextFiles.length > 10) message.warning("每次最多上传 10 个交付文件");
+    setFiles(nextFiles.slice(0, 10));
+  };
+
+  const submit = async () => {
+    if (files.length === 0) {
+      message.warning("请至少选择一个交付文件");
+      return;
+    }
+    if (files.length > 10) {
+      message.warning("每次最多上传 10 个交付文件");
+      return;
+    }
+    if (files.some((file) => file.size === 0 || file.size > 50 * 1024 * 1024)) {
+      message.warning("文件不能为空，且单个文件不能超过 50 MiB");
+      return;
+    }
+    setUploading(true);
+    try {
+      await createRemoteManualSubmission(executionId, description, files);
+      await onSubmitted();
+      setOpen(false);
+      setDescription("");
+      setFiles([]);
+      message.success("交付产物已重新上传，等待平台人工审核");
+    } catch (error) {
+      if (isGlobalAuthError(error)) return;
+      message.error(error instanceof Error ? error.message : "交付产物重新上传失败");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const downloadFile = async (file: ManualSubmission["files"][number]) => {
+    try {
+      await downloadRemoteManualSubmissionFile(file);
+    } catch (error) {
+      if (isGlobalAuthError(error)) return;
+      message.error(error instanceof Error ? error.message : "人工补交文件下载失败");
+    }
+  };
+
+  return (
+    <>
+      <Surface className="p-5">
+        <div className="sprix-section-heading">
+          <SectionTitle title="人工补交记录" />
+          {detail.canManualResubmit && (
+            <ActionButton icon={<UploadCloud size={15} />} onClick={() => setOpen(true)}>
+              重新上传交付产物
+            </ActionButton>
+          )}
+        </div>
+        {detail.reviewSource === "USER_MANUAL" && (
+          <div className="mt-3 rounded-2xl border border-[#d8e7ff] bg-[#f4f8ff] px-4 py-3 text-sm leading-7 text-[#2457a6]">
+            人工补交文件不会触发自动验收或 Agent 评估，由平台管理员人工审核。
+          </div>
+        )}
+        {submissions.length > 0 ? (
+          <div className="mt-4 space-y-3">
+            {submissions.map((submission) => (
+              <div key={submission.submissionId} className="rounded-2xl border border-line bg-white p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <strong>第 {submission.submissionNo} 次人工补交</strong>
+                    <SoftTag tone={submission.status === "REJECTED" ? "red" : submission.status === "APPROVED" ? "teal" : "neutral"}>
+                      {manualSubmissionStatusLabel(submission.status)}
+                    </SoftTag>
+                  </div>
+                  <span className="text-xs text-ink-soft">{formatDateTime(submission.submittedAt)}</span>
+                </div>
+                {submission.description && <p className="mt-2 text-sm leading-7 text-ink-soft">{submission.description}</p>}
+                {submission.reviewReason && <p className="mt-2 text-sm leading-7 text-[#b42318]">审核说明：{submission.reviewReason}</p>}
+                <div className="mt-3 space-y-2">
+                  {submission.files.map((file) => (
+                    <div key={file.id ?? file.fileId} className="flex items-center justify-between gap-3 rounded-xl bg-[#fafafa] px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-ink">{file.filename}</p>
+                        <span className="text-xs text-ink-soft">人工上传 · {formatBytes(file.sizeBytes)}</span>
+                      </div>
+                      <SecondaryButton icon={<Download size={14} />} onClick={() => void downloadFile(file)}>下载</SecondaryButton>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <InlineEmpty title="暂无人工补交" description="只有平台审核不通过后，才可以手工重新上传交付产物。" />
+        )}
+      </Surface>
+      <Modal
+        title="重新上传交付产物"
+        open={open}
+        okText="提交人工审核"
+        cancelText="取消"
+        confirmLoading={uploading}
+        onOk={() => void submit()}
+        onCancel={() => !uploading && setOpen(false)}
+      >
+        <p className="mb-3 text-sm leading-7 text-ink-soft">上传后将进入平台人工审核，不会触发自动验收或 Agent 评估。</p>
+        <Input.TextArea
+          value={description}
+          maxLength={2000}
+          rows={4}
+          showCount
+          placeholder="可填写本次修改内容和补交说明"
+          onChange={(event) => setDescription(event.target.value)}
+        />
+        <label className="mt-4 block rounded-2xl border border-dashed border-line bg-[#fafafa] p-4 text-sm text-ink-soft">
+          <span className="mb-2 block font-medium text-ink">
+            {files.length > 0 ? "继续添加交付文件" : "选择交付文件"}（最多 10 个，单文件不超过 50 MiB）
+          </span>
+          <input type="file" multiple onChange={selectFiles} />
+        </label>
+        {files.length > 0 && (
+          <ul className="mt-3 space-y-2 text-sm text-ink-soft">
+            {files.map((file) => (
+              <li key={manualSubmissionFileKey(file)} className="flex items-center justify-between gap-3 rounded-xl bg-[#fafafa] px-3 py-2">
+                <span className="min-w-0 truncate">{file.name} · {formatBytes(file.size)}</span>
+                <button
+                  type="button"
+                  aria-label={`移除 ${file.name}`}
+                  className="shrink-0 rounded-full p-1 text-ink-soft hover:bg-white hover:text-ink"
+                  onClick={() => setFiles((currentFiles) => currentFiles.filter((currentFile) => manualSubmissionFileKey(currentFile) !== manualSubmissionFileKey(file)))}
+                >
+                  <X size={15} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Modal>
+    </>
+  );
+}
+
+function manualSubmissionFileKey(file: File) {
+  return `${file.name}-${file.size}-${file.lastModified}`;
+}
+
+function manualSubmissionStatusLabel(status: ManualSubmission["status"]) {
+  if (status === "APPROVED") return "人工审核通过";
+  if (status === "REJECTED") return "人工审核不通过";
+  return "等待人工审核";
+}
+
 function AcceptanceSection({ detail, action }: { detail: MyTaskExecutionDetail; action?: ReactNode }) {
   const acceptance = detail.acceptance;
   const issues = getAcceptanceIssues(acceptance);
@@ -517,7 +699,7 @@ function AcceptanceSection({ detail, action }: { detail: MyTaskExecutionDetail; 
   return (
     <Surface className="sprix-acceptance-panel p-6">
       <div className="sprix-section-heading">
-        <SectionTitle title="验收结果" />
+        <SectionTitle title={(detail as MyTaskExecutionDetailView).manualSubmissions?.length ? "历史自动验收结果" : "验收结果"} />
         <div className="sprix-section-actions">
           {readableStatus && <SoftTag tone={getAcceptanceStatusTone(readableStatus)}>{readableStatus}</SoftTag>}
           {action}
