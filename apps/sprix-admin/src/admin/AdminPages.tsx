@@ -334,6 +334,19 @@ function formatTokenCount(value?: number | null) {
   return value && value > 0 ? value.toLocaleString("zh-CN") : "--";
 }
 
+function formatExecutionStatus(value?: string | null) {
+  if (!value) return "-";
+  const labels: Record<string, string> = {
+    RUNNING: "执行中",
+    PLATFORM_REVIEWING: "待平台审核",
+    TERMINATED: "已终止",
+    ACCEPTANCE_FAILED: "验收未通过",
+    SETTLING: "结算中",
+    SETTLED: "已结算"
+  };
+  return labels[value.trim().toUpperCase()] ?? value;
+}
+
 function formatResultReceivedAt(value?: string | null) {
   if (!value) return "-";
   const date = new Date(value);
@@ -814,7 +827,7 @@ function AcceptanceResultDetail({
           <>
             <InfoGrid
               rows={[
-                ["执行状态", executionResult?.executionStatus ?? "-"],
+                ["执行状态", formatExecutionStatus(executionResult?.executionStatus)],
                 ["输入 Token", formatTokenCount(executionResult?.output?.inputTokens)],
                 ["输出 Token", formatTokenCount(executionResult?.output?.outputTokens)],
                 ["结果接收时间", formatResultReceivedAt(executionResult?.output?.receivedAt)]
