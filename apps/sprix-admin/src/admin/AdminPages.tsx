@@ -334,6 +334,24 @@ function formatTokenCount(value?: number | null) {
   return value && value > 0 ? value.toLocaleString("zh-CN") : "--";
 }
 
+function formatResultReceivedAt(value?: string | null) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const parts = new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(date);
+  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}:${get("second")}`;
+}
+
 function formatPricingAmount(value?: number | null) {
   return value && value > 0 ? currency(value) : "--";
 }
@@ -797,10 +815,9 @@ function AcceptanceResultDetail({
             <InfoGrid
               rows={[
                 ["执行状态", executionResult?.executionStatus ?? "-"],
-                ["退出码", executionResult?.output?.exitCode == null ? "-" : String(executionResult.output.exitCode)],
                 ["输入 Token", formatTokenCount(executionResult?.output?.inputTokens)],
                 ["输出 Token", formatTokenCount(executionResult?.output?.outputTokens)],
-                ["结果接收时间", executionResult?.output?.receivedAt ?? "-"]
+                ["结果接收时间", formatResultReceivedAt(executionResult?.output?.receivedAt)]
               ]}
             />
             <LongTextBlock title="最终提交说明" body={executionResult?.output?.finalMessage || "-"} />
