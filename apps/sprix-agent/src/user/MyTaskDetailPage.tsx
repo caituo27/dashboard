@@ -295,24 +295,27 @@ function TaskAttachmentsSection({ taskId }: { taskId?: string }) {
         <InlineEmpty title="附件加载失败" description="任务附件暂时无法读取，请稍后重试。" />
       ) : taskAttachmentsQuery.data?.length ? (
         <div className="sprix-artifact-compact-list">
-          {taskAttachmentsQuery.data.map((attachment) => (
-            <div key={attachment.attachmentId} className="sprix-artifact-compact-row">
-              <div className="min-w-0">
-                <p title={attachment.filename}>{attachment.filename}</p>
-                <span>{[attachment.mimeType || "未知类型", formatBytes(attachment.sizeBytes)].filter(Boolean).join(" · ")}</span>
+          {taskAttachmentsQuery.data.map((attachment) => {
+            const attachmentMeta = [attachment.mimeType || "未知类型", formatBytes(attachment.sizeBytes)].filter(Boolean).join(" · ");
+            return (
+              <div key={attachment.attachmentId} className="sprix-artifact-compact-row">
+                <div className="min-w-0">
+                  <p title={attachment.filename}>{attachment.filename}</p>
+                  <span title={attachmentMeta}>{attachmentMeta}</span>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <SecondaryButton
+                    size="small"
+                    icon={<Download size={14} />}
+                    loading={downloadingId === attachment.attachmentId}
+                    onClick={() => void downloadAttachment(attachment)}
+                  >
+                    下载
+                  </SecondaryButton>
+                </div>
               </div>
-              <div className="flex shrink-0 gap-2">
-                <SecondaryButton
-                  size="small"
-                  icon={<Download size={14} />}
-                  loading={downloadingId === attachment.attachmentId}
-                  onClick={() => void downloadAttachment(attachment)}
-                >
-                  下载
-                </SecondaryButton>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <InlineEmpty title="暂无任务附件" description="发布该任务时没有上传附件。" />

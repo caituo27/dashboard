@@ -10,7 +10,7 @@ function Sidebar() {
     <aside className="sprix-sidebar">
       <Link to="/" className="mb-5 flex items-center gap-3 no-underline">
         <div className="flex size-9 items-center justify-center rounded-xl bg-pill text-white">
-          <img src="/favicon.svg" alt="" className="size-5 invert" />
+          <img src="/favicon.svg" alt="" className="size-5" />
         </div>
         <div>
           <div className="text-base font-semibold leading-none text-ink">Sprix 管理后台</div>
