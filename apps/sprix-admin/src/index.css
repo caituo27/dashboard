@@ -626,6 +626,14 @@ select {
   font-weight: 560;
 }
 
+.ant-upload-wrapper.sprix-task-attachment-upload
+  .ant-upload-list
+  .ant-upload-list-item
+  .ant-upload-list-item-actions
+  .ant-upload-list-item-action {
+  opacity: 1;
+}
+
 .ant-btn {
   border-radius: 8px;
 }

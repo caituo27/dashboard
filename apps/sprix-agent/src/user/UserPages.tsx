@@ -576,7 +576,6 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
         </div>
 
         <header className="sprix-task-detail-hero">
-          <div className="sprix-hero-kicker">Sprix AI Platform</div>
           <h1 className="sprix-task-detail-title">{task.title}</h1>
           <div className="sprix-task-detail-meta">
             <span>{task.category}</span>
