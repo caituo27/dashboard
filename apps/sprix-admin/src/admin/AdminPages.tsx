@@ -253,6 +253,17 @@ function manualSubmissionStatusLabel(status: "PENDING_REVIEW" | "APPROVED" | "RE
   return "待人工审核";
 }
 
+function formatManualSubmissionTime(value: string) {
+  const normalizedValue = value.replace(/(\.\d{3})\d+(?=Z$|[+-]\d{2}:?\d{2}$)/, "$1");
+  const date = new Date(normalizedValue);
+  if (Number.isNaN(date.getTime())) return value;
+
+  const padTimePart = (part: number) => String(part).padStart(2, "0");
+  const datePart = [date.getFullYear(), padTimePart(date.getMonth() + 1), padTimePart(date.getDate())].join("-");
+  const timePart = [padTimePart(date.getHours()), padTimePart(date.getMinutes())].join(":");
+  return `${datePart} ${timePart}`;
+}
+
 function validateTaskAttachment(file: File) {
   const extension = file.name.includes(".") ? file.name.split(".").pop()?.toLowerCase() ?? "" : "";
   if (!taskAttachmentExtensions.has(extension)) return "仅支持图片、文档、表格、文本和常用压缩包格式";
@@ -798,7 +809,7 @@ function AcceptanceResultDetail({
                     <strong className="text-sm text-ink">第 {submission.submissionNo} 次人工补交</strong>
                     <StatusTag status={manualSubmissionStatusLabel(submission.status)} />
                   </div>
-                  <span className="text-xs text-ink-soft">{submission.submittedAt}</span>
+                  <span className="text-xs text-ink-soft">{formatManualSubmissionTime(submission.submittedAt)}</span>
                 </div>
                 {submission.description && <p className="mt-2 text-sm leading-6 text-ink-soft">{submission.description}</p>}
                 {submission.reviewReason && <p className="mt-2 text-sm leading-6 text-red-600">审核说明：{submission.reviewReason}</p>}

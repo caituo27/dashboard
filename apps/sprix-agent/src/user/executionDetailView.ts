@@ -254,13 +254,12 @@ export function getTimelineTime(event: TimelineEventSnapshot) {
 
 export function formatDateTime(value?: string | null) {
   if (!value) return "-";
-  const date = new Date(value);
+  const normalizedValue = value.replace(/(\.\d{3})\d+(?=Z$|[+-]\d{2}:?\d{2}$)/, "$1");
+  const date = new Date(normalizedValue);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString("zh-CN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit"
-  });
+
+  const padTimePart = (part: number) => String(part).padStart(2, "0");
+  const datePart = [date.getFullYear(), padTimePart(date.getMonth() + 1), padTimePart(date.getDate())].join("-");
+  const timePart = [padTimePart(date.getHours()), padTimePart(date.getMinutes())].join(":");
+  return `${datePart} ${timePart}`;
 }
