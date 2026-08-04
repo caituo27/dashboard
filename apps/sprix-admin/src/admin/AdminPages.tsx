@@ -334,19 +334,6 @@ function formatTokenCount(value?: number | null) {
   return value && value > 0 ? value.toLocaleString("zh-CN") : "--";
 }
 
-function formatExecutionStatus(value?: string | null) {
-  if (!value) return "-";
-  const labels: Record<string, string> = {
-    RUNNING: "执行中",
-    PLATFORM_REVIEWING: "待平台审核",
-    TERMINATED: "已终止",
-    ACCEPTANCE_FAILED: "验收未通过",
-    SETTLING: "结算中",
-    SETTLED: "已结算"
-  };
-  return labels[value.trim().toUpperCase()] ?? value;
-}
-
 function formatResultReceivedAt(value?: string | null) {
   if (!value) return "-";
   const date = new Date(value);
@@ -817,32 +804,47 @@ function AcceptanceResultDetail({
           </div>
         </Surface>
       )}
-      <Surface className="mb-4 p-4">
-        <h3 className="sprix-section-title">Agent 提交结果</h3>
+      <Surface className="mb-4 overflow-hidden p-0">
+        <div className="border-b border-line px-5 py-4">
+          <h3 className="sprix-section-title">Agent 提交结果</h3>
+          <p className="mt-1 text-sm text-ink-soft">查看 Agent 的 Token 用量、最终说明和交付文件。</p>
+        </div>
         {executionResultQuery.isLoading ? (
-          <p className="mt-3 text-sm text-ink-soft">提交结果加载中</p>
+          <p className="px-5 py-6 text-sm text-ink-soft">提交结果加载中</p>
         ) : executionResultQuery.isError ? (
-          <p className="mt-3 text-sm text-red-600">{executionResultQuery.error instanceof Error ? executionResultQuery.error.message : "提交结果加载失败"}</p>
+          <p className="px-5 py-6 text-sm text-red-600">{executionResultQuery.error instanceof Error ? executionResultQuery.error.message : "提交结果加载失败"}</p>
         ) : (
-          <>
-            <InfoGrid
-              rows={[
-                ["执行状态", formatExecutionStatus(executionResult?.executionStatus)],
+          <div className="p-5">
+            <dl className="grid gap-3 md:grid-cols-3">
+              {[
                 ["输入 Token", formatTokenCount(executionResult?.output?.inputTokens)],
                 ["输出 Token", formatTokenCount(executionResult?.output?.outputTokens)],
                 ["结果接收时间", formatResultReceivedAt(executionResult?.output?.receivedAt)]
-              ]}
-            />
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-xl border border-line bg-[#fafafa] px-4 py-3">
+                  <dt className="text-xs font-medium text-ink-soft">{label}</dt>
+                  <dd className="mt-1 text-base font-semibold text-ink">{value}</dd>
+                </div>
+              ))}
+            </dl>
             <LongTextBlock title="最终提交说明" body={executionResult?.output?.finalMessage || "-"} />
-            <div className="mt-4">
-              <div className="text-sm font-semibold text-ink">提交产物</div>
+            <div className="mt-5 border-t border-line pt-5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-semibold text-ink">提交产物</div>
+                <SoftTag tone="neutral">{executionResult?.artifacts.length ?? 0} 个文件</SoftTag>
+              </div>
               {executionResult?.artifacts.length ? (
-                <div className="mt-2 grid gap-2 md:grid-cols-2">
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
                   {executionResult.artifacts.map((artifact) => (
-                    <div key={artifact.artifactId} className="flex items-center justify-between gap-3 rounded-lg border border-line bg-[#fafafa] px-3 py-3">
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-medium text-ink" title={artifact.name}>{artifact.name}</div>
-                        <div className="text-xs text-ink-soft">{artifact.role} · {formatFileSize(artifact.sizeBytes)}</div>
+                    <div key={artifact.artifactId} className="flex items-center justify-between gap-3 rounded-xl border border-line bg-[#fafafa] p-4">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white text-brand shadow-sm">
+                          <Paperclip size={17} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-ink" title={artifact.name}>{artifact.name}</div>
+                          <div className="mt-0.5 text-xs text-ink-soft">{artifact.role} · {formatFileSize(artifact.sizeBytes)}</div>
+                        </div>
                       </div>
                       <Button size="small" type="link" icon={<Download size={15} />} onClick={() => void downloadArtifact(artifact)}>下载</Button>
                     </div>
@@ -852,7 +854,7 @@ function AcceptanceResultDetail({
                 <p className="mt-2 text-sm text-ink-soft">暂无提交产物</p>
               )}
             </div>
-          </>
+          </div>
         )}
       </Surface>
       <div className="grid gap-4 xl:grid-cols-[1fr_1.2fr]">
