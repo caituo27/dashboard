@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
-import type { ChangeEvent, ReactNode } from "react";
+import type { ChangeEvent, MouseEvent, ReactNode } from "react";
 import { Input, Modal, Spin, message } from "antd";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
@@ -41,6 +41,16 @@ import { useRerunTask } from "./useRerunTask";
 type MyTaskDetailPageProps = {
   openAppeal: (executionId: string) => void;
 };
+
+const manualSubmissionMaxFileCount = 10;
+const manualSubmissionMaxFileSizeBytes = 50 * 1024 * 1024;
+const manualSubmissionMaxFileCountMessage = `每次最多上传 ${manualSubmissionMaxFileCount} 个交付文件`;
+
+function validateManualSubmissionFile(file: File) {
+  if (file.size === 0) return "文件不能为空";
+  if (file.size > manualSubmissionMaxFileSizeBytes) return "单个文件不能超过 50 MiB";
+  return null;
+}
 
 export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
   const { id } = useParams();
@@ -532,19 +542,41 @@ function ManualSubmissionsSection({
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
 
+  const handleUploadPickerClick = (event: MouseEvent<HTMLLabelElement>) => {
+    if (files.length < manualSubmissionMaxFileCount) return;
+
+    event.preventDefault();
+    message.warning(manualSubmissionMaxFileCountMessage);
+  };
+
   const selectFiles = (event: ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.currentTarget.files ?? []);
     event.currentTarget.value = "";
+    const availableSlots = manualSubmissionMaxFileCount - files.length;
+
+    if (availableSlots <= 0) {
+      message.warning(manualSubmissionMaxFileCountMessage);
+      return;
+    }
+
     const existingKeys = new Set(files.map(manualSubmissionFileKey));
     const addedFiles = selectedFiles.filter((file) => {
+      const validationError = validateManualSubmissionFile(file);
+      if (validationError) {
+        message.error(`${file.name}：${validationError}`);
+        return false;
+      }
+
       const key = manualSubmissionFileKey(file);
       if (existingKeys.has(key)) return false;
       existingKeys.add(key);
       return true;
     });
     const nextFiles = [...files, ...addedFiles];
-    if (nextFiles.length > 10) message.warning("每次最多上传 10 个交付文件");
-    setFiles(nextFiles.slice(0, 10));
+    if (addedFiles.length > availableSlots || nextFiles.length > manualSubmissionMaxFileCount) {
+      message.warning(manualSubmissionMaxFileCountMessage);
+    }
+    setFiles(nextFiles.slice(0, manualSubmissionMaxFileCount));
   };
 
   const submit = async () => {
@@ -552,12 +584,13 @@ function ManualSubmissionsSection({
       message.warning("请至少选择一个交付文件");
       return;
     }
-    if (files.length > 10) {
-      message.warning("每次最多上传 10 个交付文件");
+    if (files.length > manualSubmissionMaxFileCount) {
+      message.warning(manualSubmissionMaxFileCountMessage);
       return;
     }
-    if (files.some((file) => file.size === 0 || file.size > 50 * 1024 * 1024)) {
-      message.warning("文件不能为空，且单个文件不能超过 50 MiB");
+    const invalidFile = files.find((file) => validateManualSubmissionFile(file));
+    if (invalidFile) {
+      message.warning(`${invalidFile.name}：${validateManualSubmissionFile(invalidFile)}`);
       return;
     }
     setUploading(true);
@@ -652,7 +685,10 @@ function ManualSubmissionsSection({
           placeholder="可填写本次修改内容和补交说明"
           onChange={(event) => setDescription(event.target.value)}
         />
-        <label className="group mt-4 flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-line bg-[#fafafa] p-4 text-sm text-ink-soft transition-[border-color,background-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:border-accent/40 hover:bg-card hover:shadow-soft active:translate-y-0 active:scale-[0.995] focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15">
+        <label
+          className="group mt-4 flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-line bg-[#fafafa] p-4 text-sm text-ink-soft transition-[border-color,background-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:border-accent/40 hover:bg-card hover:shadow-soft active:translate-y-0 active:scale-[0.995] focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15"
+          onClick={handleUploadPickerClick}
+        >
           <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-line bg-card text-ink-soft transition-colors duration-200 group-hover:border-accent/30 group-hover:text-accent">
             <UploadCloud size={20} />
           </span>
@@ -660,9 +696,17 @@ function ManualSubmissionsSection({
             <span className="block font-medium text-ink">
               {files.length > 0 ? "继续添加交付文件" : "选择交付文件"}
             </span>
-            <span className="mt-1 block text-xs text-ink-soft">最多 10 个，单文件不超过 50 MiB</span>
+            <span className="mt-1 block text-xs text-ink-soft">
+              最多 {manualSubmissionMaxFileCount} 个，单文件不超过 50 MiB
+            </span>
           </span>
-          <input className="sr-only" type="file" multiple onChange={selectFiles} />
+          <input
+            className="sr-only"
+            type="file"
+            multiple
+            disabled={files.length >= manualSubmissionMaxFileCount}
+            onChange={selectFiles}
+          />
         </label>
         {files.length > 0 && (
           <ul className="mt-3 space-y-2 text-sm text-ink-soft">
