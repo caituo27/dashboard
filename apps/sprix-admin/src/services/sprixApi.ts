@@ -122,9 +122,9 @@ export type AdminExecutionResult = {
     status: string;
     score?: number | null;
     summary?: string | null;
-    issues?: string[] | null;
-    failureReasons?: string[] | null;
-    improvementSuggestions?: string[] | null;
+    issues?: string | string[] | null;
+    failureReasons?: string | string[] | null;
+    improvementSuggestions?: string | string[] | null;
     details?: Record<string, unknown> | null;
     mappedBusinessStatus?: string | null;
     receivedAt?: string | null;
@@ -216,14 +216,16 @@ type RemoteAdminExecutionRow = {
   acceptanceStatus?: string;
   acceptanceScore?: number | null;
   acceptanceSummary?: string;
-  acceptanceIssues?: string;
+  acceptanceIssues?: string | string[];
   acceptancePayload?: string;
   reviewSource?: "AGENT" | "USER_MANUAL";
   manualSubmissionNo?: number | null;
   manualSubmissionDescription?: string | null;
   score?: number | null;
   summary?: string;
-  issues?: string;
+  issues?: string | string[];
+  failureReasons?: string | string[];
+  improvementSuggestions?: string | string[];
   acceptance?: RemoteAcceptanceSnapshot;
   currentNode?: string;
   currentNodeLabel?: string;
@@ -250,14 +252,16 @@ type RemoteAcceptanceReviewRow = {
   acceptanceStatus?: string;
   acceptanceScore?: number | null;
   acceptanceSummary?: string;
-  acceptanceIssues?: string;
+  acceptanceIssues?: string | string[];
   acceptancePayload?: string;
   reviewSource?: "AGENT" | "USER_MANUAL";
   manualSubmissionNo?: number | null;
   manualSubmissionDescription?: string | null;
   score?: number | null;
   summary?: string;
-  issues?: string;
+  issues?: string | string[];
+  failureReasons?: string | string[];
+  improvementSuggestions?: string | string[];
   acceptance?: RemoteAcceptanceSnapshot;
   currentNode?: string;
   currentNodeLabel?: string;
@@ -271,7 +275,9 @@ type RemoteAcceptanceSnapshot = {
   status?: string;
   score?: number | null;
   summary?: string;
-  issues?: string;
+  issues?: string | string[];
+  failureReasons?: string | string[];
+  improvementSuggestions?: string | string[];
   acceptancePayload?: string;
 };
 
@@ -636,6 +642,8 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
         acceptanceScore: mapAcceptanceScore(row),
         acceptanceSummary: mapAcceptanceSummary(row),
         acceptanceIssues: mapAcceptanceIssues(row),
+        acceptanceFailureReasons: mapAcceptanceFailureReasons(row),
+        acceptanceImprovementSuggestions: mapAcceptanceImprovementSuggestions(row),
         reviewSource: row.reviewSource ?? "AGENT",
         manualSubmissionNo: row.manualSubmissionNo ?? undefined,
         manualSubmissionDescription: row.manualSubmissionDescription ?? undefined,
@@ -683,6 +691,8 @@ function mapAcceptanceReview(row: RemoteAcceptanceReviewRow): ReviewingExecution
     acceptanceScore: mapAcceptanceScore(row),
     acceptanceSummary: mapAcceptanceSummary(row),
     acceptanceIssues: mapAcceptanceIssues(row),
+    acceptanceFailureReasons: mapAcceptanceFailureReasons(row),
+    acceptanceImprovementSuggestions: mapAcceptanceImprovementSuggestions(row),
     reviewSource: row.reviewSource ?? "AGENT",
     manualSubmissionNo: row.manualSubmissionNo ?? undefined,
     manualSubmissionDescription: row.manualSubmissionDescription ?? undefined,
@@ -1028,8 +1038,26 @@ function mapAcceptanceIssues(row: RemoteAcceptanceReviewRow | RemoteAdminExecuti
   );
   if (issues.length > 0) return uniqueTextItems(issues).join("；");
 
-  const failureReasons = parseTextList(payload?.failureReasons);
-  return failureReasons.length > 0 ? uniqueTextItems(failureReasons).join("；") : "-";
+  const failureReasons = mapAcceptanceFailureReasons(row);
+  return failureReasons.length > 0 ? failureReasons.join("；") : "-";
+}
+
+function mapAcceptanceFailureReasons(row: RemoteAcceptanceReviewRow | RemoteAdminExecutionRow) {
+  const payload = parseAcceptancePayload(row.acceptancePayload ?? row.acceptance?.acceptancePayload);
+  return uniqueTextItems(parseTextList(
+    row.failureReasons ??
+      row.acceptance?.failureReasons ??
+      payload?.failureReasons
+  ));
+}
+
+function mapAcceptanceImprovementSuggestions(row: RemoteAcceptanceReviewRow | RemoteAdminExecutionRow) {
+  const payload = parseAcceptancePayload(row.acceptancePayload ?? row.acceptance?.acceptancePayload);
+  return uniqueTextItems(parseTextList(
+    row.improvementSuggestions ??
+      row.acceptance?.improvementSuggestions ??
+      payload?.improvementSuggestions
+  ));
 }
 
 function parseAcceptancePayload(payload?: string) {

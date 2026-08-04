@@ -752,6 +752,20 @@ function AcceptanceResultDetail({
   });
   const executionResult = executionResultQuery.data;
   const acceptance = executionResult?.acceptance;
+  const issueItems = acceptanceDetailItems(acceptance?.issues);
+  const failureReasonItems = acceptanceDetailItems(
+    acceptance?.failureReasons,
+    record.acceptanceFailureReasons
+  );
+  const unmetGoalItems = issueItems.length > 0
+    ? issueItems
+    : failureReasonItems.length > 0
+      ? failureReasonItems
+      : acceptanceDetailItems(record.acceptanceIssues);
+  const improvementItems = acceptanceDetailItems(
+    acceptance?.improvementSuggestions,
+    record.acceptanceImprovementSuggestions
+  );
   const manualSubmissions = executionResult?.manualSubmissions ?? [];
   const downloadArtifact = async (artifact: AdminExecutionResult["artifacts"][number]) => {
     try {
@@ -877,9 +891,20 @@ function AcceptanceResultDetail({
           <h3 className="sprix-section-title">{manualSubmissions.length > 0 ? "历史自动验收结果" : "验收结果"}</h3>
           {manualSubmissions.length > 0 && <p className="mt-2 text-sm text-ink-soft">以下结果来自 Agent 原始交付，仅用于历史追溯，不代表本次人工补交的验收结果。</p>}
           <LongTextBlock title="验收摘要" body={acceptance?.summary || record.acceptanceSummary} />
-          <LongTextBlock title="问题记录" body={acceptance?.issues?.join("\n") || record.acceptanceIssues} />
-          <LongTextBlock title="失败原因" body={acceptance?.failureReasons?.join("\n") || "-"} />
-          <LongTextBlock title="改进建议" body={acceptance?.improvementSuggestions?.join("\n") || "-"} />
+          <AcceptanceListBlock
+            title="未满足交付目标"
+            items={unmetGoalItems}
+            countLabel="项问题"
+            emptyText="未发现未满足的交付目标"
+            tone="danger"
+          />
+          <AcceptanceListBlock
+            title="改进建议"
+            items={improvementItems}
+            countLabel="项建议"
+            emptyText="暂无改进建议"
+            tone="success"
+          />
         </Surface>
       </div>
     </AdminDetailPage>
@@ -950,6 +975,77 @@ function LongTextBlock({ title, body }: { title: string; body: string }) {
       <p className="sprix-detail-prose mt-2 rounded-lg border border-line bg-[#fafafa] p-3">{body || "-"}</p>
     </div>
   );
+}
+
+function AcceptanceListBlock({
+  title,
+  items,
+  countLabel,
+  emptyText,
+  tone
+}: {
+  title: string;
+  items: string[];
+  countLabel: string;
+  emptyText: string;
+  tone: "danger" | "success";
+}) {
+  const toneClasses = tone === "danger"
+    ? {
+        container: "border-[#f4d7d7] bg-[#fff8f8]",
+        title: "text-[#a83c3c]",
+        marker: "marker:text-[#c84b4b]"
+      }
+    : {
+        container: "border-[#cfe9df] bg-[#f6fbf9]",
+        title: "text-[#287866]",
+        marker: "marker:text-[#3b9b82]"
+      };
+
+  return (
+    <section className={`mt-4 rounded-xl border px-4 py-3.5 ${toneClasses.container}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h4 className={`text-sm font-semibold ${toneClasses.title}`}>{title}</h4>
+        <SoftTag tone={tone === "danger" ? "red" : "teal"}>{items.length} {countLabel}</SoftTag>
+      </div>
+      {items.length > 0 ? (
+        <ul className={`mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-ink-soft ${toneClasses.marker}`}>
+          {items.map((item) => <li key={item} className="pl-1">{item}</li>)}
+        </ul>
+      ) : (
+        <p className="mt-3 text-sm leading-6 text-ink-soft">{emptyText}</p>
+      )}
+    </section>
+  );
+}
+
+function acceptanceDetailItems(...values: unknown[]): string[] {
+  const items = values.flatMap(parseAcceptanceDetailValue)
+    .map((item) => item.replace(/^(?:[-*•]\s+|\d+[.)、]\s*)/, "").trim())
+    .filter((item) => item && item !== "-");
+  return [...new Set(items)];
+}
+
+function parseAcceptanceDetailValue(value: unknown): string[] {
+  if (Array.isArray(value)) return value.flatMap(parseAcceptanceDetailValue);
+  if (value && typeof value === "object") {
+    return Object.entries(value).flatMap(([key, item]) => {
+      const nested = parseAcceptanceDetailValue(item);
+      return nested.length > 0 ? nested.map((text) => `${key}：${text}`) : [];
+    });
+  }
+  if (value == null) return [];
+
+  const text = String(value).trim();
+  if (!text) return [];
+  if (["[", "{"].includes(text.charAt(0))) {
+    try {
+      return parseAcceptanceDetailValue(JSON.parse(text) as unknown);
+    } catch {
+      // 非法 JSON 仍按普通文本展示，避免丢失验收信息。
+    }
+  }
+  return text.split(/\r?\n+|；/).map((item) => item.trim()).filter(Boolean);
 }
 
 function TaskWriteButton({ action, primary = false, onClick }: { action: AdminTaskWriteAction; primary?: boolean; onClick?: () => void }) {

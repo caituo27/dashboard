@@ -154,6 +154,8 @@ export type ReviewingExecution = {
   acceptanceScore: string;
   acceptanceSummary: string;
   acceptanceIssues: string;
+  acceptanceFailureReasons?: string[];
+  acceptanceImprovementSuggestions?: string[];
   reviewSource?: "AGENT" | "USER_MANUAL";
   manualSubmissionNo?: number;
   manualSubmissionDescription?: string;
