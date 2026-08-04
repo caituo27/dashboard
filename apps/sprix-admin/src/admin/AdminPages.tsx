@@ -1346,14 +1346,20 @@ export function AdminTaskForm() {
                 multiple
                 maxCount={taskAttachmentMaxCount - retainedAttachmentIds.length}
                 fileList={newAttachmentFiles}
-                beforeUpload={(file) => {
+                beforeUpload={(file, batchFiles) => {
                   const error = validateTaskAttachment(file);
                   if (error) {
                     message.error(`${file.name}：${error}`);
                     return Upload.LIST_IGNORE;
                   }
-                  if (retainedAttachmentIds.length + newAttachmentFiles.length >= taskAttachmentMaxCount) {
-                    message.error(`任务附件最多 ${taskAttachmentMaxCount} 个`);
+
+                  const availableSlots = taskAttachmentMaxCount - retainedAttachmentIds.length - newAttachmentFiles.length;
+                  const validBatchFiles = batchFiles.filter((batchFile) => !validateTaskAttachment(batchFile));
+                  const validFileIndex = validBatchFiles.indexOf(file);
+                  if (validBatchFiles.length > availableSlots && validFileIndex === 0) {
+                    message.error(`任务附件最多 ${taskAttachmentMaxCount} 个，已忽略超出数量的文件`);
+                  }
+                  if (validFileIndex >= availableSlots) {
                     return Upload.LIST_IGNORE;
                   }
                   return false;
