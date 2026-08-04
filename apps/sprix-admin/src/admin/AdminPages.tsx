@@ -790,7 +790,7 @@ function AcceptanceResultDetail({
       <AdminDetailHeading title={record.taskTitle || "验收详情"} onBack={onBack} />
       <div className="mb-4 grid gap-3 md:grid-cols-4">
         <MetricCard title="审核状态" value={<StatusTag status={record.reviewSource === "USER_MANUAL" ? "待人工审核" : record.acceptanceStatus} />} icon={<ShieldCheck size={19} />} />
-        <MetricCard title="审核来源" value={record.reviewSource === "USER_MANUAL" ? "用户人工补交" : "Agent 自动交付"} icon={<Gauge size={19} />} />
+        <MetricCard title="审核来源" value={<span className="text-lg">{record.reviewSource === "USER_MANUAL" ? "用户人工补交" : "Agent 自动交付"}</span>} icon={<Gauge size={19} />} />
         <MetricCard title="执行 Agent" value={<span className="text-lg">{record.agentName}</span>} icon={<Bot size={19} />} />
         <MetricCard title="当前节点" value={<span className="text-lg">{record.currentNode}</span>} icon={<Route size={19} />} />
       </div>
