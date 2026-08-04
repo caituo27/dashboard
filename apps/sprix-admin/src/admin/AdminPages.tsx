@@ -1244,6 +1244,7 @@ export function AdminTaskForm() {
               </div>
             ) : (
               <Upload.Dragger
+                className="sprix-task-attachment-upload"
                 multiple
                 maxCount={taskAttachmentMaxCount - retainedAttachmentIds.length}
                 fileList={newAttachmentFiles}

@@ -649,11 +649,17 @@ function ManualSubmissionsSection({
           placeholder="可填写本次修改内容和补交说明"
           onChange={(event) => setDescription(event.target.value)}
         />
-        <label className="mt-4 block rounded-2xl border border-dashed border-line bg-[#fafafa] p-4 text-sm text-ink-soft">
-          <span className="mb-2 block font-medium text-ink">
-            {files.length > 0 ? "继续添加交付文件" : "选择交付文件"}（最多 10 个，单文件不超过 50 MiB）
+        <label className="group mt-4 flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-line bg-[#fafafa] p-4 text-sm text-ink-soft transition-[border-color,background-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:border-accent/40 hover:bg-card hover:shadow-soft active:translate-y-0 active:scale-[0.995] focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15">
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-line bg-card text-ink-soft transition-colors duration-200 group-hover:border-accent/30 group-hover:text-accent">
+            <UploadCloud size={20} />
           </span>
-          <input type="file" multiple onChange={selectFiles} />
+          <span className="min-w-0">
+            <span className="block font-medium text-ink">
+              {files.length > 0 ? "继续添加交付文件" : "选择交付文件"}
+            </span>
+            <span className="mt-1 block text-xs text-ink-soft">最多 10 个，单文件不超过 50 MiB</span>
+          </span>
+          <input className="sr-only" type="file" multiple onChange={selectFiles} />
         </label>
         {files.length > 0 && (
           <ul className="mt-3 space-y-2 text-sm text-ink-soft">
