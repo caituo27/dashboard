@@ -154,35 +154,15 @@ select {
   padding-top: 18px;
 }
 
-.sprix-sidebar-footer {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px 12px;
-  margin-bottom: 12px;
-  color: var(--color-ink-soft);
-  font-size: 12px;
-  line-height: 1.5;
-  text-align: center;
+.sprix-landing-footer .sprix-public-security-record {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
-.sprix-sidebar-footer a,
-.sprix-sidebar-footer button {
-  border: 0;
-  background: transparent;
-  padding: 0;
-  color: inherit;
-  font: inherit;
-  text-decoration: none;
-}
-
-.sprix-sidebar-footer button {
-  cursor: pointer;
-}
-
-.sprix-sidebar-footer a:hover,
-.sprix-sidebar-footer button:hover {
-  color: var(--color-ink);
+.sprix-public-security-record img {
+  display: block;
+  flex: 0 0 auto;
 }
 
 .sprix-sidebar-user-button {

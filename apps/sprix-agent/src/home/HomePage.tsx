@@ -32,6 +32,8 @@ type HomePageProps = {
 };
 
 const ICP_RECORD_NO = import.meta.env.VITE_ICP_RECORD_NO ?? "粤ICP备2025376732号-5";
+const PUBLIC_SECURITY_RECORD_NO = "粤公网安备44030002015291号";
+const PUBLIC_SECURITY_RECORD_URL = "https://beian.mps.gov.cn/#/query/webSearch?code=44030002015291";
 
 function isEvaluationTerminal(status: AgentEvaluation["status"]) {
   return status === "completed" || status === "failed";
@@ -268,6 +270,10 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
           <span>© Sprix AI</span>
           <a href="https://beian.miit.gov.cn/" target="_blank" rel="noreferrer">
             {ICP_RECORD_NO}
+          </a>
+          <a className="sprix-public-security-record" href={PUBLIC_SECURITY_RECORD_URL} target="_blank" rel="noreferrer">
+            <img src="/gongan.png" width="14" height="14" alt="" aria-hidden="true" />
+            {PUBLIC_SECURITY_RECORD_NO}
           </a>
           {!account.isLoggedIn && (
             <>
