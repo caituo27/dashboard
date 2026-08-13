@@ -45,6 +45,17 @@ type MyTaskDetailPageProps = {
 const manualSubmissionMaxFileCount = 10;
 const manualSubmissionMaxFileSizeBytes = 50 * 1024 * 1024;
 const manualSubmissionMaxFileCountMessage = `每次最多上传 ${manualSubmissionMaxFileCount} 个交付文件`;
+const executionProgressMilestones = [5, 20, 45, 70, 82, 90, 95, 100];
+
+function parseExecutionProgress(progress?: string) {
+  const value = Number.parseFloat(progress ?? "");
+  return Number.isFinite(value) ? Math.min(100, Math.max(0, Math.floor(value))) : undefined;
+}
+
+function getExecutionProgressCeiling(progress: number) {
+  const nextMilestone = executionProgressMilestones.find((milestone) => milestone > progress);
+  return nextMilestone === undefined ? 100 : nextMilestone - 1;
+}
 
 function validateManualSubmissionFile(file: File) {
   if (file.size === 0) return "文件不能为空";
@@ -60,6 +71,7 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
   const [loading, setLoading] = useState(true);
   const [canceling, setCanceling] = useState(false);
   const [error, setError] = useState("");
+  const [displayProgress, setDisplayProgress] = useState<number>();
 
   const loadDetail = useCallback(
     async (silent = false) => {
@@ -97,6 +109,31 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
   }, [detail, loadDetail]);
 
   const summary = useMemo(() => (detail ? getExecutionSummary(detail) : undefined), [detail]);
+  const actualProgress = parseExecutionProgress(detail?.progress);
+  const isExecutionRunning = Boolean(detail && shouldAutoRefreshExecutionDetail(detail));
+  const progressCeiling = actualProgress === undefined ? undefined : getExecutionProgressCeiling(actualProgress);
+
+  useEffect(() => {
+    setDisplayProgress(actualProgress);
+  }, [detail?.id, actualProgress, isExecutionRunning]);
+
+  useEffect(() => {
+    if (
+      !isExecutionRunning ||
+      displayProgress === undefined ||
+      progressCeiling === undefined ||
+      displayProgress >= progressCeiling
+    ) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setDisplayProgress((current) => Math.min((current ?? displayProgress) + 1, progressCeiling));
+    }, 1800);
+
+    return () => window.clearTimeout(timer);
+  }, [displayProgress, isExecutionRunning, progressCeiling]);
+
   const actions = useMemo(
     () => (summary ? getMyTaskActions({ status: summary.status, appealStatus: summary.appealStatus }) : undefined),
     [summary]
@@ -196,7 +233,7 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
           <div className="sprix-execution-hero-side">
             <div className="sprix-execution-hero-progress">
               <span>执行进度</span>
-              <strong>{summary.progress}</strong>
+              <strong>{displayProgress === undefined ? summary.progress : `${displayProgress}%`}</strong>
             </div>
             {actions?.terminateLabel && (
               <SecondaryButton danger disabled={!actions.terminateEnabled || canceling} loading={canceling} onClick={cancelTask}>
