@@ -958,12 +958,18 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
           const isSettingCurrent = settingCurrentAgentId === agent.id;
           return agent.role === "当前执行 Agent" ? (
             <>
+              {agent.authStatus === "login_required" && (
+                <SecondaryButton onClick={() => promptClaudeLogin(agent, async () => undefined)}>登录</SecondaryButton>
+              )}
               <SecondaryButton disabled>当前执行 Agent</SecondaryButton>
               {showEvaluationAction && <SecondaryButton onClick={() => openAgentEvaluation(agent)}>{getAgentEvaluationActionLabel(agent)}</SecondaryButton>}
               {canRestartEvaluation && <SecondaryButton onClick={() => openAgentEvaluation(agent, { forceStart: true })}>重新评测</SecondaryButton>}
             </>
           ) : (
             <>
+              {agent.authStatus === "login_required" && (
+                <SecondaryButton onClick={() => promptClaudeLogin(agent, async () => undefined)}>登录</SecondaryButton>
+              )}
               <ActionButton
                 disabled={Boolean(settingCurrentAgentId)}
                 loading={isSettingCurrent}
