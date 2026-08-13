@@ -98,7 +98,7 @@ export function HomeAgentEntry({
         <div className="sprix-connect-agent-modal">
           <img className="sprix-hero-logo" src="/sprix-wordmark.png" alt="Sprix AI" />
           <h2>连接本地 Agent</h2>
-          <p className="sprix-connect-agent-primary-copy">安装连接插件后，即可识别本机 Agent。</p>
+          <p className="sprix-connect-agent-primary-copy">安装后请稍候，插件启动后将自动打开连接页面。</p>
           <div className="sprix-connect-agent-cta">
             <ActionButton
               href={LOCAL_AGENT_DOWNLOAD_URL}
