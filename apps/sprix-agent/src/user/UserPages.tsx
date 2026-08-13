@@ -708,6 +708,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   const [currentEvaluation, setCurrentEvaluation] = useState<AgentEvaluation | undefined>();
   const [evaluationLoading, setEvaluationLoading] = useState(false);
   const [evaluationError, setEvaluationError] = useState<string>();
+  const [settingCurrentAgentId, setSettingCurrentAgentId] = useState<string>();
   const currentWithEvaluation = currentEvaluation && current ? { ...current, evaluation: currentEvaluation, score: currentEvaluation.result.overallScore ?? null } : current;
   const agentsWithCurrentEvaluation =
     currentEvaluation && current
@@ -735,6 +736,9 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       openLogin();
       return;
     }
+    if (settingCurrentAgentId) return;
+
+    setSettingCurrentAgentId(agent.id);
     try {
       const latestEvaluation = await readLatestRemoteAgentEvaluation(agent.id);
       if (!isCompletedAgentEvaluation(latestEvaluation)) {
@@ -753,6 +757,8 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         return;
       }
       showRequestError(error, "设置失败", "设置失败：");
+    } finally {
+      setSettingCurrentAgentId(undefined);
     }
   };
 
@@ -910,6 +916,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         renderActions={(agent) => {
           const canRestartEvaluation = agent.evaluation && isCompletedAgentEvaluation(agent.evaluation);
           const showEvaluationAction = !canRestartEvaluation;
+          const isSettingCurrent = settingCurrentAgentId === agent.id;
           return agent.role === "当前执行 Agent" ? (
             <>
               <SecondaryButton disabled>当前执行 Agent</SecondaryButton>
@@ -918,7 +925,13 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
             </>
           ) : (
             <>
-              <ActionButton onClick={() => setCurrent(agent)}>设为当前执行 Agent</ActionButton>
+              <ActionButton
+                disabled={Boolean(settingCurrentAgentId)}
+                loading={isSettingCurrent}
+                onClick={() => setCurrent(agent)}
+              >
+                {isSettingCurrent ? "设置中" : "设为当前执行 Agent"}
+              </ActionButton>
               {showEvaluationAction && <SecondaryButton onClick={() => openAgentEvaluation(agent)}>{getAgentEvaluationActionLabel(agent)}</SecondaryButton>}
               {canRestartEvaluation && <SecondaryButton onClick={() => openAgentEvaluation(agent, { forceStart: true })}>重新评测</SecondaryButton>}
             </>

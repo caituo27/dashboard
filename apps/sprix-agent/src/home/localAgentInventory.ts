@@ -26,5 +26,5 @@ export function getLocalAgentEmptyMessage(localAgent?: LocalAgentDiagnostic) {
 }
 
 export function getLocalAgentPrimaryActionLabel(_localAgent?: LocalAgentDiagnostic) {
-  return "连接本地agent（仅限Mac）";
+  return "接入本地agent（仅Mac）";
 }
