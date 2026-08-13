@@ -83,7 +83,7 @@ const TASK_MARKET_SCROLL_TOP_KEY = "sprix-task-market-scroll-top";
 const TASK_MARKET_VISIBLE_COUNT_KEY = "sprix-task-market-visible-count";
 const TASK_MARKET_PAGE_KEY = "sprix-task-market-page";
 const TASK_MARKET_BATCH_SIZE = 24;
-const SMART_ACCEPT_VISIBLE = false;
+const SMART_ACCEPT_VISIBLE = true;
 
 function formatTaskAttachmentSize(sizeBytes: number) {
   if (sizeBytes < 1024) return `${sizeBytes} B`;
