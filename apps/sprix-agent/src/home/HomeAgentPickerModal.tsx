@@ -21,6 +21,7 @@ export function HomeAgentPickerModal({
 }: HomeAgentPickerModalProps) {
   const [selectedAgentId, setSelectedAgentId] = useState<string>();
   const selectedAgent = useMemo(() => agents.find((agent) => agent.id === selectedAgentId) ?? agents[0], [agents, selectedAgentId]);
+  const selectedEvaluationActive = selectedAgent?.evaluation?.status === "running" || selectedAgent?.evaluation?.status === "judging";
   const showInitialLoading = recognizing && agents.length === 0;
 
   useEffect(() => {
@@ -55,6 +56,7 @@ export function HomeAgentPickerModal({
         <div className="sprix-agent-picker-grid">
           {agents.map((agent) => {
             const isSelected = agent.id === selectedAgent?.id;
+            const evaluationActive = agent.evaluation?.status === "running" || agent.evaluation?.status === "judging";
             return (
               <button
                 key={agent.id}
@@ -71,8 +73,10 @@ export function HomeAgentPickerModal({
                   <span className="sprix-agent-picker-copy">
                     <strong>{agent.name}</strong>
                     <span>
-                      {agent.authStatus === "login_required"
-                        ? "Claude Code 尚未登录，选择后将先打开登录流程"
+                      {evaluationActive
+                        ? "能力画像生成中，点击可查看当前进度"
+                        : agent.authStatus === "login_required"
+                          ? "Claude Code 尚未登录，选择后将先打开登录流程"
                         : agent.evaluation
                           ? "已有能力画像，可重新评测并设为当前执行 Agent"
                           : "未生成能力画像，评测完成后设为当前执行 Agent"}
@@ -91,7 +95,11 @@ export function HomeAgentPickerModal({
       <div className="sprix-agent-picker-footer">
         <SecondaryButton onClick={onClose}>取消</SecondaryButton>
         <ActionButton disabled={!selectedAgent} onClick={() => selectedAgent && onSelect(selectedAgent)}>
-          {selectedAgent?.authStatus === "login_required" ? "登录并生成能力画像" : "生成能力画像"}
+          {selectedEvaluationActive
+            ? "查看生成进度"
+            : selectedAgent?.authStatus === "login_required"
+              ? "登录并生成能力画像"
+              : "生成能力画像"}
         </ActionButton>
       </div>
     </Modal>

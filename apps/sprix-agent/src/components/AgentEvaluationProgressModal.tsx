@@ -1,6 +1,6 @@
 import { Modal } from "antd";
 import { AlertTriangle, Check, CircleAlert, Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Agent, AgentEvaluation } from "../types";
 import { ActionButton, SoftTag } from "./Primitives";
 import { scoreText } from "../utils/format";
@@ -101,6 +101,7 @@ export function AgentEvaluationProgressModal({
   const hasResultDetails = Boolean(completedResult?.summary) || Boolean(completedResult?.improvements.length);
   const serverActiveStepIndex = activeEvaluationStepIndex(evaluation, status);
   const [displayStepIndex, setDisplayStepIndex] = useState(0);
+  const displayedEvaluationKeyRef = useRef<string>();
   const shouldUseFakeProgress = isActive && !isCompleted && !isFailed;
   const activeStepIndex = shouldUseFakeProgress ? Math.max(displayStepIndex, serverActiveStepIndex) : serverActiveStepIndex;
   const activeStep = evaluationSteps[activeStepIndex];
@@ -119,15 +120,26 @@ export function AgentEvaluationProgressModal({
   ) : (
     <div className="sprix-evaluation-footer">
       <span className={isActive ? "is-active" : ""}>
-        {isActive ? "处理中，关闭弹框不会取消后端任务" : isCompleted ? "测评完成" : "尚未开始"}
+        {isActive ? "处理中，预计等待1-2分钟" : isCompleted ? "测评完成" : "尚未开始"}
       </span>
       <ActionButton onClick={onClose}>关闭</ActionButton>
     </div>
   );
 
   useEffect(() => {
-    if (!open || !agent) {
+    if (!agent) {
+      displayedEvaluationKeyRef.current = undefined;
       setDisplayStepIndex(0);
+      return;
+    }
+
+    const evaluationKey = `${agent.id}:${evaluation?.evaluationId ?? "pending"}`;
+    if (displayedEvaluationKeyRef.current !== evaluationKey) {
+      const continuesPendingEvaluation = displayedEvaluationKeyRef.current === `${agent.id}:pending` && Boolean(evaluation?.evaluationId);
+      displayedEvaluationKeyRef.current = evaluationKey;
+      setDisplayStepIndex((currentStepIndex) =>
+        continuesPendingEvaluation ? Math.max(currentStepIndex, serverActiveStepIndex) : serverActiveStepIndex
+      );
       return;
     }
 
@@ -136,7 +148,7 @@ export function AgentEvaluationProgressModal({
       if (status === "failed") return serverActiveStepIndex;
       return Math.max(currentStepIndex, serverActiveStepIndex);
     });
-  }, [agent?.id, open, serverActiveStepIndex, status]);
+  }, [agent, evaluation?.evaluationId, serverActiveStepIndex, status]);
 
   useEffect(() => {
     if (!open || !agent || !shouldUseFakeProgress) return undefined;

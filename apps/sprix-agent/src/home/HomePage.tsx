@@ -246,13 +246,23 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
 
   const closeEvaluation = () => {
     setEvaluationModalOpen(false);
-    if (!evaluation || isEvaluationTerminal(evaluation.status)) {
+    const shouldKeepEvaluationContext = evaluationLoading || Boolean(evaluation && isEvaluationActive(evaluation.status));
+    if (!shouldKeepEvaluationContext) {
       setEvaluationAgent(null);
       setEvaluation(undefined);
     }
     setEvaluationError(undefined);
-    setEvaluationLoading(false);
   };
+
+  const openAgentPicker = useCallback(() => {
+    const shouldRestoreEvaluation =
+      Boolean(evaluationAgent) && (evaluationLoading || Boolean(evaluation && isEvaluationActive(evaluation.status)));
+    if (shouldRestoreEvaluation) {
+      setEvaluationModalOpen(true);
+      return;
+    }
+    setAgentPickerOpen(true);
+  }, [evaluation, evaluationAgent, evaluationLoading]);
 
   const enterMarketFromAbilityResult = () => {
     abilityResultFlowRef.current = false;
@@ -268,10 +278,10 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
 
   useEffect(() => {
     if (shouldOpenAgentPicker) {
-      setAgentPickerOpen(true);
+      openAgentPicker();
       navigate(".", { replace: true });
     }
-  }, [navigate, shouldOpenAgentPicker]);
+  }, [navigate, openAgentPicker, shouldOpenAgentPicker]);
 
   useEffect(() => {
     if (!agentPickerOpen) return;
@@ -301,7 +311,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
           onOpenLogin={openLogin}
           onOpenConnectModal={() => setConnectModalOpen(true)}
           onCloseConnectModal={() => setConnectModalOpen(false)}
-          onOpenAgentPicker={() => setAgentPickerOpen(true)}
+          onOpenAgentPicker={openAgentPicker}
           onEnterMarket={() => navigate("/agent/market")}
         />
         <footer className="sprix-landing-footer">

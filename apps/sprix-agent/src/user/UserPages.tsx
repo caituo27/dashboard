@@ -819,6 +819,13 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
     if (setCurrentAfterCompletion) {
       autoSetCurrentAgentIdRef.current = agent.id;
     }
+    const shouldRestoreEvaluation =
+      evaluationAgent?.id === agent.id && (evaluationLoading || Boolean(evaluation && isEvaluationActive(evaluation.status)));
+    if (shouldRestoreEvaluation) {
+      setEvaluationModalOpen(true);
+      setEvaluationError(undefined);
+      return;
+    }
     setEvaluationAgent(agent);
     setEvaluation(undefined);
     setEvaluationModalOpen(true);
@@ -925,12 +932,12 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
 
   const closeEvaluation = () => {
     setEvaluationModalOpen(false);
-    if (!evaluation || isEvaluationTerminal(evaluation.status)) {
+    const shouldKeepEvaluationContext = evaluationLoading || Boolean(evaluation && isEvaluationActive(evaluation.status));
+    if (!shouldKeepEvaluationContext) {
       setEvaluationAgent(null);
       setEvaluation(undefined);
     }
     setEvaluationError(undefined);
-    setEvaluationLoading(false);
   };
 
   return (
