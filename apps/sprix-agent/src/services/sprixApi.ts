@@ -1003,18 +1003,26 @@ function normalizeRecommendationReason(reason?: string | null) {
 function mapRemoteAgentsResult(response: RemoteAgentListResponse | undefined | null): RemoteAgentsResult {
   if (Array.isArray(response)) {
     return {
-      agents: response.map(mapAgent),
+      agents: sortCodexFirst(response.map(mapAgent)),
       localAgent: undefined,
       currentAgentId: null
     };
   }
 
-  const agents = agentListValue(response).map(mapAgent);
+  const agents = sortCodexFirst(agentListValue(response).map(mapAgent));
   return {
     agents,
     localAgent: mapLocalAgentDiagnostic(response?.localAgent),
     currentAgentId: response?.currentAgentId ?? null
   };
+}
+
+function sortCodexFirst(agents: Agent[]) {
+  return [...agents].sort((left, right) => Number(isCodexAgent(right)) - Number(isCodexAgent(left)));
+}
+
+function isCodexAgent(agent: Agent) {
+  return agent.name?.trim()?.toLowerCase()?.startsWith("codex");
 }
 
 function mapLocalAgentDiagnostic(localAgent?: LocalAgentDiagnosticResponse | null): LocalAgentDiagnostic | undefined {
