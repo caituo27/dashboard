@@ -206,6 +206,7 @@ select {
 }
 
 .sprix-landing {
+  position: relative;
   min-height: 100dvh;
   padding: 30px 32px 92px;
 }
@@ -214,27 +215,108 @@ select {
   width: min(1160px, 100%);
   min-height: calc(100dvh - 122px);
   margin: 0 auto;
+  padding-block: 48px;
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 
 .sprix-landing-account {
+  position: absolute;
+  z-index: 30;
+  top: 30px;
+  right: 32px;
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  gap: 10px;
   min-height: 40px;
 }
 
-.sprix-landing-account-name {
-  max-width: min(260px, 44vw);
+.sprix-landing-account-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  min-height: 40px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  padding: 5px 8px 5px 6px;
+  color: var(--color-ink);
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.sprix-landing-account-trigger:hover,
+.sprix-landing-account-trigger:focus-visible,
+.sprix-landing-account-trigger[aria-expanded="true"] {
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.sprix-landing-account-trigger:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-ink) 28%, transparent);
+  outline-offset: 2px;
+}
+
+.sprix-landing-account-avatar {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
+  border: 1px solid rgba(30, 41, 59, 0.08);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.82);
   color: var(--color-ink-soft);
+}
+
+.sprix-landing-account-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sprix-landing-account-label {
+  max-width: min(180px, 32vw);
+  overflow: hidden;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
+  line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.sprix-landing-account-chevron {
+  flex: 0 0 auto;
+  color: var(--color-ink-soft);
+}
+
+.sprix-landing-account-summary {
+  display: grid;
+  min-width: 150px;
+  gap: 3px;
+  padding: 3px 2px;
+}
+
+.sprix-landing-account-summary strong,
+.sprix-landing-account-summary span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sprix-landing-account-summary strong {
+  color: var(--color-ink);
+  font-size: 14px;
+}
+
+.sprix-landing-account-summary span {
+  color: var(--color-ink-soft);
+  font-size: 12px;
+  font-weight: 400;
 }
 
 .sprix-landing-footer {
@@ -4471,6 +4553,11 @@ select {
 }
 
 @media (max-width: 860px) {
+  .sprix-landing-account {
+    top: 16px;
+    right: 16px;
+  }
+
   .sprix-landing-inner {
     min-height: calc(100dvh - 168px);
   }
