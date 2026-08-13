@@ -34,8 +34,10 @@ import {
   readRemoteTaskAttachmentBlob,
   readRemoteTaskAttachments,
   readRemoteWithdrawalAccountState,
+  requestRemoteAgentLogin,
   signRemoteFreelancerAgreement,
-  startRemoteAgentEvaluation
+  startRemoteAgentEvaluation,
+  waitForRemoteAgentAuthentication
 } from "../services/sprixApi";
 import { ActionButton, EmptyState, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface } from "../components/Primitives";
 import { AgentEvaluationProgressModal } from "../components/AgentEvaluationProgressModal";
@@ -730,9 +732,35 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
     });
   }, [mergeRemoteState]);
 
+  const promptClaudeLogin = useCallback((agent: Agent, onAuthenticated: (authenticatedAgent: Agent) => Promise<void>) => {
+    Modal.confirm({
+      title: "登录 Claude Code",
+      content: "已检测到 Claude Code 尚未登录。点击“立即登录”后，本机会打开终端和 Claude 授权页面；完成后将自动继续当前操作。",
+      okText: "立即登录",
+      cancelText: "取消",
+      onOk: async () => {
+        try {
+          await requestRemoteAgentLogin(agent.id);
+          message.info("请在本机终端和浏览器中完成 Claude Code 登录");
+          const authenticatedAgent = await waitForRemoteAgentAuthentication(agent.id);
+          await refreshAgents(authenticatedAgent);
+          message.success("Claude Code 登录成功");
+          await onAuthenticated(authenticatedAgent);
+        } catch (error) {
+          showRequestError(error, "Claude Code 登录失败", "Claude Code 登录失败：");
+          throw error;
+        }
+      }
+    });
+  }, [refreshAgents]);
+
   const setCurrent = async (agent: Agent) => {
     if (!account.isLoggedIn) {
       openLogin();
+      return;
+    }
+    if (agent.authStatus === "login_required") {
+      promptClaudeLogin(agent, setCurrent);
       return;
     }
     try {
@@ -776,6 +804,10 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   ) => {
     if (!account.isLoggedIn) {
       openLogin();
+      return;
+    }
+    if (agent.authStatus === "login_required") {
+      promptClaudeLogin(agent, (authenticatedAgent) => openAgentEvaluation(authenticatedAgent, { setCurrentAfterCompletion, forceStart }));
       return;
     }
     if (setCurrentAfterCompletion) {
@@ -1018,6 +1050,7 @@ function AgentList({
                   <div>
                     <div className="sprix-agent-list-title-row">
                       <h4 className="text-lg font-semibold">{agent.name}</h4>
+                      {agent.authStatus === "login_required" && <SoftTag>Claude Code 未登录</SoftTag>}
                       {agent.evaluation && <StatusTag status={getAgentEvaluationStatusLabel(agent.evaluation)} />}
                     </div>
                     <p className="mt-1 text-sm text-ink-soft">

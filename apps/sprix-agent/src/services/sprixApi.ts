@@ -210,7 +210,14 @@ export type RemoteAgentsResult = {
 };
 
 type RemoteAgentProfileResponse = AgentProfileResponse & {
+  authStatus?: string | null;
   evaluation?: RemoteAgentEvaluation | null;
+};
+
+export type AgentLoginResponse = {
+  commandId?: string | null;
+  status: "QUEUED" | "ALREADY_PENDING" | "ALREADY_AUTHENTICATED" | string;
+  message: string;
 };
 
 type RemoteAgentListResponse =
@@ -610,6 +617,25 @@ export async function disconnectRemoteAgent(agentId: string): Promise<Agent | un
 export async function markRemoteCurrentAgent(agentId: string): Promise<Agent | undefined> {
   const response = await agentApi.markCurrent({ agentId });
   return response ? mapAgent(response) : undefined;
+}
+
+export async function requestRemoteAgentLogin(agentId: string): Promise<AgentLoginResponse> {
+  return http.post<unknown, AgentLoginResponse>(`/api/v1/agents/${encodeURIComponent(agentId)}/login`);
+}
+
+export async function waitForRemoteAgentAuthentication(
+  agentId: string,
+  timeoutMs = 120_000,
+  intervalMs = 1_500
+): Promise<Agent> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const result = await readRemoteAgents();
+    const agent = result.agents.find((item) => item.id === agentId);
+    if (agent?.authStatus === "authenticated") return agent;
+    await new Promise((resolve) => window.setTimeout(resolve, intervalMs));
+  }
+  throw new Error("Claude Code 登录尚未完成，请在终端和浏览器中完成登录后重试");
 }
 
 export async function startRemoteAgentEvaluation(agentId: string, questions = DEFAULT_AGENT_EVALUATION_QUESTIONS): Promise<AgentEvaluation> {
@@ -1032,8 +1058,14 @@ function mapAgent(agent: RemoteAgentProfileResponse): Agent {
     lastEvaluatedAt: evaluation?.lastEvaluatedAt ?? "",
     summary: tags.join("、"),
     tags,
+    authStatus: normalizeAgentAuthStatus(agent.authStatus),
     evaluation
   };
+}
+
+function normalizeAgentAuthStatus(status?: string | null): Agent["authStatus"] {
+  if (status === "authenticated" || status === "login_required") return status;
+  return "unknown";
 }
 
 function normalizeOptionalAgentEvaluation(evaluation?: RemoteAgentEvaluation | null) {

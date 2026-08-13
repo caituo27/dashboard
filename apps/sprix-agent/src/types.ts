@@ -2,6 +2,7 @@ export type TaskStatus = "已发布" | "已下线" | "已删除";
 export type OfflineReason = string;
 export type AgentStatus = "可用" | "已连接" | "离线";
 export type AgentRole = "当前执行 Agent" | "可用 Agent" | "离线 Agent";
+export type AgentAuthStatus = "authenticated" | "login_required" | "unknown";
 export type LocalAgentInventoryStatus =
   | "UNKNOWN"
   | "NOT_BOUND"
@@ -125,6 +126,7 @@ export type Agent = {
   lastEvaluatedAt: string;
   summary: string;
   tags: string[];
+  authStatus?: AgentAuthStatus;
   profile?: AgentProfile;
   evaluation?: AgentEvaluation;
 };
