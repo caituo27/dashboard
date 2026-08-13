@@ -207,12 +207,16 @@ select {
 
 .sprix-landing {
   min-height: 100dvh;
-  padding: 30px 32px 52px;
+  padding: 30px 32px 92px;
 }
 
 .sprix-landing-inner {
   width: min(1160px, 100%);
+  min-height: calc(100dvh - 122px);
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .sprix-landing-account {
@@ -234,14 +238,22 @@ select {
 }
 
 .sprix-landing-footer {
+  position: fixed;
+  z-index: 20;
+  right: 0;
+  bottom: 0;
+  left: 0;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
   gap: 10px 18px;
-  margin-top: 36px;
+  margin-top: 0;
+  padding: 18px 24px max(18px, env(safe-area-inset-bottom));
+  background: rgba(255, 255, 255, 0.92);
   color: var(--color-ink-soft);
   font-size: 13px;
+  backdrop-filter: blur(18px);
 }
 
 .sprix-landing-footer a,
@@ -453,6 +465,32 @@ select {
   backdrop-filter: blur(18px);
 }
 
+.sprix-hero-logo {
+  display: block;
+  width: 156px;
+  max-width: min(48vw, 156px);
+  height: auto;
+}
+
+.sprix-home-hero .sprix-hero-logo {
+  width: 280px;
+  max-width: min(66vw, 280px);
+  margin-bottom: 10px;
+}
+
+.sprix-home-hero {
+  gap: 30px;
+}
+
+.sprix-home-hero .sprix-hero-title,
+.sprix-home-hero .sprix-hero-subtitle {
+  margin: 0;
+}
+
+.sprix-home-hero .sprix-hero-title {
+  font-size: 44px;
+}
+
 .sprix-hero-title {
   max-width: 1120px;
   font-size: 52px;
@@ -499,6 +537,17 @@ select {
   padding: 0 28px;
   font-size: 16px;
   font-weight: 700;
+}
+
+.sprix-landing-inner > .sprix-home-primary-actions {
+  width: min(360px, calc(100% - 32px));
+  align-self: center;
+  margin-block-start: 48px;
+  margin-inline: auto;
+}
+
+.sprix-home-primary-actions .ant-btn {
+  width: 100%;
 }
 
 .sprix-landing .sprix-hero-actions .ant-btn-default {
@@ -4422,6 +4471,39 @@ select {
 }
 
 @media (max-width: 860px) {
+  .sprix-landing-inner {
+    min-height: calc(100dvh - 168px);
+  }
+
+  .sprix-landing-inner > .sprix-home-primary-actions {
+    width: min(320px, calc(100% - 24px));
+    margin-block-start: 36px;
+  }
+
+  .sprix-home-hero {
+    gap: 24px;
+  }
+
+  .sprix-home-hero .sprix-hero-logo {
+    width: 220px;
+    max-width: min(72vw, 220px);
+    margin-bottom: 6px;
+  }
+
+  .sprix-home-hero .sprix-hero-title {
+    font-size: 36px;
+  }
+
+  .sprix-landing {
+    padding-bottom: 138px;
+  }
+
+  .sprix-landing-footer {
+    gap: 6px 12px;
+    padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+    font-size: 12px;
+  }
+
   .sprix-shell {
     display: block;
     height: auto;

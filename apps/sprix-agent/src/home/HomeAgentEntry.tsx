@@ -82,7 +82,7 @@ export function HomeAgentEntry({
 
   return (
     <>
-      <div className="sprix-hero-actions">
+      <div className="sprix-hero-actions sprix-home-primary-actions">
         <ActionButton icon={<PlugZap size={16} />} onClick={handlePrimaryAction}>
           {state.primaryActionLabel}
         </ActionButton>
@@ -96,7 +96,7 @@ export function HomeAgentEntry({
         className="sprix-connect-agent-dialog"
       >
         <div className="sprix-connect-agent-modal">
-          <div className="sprix-hero-kicker">Sprix AI</div>
+          <img className="sprix-hero-logo" src="/sprix-wordmark.png" alt="Sprix AI" />
           <h2>连接本地 Agent</h2>
           <p className="sprix-connect-agent-primary-copy">安装连接插件后，即可识别本机 Agent。</p>
           <div className="sprix-connect-agent-cta">

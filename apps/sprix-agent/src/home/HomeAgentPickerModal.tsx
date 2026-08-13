@@ -32,7 +32,7 @@ export function HomeAgentPickerModal({
   return (
     <Modal centered footer={null} open={open} title={null} width={760} className="sprix-agent-picker-modal" onCancel={onClose}>
       <div className="sprix-agent-picker-head">
-        <div className="sprix-hero-kicker">Sprix AI</div>
+        <img className="sprix-hero-logo" src="/sprix-wordmark.png" alt="Sprix AI" />
         <h2>选择当前执行 Agent</h2>
         <p>选择一台本地 Agent，系统会先生成能力画像，完成后设为当前执行 Agent。</p>
       </div>

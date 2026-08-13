@@ -19,6 +19,7 @@ import { useAgentBindPolling } from "./useAgentBindPolling";
 import { useHomeBootstrap } from "./useHomeBootstrap";
 import { useHomeAgentState } from "./useHomeAgentState";
 import { HomeAgentCard } from "./HomeAgentCard";
+import { HomeAgentEntry } from "./HomeAgentEntry";
 import { HomeAgentPickerModal } from "./HomeAgentPickerModal";
 import { HomeHero } from "./HomeHero";
 import { HomeStats } from "./HomeStats";
@@ -255,7 +256,10 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
     <main className="sprix-landing">
       <section className="sprix-landing-inner">
         <HomeTopAccount account={account} onLogout={onLogout} />
-        <HomeHero
+        <HomeHero />
+        <HomeAgentCard agent={currentAgent} onEnterMarket={() => navigate("/agent/market")} onManageAgent={() => navigate("/agent/center")} />
+        <HomeStats overview={platformOverview} />
+        <HomeAgentEntry
           state={homeState}
           connectModalOpen={connectModalOpen}
           onOpenLogin={openLogin}
@@ -264,8 +268,6 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
           onOpenAgentPicker={() => setAgentPickerOpen(true)}
           onEnterMarket={() => navigate("/agent/market")}
         />
-        <HomeAgentCard agent={currentAgent} onEnterMarket={() => navigate("/agent/market")} onManageAgent={() => navigate("/agent/center")} />
-        <HomeStats overview={platformOverview} />
         <footer className="sprix-landing-footer">
           <span>© Sprix AI</span>
           <a href="https://beian.miit.gov.cn/" target="_blank" rel="noreferrer">

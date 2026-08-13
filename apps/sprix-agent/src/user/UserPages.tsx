@@ -83,6 +83,7 @@ const TASK_MARKET_SCROLL_TOP_KEY = "sprix-task-market-scroll-top";
 const TASK_MARKET_VISIBLE_COUNT_KEY = "sprix-task-market-visible-count";
 const TASK_MARKET_PAGE_KEY = "sprix-task-market-page";
 const TASK_MARKET_BATCH_SIZE = 24;
+const SMART_ACCEPT_VISIBLE = false;
 
 function formatTaskAttachmentSize(sizeBytes: number) {
   if (sizeBytes < 1024) return `${sizeBytes} B`;
@@ -300,14 +301,13 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
   return (
     <>
       <PageHeader
-        eyebrow="任务市场"
         title="可接取任务"
         subtitle="浏览当前可接取的任务，选择适合你的 Agent 执行的工作，并持续跟踪执行进度与收益。"
-        actions={
+        actions={SMART_ACCEPT_VISIBLE ? (
           <ActionButton icon={<PlugZap size={16} />} onClick={openSmartAcceptModal}>
             {smartAcceptEnabled ? "智能接单已开启" : "智能接单"}
           </ActionButton>
-        }
+        ) : undefined}
       />
       <div className="mb-5 grid gap-4 md:grid-cols-3">
         <MetricCard title="已发布任务" value="3W+" />

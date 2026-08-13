@@ -7,18 +7,16 @@ export function PageHeader({
   title,
   subtitle,
   actions,
-  eyebrow = "Sprix AI",
   titleClassName
 }: {
   title: string;
   subtitle?: ReactNode;
   actions?: ReactNode;
-  eyebrow?: string;
   titleClassName?: string;
 }) {
   return (
     <div className="sprix-page-hero">
-      <div className="sprix-hero-kicker">{eyebrow}</div>
+      <img className="sprix-hero-logo" src="/sprix-wordmark.png" alt="Sprix AI" />
       <h1 className={titleClassName ?? "sprix-title sprix-hero-title"}>{title}</h1>
       {subtitle && <p className="sprix-hero-subtitle">{subtitle}</p>}
       {actions && <div className="sprix-hero-actions">{actions}</div>}
