@@ -9,7 +9,9 @@ import {
   readLatestRemoteAgentEvaluation,
   readRemoteAgentEvaluation,
   readRemoteAgents,
-  startRemoteAgentEvaluation
+  requestRemoteAgentLogin,
+  startRemoteAgentEvaluation,
+  waitForRemoteAgentAuthentication
 } from "../services/sprixApi";
 import { isGlobalAuthError } from "../utils/http";
 import { AgentEvaluationProgressModal } from "../components/AgentEvaluationProgressModal";
@@ -99,6 +101,28 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
     });
   }, [mergeRemoteState]);
 
+  const promptClaudeLogin = useCallback((agent: Agent, onAuthenticated: (authenticatedAgent: Agent) => Promise<void>) => {
+    Modal.confirm({
+      title: "登录 Claude Code",
+      content: "已检测到 Claude Code 尚未登录。点击“立即登录”后，本机会打开终端和 Claude 授权页面；完成后将自动继续生成能力画像。",
+      okText: "立即登录",
+      cancelText: "取消",
+      onOk: async () => {
+        try {
+          await requestRemoteAgentLogin(agent.id);
+          message.info("请在本机终端和浏览器中完成 Claude Code 登录");
+          const authenticatedAgent = await waitForRemoteAgentAuthentication(agent.id);
+          await refreshAgents(authenticatedAgent);
+          message.success("Claude Code 登录成功");
+          await onAuthenticated(authenticatedAgent);
+        } catch (error) {
+          showHomeRequestError(error, "Claude Code 登录失败", "Claude Code 登录失败：");
+          throw error;
+        }
+      }
+    });
+  }, [refreshAgents]);
+
   const markCurrentAfterCompletedEvaluation = useCallback(
     async (agent: Agent, nextEvaluation: AgentEvaluation) => {
       if (autoSetCurrentAgentIdRef.current !== agent.id || !isCompletedAgentEvaluation(nextEvaluation)) return;
@@ -135,6 +159,11 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
   const selectAgentForEvaluation = async (agent: Agent) => {
     if (!account.isLoggedIn) {
       openLogin();
+      return;
+    }
+    if (agent.authStatus === "login_required") {
+      setAgentPickerOpen(false);
+      promptClaudeLogin(agent, selectAgentForEvaluation);
       return;
     }
     setAgentPickerOpen(false);
