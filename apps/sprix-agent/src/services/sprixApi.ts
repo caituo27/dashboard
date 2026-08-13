@@ -615,7 +615,7 @@ export async function disconnectRemoteAgent(agentId: string): Promise<Agent | un
 }
 
 export async function markRemoteCurrentAgent(agentId: string): Promise<Agent | undefined> {
-  const response = await agentApi.markCurrent({ agentId });
+  const response = await agentApi.markCurrent({ agentId }, { timeout: 0 });
   return response ? mapAgent(response) : undefined;
 }
 
