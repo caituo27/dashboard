@@ -136,17 +136,19 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
           evaluation: nextEvaluation
         };
         abilityResultFlowRef.current = true;
-        setAbilityResultAgent(completedCurrentAgent);
-        setAbilityResultModalOpen(true);
-        mergeRemoteState({ currentAgent: completedCurrentAgent });
-        autoSetCurrentAgentIdRef.current = undefined;
-        await refreshAgents(completedCurrentAgent);
         setEvaluationModalOpen(false);
         setEvaluationAgent(null);
         setEvaluation(undefined);
         setEvaluationError(undefined);
         setEvaluationLoading(false);
+        setAbilityResultAgent(completedCurrentAgent);
+        setAbilityResultModalOpen(true);
+        mergeRemoteState({ currentAgent: completedCurrentAgent });
+        autoSetCurrentAgentIdRef.current = undefined;
         message.success("测评完成，已设置当前执行 Agent");
+        void refreshAgents(completedCurrentAgent).catch((error) => {
+          showHomeRequestError(error, "刷新 Agent 状态失败", "刷新 Agent 状态失败：");
+        });
       } catch (error) {
         showHomeRequestError(error, "设置当前执行 Agent 失败", "设置当前执行 Agent 失败：");
       }
@@ -190,9 +192,12 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
         startedEvaluation = true;
         nextEvaluation = await startRemoteAgentEvaluation(agent.id);
       }
-      setEvaluation(nextEvaluation);
-      await refreshAgents();
-      await markCurrentAfterCompletedEvaluation(agent, nextEvaluation);
+      if (isCompletedAgentEvaluation(nextEvaluation)) {
+        await markCurrentAfterCompletedEvaluation(agent, nextEvaluation);
+      } else {
+        setEvaluation(nextEvaluation);
+        await refreshAgents();
+      }
       if (startedEvaluation && isEvaluationActive(nextEvaluation.status)) {
         message.success("测评已开始");
       }
@@ -213,17 +218,19 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       try {
         const next = await readRemoteAgentEvaluation(evaluationAgent.id, evaluation.evaluationId);
         if (cancelled) return;
-        setEvaluation(next);
         if (isEvaluationTerminal(next.status)) {
           window.clearInterval(poll);
           if (next.status === "failed") {
             autoSetCurrentAgentIdRef.current = undefined;
+            setEvaluation(next);
           }
           if (next.status === "completed") {
             await markCurrentAfterCompletedEvaluation(evaluationAgent, next);
           }
           void refreshAgents();
+          return;
         }
+        setEvaluation(next);
       } catch (error) {
         if (cancelled) return;
         setEvaluationError(error instanceof Error ? error.message : "评测状态获取失败");

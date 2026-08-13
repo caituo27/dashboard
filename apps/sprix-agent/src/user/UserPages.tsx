@@ -85,7 +85,7 @@ const TASK_MARKET_SCROLL_TOP_KEY = "sprix-task-market-scroll-top";
 const TASK_MARKET_VISIBLE_COUNT_KEY = "sprix-task-market-visible-count";
 const TASK_MARKET_PAGE_KEY = "sprix-task-market-page";
 const TASK_MARKET_BATCH_SIZE = 24;
-const SMART_ACCEPT_VISIBLE = false;
+const SMART_ACCEPT_VISIBLE = true;
 
 function formatTaskAttachmentSize(sizeBytes: number) {
   if (sizeBytes < 1024) return `${sizeBytes} B`;
@@ -710,6 +710,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   const [currentEvaluation, setCurrentEvaluation] = useState<AgentEvaluation | undefined>();
   const [evaluationLoading, setEvaluationLoading] = useState(false);
   const [evaluationError, setEvaluationError] = useState<string>();
+  const [settingCurrentAgentId, setSettingCurrentAgentId] = useState<string>();
   const currentWithEvaluation = currentEvaluation && current ? { ...current, evaluation: currentEvaluation, score: currentEvaluation.result.overallScore ?? null } : current;
   const agentsWithCurrentEvaluation =
     currentEvaluation && current
@@ -763,6 +764,9 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       promptClaudeLogin(agent, setCurrent);
       return;
     }
+    if (settingCurrentAgentId) return;
+
+    setSettingCurrentAgentId(agent.id);
     try {
       const latestEvaluation = await readLatestRemoteAgentEvaluation(agent.id);
       if (!isCompletedAgentEvaluation(latestEvaluation)) {
@@ -781,6 +785,8 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         return;
       }
       showRequestError(error, "设置失败", "设置失败：");
+    } finally {
+      setSettingCurrentAgentId(undefined);
     }
   };
 
@@ -942,6 +948,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         renderActions={(agent) => {
           const canRestartEvaluation = agent.evaluation && isCompletedAgentEvaluation(agent.evaluation);
           const showEvaluationAction = !canRestartEvaluation;
+          const isSettingCurrent = settingCurrentAgentId === agent.id;
           return agent.role === "当前执行 Agent" ? (
             <>
               <SecondaryButton disabled>当前执行 Agent</SecondaryButton>
@@ -950,7 +957,13 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
             </>
           ) : (
             <>
-              <ActionButton onClick={() => setCurrent(agent)}>设为当前执行 Agent</ActionButton>
+              <ActionButton
+                disabled={Boolean(settingCurrentAgentId)}
+                loading={isSettingCurrent}
+                onClick={() => setCurrent(agent)}
+              >
+                {isSettingCurrent ? "设置中" : "设为当前执行 Agent"}
+              </ActionButton>
               {showEvaluationAction && <SecondaryButton onClick={() => openAgentEvaluation(agent)}>{getAgentEvaluationActionLabel(agent)}</SecondaryButton>}
               {canRestartEvaluation && <SecondaryButton onClick={() => openAgentEvaluation(agent, { forceStart: true })}>重新评测</SecondaryButton>}
             </>
