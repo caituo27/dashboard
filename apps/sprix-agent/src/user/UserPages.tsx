@@ -942,8 +942,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         }
       } catch {
         if (cancelled) return;
-        // Keep showing the last known progress and retry the same evaluation.
-        // A transient 500 must not turn an active evaluation into a new session or a failure modal.
+        window.clearInterval(poll);
       }
     }, AGENT_EVALUATION_POLL_INTERVAL_MS);
 
