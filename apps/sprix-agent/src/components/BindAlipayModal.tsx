@@ -223,7 +223,7 @@ function BindAlipayForm({
         >
           <Input size="large" placeholder="请输入收款人姓名" />
         </Form.Item>
-        <div className="mb-4 rounded-2xl bg-[#e7f7f2] px-4 py-3 text-sm text-accent">
+        <div className="mb-4 rounded-lg bg-[#e7f7f2] px-4 py-3 text-sm text-accent">
           扫码授权后，后台只保存收款支付宝账户，不会绑定或覆盖登录支付宝身份。
         </div>
         {session && (

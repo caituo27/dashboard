@@ -189,7 +189,7 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
               {showPrimaryStatus && <StatusTag status={summary.status} />}
               {shouldShowAppealStatus(summary.appealStatus) && <StatusTag status={summary.appealStatus} />}
             </div>
-            <h1 className="text-3xl font-semibold leading-tight text-ink">{summary.title}</h1>
+            <h1 className="text-2xl font-semibold leading-tight text-ink">{summary.title}</h1>
             <p className="mt-3 text-sm leading-7 text-ink-soft">
               {detail.task?.category || "-"} · {summary.agentName} · {summary.reward}
             </p>
@@ -199,7 +199,7 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
               <span>结算：{summary.settlementStatus}</span>
             </div>
             {summary.terminationReason && (summary.status === "已终止" || summary.status === "验收未通过") && (
-              <div className="mt-4 rounded-2xl border border-[#ffd9d9] bg-[#fff4f4] px-4 py-3 text-sm leading-7 text-[#b42318]">
+              <div className="mt-4 rounded-lg border border-[#ffd9d9] bg-[#fff4f4] px-4 py-3 text-sm leading-7 text-[#b42318]">
                 {summary.terminationReason}
               </div>
             )}
@@ -519,7 +519,7 @@ function ArtifactsSection({ executionId, artifacts, compact = false }: { executi
               );
             }
             return (
-              <div key={artifact.artifactId ?? artifact.fileId ?? getArtifactTitle(artifact)} className="rounded-2xl border border-line bg-white px-4 py-3">
+              <div key={artifact.artifactId ?? artifact.fileId ?? getArtifactTitle(artifact)} className="rounded-xl border border-line bg-white px-4 py-3">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-ink">{getArtifactTitle(artifact)}</p>
@@ -644,14 +644,14 @@ function ManualSubmissionsSection({
           )}
         </div>
         {detail.reviewSource === "USER_MANUAL" && (
-          <div className="mt-3 rounded-2xl border border-[#d8e7ff] bg-[#f4f8ff] px-4 py-3 text-sm leading-7 text-[#2457a6]">
+          <div className="mt-3 rounded-lg border border-[#d8e7ff] bg-[#f4f8ff] px-4 py-3 text-sm leading-7 text-[#2457a6]">
             人工补交文件不会触发自动验收或 Agent 评估，由平台管理员人工审核。
           </div>
         )}
         {submissions.length > 0 ? (
           <div className="mt-4 space-y-3">
             {submissions.map((submission) => (
-              <div key={submission.submissionId} className="rounded-2xl border border-line bg-white p-4">
+              <div key={submission.submissionId} className="rounded-xl border border-line bg-white p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <strong>第 {submission.submissionNo} 次人工补交</strong>
@@ -700,10 +700,10 @@ function ManualSubmissionsSection({
           onChange={(event) => setDescription(event.target.value)}
         />
         <label
-          className="group mt-4 flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-line bg-[#fafafa] p-4 text-sm text-ink-soft transition-[border-color,background-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:border-accent/40 hover:bg-card hover:shadow-soft active:translate-y-0 active:scale-[0.995] focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15"
+          className="group mt-4 flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-line bg-[#fafafa] p-4 text-sm text-ink-soft transition-[border-color,background-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:border-accent/40 hover:bg-card hover:shadow-soft active:translate-y-0 active:scale-[0.995] focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15"
           onClick={handleUploadPickerClick}
         >
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-line bg-card text-ink-soft transition-colors duration-200 group-hover:border-accent/30 group-hover:text-accent">
+          <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-line bg-card text-ink-soft transition-colors duration-200 group-hover:border-accent/30 group-hover:text-accent">
             <UploadCloud size={20} />
           </span>
           <span className="min-w-0">
@@ -938,7 +938,7 @@ function SectionTitle({ title }: { title: string }) {
 
 function InfoPill({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-[#fafafa] px-4 py-3">
+    <div className="rounded-xl bg-[#fafafa] px-4 py-3">
       <p className="text-xs font-semibold text-ink-soft">{label}</p>
       <p className="mt-1 break-words text-sm font-semibold text-ink">{value}</p>
     </div>
@@ -947,7 +947,7 @@ function InfoPill({ label, value }: { label: string; value: string }) {
 
 function InlineEmpty({ title, description }: { title: string; description: string }) {
   return (
-    <div className="mt-4 rounded-2xl bg-[#fafafa] p-4 text-sm leading-7 text-ink-soft">
+    <div className="mt-4 rounded-lg bg-[#fafafa] p-4 text-sm leading-7 text-ink-soft">
       <b className="block text-ink">{title}</b>
       <span>{description}</span>
     </div>

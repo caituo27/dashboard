@@ -1,7 +1,7 @@
 import { QRCode } from "antd";
 
 export const qrBoxClassName = [
-  "flex h-48 w-48 items-center justify-center rounded-[22px]",
+  "flex h-48 w-48 items-center justify-center rounded-2xl",
   "border border-line bg-white p-3 text-center text-sm text-ink-soft"
 ].join(" ");
 

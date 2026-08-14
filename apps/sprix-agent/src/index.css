@@ -15,12 +15,31 @@
   --font-sans: "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
   --font-serif: "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
   --font-number: var(--font-sans);
-  --radius-card: 22px;
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --text-3xl: 28px;
+  --radius-nav: 6px;
+  --radius-card: 16px;
+  --radius-compact: 12px;
+  --radius-control: 8px;
+  --radius-pill: 999px;
   --shadow-soft: 0 18px 56px rgba(20, 20, 20, 0.055);
 }
 
 :root {
   color-scheme: light;
+  --sprix-font-size-caption: 12px;
+  --sprix-font-size-body: 14px;
+  --sprix-font-size-card-title: 16px;
+  --sprix-font-size-section-title: 20px;
+  --sprix-font-size-dialog-title: 24px;
+  --sprix-font-size-page-title: 28px;
+  --sprix-font-size-home-title: 30px;
+  --sprix-font-size-score: 48px;
 }
 
 html,
@@ -140,7 +159,7 @@ select {
   height: calc(100dvh - 32px);
   margin: 16px 0 16px 16px;
   border: 1px solid rgba(236, 236, 234, 0.82);
-  border-radius: 28px;
+  border-radius: var(--radius-card);
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(20px);
   padding: 24px 18px;
@@ -172,7 +191,7 @@ select {
   align-items: center;
   gap: 10px;
   border: 1px solid rgba(238, 238, 238, 0.95);
-  border-radius: 999px;
+  border-radius: var(--radius-control);
   background: rgba(255, 255, 255, 0.84);
   padding: 8px 10px;
   color: var(--color-ink);
@@ -239,7 +258,7 @@ select {
   min-width: 0;
   min-height: 40px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   background: transparent;
   padding: 5px 8px 5px 6px;
   color: var(--color-ink);
@@ -334,7 +353,7 @@ select {
   padding: 18px 24px max(18px, env(safe-area-inset-bottom));
   background: rgba(255, 255, 255, 0.92);
   color: var(--color-ink-soft);
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
   backdrop-filter: blur(18px);
 }
 
@@ -389,7 +408,7 @@ select {
 .sprix-payout-table-wrap {
   overflow-x: auto;
   border: 1px solid rgba(238, 238, 238, 0.96);
-  border-radius: 18px;
+  border-radius: var(--radius-compact);
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 8px 22px rgba(20, 20, 20, 0.035);
 }
@@ -515,7 +534,7 @@ select {
 .sprix-card-tight {
   background: rgba(255, 255, 255, 0.94);
   border: 1px solid rgba(238, 238, 238, 0.92);
-  border-radius: 18px;
+  border-radius: var(--radius-compact);
   box-shadow: 0 8px 30px rgba(20, 20, 20, 0.045);
   backdrop-filter: blur(16px);
 }
@@ -546,11 +565,11 @@ select {
   display: inline-flex;
   align-items: center;
   border: 1px solid rgba(26, 26, 26, 0.08);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.88);
   padding: 8px 14px;
   color: var(--color-ink-soft);
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
   font-weight: 700;
   letter-spacing: 0;
   backdrop-filter: blur(18px);
@@ -579,12 +598,12 @@ select {
 }
 
 .sprix-home-hero .sprix-hero-title {
-  font-size: 44px;
+  font-size: var(--sprix-font-size-home-title);
 }
 
 .sprix-hero-title {
   max-width: 1120px;
-  font-size: 52px;
+  font-size: var(--sprix-font-size-page-title);
   line-height: 1.05;
   text-wrap: balance;
 }
@@ -594,7 +613,7 @@ select {
   margin: 0;
   color: var(--color-ink);
   font-family: var(--font-sans);
-  font-size: 34px;
+  font-size: var(--sprix-font-size-dialog-title);
   font-weight: 780;
   letter-spacing: 0;
   line-height: 1.22;
@@ -611,7 +630,7 @@ select {
 .sprix-hero-subtitle {
   max-width: 760px;
   color: var(--color-ink-soft);
-  font-size: 17px;
+  font-size: var(--sprix-font-size-body);
   line-height: 1.85;
 }
 
@@ -626,7 +645,7 @@ select {
 .sprix-landing .sprix-hero-actions .ant-btn {
   min-height: 52px;
   padding: 0 28px;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -650,7 +669,7 @@ select {
 .sprix-agent-download-cta.ant-btn {
   min-height: 60px;
   padding: 0 34px;
-  font-size: 18px;
+  font-size: var(--sprix-font-size-body);
   font-weight: 700;
   animation: sprix-agent-cta-breathe 2.4s ease-in-out infinite;
   transition:
@@ -688,7 +707,7 @@ select {
   font-family: var(--font-number);
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: "tnum" 1, "lnum" 1;
-  font-size: 40px;
+  font-size: 32px;
   line-height: 1;
   font-weight: 800;
   letter-spacing: 0;
@@ -697,12 +716,12 @@ select {
 
 .sprix-platform-metric-card span {
   color: var(--color-ink-soft);
-  font-size: 19px;
+  font-size: var(--sprix-font-size-caption);
   line-height: 1.3;
 }
 
 .sprix-metric-card-title {
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
   font-weight: 560;
   line-height: 1.35;
 }
@@ -758,7 +777,7 @@ select {
   justify-content: space-between;
   gap: 24px;
   border: 1px solid rgba(238, 238, 238, 0.92);
-  border-radius: 22px;
+  border-radius: var(--radius-card);
   background: rgba(255, 255, 255, 0.94);
   padding: 28px 30px;
   box-shadow: var(--shadow-soft);
@@ -780,21 +799,21 @@ select {
   height: 42px;
   flex-shrink: 0;
   place-items: center;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: #f7f7f7;
   color: var(--color-ink);
 }
 
 .sprix-current-agent-kicker {
   color: var(--color-accent);
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
   font-weight: 800;
 }
 
 .sprix-landing .sprix-current-agent-card h2 {
   margin: 8px 0 8px;
   color: var(--color-ink);
-  font-size: 24px;
+  font-size: var(--sprix-font-size-card-title);
   line-height: 1.2;
 }
 
@@ -802,7 +821,7 @@ select {
   max-width: 620px;
   margin: 0;
   color: var(--color-ink-soft);
-  font-size: 15px;
+  font-size: var(--sprix-font-size-body);
   line-height: 1.8;
 }
 
@@ -817,7 +836,7 @@ select {
 .sprix-current-agent-meta {
   margin-top: 14px;
   color: var(--color-ink-soft);
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
   font-weight: 700;
 }
 
@@ -850,7 +869,7 @@ select {
 .sprix-agent-picker-head h2 {
   margin: 0;
   color: var(--color-ink);
-  font-size: 32px;
+  font-size: var(--sprix-font-size-dialog-title);
   font-weight: 820;
   line-height: 1.2;
 }
@@ -875,7 +894,7 @@ select {
   justify-content: space-between;
   gap: 16px;
   border: 1px solid rgba(238, 238, 238, 0.96);
-  border-radius: 18px;
+  border-radius: var(--radius-compact);
   background: rgba(255, 255, 255, 0.98);
   padding: 18px;
   text-align: left;
@@ -909,7 +928,7 @@ select {
   display: block;
   overflow: hidden;
   color: var(--color-ink);
-  font-size: 18px;
+  font-size: var(--sprix-font-size-card-title);
   line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -942,7 +961,7 @@ select {
   align-items: center;
   justify-content: center;
   color: var(--color-ink);
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
   font-weight: 800;
 }
 
@@ -996,7 +1015,7 @@ select {
 .sprix-agent-ability-result-head h2 {
   margin: 0;
   color: var(--color-ink);
-  font-size: 28px;
+  font-size: var(--sprix-font-size-dialog-title);
   font-weight: 840;
   line-height: 1.2;
 }
@@ -1013,7 +1032,7 @@ select {
   align-items: center;
   justify-content: center;
   min-height: 24px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: #f7f7f5;
   padding: 4px 12px;
   color: #56657a;
@@ -1037,7 +1056,7 @@ select {
 .sprix-connect-agent-dialog .ant-modal-content {
   overflow: hidden;
   border: 1px solid rgba(15, 23, 42, 0.05);
-  border-radius: 30px;
+  border-radius: var(--radius-card);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.985), rgba(255, 255, 255, 0.96));
   box-shadow:
     0 34px 100px rgba(15, 23, 42, 0.18),
@@ -1069,7 +1088,7 @@ select {
 .sprix-connect-agent-modal h2 {
   margin: 0;
   color: var(--color-ink);
-  font-size: 28px;
+  font-size: var(--sprix-font-size-dialog-title);
   line-height: 1.12;
   font-weight: 780;
 }
@@ -1084,7 +1103,7 @@ select {
 
 .sprix-connect-agent-modal .sprix-connect-agent-primary-copy {
   color: var(--color-ink);
-  font-size: 15px;
+  font-size: var(--sprix-font-size-body);
   font-weight: 700;
 }
 
@@ -1114,7 +1133,7 @@ select {
   margin: 0;
   color: rgba(26, 26, 26, 0.46);
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: var(--sprix-font-size-caption);
   font-weight: 620;
   line-height: 1.35;
 }
@@ -1155,7 +1174,7 @@ select {
 
 .sprix-supported-agent-card strong {
   color: rgba(26, 26, 26, 0.72);
-  font-size: 10px;
+  font-size: var(--sprix-font-size-caption);
   font-weight: 680;
   line-height: 1.2;
   white-space: nowrap;
@@ -1167,7 +1186,7 @@ select {
   justify-content: center;
   width: 22px;
   height: 22px;
-  border-radius: 7px;
+  border-radius: var(--radius-control);
   overflow: hidden;
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 3px 8px rgba(15, 23, 42, 0.035);
@@ -1185,7 +1204,7 @@ select {
   min-height: 56px;
   min-width: min(100%, 340px);
   padding: 0 26px;
-  font-size: 15px;
+  font-size: var(--sprix-font-size-body);
   font-weight: 800;
   box-shadow:
     0 18px 34px rgba(15, 15, 15, 0.2),
@@ -1198,7 +1217,7 @@ select {
   }
 
   .sprix-connect-agent-modal h2 {
-    font-size: 26px;
+    font-size: var(--sprix-font-size-dialog-title);
   }
 
   .sprix-supported-agent-grid {
@@ -1221,7 +1240,7 @@ select {
 
 .sprix-agent-setup-modal .ant-modal-content {
   overflow: hidden;
-  border-radius: 24px;
+  border-radius: var(--radius-card);
   background: rgba(255, 255, 255, 0.97);
   box-shadow: 0 28px 90px rgba(16, 24, 40, 0.2);
 }
@@ -1239,11 +1258,11 @@ select {
   width: fit-content;
   margin: 0 auto 20px;
   border: 1px solid rgba(26, 26, 26, 0.08);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.9);
   padding: 7px 13px;
   color: var(--color-ink-soft);
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
   font-weight: 800;
 }
 
@@ -1258,7 +1277,7 @@ select {
 .sprix-agent-setup-stage h2 {
   margin: 0;
   color: var(--color-ink);
-  font-size: 38px;
+  font-size: var(--sprix-font-size-dialog-title);
   font-weight: 840;
   line-height: 1.16;
   letter-spacing: 0;
@@ -1268,7 +1287,7 @@ select {
   margin: 0;
   max-width: 560px;
   color: var(--color-ink-soft);
-  font-size: 15px;
+  font-size: var(--sprix-font-size-body);
   line-height: 1.8;
 }
 
@@ -1280,7 +1299,7 @@ select {
   place-items: center;
   overflow: hidden;
   border: 1px solid rgba(238, 238, 238, 0.95);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: linear-gradient(180deg, rgba(250, 250, 250, 0.92), rgba(245, 247, 247, 0.9));
 }
 
@@ -1297,7 +1316,7 @@ select {
   position: relative;
   width: 68%;
   height: 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.86);
   box-shadow: inset 0 0 0 1px rgba(26, 26, 26, 0.04);
   animation: sprix-agent-pulse 1.3s ease-in-out infinite;
@@ -1330,7 +1349,7 @@ select {
   align-items: center;
   gap: 10px;
   border: 1px solid rgba(238, 238, 238, 0.88);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: rgba(250, 250, 250, 0.74);
   padding: 10px 12px;
   color: var(--color-ink-soft);
@@ -1361,7 +1380,7 @@ select {
   flex: 0 0 24px;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(26, 26, 26, 0.06);
   color: var(--color-ink-soft);
   font-size: 12px;
@@ -1389,7 +1408,7 @@ select {
 }
 
 .sprix-agent-setup-steps strong {
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
   font-weight: 760;
   line-height: 1.35;
 }
@@ -1407,7 +1426,7 @@ select {
   justify-items: center;
   gap: 7px;
   border: 1px solid rgba(238, 238, 238, 0.94);
-  border-radius: 18px;
+  border-radius: var(--radius-compact);
   background: rgba(255, 255, 255, 0.92);
   padding: 18px 14px;
   color: var(--color-ink);
@@ -1473,7 +1492,7 @@ select {
   height: 138px;
   place-items: center;
   margin: 2px 0 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background:
     radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.96) 0 42%, transparent 43%),
     conic-gradient(from 0deg, rgba(15, 118, 110, 0.08), rgba(15, 118, 110, 0.28), rgba(26, 26, 26, 0.08), rgba(15, 118, 110, 0.08));
@@ -1488,7 +1507,7 @@ select {
 .sprix-agent-setup-orbit span {
   content: "";
   position: absolute;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .sprix-agent-setup-orbit::before {
@@ -1531,7 +1550,7 @@ select {
   height: 64px;
   place-items: center;
   border: 1px solid rgba(26, 26, 26, 0.08);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.95);
   color: var(--color-ink);
   font-size: 24px;
@@ -1548,7 +1567,7 @@ select {
   gap: 18px;
   overflow: hidden;
   border: 1px solid rgba(238, 238, 238, 0.96);
-  border-radius: 20px;
+  border-radius: var(--radius-card);
   background: rgba(250, 250, 250, 0.76);
   padding: 20px;
   animation: sprix-agent-result-pop 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -1572,13 +1591,13 @@ select {
 
 .sprix-agent-setup-result span {
   color: var(--color-ink-soft);
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
   font-weight: 740;
 }
 
 .sprix-agent-setup-result strong {
   color: var(--color-ink);
-  font-size: 58px;
+  font-size: var(--sprix-font-size-score);
   font-weight: 860;
   line-height: 1;
   animation: sprix-agent-score-reveal 520ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both;
@@ -1586,7 +1605,7 @@ select {
 
 .sprix-agent-setup-summary {
   max-width: 620px !important;
-  border-radius: 16px;
+  border-radius: var(--radius-control);
   background: rgba(240, 253, 250, 0.72);
   padding: 14px 16px;
   color: var(--color-accent) !important;
@@ -1742,11 +1761,11 @@ select {
 .sprix-prompt-chip {
   min-width: 280px;
   border: 1px solid rgba(236, 236, 234, 0.9);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.92);
   padding: 12px 16px;
   color: var(--color-ink-soft);
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
   white-space: nowrap;
   box-shadow: 0 10px 30px rgba(20, 20, 20, 0.045);
   backdrop-filter: blur(16px);
@@ -1763,7 +1782,7 @@ select {
 }
 
 .sprix-pill {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-pill);
   color: white;
   border: 0;
@@ -1772,7 +1791,7 @@ select {
 }
 
 .sprix-pill-secondary {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--color-line);
   background: rgba(255, 255, 255, 0.72);
   color: var(--color-ink);
@@ -1812,7 +1831,7 @@ select {
   justify-content: space-between;
   gap: 16px;
   border: 1px solid rgba(238, 238, 238, 0.95);
-  border-radius: 18px;
+  border-radius: var(--radius-compact);
   background: rgba(255, 255, 255, 0.78);
   padding: 15px;
   transition:
@@ -1842,7 +1861,7 @@ select {
   align-items: center;
   justify-content: center;
   border: 1px solid rgba(26, 26, 26, 0.08);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(231, 247, 242, 0.92)),
     radial-gradient(circle at 28% 20%, rgba(255, 183, 197, 0.42), transparent 48%);
@@ -1862,7 +1881,7 @@ select {
   place-items: center;
   gap: 12px;
   border: 1px dashed rgba(26, 26, 26, 0.13);
-  border-radius: 20px;
+  border-radius: var(--radius-card);
   background: rgba(250, 250, 250, 0.7);
   padding: 28px;
   text-align: center;
@@ -1888,7 +1907,7 @@ select {
   width: fit-content;
   align-items: center;
   border: 1px solid rgba(15, 118, 110, 0.18);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(231, 247, 242, 0.86);
   padding: 5px 10px;
   color: var(--color-accent);
@@ -1899,7 +1918,7 @@ select {
   display: grid;
   gap: 5px;
   border: 1px solid rgba(238, 238, 238, 0.95);
-  border-radius: 18px;
+  border-radius: var(--radius-compact);
   background: rgba(255, 255, 255, 0.82);
   padding: 16px;
   text-align: left;
@@ -2022,7 +2041,7 @@ select {
 
 .sprix-agreement-content-compact {
   gap: 10px;
-  font-size: 13px;
+  font-size: var(--sprix-font-size-body);
   line-height: 1.62;
 }
 
@@ -2033,12 +2052,12 @@ select {
 }
 
 .sprix-agreement-content h3[data-level="1"] {
-  font-size: 18px;
+  font-size: var(--sprix-font-size-section-title);
   line-height: 1.45;
 }
 
 .sprix-agreement-content h3:not([data-level="1"]) {
-  font-size: 15px;
+  font-size: var(--sprix-font-size-card-title);
   line-height: 1.5;
 }
 
@@ -2048,7 +2067,7 @@ select {
 }
 
 .sprix-login-submit-button.ant-btn {
-  font-size: 16px;
+  font-size: var(--sprix-font-size-body);
   font-weight: 700;
 }
 
@@ -2063,7 +2082,7 @@ select {
   gap: 12px;
   margin-bottom: 16px;
   border: 1px solid rgba(238, 238, 238, 0.94);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: rgba(250, 250, 250, 0.72);
   padding: 13px 14px;
 }
@@ -2074,7 +2093,7 @@ select {
   height: 34px;
   flex: 0 0 34px;
   place-items: center;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(15, 118, 110, 0.1);
   color: var(--color-accent);
 }
@@ -2082,7 +2101,7 @@ select {
 .sprix-phone-bind-status strong {
   display: block;
   color: var(--color-ink);
-  font-size: 15px;
+  font-size: var(--sprix-font-size-card-title);
   font-weight: 760;
   line-height: 1.35;
 }
@@ -2090,7 +2109,7 @@ select {
 .sprix-phone-bind-status p {
   margin: 3px 0 0;
   color: var(--color-ink-soft);
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
   line-height: 1.6;
 }
 
@@ -2107,7 +2126,7 @@ select {
   justify-items: center;
   gap: 18px;
   border: 1px solid rgba(238, 238, 238, 0.94);
-  border-radius: 24px;
+  border-radius: var(--radius-card);
   background: rgba(255, 255, 255, 0.96);
   padding: 34px 28px;
   text-align: center;
@@ -2119,7 +2138,7 @@ select {
   width: 68px;
   height: 68px;
   place-items: center;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(250, 250, 250, 0.92);
   color: var(--color-ink-soft);
 }
@@ -2146,7 +2165,7 @@ select {
   display: inline-flex;
   margin-bottom: 10px;
   border: 1px solid rgba(26, 26, 26, 0.08);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(250, 250, 250, 0.92);
   padding: 5px 10px;
   color: var(--color-ink-soft);
@@ -2157,7 +2176,7 @@ select {
 .sprix-auth-callback-card h1 {
   margin: 0;
   color: var(--color-ink);
-  font-size: 26px;
+  font-size: var(--sprix-font-size-dialog-title);
   font-weight: 820;
   line-height: 1.25;
 }
@@ -2183,7 +2202,7 @@ select {
 .sprix-qualification-steps .ant-steps-item-icon {
   width: 30px;
   height: 30px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   line-height: 28px;
   transition:
     background-color 160ms ease,
@@ -2289,7 +2308,7 @@ select {
   width: 3px;
   height: 3px;
   margin-right: 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(107, 107, 107, 0.38);
 }
 
@@ -2299,7 +2318,7 @@ select {
 }
 
 .sprix-task-detail-meta .is-success {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(231, 247, 242, 0.86);
   padding: 3px 10px;
   color: var(--color-accent);
@@ -2329,7 +2348,7 @@ select {
   gap: 12px;
   margin: 0 0 22px;
   color: var(--color-ink);
-  font-size: 18px;
+  font-size: var(--sprix-font-size-card-title);
   font-weight: 820;
 }
 
@@ -2345,14 +2364,14 @@ select {
 .sprix-task-side-card h3 {
   margin: 0 0 20px;
   color: var(--color-ink);
-  font-size: 17px;
+  font-size: var(--sprix-font-size-card-title);
   font-weight: 820;
 }
 
 .sprix-task-side-card h3.is-muted {
   margin-top: 0;
   color: #8ea0b5;
-  font-size: 15px;
+  font-size: var(--sprix-font-size-body);
 }
 
 .sprix-task-side-score,
@@ -2368,11 +2387,11 @@ select {
 }
 
 .sprix-task-side-score b {
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   background: rgba(231, 247, 242, 0.86);
   padding: 5px 12px;
   color: var(--color-accent);
-  font-size: 18px;
+  font-size: var(--sprix-font-size-card-title);
   font-weight: 840;
 }
 
@@ -2400,7 +2419,7 @@ select {
 }
 
 .sprix-task-agent-row {
-  border-radius: 12px;
+  border-radius: var(--radius-compact);
   background: rgba(250, 250, 250, 0.94);
   padding: 13px 14px;
 }
@@ -2426,7 +2445,7 @@ select {
 .sprix-task-agent-row b.is-offline span {
   width: 8px;
   height: 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: currentColor;
 }
 
@@ -2434,7 +2453,7 @@ select {
   width: 100%;
   min-height: 48px;
   margin-top: 22px;
-  font-size: 15px;
+  font-size: var(--sprix-font-size-body);
   font-weight: 820;
 }
 
@@ -2478,7 +2497,7 @@ select {
 
 .sprix-execution-hero-progress span {
   color: var(--color-ink-soft);
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
   font-weight: 700;
 }
 
@@ -2560,7 +2579,7 @@ select {
   margin-top: 6px;
   overflow-wrap: anywhere;
   color: var(--color-ink);
-  font-size: 15px;
+  font-size: var(--sprix-font-size-body);
   line-height: 1.85;
 }
 
@@ -2597,7 +2616,7 @@ select {
 
 .sprix-output-message code {
   border: 1px solid rgba(238, 238, 238, 0.96);
-  border-radius: 7px;
+  border-radius: var(--radius-nav);
   background: #fafafa;
   padding: 1px 6px;
   color: var(--color-ink);
@@ -2612,12 +2631,12 @@ select {
   white-space: pre-wrap;
   word-break: break-word;
   border: 1px solid rgba(238, 238, 238, 0.96);
-  border-radius: 16px;
+  border-radius: var(--radius-compact);
   background: #fafafa;
   padding: 14px;
   color: var(--color-ink);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
   line-height: 1.7;
 }
 
@@ -2641,7 +2660,7 @@ select {
   gap: 10px;
   align-items: center;
   border: 1px solid rgba(238, 238, 238, 0.96);
-  border-radius: 14px;
+  border-radius: var(--radius-compact);
   background: #fafafa;
   padding: 12px;
 }
@@ -2753,7 +2772,7 @@ select {
 }
 
 .sprix-history-row.is-current {
-  border-radius: 12px;
+  border-radius: var(--radius-compact);
   background: rgba(231, 247, 242, 0.34);
   padding-inline: 10px;
 }
@@ -2770,7 +2789,7 @@ select {
 .sprix-history-main strong {
   overflow: hidden;
   color: var(--color-ink);
-  font-size: 13px;
+  font-size: var(--sprix-font-size-body);
   font-weight: 720;
   line-height: 1.45;
   text-overflow: ellipsis;
@@ -2800,7 +2819,7 @@ select {
   align-items: center;
   justify-content: center;
   border: 1px solid rgba(15, 118, 110, 0.1);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(231, 247, 242, 0.46);
   color: var(--color-accent);
   font-family: var(--font-number);
@@ -2824,7 +2843,7 @@ select {
   align-content: center;
   justify-items: center;
   border: 1px solid rgba(15, 118, 110, 0.16);
-  border-radius: 18px;
+  border-radius: var(--radius-compact);
   background: rgba(231, 247, 242, 0.72);
   padding: 16px;
   text-align: center;
@@ -2842,7 +2861,7 @@ select {
   margin-top: 8px;
   color: var(--color-accent);
   font-family: var(--font-number);
-  font-size: 34px;
+  font-size: 32px;
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: "tnum" 1, "lnum" 1;
   font-weight: 780;
@@ -2852,18 +2871,18 @@ select {
 .sprix-acceptance-summary {
   margin: 0;
   min-width: 0;
-  border-radius: 18px;
+  border-radius: var(--radius-compact);
   background: #fafafa;
   padding: 16px 18px;
   white-space: pre-line;
   color: var(--color-ink);
-  font-size: 15px;
+  font-size: var(--sprix-font-size-body);
   line-height: 1.85;
 }
 
 .sprix-acceptance-issues {
   border: 1px solid #ffd9d9;
-  border-radius: 18px;
+  border-radius: var(--radius-compact);
   background: #fff4f4;
   padding: 14px 16px;
 }
@@ -2878,7 +2897,7 @@ select {
 
 .sprix-acceptance-issues-head b {
   color: #b42318;
-  font-size: 15px;
+  font-size: var(--sprix-font-size-card-title);
   line-height: 1.35;
 }
 
@@ -2895,7 +2914,7 @@ select {
   grid-template-columns: 18px minmax(0, 1fr);
   gap: 8px;
   color: #8f271f;
-  font-size: 13px;
+  font-size: var(--sprix-font-size-body);
   line-height: 1.7;
 }
 
@@ -2904,7 +2923,7 @@ select {
   width: 6px;
   height: 6px;
   margin-top: 9px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: #b42318;
   justify-self: center;
 }
@@ -2916,12 +2935,12 @@ select {
   gap: 8px;
   margin-top: 12px;
   border: 1px solid rgba(180, 35, 24, 0.16);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.68);
   padding: 0 12px;
   color: #b42318;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
   font-weight: 760;
   transition:
     background-color 160ms ease,
@@ -2943,7 +2962,7 @@ select {
 
 .sprix-acceptance-suggestions {
   border: 1px solid rgba(238, 238, 238, 0.96);
-  border-radius: 18px;
+  border-radius: var(--radius-compact);
   background: #fafafa;
   padding: 14px 16px;
 }
@@ -2958,7 +2977,7 @@ select {
 
 .sprix-acceptance-suggestions-head b {
   color: var(--color-ink);
-  font-size: 15px;
+  font-size: var(--sprix-font-size-card-title);
   line-height: 1.35;
 }
 
@@ -2975,7 +2994,7 @@ select {
   grid-template-columns: 18px minmax(0, 1fr);
   gap: 8px;
   color: var(--color-ink-soft);
-  font-size: 13px;
+  font-size: var(--sprix-font-size-body);
   line-height: 1.7;
 }
 
@@ -2984,7 +3003,7 @@ select {
   width: 6px;
   height: 6px;
   margin-top: 9px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(15, 118, 110, 0.72);
   justify-self: center;
 }
@@ -3003,7 +3022,7 @@ select {
   bottom: 12px;
   left: 6px;
   width: 1px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(15, 118, 110, 0.16);
 }
 
@@ -3023,7 +3042,7 @@ select {
   margin-top: 5px;
   place-items: center;
   border: 3px solid #ffffff;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(15, 118, 110, 0.76);
   box-shadow: 0 0 0 1px rgba(15, 118, 110, 0.18);
 }
@@ -3071,7 +3090,7 @@ select {
 .sprix-timeline-title {
   margin: 0;
   color: var(--color-ink);
-  font-size: 15px;
+  font-size: var(--sprix-font-size-card-title);
   font-weight: 760;
   line-height: 1.35;
 }
@@ -3079,7 +3098,7 @@ select {
 .sprix-timeline-message {
   margin: 5px 0 0;
   color: var(--color-ink-soft);
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
   line-height: 1.7;
 }
 
@@ -3115,7 +3134,7 @@ select {
   white-space: pre-wrap;
   word-break: break-word;
   border: 1px solid var(--color-line);
-  border-radius: 16px;
+  border-radius: var(--radius-compact);
   background: #fafafa;
   padding: 14px;
   color: var(--color-ink);
@@ -3139,7 +3158,7 @@ select {
 
 .ant-modal-content,
 .ant-drawer-content {
-  border-radius: 22px !important;
+  border-radius: var(--radius-card) !important;
 }
 
 .sprix-modal-actions {
@@ -3162,7 +3181,7 @@ select {
 
 .sprix-smart-accept-modal .ant-modal-title {
   color: var(--color-ink);
-  font-size: 22px;
+  font-size: var(--sprix-font-size-dialog-title);
   font-weight: 820;
 }
 
@@ -3181,7 +3200,7 @@ select {
   align-items: center;
   gap: 14px;
   border: 1px solid rgba(15, 118, 110, 0.14);
-  border-radius: 18px;
+  border-radius: var(--radius-compact);
   background:
     linear-gradient(135deg, rgba(240, 253, 250, 0.82), rgba(248, 250, 252, 0.98)),
     #fafafa;
@@ -3194,7 +3213,7 @@ select {
   width: 58px;
   height: 58px;
   place-items: center;
-  border-radius: 16px;
+  border-radius: var(--radius-control);
   background: var(--color-pill);
   color: #ffffff;
   box-shadow: 0 14px 32px rgba(17, 17, 17, 0.16);
@@ -3213,7 +3232,7 @@ select {
 
 .sprix-smart-accept-agent-title strong {
   color: var(--color-ink);
-  font-size: 20px;
+  font-size: var(--sprix-font-size-card-title);
   font-weight: 820;
   line-height: 1.25;
 }
@@ -3222,7 +3241,7 @@ select {
   display: inline-flex;
   min-height: 24px;
   align-items: center;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(15, 118, 110, 0.09);
   padding: 0 9px;
   color: var(--color-accent);
@@ -3247,7 +3266,7 @@ select {
 .sprix-smart-accept-metrics div {
   min-width: 0;
   border: 1px solid var(--color-line);
-  border-radius: 16px;
+  border-radius: var(--radius-compact);
   background: #ffffff;
   padding: 13px 14px;
   text-align: left;
@@ -3264,7 +3283,7 @@ select {
   display: block;
   margin-top: 5px;
   color: var(--color-ink);
-  font-size: 22px;
+  font-size: 30px;
   font-weight: 820;
   line-height: 1.12;
 }
@@ -3274,7 +3293,7 @@ select {
   grid-template-columns: 26px minmax(0, 1fr);
   gap: 10px;
   margin: 12px 0 0;
-  border-radius: 16px;
+  border-radius: var(--radius-compact);
   background: rgba(248, 250, 252, 0.92);
   padding: 14px;
   color: var(--color-ink-soft);
@@ -3289,7 +3308,7 @@ select {
 .sprix-smart-accept-copy strong {
   display: block;
   color: var(--color-ink);
-  font-size: 15px;
+  font-size: var(--sprix-font-size-card-title);
   font-weight: 780;
   line-height: 1.35;
 }
@@ -3368,7 +3387,7 @@ select {
 
 .sprix-evaluation-scroll::-webkit-scrollbar-thumb {
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(26, 26, 26, 0.08);
 }
 
@@ -3379,7 +3398,7 @@ select {
 .sprix-evaluation-question {
   margin-bottom: 14px;
   border: 1px solid rgba(238, 238, 238, 0.96);
-  border-radius: 18px;
+  border-radius: var(--radius-compact);
   background: rgba(255, 255, 255, 0.96);
   padding: 18px 20px;
   animation: sprix-evaluation-enter 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -3404,7 +3423,7 @@ select {
   align-items: center;
   gap: 9px;
   color: var(--color-ink-soft);
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
   font-weight: 700;
 }
 
@@ -3417,7 +3436,7 @@ select {
   align-items: center;
   justify-content: center;
   border: 2px solid rgba(180, 184, 188, 0.7);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .sprix-evaluation-status-dot.is-active {
@@ -3452,14 +3471,14 @@ select {
 .sprix-evaluation-question-text {
   margin: 12px 0 0;
   color: var(--color-ink);
-  font-size: 15px;
+  font-size: var(--sprix-font-size-body);
   font-weight: 740;
   line-height: 1.8;
 }
 
 .sprix-evaluation-answer {
   margin: 14px 0 0;
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: rgba(250, 250, 250, 0.96);
   padding: 14px 16px;
   color: var(--color-ink-soft);
@@ -3474,7 +3493,7 @@ select {
   align-items: center;
   gap: 10px;
   margin: 4px 0 14px;
-  border-radius: 16px;
+  border-radius: var(--radius-control);
   padding: 14px 16px;
   font-size: 14px;
 }
@@ -3494,7 +3513,7 @@ select {
 .sprix-evaluation-result {
   margin-top: 16px;
   border: 1px solid rgba(238, 238, 238, 0.96);
-  border-radius: 18px;
+  border-radius: var(--radius-compact);
   background: rgba(255, 255, 255, 0.98);
   padding: 20px;
   animation: sprix-evaluation-answer 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -3534,7 +3553,7 @@ select {
 }
 
 .sprix-evaluation-dimension {
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: rgba(250, 250, 250, 0.96);
   padding: 14px;
 }
@@ -3545,7 +3564,7 @@ select {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 8px;
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
 }
 
 .sprix-evaluation-dimension > div span:first-child {
@@ -3645,7 +3664,7 @@ select {
 .sprix-evaluation-question {
   margin-bottom: 10px;
   border-color: rgba(238, 238, 238, 0.82);
-  border-radius: 14px;
+  border-radius: var(--radius-compact);
   background: #fcfcfc;
   padding: 14px 16px;
   box-shadow: none;
@@ -3675,7 +3694,7 @@ select {
   margin: 0;
   padding-left: 22px;
   color: var(--color-ink-soft);
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
   line-height: 1.6;
 }
 
@@ -3694,7 +3713,7 @@ select {
   gap: 4px;
   margin: 4px 0 0;
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--radius-compact);
   background: rgba(240, 253, 250, 0.82);
   padding: 14px 16px;
   color: var(--color-accent);
@@ -3709,7 +3728,7 @@ select {
 
 .sprix-evaluation-result span {
   color: var(--color-ink-soft);
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
 }
 
 .sprix-evaluation-footer {
@@ -3726,7 +3745,7 @@ select {
   align-items: center;
   gap: 8px;
   color: var(--color-ink-soft);
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
 }
 
 .sprix-evaluation-footer > span.is-active::before {
@@ -3735,7 +3754,7 @@ select {
   height: 14px;
   border: 2px solid rgba(107, 107, 107, 0.24);
   border-top-color: var(--color-ink-soft);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   animation: sprix-evaluation-spin 820ms linear infinite;
 }
 
@@ -3764,7 +3783,7 @@ select {
 }
 
 .sprix-evaluation-progress-modal .ant-modal-body::-webkit-scrollbar-thumb {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(26, 26, 26, 0.14);
 }
 
@@ -3782,7 +3801,7 @@ select {
   align-items: center;
   gap: 12px;
   min-height: 54px;
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: linear-gradient(90deg, rgba(244, 63, 94, 0.12), rgba(244, 63, 94, 0.06));
   padding: 0 18px;
   color: #d92d20;
@@ -3802,7 +3821,7 @@ select {
   justify-items: center;
   min-height: 254px;
   border: 1px solid rgba(244, 63, 94, 0.13);
-  border-radius: 16px;
+  border-radius: var(--radius-compact);
   background:
     radial-gradient(circle at 50% 22%, rgba(244, 63, 94, 0.1), transparent 31%),
     linear-gradient(180deg, rgba(255, 251, 251, 0.95), rgba(255, 255, 255, 0.98));
@@ -3816,7 +3835,7 @@ select {
   height: 76px;
   place-items: center;
   border: 1px solid rgba(244, 63, 94, 0.1);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(244, 63, 94, 0.08);
   color: #e5484d;
   box-shadow: inset 0 -12px 24px rgba(244, 63, 94, 0.05);
@@ -3826,7 +3845,7 @@ select {
   display: block;
   margin-top: 24px;
   color: var(--color-ink);
-  font-size: 25px;
+  font-size: var(--sprix-font-size-dialog-title);
   font-weight: 860;
   line-height: 1.28;
 }
@@ -3835,7 +3854,7 @@ select {
   max-width: 410px;
   margin: 12px 0 0;
   color: var(--color-ink-soft);
-  font-size: 15px;
+  font-size: var(--sprix-font-size-body);
   line-height: 1.85;
 }
 
@@ -3845,7 +3864,7 @@ select {
   gap: 14px;
   align-items: center;
   border: 1px solid rgba(15, 118, 110, 0.16);
-  border-radius: 14px;
+  border-radius: var(--radius-compact);
   background:
     linear-gradient(135deg, rgba(240, 253, 250, 0.86), rgba(255, 255, 255, 0.98) 58%, rgba(250, 250, 250, 0.96)),
     #ffffff;
@@ -3860,7 +3879,7 @@ select {
   overflow: hidden;
   place-items: center;
   border: 1px solid rgba(15, 118, 110, 0.18);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: #ffffff;
   color: var(--color-accent);
 }
@@ -3876,7 +3895,7 @@ select {
   content: "";
   position: absolute;
   inset: 5px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: #ffffff;
 }
 
@@ -3920,7 +3939,7 @@ select {
 .sprix-evaluation-step-copy p {
   margin: 5px 0 0;
   color: var(--color-ink-soft);
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
   line-height: 1.6;
 }
 
@@ -3930,10 +3949,10 @@ select {
   height: 48px;
   place-items: center;
   border: 1px solid rgba(15, 118, 110, 0.18);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.74);
   color: var(--color-accent);
-  font-size: 15px;
+  font-size: var(--sprix-font-size-body);
   font-weight: 860;
 }
 
@@ -3955,7 +3974,7 @@ select {
   margin-top: 5px;
   color: var(--color-accent);
   font-family: var(--font-number);
-  font-size: 28px;
+  font-size: 32px;
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: "tnum" 1, "lnum" 1;
   font-weight: 780;
@@ -3976,7 +3995,7 @@ select {
   top: 18px;
   bottom: 18px;
   width: 1px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: linear-gradient(180deg, rgba(15, 118, 110, 0.42), rgba(15, 118, 110, 0.14), rgba(225, 234, 232, 0.9));
 }
 
@@ -3989,7 +4008,7 @@ select {
   min-height: 54px;
   overflow: hidden;
   border: 1px solid rgba(238, 238, 238, 0.9);
-  border-radius: 12px;
+  border-radius: var(--radius-compact);
   background: rgba(252, 253, 253, 0.94);
   padding: 9px 12px 9px 0;
   animation: sprix-evaluation-enter 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -4009,10 +4028,10 @@ select {
   justify-self: center;
   place-items: center;
   border: 1px solid rgba(218, 228, 226, 0.96);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: #ffffff;
   color: rgba(105, 114, 118, 0.84);
-  font-size: 11px;
+  font-size: var(--sprix-font-size-caption);
   font-weight: 860;
   transition:
     border-color 360ms ease,
@@ -4042,7 +4061,7 @@ select {
 }
 
 .sprix-evaluation-step-state {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(245, 246, 246, 0.96);
   padding: 5px 9px;
   color: rgba(105, 114, 118, 0.82);
@@ -4125,7 +4144,7 @@ select {
   width: 20px;
   height: 20px;
   place-items: center;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(15, 118, 110, 0.1);
   color: var(--color-accent);
 }
@@ -4156,7 +4175,7 @@ select {
   margin-top: 6px;
   color: var(--color-accent);
   font-family: var(--font-number);
-  font-size: 38px;
+  font-size: 32px;
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: "tnum" 1, "lnum" 1;
   font-weight: 760;
@@ -4166,7 +4185,7 @@ select {
 .sprix-evaluation-progress .sprix-evaluation-result span {
   display: block;
   color: var(--color-ink-soft);
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
   font-weight: 760;
 }
 
@@ -4253,7 +4272,7 @@ select {
   display: block;
   margin-bottom: 8px;
   color: var(--color-ink-soft);
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
   font-weight: 700;
 }
 
@@ -4269,7 +4288,7 @@ select {
 .sprix-agent-score-panel strong {
   font-family: var(--font-number);
   color: var(--color-ink);
-  font-size: 56px;
+  font-size: var(--sprix-font-size-score);
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: "tnum" 1, "lnum" 1;
   font-weight: 720;
@@ -4279,7 +4298,7 @@ select {
 .sprix-agent-score-panel > span {
   margin-top: 5px;
   color: var(--color-ink-soft);
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
 }
 
 .sprix-agent-ability-section {
@@ -4320,7 +4339,7 @@ select {
   justify-content: center;
   min-height: 286px;
   border: 1px solid rgba(238, 238, 238, 0.96);
-  border-radius: 18px;
+  border-radius: var(--radius-compact);
   background: #fcfcfc;
   padding: 22px;
 }
@@ -4328,7 +4347,7 @@ select {
 .sprix-ability-score strong {
   font-family: var(--font-number);
   color: var(--color-ink);
-  font-size: 56px;
+  font-size: var(--sprix-font-size-score);
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: "tnum" 1, "lnum" 1;
   font-weight: 720;
@@ -4338,7 +4357,7 @@ select {
 .sprix-ability-score > span {
   margin-top: 5px;
   color: var(--color-ink-soft);
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
 }
 
 .sprix-ability-career-block {
@@ -4352,7 +4371,7 @@ select {
   max-width: 100%;
   margin-bottom: 8px;
   color: var(--color-ink);
-  font-size: 18px;
+  font-size: var(--sprix-font-size-card-title);
   font-weight: 600;
   line-height: 1.35;
 }
@@ -4366,7 +4385,7 @@ select {
   max-width: 980px;
   margin: 0;
   color: #333333;
-  font-size: 13px;
+  font-size: var(--sprix-font-size-body);
   line-height: 1.75;
 }
 
@@ -4390,7 +4409,7 @@ select {
 
 .sprix-evaluation-radar-label {
   fill: #5f6368;
-  font-size: 11px;
+  font-size: var(--sprix-font-size-caption);
 }
 
 .sprix-evaluation-radar-area {
@@ -4421,7 +4440,7 @@ select {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: #ecfaf9;
   padding: 4px 12px;
   color: #2baa96;
@@ -4438,7 +4457,7 @@ select {
 
 .sprix-ability-pending {
   border: 1px solid rgba(238, 238, 238, 0.84);
-  border-radius: 18px;
+  border-radius: var(--radius-compact);
   background: rgba(252, 252, 252, 0.82);
   padding: 18px 20px;
 }
@@ -4453,7 +4472,7 @@ select {
 
 .sprix-ability-pending-head span {
   color: var(--color-ink);
-  font-size: 15px;
+  font-size: var(--sprix-font-size-body);
   font-weight: 750;
 }
 
@@ -4472,13 +4491,13 @@ select {
 
 .sprix-ability-pending-row > span {
   color: var(--color-ink);
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
 }
 
 .sprix-ability-pending-row > div {
   height: 7px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: #f0f0ef;
 }
 
@@ -4507,13 +4526,13 @@ select {
 
 .sprix-ability-dimension-row > span {
   color: var(--color-ink);
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
 }
 
 .sprix-ability-dimension-row > div {
   height: 7px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: #f0f0ef;
 }
 
@@ -4528,7 +4547,7 @@ select {
 .sprix-ability-dimension-row strong {
   color: var(--color-ink);
   font-family: var(--font-number);
-  font-size: 13px;
+  font-size: var(--sprix-font-size-caption);
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: "tnum" 1, "lnum" 1;
   text-align: right;
@@ -4546,7 +4565,7 @@ select {
   border-top: 1px solid var(--color-line);
   padding-top: 16px;
   color: #333333;
-  font-size: 13px;
+  font-size: var(--sprix-font-size-body);
   line-height: 1.75;
 }
 
@@ -4569,7 +4588,7 @@ select {
 
 .sprix-ability-result-improvement {
   min-width: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-control);
   background: #f7f7f5;
   padding: 4px 16px;
   color: #56657a;
@@ -4691,7 +4710,7 @@ select {
   }
 
   .sprix-home-hero .sprix-hero-title {
-    font-size: 36px;
+    font-size: var(--sprix-font-size-home-title);
   }
 
   .sprix-landing {
@@ -4805,11 +4824,11 @@ select {
   }
 
   .sprix-hero-title {
-    font-size: 42px;
+    font-size: var(--sprix-font-size-page-title);
   }
 
   .sprix-task-detail-title {
-    font-size: 28px;
+    font-size: var(--sprix-font-size-dialog-title);
     line-height: 1.28;
   }
 
@@ -4851,11 +4870,11 @@ select {
   }
 
   .sprix-platform-metric-card strong {
-    font-size: 42px;
+    font-size: 32px;
   }
 
   .sprix-platform-metric-card span {
-    font-size: 18px;
+    font-size: var(--sprix-font-size-caption);
   }
 
   .sprix-agent-setup-modal {
@@ -4877,7 +4896,7 @@ select {
   }
 
   .sprix-agent-setup-stage h2 {
-    font-size: 28px;
+    font-size: var(--sprix-font-size-dialog-title);
   }
 
   .sprix-agent-setup-steps,
@@ -4929,7 +4948,7 @@ select {
   .sprix-evaluation-failure-status {
     min-height: 50px;
     padding: 0 14px;
-    font-size: 18px;
+    font-size: var(--sprix-font-size-section-title);
   }
 
   .sprix-evaluation-failure-card {
@@ -4938,7 +4957,7 @@ select {
   }
 
   .sprix-evaluation-failure-card strong {
-    font-size: 22px;
+    font-size: var(--sprix-font-size-dialog-title);
   }
 
   .sprix-evaluation-failure-card p {
@@ -5013,7 +5032,7 @@ select {
 
 @media (min-width: 1280px) {
   .sprix-hero-title {
-    font-size: 64px;
+    font-size: var(--sprix-font-size-page-title);
   }
 }
 

@@ -440,7 +440,7 @@ function TaskCard({ task, onAccept, onOpenDetail }: { task: Task; onAccept: () =
         {task.title}
       </Link>
       <p className="mt-3 flex-1 text-sm leading-7 text-ink-soft">{compactText(task.cardSummary, 104)}</p>
-      {task.recommendedReason && <p className="mt-3 rounded-2xl bg-[#fafafa] p-3 text-sm leading-6 text-ink-soft">{task.recommendedReason}</p>}
+      {task.recommendedReason && <p className="mt-3 rounded-lg bg-[#fafafa] p-3 text-sm leading-6 text-ink-soft">{task.recommendedReason}</p>}
       <div className="mt-4 grid gap-2 text-sm text-ink-soft">
         <span>奖励：<b className="text-ink">{currency(task.reward)}</b></span>
         <span>剩余名额：{task.remainingSlots}/{task.totalSlots}</span>
@@ -1107,7 +1107,7 @@ function CurrentAgentCard({ agent }: { agent?: Agent }) {
           </div>
         </>
       ) : (
-        <div className="sprix-current-agent-empty rounded-[22px] border border-dashed border-line p-7 text-center">
+        <div className="sprix-current-agent-empty rounded-2xl border border-dashed border-line p-7 text-center">
           <Bot className="mx-auto text-ink-soft" />
           <h4 className="mt-3 text-lg font-semibold">未设置当前执行 Agent</h4>
           <p className="mt-2 text-sm text-ink-soft">在 Agent 列表中选择一个 Agent 设为当前执行 Agent 后，即可执行平台任务。</p>
@@ -1132,14 +1132,14 @@ function AgentList({
     <Surface className="mb-5 p-6">
       <h3 className="mb-4 text-lg font-semibold">{title}</h3>
       {agents.length === 0 ? (
-        <p className="rounded-2xl bg-[#fafafa] p-4 text-sm text-ink-soft">{empty}</p>
+        <p className="rounded-lg bg-[#fafafa] p-4 text-sm text-ink-soft">{empty}</p>
       ) : (
         <div className="space-y-3">
           {agents.map((agent) => {
             const completedEvaluation = agent.evaluation?.result?.status === "completed" ? agent.evaluation.result : undefined;
             const lastEvaluatedAt = agent.evaluation?.lastEvaluatedAt;
             return (
-              <div key={agent.id} className="flex flex-col gap-4 rounded-[18px] border border-line bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
+              <div key={agent.id} className="flex flex-col gap-4 rounded-xl border border-line bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex gap-4">
                   <div>
                     <div className="sprix-agent-list-title-row">
@@ -1279,7 +1279,7 @@ function MyTaskRow({
     isRunning: task.status === "执行中" || task.status === "待平台审核"
   });
   return (
-    <div className="flex flex-col gap-4 rounded-[18px] border border-line bg-white p-4 xl:flex-row xl:items-center xl:justify-between">
+    <div className="flex flex-col gap-4 rounded-xl border border-line bg-white p-4 xl:flex-row xl:items-center xl:justify-between">
       <div>
         <div className="flex flex-wrap items-center gap-2">
           {showPrimaryStatus && <StatusTag status={task.status} />}
@@ -1312,7 +1312,7 @@ function MyTaskRow({
 
 function InlineEmpty({ title, description }: { title: string; description: string }) {
   return (
-    <div className="mt-4 rounded-2xl bg-[#fafafa] p-4 text-sm leading-7 text-ink-soft">
+    <div className="mt-4 rounded-lg bg-[#fafafa] p-4 text-sm leading-7 text-ink-soft">
       <b className="block text-ink">{title}</b>
       <span>{description}</span>
     </div>
@@ -1592,7 +1592,7 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
       />
       <Surface className="mb-5 p-6">
         <Steps className="sprix-qualification-steps" current={step} items={["支付宝人脸核验", "同意服务协议", "开通成功"].map((title) => ({ title }))} />
-        <div className="mt-8 rounded-[22px] bg-[#fafafa] p-5">
+        <div className="mt-8 rounded-2xl bg-[#fafafa] p-5">
           {step === 0 && (
             <>
               <h3 className="text-lg font-semibold">支付宝人脸核验</h3>
@@ -1664,7 +1664,7 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
         <h3 className="text-lg font-semibold text-ink">接单资格记录</h3>
         <div className="mt-5 grid gap-3 md:grid-cols-2">
           {qualificationRows.map((row) => (
-            <div key={row.label} className="flex items-center justify-between rounded-2xl bg-[#fafafa] px-4 py-3 text-sm">
+            <div key={row.label} className="flex items-center justify-between rounded-xl bg-[#fafafa] px-4 py-3 text-sm">
               <span className="text-ink-soft">{row.label}</span>
               {row.variant === "text" || row.value === "待后端返回" ? <span className="text-ink-soft">{row.value}</span> : <StatusTag status={row.value} />}
             </div>
