@@ -3038,6 +3038,14 @@ select {
   margin-top: 14px;
 }
 
+.sprix-timeline-scroll {
+  max-height: 420px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 8px;
+  scrollbar-gutter: stable;
+}
+
 .sprix-timeline-list::before {
   content: "";
   position: absolute;
@@ -4843,6 +4851,10 @@ select {
   }
 
   .sprix-output-scroll {
+    max-height: 300px;
+  }
+
+  .sprix-timeline-scroll {
     max-height: 300px;
   }
 

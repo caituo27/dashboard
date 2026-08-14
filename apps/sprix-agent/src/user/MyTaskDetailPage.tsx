@@ -842,38 +842,40 @@ function TimelineSection({ detail }: { detail: MyTaskExecutionDetail }) {
         )}
       </div>
       {events.length > 0 ? (
-        <div className="sprix-timeline-list">
-          {visibleEvents.map((item, index) => {
-            const event = item.event;
-            const operationSummary = getTimelineOperationSummary(item.operations);
-            const isCurrent = index === visibleEvents.length - 1;
-            return (
-              <div key={event.eventId ?? `${event.eventType}-${index}`} className="sprix-timeline-event">
-                <span className={`sprix-timeline-dot ${isCurrent ? "is-current" : ""}`} />
-                <div
-                  className={`sprix-timeline-card ${isCurrent ? "is-current" : ""} ${item.narrative ? "is-narrative" : ""}`}
-                >
-                  <div className="sprix-timeline-content">
-                    <p className="sprix-timeline-title">{getTimelineEventTitle(event)}</p>
-                    {event.message && <p className="sprix-timeline-message">{event.message}</p>}
-                    {!showRawEvents && (operationSummary.commandCount > 0 || operationSummary.toolCount > 0) && (
-                      <div className="sprix-timeline-operation-summary">
-                        {operationSummary.toolCount > 0 && (
-                          <SoftTag tone="neutral">工具调用 {operationSummary.toolCount} 次</SoftTag>
-                        )}
-                        {operationSummary.commandCount > 0 && (
-                          <SoftTag tone="neutral">本地命令 {operationSummary.commandCount} 次</SoftTag>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div className="sprix-timeline-meta">
-                    <SoftTag tone="neutral">{formatDateTime(getTimelineTime(event))}</SoftTag>
+        <div className="sprix-timeline-scroll">
+          <div className="sprix-timeline-list">
+            {visibleEvents.map((item, index) => {
+              const event = item.event;
+              const operationSummary = getTimelineOperationSummary(item.operations);
+              const isCurrent = index === visibleEvents.length - 1;
+              return (
+                <div key={event.eventId ?? `${event.eventType}-${index}`} className="sprix-timeline-event">
+                  <span className={`sprix-timeline-dot ${isCurrent ? "is-current" : ""}`} />
+                  <div
+                    className={`sprix-timeline-card ${isCurrent ? "is-current" : ""} ${item.narrative ? "is-narrative" : ""}`}
+                  >
+                    <div className="sprix-timeline-content">
+                      <p className="sprix-timeline-title">{getTimelineEventTitle(event)}</p>
+                      {event.message && <p className="sprix-timeline-message">{event.message}</p>}
+                      {!showRawEvents && (operationSummary.commandCount > 0 || operationSummary.toolCount > 0) && (
+                        <div className="sprix-timeline-operation-summary">
+                          {operationSummary.toolCount > 0 && (
+                            <SoftTag tone="neutral">工具调用 {operationSummary.toolCount} 次</SoftTag>
+                          )}
+                          {operationSummary.commandCount > 0 && (
+                            <SoftTag tone="neutral">本地命令 {operationSummary.commandCount} 次</SoftTag>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div className="sprix-timeline-meta">
+                      <SoftTag tone="neutral">{formatDateTime(getTimelineTime(event))}</SoftTag>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       ) : (
         <InlineEmpty title="暂无执行动态" description="Agent 开始执行后，会在这里展示过程说明和脱敏后的工具操作。" />
