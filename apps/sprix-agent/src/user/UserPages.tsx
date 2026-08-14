@@ -449,7 +449,11 @@ function TaskCard({ task, onAccept, onOpenDetail }: { task: Task; onAccept: () =
         <SoftTag tone="neutral" bordered={false} className="sprix-task-market-category-tag m-0 px-2.5 py-0.5">
           {task.category}
         </SoftTag>
-        {task.agentMatchScore > 0 && <SoftTag>匹配 {task.agentMatchScore}%</SoftTag>}
+        {task.agentMatchScore > 0 && (
+          <SoftTag className="sprix-task-market-match-tag m-0 rounded-full px-2.5 py-0.5">
+            匹配 {task.agentMatchScore}%
+          </SoftTag>
+        )}
       </div>
       <Link to={`/agent/task/${task.id}`} className="text-xl font-semibold leading-7 text-ink no-underline hover:text-accent" onClick={onOpenDetail}>
         {task.title}

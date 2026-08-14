@@ -776,6 +776,10 @@ select {
   color: #56657a;
 }
 
+.sprix-task-market-match-tag.ant-tag {
+  border-radius: 999px;
+}
+
 .sprix-home-fade-in {
   animation: sprix-home-fade-in 360ms ease-out both;
 }
