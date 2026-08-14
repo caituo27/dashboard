@@ -58,6 +58,7 @@ import {
 } from "./earningsView";
 import { hasBoundPayoutAccount } from "./accountView";
 import { getQualificationRecordRows } from "./qualificationView";
+import { parseExecutionProgress, useExecutionDisplayProgress } from "./useExecutionDisplayProgress";
 import { getEstimatedTokenField } from "./tokenEstimateView";
 import {
   getAgreementSignButtonText,
@@ -1091,7 +1092,7 @@ function AgentList({
                     )}
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2">{renderActions(agent)}</div>
+                <div className="sprix-agent-list-actions flex flex-nowrap gap-2">{renderActions(agent)}</div>
               </div>
             );
           })}
@@ -1205,6 +1206,11 @@ function MyTaskRow({
   const actions = getMyTaskActions(task);
   const metaItems = getMyTaskMetaItems(task);
   const showPrimaryStatus = !(task.status === "验收未通过" && shouldShowAppealStatus(task.appealStatus));
+  useExecutionDisplayProgress({
+    executionId: task.id,
+    actualProgress: parseExecutionProgress(task.progress),
+    isRunning: task.status === "执行中" || task.status === "待平台审核"
+  });
   return (
     <div className="flex flex-col gap-4 rounded-[18px] border border-line bg-white p-4 xl:flex-row xl:items-center xl:justify-between">
       <div>

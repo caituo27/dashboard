@@ -36,6 +36,7 @@ import {
   mapExecutionStatus
 } from "./executionDetailView";
 import { getMyTaskActions, shouldShowAppealStatus } from "./userFlowRules";
+import { parseExecutionProgress, useExecutionDisplayProgress } from "./useExecutionDisplayProgress";
 import { useRerunTask } from "./useRerunTask";
 
 type MyTaskDetailPageProps = {
@@ -45,33 +46,6 @@ type MyTaskDetailPageProps = {
 const manualSubmissionMaxFileCount = 10;
 const manualSubmissionMaxFileSizeBytes = 50 * 1024 * 1024;
 const manualSubmissionMaxFileCountMessage = `每次最多上传 ${manualSubmissionMaxFileCount} 个交付文件`;
-const executionProgressMilestones = [5, 20, 45, 70, 82, 90, 95, 100];
-const executionProgressStoragePrefix = "sprix-execution-display-progress:";
-
-function parseExecutionProgress(progress?: string) {
-  const value = Number.parseFloat(progress ?? "");
-  return Number.isFinite(value) ? Math.min(100, Math.max(0, Math.floor(value))) : undefined;
-}
-
-function getExecutionProgressCeiling(progress: number) {
-  const nextMilestone = executionProgressMilestones.find((milestone) => milestone > progress);
-  return nextMilestone === undefined ? 100 : nextMilestone - 1;
-}
-
-function readStoredExecutionProgress(executionId?: string) {
-  if (!executionId) return undefined;
-  return parseExecutionProgress(sessionStorage.getItem(`${executionProgressStoragePrefix}${executionId}`) ?? undefined);
-}
-
-function storeExecutionProgress(executionId: string | undefined, progress: number | undefined) {
-  if (!executionId || progress === undefined) return;
-  const storageKey = `${executionProgressStoragePrefix}${executionId}`;
-  if (progress >= 100) {
-    sessionStorage.removeItem(storageKey);
-    return;
-  }
-  sessionStorage.setItem(storageKey, String(progress));
-}
 
 function validateManualSubmissionFile(file: File) {
   if (file.size === 0) return "文件不能为空";
@@ -87,7 +61,6 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
   const [loading, setLoading] = useState(true);
   const [canceling, setCanceling] = useState(false);
   const [error, setError] = useState("");
-  const [displayProgress, setDisplayProgress] = useState<number>();
 
   const loadDetail = useCallback(
     async (silent = false) => {
@@ -127,41 +100,11 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
   const summary = useMemo(() => (detail ? getExecutionSummary(detail) : undefined), [detail]);
   const actualProgress = parseExecutionProgress(detail?.progress);
   const isExecutionRunning = Boolean(detail && shouldAutoRefreshExecutionDetail(detail));
-  const progressCeiling = actualProgress === undefined ? undefined : getExecutionProgressCeiling(actualProgress);
-
-  useEffect(() => {
-    const executionId = detail?.id ?? id;
-    const storedProgress = readStoredExecutionProgress(executionId);
-    const nextProgress =
-      actualProgress === undefined
-        ? storedProgress
-        : storedProgress === undefined
-          ? actualProgress
-          : Math.max(actualProgress, storedProgress);
-    setDisplayProgress(nextProgress);
-    storeExecutionProgress(executionId, nextProgress);
-  }, [detail?.id, actualProgress, isExecutionRunning]);
-
-  useEffect(() => {
-    if (
-      !isExecutionRunning ||
-      displayProgress === undefined ||
-      progressCeiling === undefined ||
-      displayProgress >= progressCeiling
-    ) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      setDisplayProgress((current) => {
-        const nextProgress = Math.min((current ?? displayProgress) + 1, progressCeiling);
-        storeExecutionProgress(detail?.id ?? id, nextProgress);
-        return nextProgress;
-      });
-    }, 1800);
-
-    return () => window.clearTimeout(timer);
-  }, [detail?.id, displayProgress, id, isExecutionRunning, progressCeiling]);
+  const displayProgress = useExecutionDisplayProgress({
+    executionId: detail?.id ?? id,
+    actualProgress,
+    isRunning: isExecutionRunning
+  });
 
   const actions = useMemo(
     () => (summary ? getMyTaskActions({ status: summary.status, appealStatus: summary.appealStatus }) : undefined),
@@ -402,13 +345,16 @@ function TaskAttachmentsSection({ taskId }: { taskId?: string }) {
 
 function OutputSection({ detail }: { detail: MyTaskExecutionDetail }) {
   const output = detail.output;
+  const outputText = output?.finalMessage || "暂无 Agent 输出";
 
   return (
     <Surface className="sprix-output-section p-6">
       <SectionTitle title="Agent 输出" />
       {output ? (
         <div className="mt-4 space-y-4">
-          <FormattedOutputMessage text={output.finalMessage || "暂无 Agent 输出"} />
+          <div className="sprix-output-scroll">
+            <FormattedOutputMessage text={outputText} />
+          </div>
           <div className="sprix-output-metrics">
             <InfoPill label="Token 用量" value={getTokenUsage(detail)} />
             <InfoPill label="接收时间" value={formatDateTime(output.receivedAt)} />

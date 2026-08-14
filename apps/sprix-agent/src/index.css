@@ -486,6 +486,15 @@ select {
   line-height: 1.2;
 }
 
+.sprix-agent-list-actions {
+  min-width: 0;
+}
+
+.sprix-agent-list-actions .ant-btn {
+  min-width: 0;
+  white-space: nowrap;
+}
+
 .sprix-topbar {
   min-height: 66px;
   display: flex;
@@ -2440,9 +2449,7 @@ select {
   align-content: center;
   justify-items: center;
   gap: 8px;
-  border: 1px solid rgba(15, 118, 110, 0.16);
-  border-radius: 20px;
-  background: rgba(231, 247, 242, 0.72);
+  background: transparent;
 }
 
 .sprix-execution-hero-progress span {
@@ -2527,9 +2534,21 @@ select {
 
 .sprix-output-message {
   margin-top: 6px;
+  overflow-wrap: anywhere;
   color: var(--color-ink);
   font-size: 15px;
   line-height: 1.85;
+}
+
+.sprix-output-scroll {
+  max-height: 420px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid rgba(238, 238, 238, 0.96);
+  border-radius: 16px;
+  background: #fcfcfc;
+  padding: 4px 14px 8px;
+  scrollbar-gutter: stable;
 }
 
 .sprix-output-message > * + * {
@@ -2565,6 +2584,7 @@ select {
 
 .sprix-output-code-block {
   margin: 0;
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
   word-break: break-word;
   border: 1px solid rgba(238, 238, 238, 0.96);
@@ -4676,10 +4696,14 @@ select {
   }
 
   .sprix-execution-hero-progress {
-    justify-items: start;
+    justify-items: center;
     min-width: 0;
     min-height: auto;
     padding: 16px;
+  }
+
+  .sprix-output-scroll {
+    max-height: 300px;
   }
 
   .sprix-execution-hero-side {
@@ -4743,6 +4767,15 @@ select {
 
   .sprix-agent-setup-modal {
     max-width: calc(100vw - 28px);
+  }
+
+  .sprix-agent-list-actions {
+    gap: 6px;
+  }
+
+  .sprix-agent-list-actions .ant-btn {
+    padding-inline: 10px;
+    font-size: 14px;
   }
 
   .sprix-agent-setup-shell {
