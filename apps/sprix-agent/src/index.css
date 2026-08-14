@@ -412,6 +412,10 @@ select {
   object-fit: contain;
 }
 
+.ant-btn-primary .sprix-button-icon {
+  filter: brightness(0) invert(1);
+}
+
 .sprix-payout-table-wrap {
   overflow-x: auto;
   border: 1px solid rgba(238, 238, 238, 0.96);
