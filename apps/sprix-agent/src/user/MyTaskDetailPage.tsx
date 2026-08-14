@@ -222,6 +222,7 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
 
         <div className="sprix-execution-detail-layout">
           <div className="sprix-execution-main-stack">
+            <TimelineSection detail={detail} />
             <OutputSection detail={detail} />
             <AcceptanceSection
               detail={detail}
@@ -243,7 +244,6 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
           <aside className="sprix-execution-side-rail">
             <TaskRequirementSection detail={detail} />
             <TaskAttachmentsSection taskId={detail.task?.id ?? detail.taskId} />
-            <TimelineSection detail={detail} />
             <HistorySection detail={detail} />
           </aside>
         </div>
@@ -824,7 +824,7 @@ function TimelineSection({ detail }: { detail: MyTaskExecutionDetail }) {
   return (
     <Surface className="sprix-timeline-panel p-5">
       <div className="sprix-section-heading">
-        <SectionTitle title="执行时间线" />
+        <SectionTitle title="Agent 执行动态" />
         {events.length > 0 && <SoftTag tone="neutral">{events.length} 条事件</SoftTag>}
       </div>
       {events.length > 0 ? (
@@ -845,7 +845,7 @@ function TimelineSection({ detail }: { detail: MyTaskExecutionDetail }) {
           ))}
         </div>
       ) : (
-        <InlineEmpty title="暂无时间线" description="执行节点进度回传后，会按时间展示在这里。" />
+        <InlineEmpty title="暂无执行动态" description="Agent 开始执行后，会在这里展示思考摘要和脱敏后的工具操作。" />
       )}
     </Surface>
   );
