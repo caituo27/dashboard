@@ -861,12 +861,11 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
     setEvaluationError(undefined);
     setEvaluationLoading(true);
     try {
-      const shouldReuseRunningEvaluation = !forceStart;
       let shouldStartEvaluation = false;
       let nextEvaluation: AgentEvaluation | undefined;
 
       const rememberedEvaluation = !forceStart ? evaluationSessionsRef.current.get(agent.id) : undefined;
-      const listedRunningEvaluation = agent.evaluation && isEvaluationActive(agent.evaluation.status) ? agent.evaluation : undefined;
+      const listedRunningEvaluation = !forceStart && agent.evaluation && isEvaluationActive(agent.evaluation.status) ? agent.evaluation : undefined;
       const runningEvaluation = rememberedEvaluation ?? listedRunningEvaluation;
 
       if (runningEvaluation && isEvaluationActive(runningEvaluation.status)) {
@@ -882,18 +881,6 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
           if (isGlobalAuthError(error)) throw error;
           // Keep the last known session. The polling effect will retry instead of starting a new evaluation.
           nextEvaluation = runningEvaluation;
-        }
-      } else if (shouldReuseRunningEvaluation) {
-        try {
-          const latestEvaluation = await readLatestRemoteAgentEvaluation(agent.id);
-          if (!isCurrentRequest()) return;
-          if (isEvaluationActive(latestEvaluation.status) || isEvaluationTerminal(latestEvaluation.status)) {
-            nextEvaluation = latestEvaluation;
-          }
-        } catch (error) {
-          if (!isAgentEvaluationNotFound(error)) {
-            throw error;
-          }
         }
       }
 
