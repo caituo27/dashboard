@@ -1,5 +1,5 @@
 import { Progress } from "antd";
-import { BrainCircuit } from "lucide-react";
+import { BrainCircuit, UserRoundCheck } from "lucide-react";
 import type { Agent, AgentEvaluation } from "../types";
 import { SoftTag, StatusTag, Surface } from "../components/Primitives";
 import {
@@ -18,6 +18,13 @@ function evaluationDimensions(result: AgentEvaluation["result"]) {
     comment: result.dimensions[key]?.comment
   }));
 }
+
+type AgentAbilityProfileProps = {
+  agent?: Agent;
+  embedded?: boolean;
+  showScore?: boolean;
+  resultPresentation?: boolean;
+};
 
 export function EvaluationRadar({ result }: { result: AgentEvaluation["result"] }) {
   const dimensions = evaluationDimensions(result);
@@ -65,10 +72,16 @@ export function EvaluationRadar({ result }: { result: AgentEvaluation["result"] 
   );
 }
 
-export function AgentAbilityProfile({ agent, embedded = false, showScore = true }: { agent?: Agent; embedded?: boolean; showScore?: boolean }) {
+export function AgentAbilityProfile({
+  agent,
+  embedded = false,
+  showScore = true,
+  resultPresentation = false
+}: AgentAbilityProfileProps) {
   const ability = getAgentAbilityResult(agent);
   const summary = agent ? getAgentAdmissionSummary(agent) : undefined;
   const evaluationResult = agent?.evaluation?.result?.status === "completed" ? agent.evaluation.result : undefined;
+  const evaluationStatusLabel = agent?.evaluation ? getAgentEvaluationStatusLabel(agent.evaluation) : "";
   const dimensions = evaluationResult ? evaluationDimensions(evaluationResult) : [];
   const careerRoleName = evaluationResult?.careerProfile?.roleName?.trim();
   const careerSummary = careerRoleName ? evaluationResult?.summary?.trim() : "";
@@ -86,7 +99,15 @@ export function AgentAbilityProfile({ agent, embedded = false, showScore = true 
       )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-lg font-semibold">能力画像</h3>
-        {agent?.evaluation && <StatusTag status={getAgentEvaluationStatusLabel(agent.evaluation)} />}
+        {agent?.evaluation &&
+          (resultPresentation && evaluationStatusLabel === "能力画像已生成" ? (
+            <span className="sprix-ability-generated-status">
+              <UserRoundCheck size={14} strokeWidth={1.8} aria-hidden="true" />
+              {evaluationStatusLabel}
+            </span>
+          ) : (
+            <StatusTag status={evaluationStatusLabel} />
+          ))}
       </div>
       <p className="mt-3 text-sm leading-6 text-ink-soft">最近评测：{summary?.lastEvaluatedAt ?? "-"}</p>
       {evaluationResult ? (
@@ -114,7 +135,7 @@ export function AgentAbilityProfile({ agent, embedded = false, showScore = true 
               ))}
             </div>
             {evaluationResult.summary && !careerRoleName && <p className="sprix-ability-summary">{evaluationResult.summary}</p>}
-            {evaluationResult.improvements.length > 0 && (
+            {!resultPresentation && evaluationResult.improvements.length > 0 && (
               <div className="sprix-ability-improvements">
                 {evaluationResult.improvements.map((item) => (
                   <SoftTag key={item} tone="amber">
@@ -124,6 +145,15 @@ export function AgentAbilityProfile({ agent, embedded = false, showScore = true 
               </div>
             )}
           </div>
+          {resultPresentation && evaluationResult.improvements.length > 0 && (
+            <ul className="sprix-ability-result-improvements" aria-label="改进建议">
+              {evaluationResult.improvements.map((item, index) => (
+                <li key={`${index}-${item}`} className="sprix-ability-result-improvement">
+                  {item}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       ) : isAbilityPending ? (
         <div className="sprix-ability-pending mt-5">

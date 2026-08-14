@@ -4402,6 +4402,33 @@ select {
   min-width: 0;
 }
 
+.sprix-agent-ability-result-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  border-radius: 999px;
+  background: #f7f7f5;
+  padding: 4px 12px;
+  color: #56657a;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.sprix-ability-generated-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  background: #ecfaf9;
+  padding: 4px 12px;
+  color: #2baa96;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
 .sprix-ability-bars {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4527,6 +4554,29 @@ select {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 12px;
+}
+
+.sprix-ability-result-improvements {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 8px;
+  min-width: 0;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sprix-ability-result-improvement {
+  min-width: 0;
+  border-radius: 999px;
+  background: #f7f7f5;
+  padding: 4px 16px;
+  color: #56657a;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 @keyframes sprix-radar-fill {
