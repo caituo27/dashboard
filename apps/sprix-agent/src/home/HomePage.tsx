@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Modal, message } from "antd";
+import { ArrowRight } from "lucide-react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import type { Agent, AgentEvaluation } from "../types";
 import { useSprixStore } from "../store/sprixStore";
@@ -15,7 +16,7 @@ import {
 } from "../services/sprixApi";
 import { isGlobalAuthError } from "../utils/http";
 import { AgentEvaluationProgressModal } from "../components/AgentEvaluationProgressModal";
-import { ActionButton, SoftTag } from "../components/Primitives";
+import { ActionButton } from "../components/Primitives";
 import { AgentAbilityProfile } from "../user/AgentAbilityProfile";
 import { useAgentBindPolling } from "./useAgentBindPolling";
 import { useHomeBootstrap } from "./useHomeBootstrap";
@@ -356,7 +357,10 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
         maskClosable={false}
         footer={
           <div className="sprix-agent-ability-result-footer">
-            <ActionButton onClick={enterMarketFromAbilityResult}>去任务市场</ActionButton>
+            <ActionButton onClick={enterMarketFromAbilityResult}>
+              去任务市场
+              <ArrowRight size={16} strokeWidth={1.7} aria-hidden="true" />
+            </ActionButton>
           </div>
         }
       >
@@ -366,14 +370,16 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
               <span className="sprix-agent-current-label">当前执行 Agent</span>
               <h2>{abilityResultAgent.name}</h2>
               {abilityResultAgent.tags.length > 0 && (
-                <div>
+                <div className="sprix-agent-ability-result-tags">
                   {abilityResultAgent.tags.map((tag) => (
-                    <SoftTag key={tag}>{tag}</SoftTag>
+                    <span key={tag} className="sprix-agent-ability-result-tag">
+                      {tag}
+                    </span>
                   ))}
                 </div>
               )}
             </div>
-            <AgentAbilityProfile agent={abilityResultAgent} embedded />
+            <AgentAbilityProfile agent={abilityResultAgent} embedded resultPresentation />
           </div>
         )}
       </Modal>

@@ -12,8 +12,8 @@
   --color-aurora-amber: #ffeaaa;
   --color-aurora-cyan: #b2ebf2;
   --color-aurora-violet: #cebcff;
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Instrument Serif", ui-serif, Georgia, serif;
+  --font-sans: "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --font-serif: "PingFang SC", "Source Han Sans SC", "Noto Sans CJK SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
   --radius-card: 12px;
   --shadow-soft: 0 10px 28px rgba(20, 20, 20, 0.045);
 }
