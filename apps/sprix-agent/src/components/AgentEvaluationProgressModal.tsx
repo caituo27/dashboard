@@ -37,6 +37,13 @@ const evaluationSteps = [
 
 const lastEvaluationStepIndex = evaluationSteps.length - 1;
 const fakeEvaluationStepIntervalMs = 1_650;
+// Keep the visual progress across Agent switches while this app instance is alive.
+// The evaluationId makes a deliberate "重新测评" start from a fresh session.
+const displayStepCache = new Map<string, number>();
+
+export function clearAgentEvaluationProgressCache() {
+  displayStepCache.clear();
+}
 
 function completedEvaluationStepCount(evaluation: AgentEvaluation | undefined) {
   const steps = evaluation?.steps?.length ? evaluation.steps : evaluation?.result?.steps ?? [];
@@ -137,8 +144,11 @@ export function AgentEvaluationProgressModal({
     if (displayedEvaluationKeyRef.current !== evaluationKey) {
       const continuesPendingEvaluation = displayedEvaluationKeyRef.current === `${agent.id}:pending` && Boolean(evaluation?.evaluationId);
       displayedEvaluationKeyRef.current = evaluationKey;
+      const cachedStepIndex = evaluation?.evaluationId ? displayStepCache.get(evaluationKey) ?? 0 : 0;
       setDisplayStepIndex((currentStepIndex) =>
-        continuesPendingEvaluation ? Math.max(currentStepIndex, serverActiveStepIndex) : serverActiveStepIndex
+        continuesPendingEvaluation
+          ? Math.max(currentStepIndex, cachedStepIndex, serverActiveStepIndex)
+          : Math.max(cachedStepIndex, serverActiveStepIndex)
       );
       return;
     }
@@ -149,6 +159,16 @@ export function AgentEvaluationProgressModal({
       return Math.max(currentStepIndex, serverActiveStepIndex);
     });
   }, [agent, evaluation?.evaluationId, serverActiveStepIndex, status]);
+
+  useEffect(() => {
+    if (!agent || !evaluation?.evaluationId) return;
+    const evaluationKey = `${agent.id}:${evaluation.evaluationId}`;
+    if (status === "completed" || status === "failed") {
+      displayStepCache.delete(evaluationKey);
+      return;
+    }
+    displayStepCache.set(evaluationKey, displayStepIndex);
+  }, [agent, displayStepIndex, evaluation?.evaluationId, status]);
 
   useEffect(() => {
     if (!open || !agent || !shouldUseFakeProgress) return undefined;

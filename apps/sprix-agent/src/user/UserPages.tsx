@@ -39,7 +39,7 @@ import {
   waitForRemoteAgentAuthentication
 } from "../services/sprixApi";
 import { ActionButton, EmptyState, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface } from "../components/Primitives";
-import { AgentEvaluationProgressModal } from "../components/AgentEvaluationProgressModal";
+import { AgentEvaluationProgressModal, clearAgentEvaluationProgressCache } from "../components/AgentEvaluationProgressModal";
 import { AgreementContent } from "../components/AgreementContent";
 import { compactText, currency, scoreText } from "../utils/format";
 import { isGlobalAuthError } from "../utils/http";
@@ -86,6 +86,7 @@ const TASK_MARKET_VISIBLE_COUNT_KEY = "sprix-task-market-visible-count";
 const TASK_MARKET_PAGE_KEY = "sprix-task-market-page";
 const TASK_MARKET_BATCH_SIZE = 24;
 const SMART_ACCEPT_VISIBLE = true;
+const AGENT_EVALUATION_POLL_INTERVAL_MS = 1_500;
 
 function formatTaskAttachmentSize(sizeBytes: number) {
   if (sizeBytes < 1024) return `${sizeBytes} B`;
@@ -157,7 +158,9 @@ const agentEvaluationActionLabels: Record<AgentEvaluation["status"], string> = {
 };
 
 function getAgentEvaluationActionLabel(agent: Agent) {
-  return agent.evaluation ? agentEvaluationActionLabels[agent.evaluation.status] : "开始评测";
+  const resultStatus = agent.evaluation?.result?.status;
+  const status = resultStatus === "completed" || resultStatus === "failed" ? resultStatus : agent.evaluation?.status;
+  return status ? agentEvaluationActionLabels[status] : "开始评测";
 }
 
 export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<UserPageProps> = {}) {
@@ -709,6 +712,9 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
   const current = currentAgent;
   const autoSetCurrentAgentIdRef = useRef<string>();
+  const evaluationSessionsRef = useRef(new Map<string, AgentEvaluation>());
+  const evaluationRequestIdRef = useRef(0);
+  const evaluationAccountScopeRef = useRef<string>();
   const [evaluationAgent, setEvaluationAgent] = useState<Agent | null>(null);
   const [evaluation, setEvaluation] = useState<AgentEvaluation | undefined>();
   const [evaluationModalOpen, setEvaluationModalOpen] = useState(false);
@@ -716,6 +722,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   const [evaluationLoading, setEvaluationLoading] = useState(false);
   const [evaluationError, setEvaluationError] = useState<string>();
   const [settingCurrentAgentId, setSettingCurrentAgentId] = useState<string>();
+  const evaluationAccountScope = account.isLoggedIn ? account.phone || account.maskedPhone || account.nickname || "logged-in" : "logged-out";
   const currentWithEvaluation = currentEvaluation && current ? { ...current, evaluation: currentEvaluation, score: currentEvaluation.result.overallScore ?? null } : current;
   const agentsWithCurrentEvaluation =
     currentEvaluation && current
@@ -831,20 +838,41 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       setEvaluationError(undefined);
       return;
     }
+    const requestId = ++evaluationRequestIdRef.current;
+    const isCurrentRequest = () => evaluationRequestIdRef.current === requestId;
     setEvaluationAgent(agent);
     setEvaluation(undefined);
     setEvaluationModalOpen(true);
     setEvaluationError(undefined);
     setEvaluationLoading(true);
     try {
-      const shouldReuseRunningEvaluation = !forceStart && agent.evaluation && isEvaluationActive(agent.evaluation.status);
+      const shouldReuseRunningEvaluation = !forceStart;
       let shouldStartEvaluation = false;
       let nextEvaluation: AgentEvaluation | undefined;
 
-      if (shouldReuseRunningEvaluation) {
+      const rememberedEvaluation = !forceStart ? evaluationSessionsRef.current.get(agent.id) : undefined;
+      const listedRunningEvaluation = agent.evaluation && isEvaluationActive(agent.evaluation.status) ? agent.evaluation : undefined;
+      const runningEvaluation = rememberedEvaluation ?? listedRunningEvaluation;
+
+      if (runningEvaluation && isEvaluationActive(runningEvaluation.status)) {
+        try {
+          const latestEvaluation = runningEvaluation.evaluationId
+            ? await readRemoteAgentEvaluation(agent.id, runningEvaluation.evaluationId)
+            : runningEvaluation;
+          if (!isCurrentRequest()) return;
+          if (isEvaluationActive(latestEvaluation.status) || isEvaluationTerminal(latestEvaluation.status)) {
+            nextEvaluation = latestEvaluation;
+          }
+        } catch (error) {
+          if (isGlobalAuthError(error)) throw error;
+          // Keep the last known session. The polling effect will retry instead of starting a new evaluation.
+          nextEvaluation = runningEvaluation;
+        }
+      } else if (shouldReuseRunningEvaluation) {
         try {
           const latestEvaluation = await readLatestRemoteAgentEvaluation(agent.id);
-          if (isEvaluationActive(latestEvaluation.status)) {
+          if (!isCurrentRequest()) return;
+          if (isEvaluationActive(latestEvaluation.status) || isEvaluationTerminal(latestEvaluation.status)) {
             nextEvaluation = latestEvaluation;
           }
         } catch (error) {
@@ -858,20 +886,28 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         shouldStartEvaluation = true;
         nextEvaluation = await startRemoteAgentEvaluation(agent.id);
       }
+      if (!isCurrentRequest()) return;
+      if (isEvaluationActive(nextEvaluation.status)) {
+        evaluationSessionsRef.current.set(agent.id, nextEvaluation);
+      } else {
+        evaluationSessionsRef.current.delete(agent.id);
+      }
       setEvaluation(nextEvaluation);
       if (current?.id === agent.id) {
         setCurrentEvaluation(nextEvaluation);
       }
       await refreshAgents();
+      if (!isCurrentRequest()) return;
       await markCurrentAfterCompletedEvaluation(agent, nextEvaluation);
       if (shouldStartEvaluation && isEvaluationActive(nextEvaluation.status)) {
         message.success("评测已开始");
       }
     } catch (error) {
+      if (!isCurrentRequest()) return;
       setEvaluationError(error instanceof Error ? error.message : "评测操作失败");
       showRequestError(error, "评测操作失败", "评测操作失败：");
     } finally {
-      setEvaluationLoading(false);
+      if (isCurrentRequest()) setEvaluationLoading(false);
     }
   };
 
@@ -883,6 +919,11 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       try {
         const next = await readRemoteAgentEvaluation(evaluationAgent.id, evaluation.evaluationId);
         if (cancelled) return;
+        if (isEvaluationTerminal(next.status)) {
+          evaluationSessionsRef.current.delete(evaluationAgent.id);
+        } else {
+          evaluationSessionsRef.current.set(evaluationAgent.id, next);
+        }
         setEvaluation(next);
         if (current?.id === evaluationAgent.id) {
           setCurrentEvaluation(next);
@@ -897,12 +938,12 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
           }
           void refreshAgents();
         }
-      } catch (error) {
+      } catch {
         if (cancelled) return;
-        setEvaluationError(error instanceof Error ? error.message : "评测状态获取失败");
-        window.clearInterval(poll);
+        // Keep showing the last known progress and retry the same evaluation.
+        // A transient 500 must not turn an active evaluation into a new session or a failure modal.
       }
-    }, 1_500);
+    }, AGENT_EVALUATION_POLL_INTERVAL_MS);
 
     return () => {
       cancelled = true;
@@ -911,15 +952,32 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   }, [current?.id, evaluation, evaluationAgent, refreshAgents]);
 
   useEffect(() => {
+    if (evaluationAccountScopeRef.current === evaluationAccountScope) return;
+
+    evaluationAccountScopeRef.current = evaluationAccountScope;
+    evaluationRequestIdRef.current += 1;
+    evaluationSessionsRef.current.clear();
+    clearAgentEvaluationProgressCache();
+    autoSetCurrentAgentIdRef.current = undefined;
+    setEvaluationModalOpen(false);
+    setEvaluationAgent(null);
+    setEvaluation(undefined);
+    setCurrentEvaluation(undefined);
+    setEvaluationLoading(false);
+    setEvaluationError(undefined);
+  }, [evaluationAccountScope]);
+
+  useEffect(() => {
     if (!account.isLoggedIn || !current?.id || current.evaluation?.result?.status === "completed") {
       setCurrentEvaluation(undefined);
       return;
     }
 
     let cancelled = false;
+    const requestId = evaluationRequestIdRef.current;
     readLatestRemoteAgentEvaluation(current.id)
       .then((latest) => {
-        if (cancelled) return;
+        if (cancelled || requestId !== evaluationRequestIdRef.current) return;
         setCurrentEvaluation(latest);
         if (!isEvaluationTerminal(latest.status)) {
           setEvaluationAgent(current);
@@ -927,17 +985,19 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         }
       })
       .catch(() => {
-        if (!cancelled) setCurrentEvaluation(undefined);
+        if (!cancelled && requestId === evaluationRequestIdRef.current) setCurrentEvaluation(undefined);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [account.isLoggedIn, current?.id, current?.evaluation?.lastEvaluatedAt, current?.evaluation?.result?.status]);
+  }, [account.isLoggedIn, current?.id, current?.evaluation?.lastEvaluatedAt, current?.evaluation?.result?.status, evaluationAccountScope]);
 
   const closeEvaluation = () => {
+    evaluationRequestIdRef.current += 1;
     setEvaluationModalOpen(false);
     const shouldKeepEvaluationContext = evaluationLoading || Boolean(evaluation && isEvaluationActive(evaluation.status));
+    setEvaluationLoading(false);
     if (!shouldKeepEvaluationContext) {
       setEvaluationAgent(null);
       setEvaluation(undefined);
@@ -958,7 +1018,8 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         agents={agentsWithCurrentEvaluation}
         empty={getLocalAgentEmptyMessage(localAgent)}
         renderActions={(agent) => {
-          const canRestartEvaluation = agent.evaluation && isCompletedAgentEvaluation(agent.evaluation);
+          const canRestartEvaluation =
+            agent.evaluation && (isCompletedAgentEvaluation(agent.evaluation) || agent.evaluation.status === "failed" || agent.evaluation.result?.status === "failed");
           const showEvaluationAction = !canRestartEvaluation;
           const isSettingCurrent = settingCurrentAgentId === agent.id;
           return agent.role === "当前执行 Agent" ? (

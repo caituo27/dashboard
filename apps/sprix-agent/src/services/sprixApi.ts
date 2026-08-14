@@ -1088,17 +1088,21 @@ function normalizeOptionalAgentEvaluation(evaluation?: RemoteAgentEvaluation | n
 }
 
 function normalizeAgentEvaluation(evaluation: RemoteAgentEvaluation): AgentEvaluation {
-  const status = normalizeEvaluationStatus(evaluation.status ?? evaluation.result?.status);
+  const resultStatus = evaluation.result?.status;
+  const terminalResultStatus = resultStatus === "completed" || resultStatus === "failed" ? resultStatus : undefined;
+  const status = normalizeEvaluationStatus(terminalResultStatus ?? evaluation.status ?? resultStatus);
+  const normalizedResultStatus = status === "completed" || status === "failed" ? status : resultStatus ?? status;
   const steps = normalizeEvaluationSteps(evaluation.steps);
   const transcript = normalizeEvaluationTranscript(evaluation.transcript);
   const resultPayload = evaluation.result
     ? {
         ...evaluation.result,
+        status: normalizedResultStatus,
         careerProfile: evaluation.result.careerProfile ?? evaluation.careerProfile,
         abilityTags: evaluation.result.abilityTags ?? evaluation.abilityTags
       }
     : {
-        status: evaluation.status,
+        status: normalizedResultStatus,
         mode: evaluation.mode,
         overallScore: evaluation.overallScore,
         dimensions: evaluation.dimensions,
