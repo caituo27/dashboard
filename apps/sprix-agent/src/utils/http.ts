@@ -36,10 +36,24 @@ export class GlobalAuthError extends Error {
   readonly globalAuth = true;
 }
 
+export class ApiRequestError extends Error {
+  constructor(
+    message: string,
+    readonly code?: string
+  ) {
+    super(message);
+    this.name = "ApiRequestError";
+  }
+}
+
 let lastAuthRequestAt = 0;
 
 export function isGlobalAuthError(error: unknown): error is GlobalAuthError {
   return error instanceof GlobalAuthError || (typeof error === "object" && error !== null && (error as { globalAuth?: unknown }).globalAuth === true);
+}
+
+export function isApiRequestError(error: unknown): error is ApiRequestError {
+  return error instanceof ApiRequestError;
 }
 
 function requestLogin(message: string) {
@@ -111,7 +125,7 @@ http.interceptors.response.use(
           requestLogin(message);
           throw new GlobalAuthError(message);
         }
-        throw new Error(body.message ?? "请求失败");
+        throw new ApiRequestError(body.message ?? "请求失败", body.code);
       }
       return body.data as AxiosResponse;
     }
@@ -120,6 +134,7 @@ http.interceptors.response.use(
   (error) => {
     const status: number | undefined = error.response?.status;
     const serverMessage: string | undefined = error.response?.data?.message;
+    const serverCode: string | undefined = error.response?.data?.code;
     const message = serverMessage ?? (status ? ERROR_MESSAGES[status] : undefined) ?? "网络错误，请稍后重试";
 
     window.dispatchEvent(new CustomEvent("sprix-api-error", { detail: { status, message } }));
@@ -132,6 +147,6 @@ http.interceptors.response.use(
       return Promise.reject(new GlobalAuthError(message));
     }
 
-    return Promise.reject(new Error(message));
+    return Promise.reject(new ApiRequestError(message, serverCode));
   }
 );

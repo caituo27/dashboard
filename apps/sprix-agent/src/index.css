@@ -513,7 +513,14 @@ select {
   display: inline-flex;
   align-items: center;
   min-height: 28px;
+  border: 0 !important;
+  border-radius: var(--radius-pill) !important;
   line-height: 1.2;
+}
+
+.sprix-agent-list-tags .ant-tag {
+  border: 0 !important;
+  border-radius: var(--radius-pill) !important;
 }
 
 .sprix-agent-list-actions {
@@ -3283,7 +3290,7 @@ select {
   min-width: 0;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-compact);
-  background: #ffffff;
+  background: var(--color-card);
   padding: 13px 14px;
   text-align: left;
 }
@@ -4183,6 +4190,7 @@ select {
 .sprix-evaluation-progress .sprix-evaluation-result {
   margin-top: 12px;
   border-top: 1px solid var(--color-line);
+  background: #ffffff;
   padding-top: 12px;
 }
 
