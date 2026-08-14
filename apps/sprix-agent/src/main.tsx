@@ -27,7 +27,7 @@ const agentTheme: ThemeConfig = {
     colorBgElevated: "rgba(255, 255, 255, 0.98)",
     borderRadius: 10,
     borderRadiusLG: 22,
-    fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif"
+    fontFamily: "\"PingFang SC\", \"Source Han Sans SC\", \"Noto Sans CJK SC\", \"Noto Sans SC\", \"Microsoft YaHei\", sans-serif"
   },
   components: {
     Button: {
