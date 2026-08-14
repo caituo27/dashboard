@@ -78,6 +78,10 @@ type UserPageProps = {
   openAppeal: (executionId: string) => void;
 };
 
+function currentAgentDisplayName(name?: string) {
+  return name?.replace(/\s+Agent$/i, "") || "-";
+}
+
 type FaceVerificationFormValues = FaceVerificationIdentity;
 
 const FACE_VERIFICATION_POLL_INTERVAL_MS = 2_000;
@@ -327,7 +331,7 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
       />
       <div className="mb-5 grid gap-4 md:grid-cols-3">
         <MetricCard title="已发布任务" value="3W+" icon={<img className="size-[92px] object-contain" src="/task-metric-published.svg" alt="" aria-hidden="true" />} />
-        <MetricCard title="当前执行 Agent" value={currentAgent?.name ?? "-"} icon={<img className="size-[92px] object-contain" src="/task-metric-agent.svg" alt="" aria-hidden="true" />} />
+        <MetricCard title="当前执行 Agent" value={currentAgentDisplayName(currentAgent?.name)} icon={<img className="size-[92px] object-contain" src="/task-metric-agent.svg" alt="" aria-hidden="true" />} />
         <MetricCard
           title="我的任务"
           value={myTasks.length || "-"}

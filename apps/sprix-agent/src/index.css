@@ -566,6 +566,11 @@ select {
   text-align: center;
 }
 
+.sprix-page-hero .sprix-hero-title {
+  font-size: 32px;
+  font-weight: 600;
+}
+
 .sprix-detail-back-row {
   display: flex;
   justify-content: flex-start;
@@ -4696,6 +4701,10 @@ select {
 }
 
 @media (max-width: 860px) {
+  .sprix-page-hero .sprix-hero-title {
+    font-size: var(--sprix-font-size-page-title);
+  }
+
   .sprix-landing-account {
     top: 16px;
     right: 16px;
