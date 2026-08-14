@@ -3025,6 +3025,13 @@ select {
   border-bottom-color: rgba(15, 118, 110, 0.18);
 }
 
+.sprix-timeline-card.is-narrative {
+  border: 1px solid rgba(15, 118, 110, 0.14);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(231, 247, 242, 0.62), rgba(255, 255, 255, 0.96));
+  padding: 14px 16px;
+}
+
 .sprix-timeline-content {
   min-width: 0;
 }
@@ -3050,6 +3057,32 @@ select {
   color: var(--color-ink-soft);
   font-size: 13px;
   line-height: 1.7;
+}
+
+.sprix-timeline-heading-actions,
+.sprix-timeline-operation-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.sprix-timeline-operation-summary {
+  margin-top: 10px;
+}
+
+.sprix-timeline-toggle {
+  border: 0;
+  background: transparent;
+  padding: 2px 0;
+  color: var(--color-accent);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.sprix-timeline-toggle:hover {
+  text-decoration: underline;
 }
 
 .sprix-execution-log {

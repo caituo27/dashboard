@@ -1170,6 +1170,8 @@ export interface TaskStateRequest {
 export interface TimelineEventSnapshot {
     'eventId'?: string;
     'eventType'?: string;
+    'activityType'?: string;
+    'activityStatus'?: string;
     'eventTimestamp'?: string;
     'status'?: string;
     'currentNode'?: string;
@@ -9628,5 +9630,4 @@ export class WithdrawalControllerApi extends BaseAPI {
         return WithdrawalControllerApiFp(this.configuration).apply(requestParameters.applyWithdrawalRequest, options).then((request) => request(this.axios, this.basePath));
     }
 }
-
 

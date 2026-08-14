@@ -7462,6 +7462,12 @@
           "eventType": {
             "type": "string"
           },
+          "activityType": {
+            "type": "string"
+          },
+          "activityStatus": {
+            "type": "string"
+          },
           "eventTimestamp": {
             "type": "string"
           },

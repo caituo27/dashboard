@@ -30,6 +30,8 @@ import {
   getExecutionSummary,
   getReadableAcceptanceStatus,
   getSortedTimeline,
+  getTimelineDisplayItems,
+  getTimelineOperationSummary,
   getTaskRequirementRows,
   getTimelineTime,
   getTokenUsage,
@@ -821,31 +823,60 @@ function AcceptanceSection({ detail, action }: { detail: MyTaskExecutionDetail; 
 
 function TimelineSection({ detail }: { detail: MyTaskExecutionDetail }) {
   const events = getSortedTimeline(detail);
+  const displayItems = getTimelineDisplayItems(detail);
+  const [showRawEvents, setShowRawEvents] = useState(false);
+  const visibleEvents = showRawEvents ? events.map((event) => ({ event, narrative: false, operations: [] })) : displayItems;
   return (
     <Surface className="sprix-timeline-panel p-5">
       <div className="sprix-section-heading">
         <SectionTitle title="Agent 执行动态" />
-        {events.length > 0 && <SoftTag tone="neutral">{events.length} 条事件</SoftTag>}
+        {events.length > 0 && (
+          <div className="sprix-timeline-heading-actions">
+            <SoftTag tone="neutral">{displayItems.length} 条进展</SoftTag>
+            {events.length > displayItems.length && (
+              <button type="button" className="sprix-timeline-toggle" onClick={() => setShowRawEvents((value) => !value)}>
+                {showRawEvents ? "收起原始事件" : `查看全部 ${events.length} 条事件`}
+              </button>
+            )}
+          </div>
+        )}
       </div>
       {events.length > 0 ? (
         <div className="sprix-timeline-list">
-          {events.map((event, index) => (
-            <div key={event.eventId ?? `${event.eventType}-${index}`} className="sprix-timeline-event">
-              <span className={`sprix-timeline-dot ${index === events.length - 1 ? "is-current" : ""}`} />
-              <div className={`sprix-timeline-card ${index === events.length - 1 ? "is-current" : ""}`}>
-                <div className="sprix-timeline-content">
-                  <p className="sprix-timeline-title">{getTimelineEventTitle(event)}</p>
-                  {event.message && <p className="sprix-timeline-message">{event.message}</p>}
-                </div>
-                <div className="sprix-timeline-meta">
-                  <SoftTag tone="neutral">{formatDateTime(getTimelineTime(event))}</SoftTag>
+          {visibleEvents.map((item, index) => {
+            const event = item.event;
+            const operationSummary = getTimelineOperationSummary(item.operations);
+            const isCurrent = index === visibleEvents.length - 1;
+            return (
+              <div key={event.eventId ?? `${event.eventType}-${index}`} className="sprix-timeline-event">
+                <span className={`sprix-timeline-dot ${isCurrent ? "is-current" : ""}`} />
+                <div
+                  className={`sprix-timeline-card ${isCurrent ? "is-current" : ""} ${item.narrative ? "is-narrative" : ""}`}
+                >
+                  <div className="sprix-timeline-content">
+                    <p className="sprix-timeline-title">{getTimelineEventTitle(event)}</p>
+                    {event.message && <p className="sprix-timeline-message">{event.message}</p>}
+                    {!showRawEvents && (operationSummary.commandCount > 0 || operationSummary.toolCount > 0) && (
+                      <div className="sprix-timeline-operation-summary">
+                        {operationSummary.toolCount > 0 && (
+                          <SoftTag tone="neutral">工具调用 {operationSummary.toolCount} 次</SoftTag>
+                        )}
+                        {operationSummary.commandCount > 0 && (
+                          <SoftTag tone="neutral">本地命令 {operationSummary.commandCount} 次</SoftTag>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="sprix-timeline-meta">
+                    <SoftTag tone="neutral">{formatDateTime(getTimelineTime(event))}</SoftTag>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
-        <InlineEmpty title="暂无执行动态" description="Agent 开始执行后，会在这里展示思考摘要和脱敏后的工具操作。" />
+        <InlineEmpty title="暂无执行动态" description="Agent 开始执行后，会在这里展示过程说明和脱敏后的工具操作。" />
       )}
     </Surface>
   );
