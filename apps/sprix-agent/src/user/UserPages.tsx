@@ -88,6 +88,17 @@ const TASK_MARKET_BATCH_SIZE = 24;
 const SMART_ACCEPT_VISIBLE = true;
 const AGENT_EVALUATION_POLL_INTERVAL_MS = 1_500;
 
+const BUTTON_ICON_PATHS = {
+  alipay: "/button-icons/alipay.png",
+  currentAgent: "/button-icons/agent-current.png",
+  switchAgent: "/button-icons/agent-switch.png",
+  evaluation: "/button-icons/evaluation.png"
+} as const;
+
+function ButtonIcon({ src }: { src: string }) {
+  return <img className="sprix-button-icon" src={src} alt="" aria-hidden="true" />;
+}
+
 function formatTaskAttachmentSize(sizeBytes: number) {
   if (sizeBytes < 1024) return `${sizeBytes} B`;
   if (sizeBytes < 1024 * 1024) return `${(sizeBytes / 1024).toFixed(1)} KiB`;
@@ -1027,9 +1038,21 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
               {agent.authStatus === "login_required" && (
                 <SecondaryButton onClick={() => promptClaudeLogin(agent, async () => undefined)}>登录</SecondaryButton>
               )}
-              <SecondaryButton disabled>当前执行 Agent</SecondaryButton>
+              <SecondaryButton
+                disabled
+                icon={<ButtonIcon src={BUTTON_ICON_PATHS.currentAgent} />}
+              >
+                当前执行 Agent
+              </SecondaryButton>
               {showEvaluationAction && <SecondaryButton onClick={() => openAgentEvaluation(agent)}>{getAgentEvaluationActionLabel(agent)}</SecondaryButton>}
-              {canRestartEvaluation && <SecondaryButton onClick={() => openAgentEvaluation(agent, { forceStart: true })}>重新评测</SecondaryButton>}
+              {canRestartEvaluation && (
+                <SecondaryButton
+                  icon={<ButtonIcon src={BUTTON_ICON_PATHS.evaluation} />}
+                  onClick={() => openAgentEvaluation(agent, { forceStart: true })}
+                >
+                  重新评测
+                </SecondaryButton>
+              )}
             </>
           ) : (
             <>
@@ -1038,13 +1061,21 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
               )}
               <ActionButton
                 disabled={Boolean(settingCurrentAgentId)}
+                icon={<ButtonIcon src={BUTTON_ICON_PATHS.switchAgent} />}
                 loading={isSettingCurrent}
                 onClick={() => setCurrent(agent)}
               >
                 {isSettingCurrent ? "设置中" : "设为当前执行 Agent"}
               </ActionButton>
               {showEvaluationAction && <SecondaryButton onClick={() => openAgentEvaluation(agent)}>{getAgentEvaluationActionLabel(agent)}</SecondaryButton>}
-              {canRestartEvaluation && <SecondaryButton onClick={() => openAgentEvaluation(agent, { forceStart: true })}>重新评测</SecondaryButton>}
+              {canRestartEvaluation && (
+                <SecondaryButton
+                  icon={<ButtonIcon src={BUTTON_ICON_PATHS.evaluation} />}
+                  onClick={() => openAgentEvaluation(agent, { forceStart: true })}
+                >
+                  重新评测
+                </SecondaryButton>
+              )}
             </>
           );
         }}
@@ -1364,7 +1395,10 @@ export function EarningsPage({ openLogin, openBindAlipay }: UserPageProps) {
               <p className="sprix-payout-warning">{accountWarning}</p>
             )}
           </div>
-          <SecondaryButton onClick={() => openBindAlipay()}>
+          <SecondaryButton
+            icon={<ButtonIcon src={BUTTON_ICON_PATHS.alipay} />}
+            onClick={() => openBindAlipay()}
+          >
             {getPayoutAccountActionLabel(account)}
           </SecondaryButton>
         </div>

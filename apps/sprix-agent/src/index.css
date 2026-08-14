@@ -386,6 +386,13 @@ select {
   font-weight: 650;
 }
 
+.sprix-button-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
 .sprix-payout-table-wrap {
   overflow-x: auto;
   border: 1px solid rgba(238, 238, 238, 0.96);
