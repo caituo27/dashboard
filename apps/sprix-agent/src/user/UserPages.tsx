@@ -1176,7 +1176,15 @@ function AgentList({
                     <div className="sprix-agent-list-title-row">
                       <h4 className="text-lg font-semibold">{agent.name}</h4>
                       {agent.authStatus === "login_required" && <SoftTag>Claude Code 未登录</SoftTag>}
-                      {agent.evaluation && <StatusTag status={getAgentEvaluationStatusLabel(agent.evaluation)} />}
+                      {agent.evaluation && (
+                        completedEvaluation ? (
+                          <SoftTag tone="neutral" bordered={false}>
+                            {getAgentEvaluationStatusLabel(agent.evaluation)}
+                          </SoftTag>
+                        ) : (
+                          <StatusTag status={getAgentEvaluationStatusLabel(agent.evaluation)} />
+                        )
+                      )}
                     </div>
                     <p className="mt-1 text-sm text-ink-soft">
                       {completedEvaluation ? `综合评分：${scoreText(completedEvaluation.overallScore)} · ` : ""}最近评测时间：{lastEvaluatedAt || "-"}
@@ -1184,7 +1192,9 @@ function AgentList({
                     {agent.tags.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-2">
                         {agent.tags.map((tag) => (
-                          <SoftTag key={tag}>{tag}</SoftTag>
+                          <SoftTag key={tag} tone="neutral" bordered={false}>
+                            {tag}
+                          </SoftTag>
                         ))}
                       </div>
                     )}
@@ -1389,7 +1399,7 @@ export function EarningsPage({ openLogin, openBindAlipay }: UserPageProps) {
       <Surface className="mb-5 p-6">
         <div className="sprix-payout-summary">
           <div className="sprix-payout-summary-copy">
-            <SoftTag>自动打款</SoftTag>
+            <SoftTag tone="neutral" bordered={false}>自动打款</SoftTag>
             <p>{getPayoutAccountText(account)}</p>
             {accountWarning && (
               <p className="sprix-payout-warning">{accountWarning}</p>
