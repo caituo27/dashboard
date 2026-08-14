@@ -67,14 +67,15 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
   const currentAgent = useSprixStore((state) => state.currentAgent);
   const platformOverview = useSprixStore((state) => state.platformOverview);
   const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
-  const homeState = useHomeAgentState(account, agents, currentAgent, localAgent);
   const autoSetCurrentAgentIdRef = useRef<string>();
   const [agentPickerOpen, setAgentPickerOpen] = useState(false);
   const [connectModalOpen, setConnectModalOpen] = useState(false);
   const {
     recognizing: pickerRecognizing,
+    syncing: pickerSyncing,
     start: startPickerPolling
   } = useAgentBindPolling({ open: agentPickerOpen });
+  const homeState = useHomeAgentState(account, agents, currentAgent, localAgent, pickerSyncing);
   const [evaluationAgent, setEvaluationAgent] = useState<Agent | null>(null);
   const [evaluation, setEvaluation] = useState<AgentEvaluation | undefined>();
   const [evaluationModalOpen, setEvaluationModalOpen] = useState(false);

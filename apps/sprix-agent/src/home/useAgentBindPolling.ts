@@ -4,6 +4,7 @@ import { readRemoteAgents } from "../services/sprixApi";
 import { useSprixStore } from "../store/sprixStore";
 import { showRequestError } from "../components/requestErrors";
 import type { LocalAgentDiagnostic } from "../types";
+import { shouldPollLocalAgentInventory } from "./localAgentInventory";
 
 type UseAgentBindPollingOptions = {
   open: boolean;
@@ -22,10 +23,12 @@ const SLOW_POLLING_AFTER_MS = 60_000;
 export function useAgentBindPolling({ open }: UseAgentBindPollingOptions) {
   const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
   const [recognizing, setRecognizing] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
   const elapsedMsRef = useRef(0);
   const timerRef = useRef<number>();
   const delayedStopRef = useRef<number>();
+  const requestInFlightRef = useRef(false);
   const pollingActiveRef = useRef(false);
   const announceCompletionRef = useRef(false);
   const minimumVisibleUntilRef = useRef(0);
@@ -53,6 +56,7 @@ export function useAgentBindPolling({ open }: UseAgentBindPollingOptions) {
   }, []);
 
   const refreshOnce = useCallback(async () => {
+    requestInFlightRef.current = true;
     try {
       const result = await readRemoteAgents();
       mergeRemoteState({
@@ -63,8 +67,11 @@ export function useAgentBindPolling({ open }: UseAgentBindPollingOptions) {
       return result;
     } catch (error) {
       showRequestError(error, "Agent 识别失败", "Agent 识别失败：");
+      setSyncing(false);
       stop(false);
       return undefined;
+    } finally {
+      requestInFlightRef.current = false;
     }
   }, [mergeRemoteState, stop]);
 
@@ -72,23 +79,33 @@ export function useAgentBindPolling({ open }: UseAgentBindPollingOptions) {
     const result = await refreshOnce();
     if (!result) return;
     const hasDetectedAgents = result.agents.some((agent) => agent.status !== "离线");
+    const inventorySyncPending = result.localAgent?.bound === true && shouldPollLocalAgentInventory(result.localAgent.inventoryStatus);
     if (hasDetectedAgents) {
+      setSyncing(false);
       const remainingMs = minimumVisibleUntilRef.current - Date.now();
       if (remainingMs > 0) {
         delayedStopRef.current = window.setTimeout(() => stop(true), remainingMs);
         return;
       }
       stop(true);
+      return;
+    }
+    if (!inventorySyncPending) {
+      setSyncing(false);
+      stop(false);
     }
   }, [refreshOnce, stop]);
 
   const start = useCallback((options?: AgentBindPollingStartOptions) => {
-    stop();
+    const requestInFlight = requestInFlightRef.current;
+    if (!requestInFlight) stop();
+    setSyncing(true);
     announceCompletionRef.current = options?.announceCompletion === true;
     minimumVisibleUntilRef.current = options?.minimumVisibleMs ? Date.now() + options.minimumVisibleMs : 0;
-    elapsedMsRef.current = 0;
     pollingActiveRef.current = true;
     setRecognizing(true);
+    if (requestInFlight) return;
+    elapsedMsRef.current = 0;
     const scheduleNextPoll = (intervalMs: number) => {
       if (!pollingActiveRef.current) return;
       timerRef.current = window.setTimeout(async () => {
@@ -114,5 +131,5 @@ export function useAgentBindPolling({ open }: UseAgentBindPollingOptions) {
     return stop;
   }, [open, stop]);
 
-  return { recognizing, elapsedMs, recognize, start, stop };
+  return { recognizing, elapsedMs, syncing, recognize, start, stop };
 }

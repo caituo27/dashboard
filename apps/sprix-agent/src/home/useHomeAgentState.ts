@@ -2,7 +2,7 @@ import type { Agent, Account, LocalAgentDiagnostic } from "../types";
 import { getLocalAgentPrimaryActionLabel } from "./localAgentInventory";
 import type { HomeAgentStateResult } from "./homeTypes";
 
-export function useHomeAgentState(account: Account, agents: Agent[], currentAgent?: Agent, localAgent?: LocalAgentDiagnostic): HomeAgentStateResult {
+export function useHomeAgentState(account: Account, agents: Agent[], currentAgent?: Agent, localAgent?: LocalAgentDiagnostic, inventorySyncPending = false): HomeAgentStateResult {
   if (!account.isLoggedIn) {
     return {
       state: "guest",
@@ -27,7 +27,7 @@ export function useHomeAgentState(account: Account, agents: Agent[], currentAgen
     };
   }
 
-  if (agents.length > 0) {
+  if (agents.length > 0 || inventorySyncPending) {
     return {
       state: "logged_in_with_agents_without_current",
       isLoggedIn: true,
