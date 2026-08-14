@@ -248,6 +248,87 @@ export function getSortedTimeline(detail: MyTaskExecutionDetail): TimelineEventS
   return [...(detail.timeline ?? [])].sort((a, b) => getTimelineTime(a).localeCompare(getTimelineTime(b)));
 }
 
+export type TimelineDisplayItem = {
+  event: TimelineEventSnapshot;
+  narrative: boolean;
+  operations: TimelineEventSnapshot[];
+};
+
+export type TimelineOperationSummary = {
+  commandCount: number;
+  toolCount: number;
+};
+
+export function getTimelineDisplayItems(detail: MyTaskExecutionDetail): TimelineDisplayItem[] {
+  const items: TimelineDisplayItem[] = [];
+  let pendingOperations: TimelineEventSnapshot[] = [];
+  let activeItem: TimelineDisplayItem | undefined;
+
+  for (const event of getSortedTimeline(detail)) {
+    const activityType = getTimelineActivityType(event);
+    if (activityType === "command" || activityType === "tool") {
+      if (activeItem) activeItem.operations.push(event);
+      else pendingOperations.push(event);
+      continue;
+    }
+    if (isDuplicateFinalNarrative(event, detail.output?.finalMessage, activityType)) continue;
+
+    const item: TimelineDisplayItem = {
+      event,
+      narrative: activityType === "narrative" || activityType === "reasoning_summary",
+      operations: pendingOperations
+    };
+    pendingOperations = [];
+    items.push(item);
+    activeItem = item;
+  }
+
+  if (pendingOperations.length > 0 && activeItem) activeItem.operations.push(...pendingOperations);
+  return items;
+}
+
+export function getTimelineOperationSummary(operations: TimelineEventSnapshot[]): TimelineOperationSummary {
+  const summary = {
+    command: { running: 0, completed: 0 },
+    tool: { running: 0, completed: 0 }
+  };
+  for (const event of operations) {
+    const type = getTimelineActivityType(event);
+    if (type !== "command" && type !== "tool") continue;
+    const status = getTimelineActivityStatus(event) === "completed" ? "completed" : "running";
+    summary[type][status] += 1;
+  }
+  return {
+    commandCount: Math.max(summary.command.running, summary.command.completed),
+    toolCount: Math.max(summary.tool.running, summary.tool.completed)
+  };
+}
+
+function getTimelineActivityType(event: TimelineEventSnapshot) {
+  return event.activityType?.trim() || textValue(readTimelinePayload(event.payload)?.activityType);
+}
+
+function getTimelineActivityStatus(event: TimelineEventSnapshot) {
+  return event.activityStatus?.trim() || textValue(readTimelinePayload(event.payload)?.status);
+}
+
+function readTimelinePayload(payload?: string) {
+  if (!payload?.trim()) return undefined;
+  try {
+    const parsed = JSON.parse(payload) as unknown;
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function isDuplicateFinalNarrative(event: TimelineEventSnapshot, finalMessage: string | undefined, activityType: string) {
+  if (activityType !== "narrative" || !event.message?.trim() || !finalMessage?.trim()) return false;
+  const narrative = event.message.trim().replace(/…$/, "");
+  const finalText = finalMessage.trim();
+  return finalText === narrative || finalText.startsWith(narrative);
+}
+
 export function getTimelineTime(event: TimelineEventSnapshot) {
   return event.receivedAt ?? event.eventTimestamp ?? "";
 }
