@@ -1022,7 +1022,9 @@ function CurrentAgentCard({ agent }: { agent?: Agent }) {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {tagLabels.map((tag) => (
-                    <SoftTag key={tag}>{tag}</SoftTag>
+                    <span key={tag} className="sprix-agent-ability-result-tag">
+                      {tag}
+                    </span>
                   ))}
                 </div>
                 {evaluationResult && (
@@ -1036,7 +1038,7 @@ function CurrentAgentCard({ agent }: { agent?: Agent }) {
             </div>
           </div>
           <div className="sprix-agent-ability-section">
-            <AgentAbilityProfile agent={agent} embedded showScore={false} />
+            <AgentAbilityProfile agent={agent} embedded showScore={false} resultPresentation />
           </div>
         </>
       ) : (
