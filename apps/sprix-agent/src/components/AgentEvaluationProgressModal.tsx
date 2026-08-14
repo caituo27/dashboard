@@ -2,7 +2,7 @@ import { Modal } from "antd";
 import { AlertTriangle, Check, CircleAlert, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { Agent, AgentEvaluation } from "../types";
-import { ActionButton, SoftTag } from "./Primitives";
+import { ActionButton } from "./Primitives";
 import { scoreText } from "../utils/format";
 
 type AgentEvaluationProgressModalProps = {
@@ -250,13 +250,13 @@ export function AgentEvaluationProgressModal({
                 <div>
                   {completedResult?.summary && <p>{completedResult.summary}</p>}
                   {completedResult?.improvements.length ? (
-                    <div className="sprix-evaluation-result-tags">
-                      {completedResult.improvements.slice(0, 4).map((item) => (
-                        <SoftTag key={item} tone="amber">
+                    <ul className="sprix-ability-result-improvements" aria-label="改进建议">
+                      {completedResult.improvements.slice(0, 4).map((item, index) => (
+                        <li key={`${index}-${item}`} className="sprix-ability-result-improvement">
                           {item}
-                        </SoftTag>
+                        </li>
                       ))}
-                    </div>
+                    </ul>
                   ) : null}
                 </div>
               </div>

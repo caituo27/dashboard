@@ -42,7 +42,7 @@ import { ActionButton, EmptyState, MetricCard, PageHeader, SecondaryButton, Soft
 import { AgentEvaluationProgressModal, clearAgentEvaluationProgressCache } from "../components/AgentEvaluationProgressModal";
 import { AgreementContent } from "../components/AgreementContent";
 import { compactText, currency, scoreText } from "../utils/format";
-import { isGlobalAuthError } from "../utils/http";
+import { isApiRequestError, isGlobalAuthError } from "../utils/http";
 import { freelancerAgreementDocument } from "../content/agreementDocuments";
 import { getLocalAgentEmptyMessage } from "../home/localAgentInventory";
 import { QrPayloadBox } from "../components/QrSession";
@@ -1102,7 +1102,8 @@ function isCompletedAgentEvaluation(evaluation: AgentEvaluation) {
 }
 
 function isAgentEvaluationNotFound(error: unknown) {
-  return error instanceof Error && error.message === "Agent evaluation not found";
+  if (isApiRequestError(error) && error.code === "NOT_FOUND") return true;
+  return error instanceof Error && ["Agent evaluation not found", "Agent 测评记录不存在"].includes(error.message);
 }
 
 function CurrentAgentCard({ agent }: { agent?: Agent }) {
@@ -1194,7 +1195,7 @@ function AgentList({
                       {completedEvaluation ? `综合评分：${scoreText(completedEvaluation.overallScore)} · ` : ""}最近评测时间：{lastEvaluatedAt || "-"}
                     </p>
                     {agent.tags.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-2">
+                      <div className="sprix-agent-list-tags mt-3 flex flex-wrap gap-2">
                         {agent.tags.map((tag) => (
                           <SoftTag key={tag} tone="neutral" bordered={false}>
                             {tag}
