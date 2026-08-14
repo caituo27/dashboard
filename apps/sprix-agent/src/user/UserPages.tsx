@@ -6,7 +6,6 @@ import {
   Bot,
   CheckCircle2,
   ChevronLeft,
-  ClipboardList,
   Download,
   FileText,
   ListChecks,
@@ -313,9 +312,13 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
         ) : undefined}
       />
       <div className="mb-5 grid gap-4 md:grid-cols-3">
-        <MetricCard title="已发布任务" value="3W+" />
-        <MetricCard title="当前执行 Agent" value={currentAgent?.name ?? "-"} icon={<Bot size={19} />} />
-        <MetricCard title="我的任务" value={myTasks.length || "-"} icon={<UsersRound size={19} />} />
+        <MetricCard title="已发布任务" value="3W+" icon={<img className="size-[92px] object-contain" src="/task-metric-published.svg" alt="" aria-hidden="true" />} />
+        <MetricCard title="当前执行 Agent" value={currentAgent?.name ?? "-"} icon={<img className="size-[92px] object-contain" src="/task-metric-agent.svg" alt="" aria-hidden="true" />} />
+        <MetricCard
+          title="我的任务"
+          value={myTasks.length || "-"}
+          icon={<img className="size-[92px] object-contain" src={myTasks.length > 0 ? "/task-metric-tasks-filled.svg" : "/task-metric-tasks.svg"} alt="" aria-hidden="true" />}
+        />
       </div>
       <div className="sprix-grid-auto">
         {visibleTasks.map((task) => (
@@ -425,8 +428,9 @@ function TaskCard({ task, onAccept, onOpenDetail }: { task: Task; onAccept: () =
   return (
     <Surface className="flex min-h-[332px] flex-col p-5">
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <StatusTag status={task.taskStatus} />
-        <SoftTag tone="neutral">{task.category}</SoftTag>
+        <SoftTag tone="neutral" bordered={false} className="sprix-task-market-category-tag m-0 px-2.5 py-0.5">
+          {task.category}
+        </SoftTag>
         {task.agentMatchScore > 0 && <SoftTag>匹配 {task.agentMatchScore}%</SoftTag>}
       </div>
       <Link to={`/agent/task/${task.id}`} className="text-xl font-semibold leading-7 text-ink no-underline hover:text-accent" onClick={onOpenDetail}>
@@ -1174,8 +1178,8 @@ function MyTasksEmptyState({ tab, hasAnyTask }: { tab: string; hasAnyTask: boole
   const isFilteredEmpty = hasAnyTask && tab !== "全部";
   return (
     <div className="mt-5 flex min-h-[360px] flex-col items-center justify-center rounded-[24px] border border-dashed border-line bg-[linear-gradient(180deg,#ffffff_0%,#f7fbff_100%)] px-6 py-12 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10 text-accent shadow-[0_14px_32px_rgba(47,128,237,0.14)]">
-        <ClipboardList size={30} strokeWidth={1.8} />
+      <div className="flex size-[92px] items-center justify-center">
+        <img className="size-full object-contain" src="/task-metric-tasks-filled.svg" alt="" aria-hidden="true" />
       </div>
       <h3 className="mt-5 text-xl font-semibold text-ink">{isFilteredEmpty ? "当前筛选暂无任务" : "暂无任务记录"}</h3>
       <p className="mt-2 max-w-[420px] text-sm leading-7 text-ink-soft">

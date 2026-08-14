@@ -16,7 +16,6 @@ export function PageHeader({
 }) {
   return (
     <div className="sprix-page-hero">
-      <img className="sprix-hero-logo" src="/sprix-wordmark.png" alt="Sprix AI" />
       <h1 className={titleClassName ?? "sprix-title sprix-hero-title"}>{title}</h1>
       {subtitle && <p className="sprix-hero-subtitle">{subtitle}</p>}
       {actions && <div className="sprix-hero-actions">{actions}</div>}
@@ -44,7 +43,17 @@ export function SecondaryButton(props: ButtonProps) {
   return <Button shape="round" {...props} />;
 }
 
-export function SoftTag({ children, tone = "teal" }: { children: ReactNode; tone?: "teal" | "neutral" | "amber" | "red" }) {
+export function SoftTag({
+  children,
+  tone = "teal",
+  bordered = true,
+  className = "m-0 rounded-full px-2.5 py-0.5"
+}: {
+  children: ReactNode;
+  tone?: "teal" | "neutral" | "amber" | "red";
+  bordered?: boolean;
+  className?: string;
+}) {
   const colors = {
     teal: { color: "#0f766e", borderColor: "#bfe9df", background: "#e7f7f2" },
     neutral: { color: "#56657a", borderColor: "#e5e7eb", background: "#f7f7f5" },
@@ -52,7 +61,7 @@ export function SoftTag({ children, tone = "teal" }: { children: ReactNode; tone
     red: { color: "#b42318", borderColor: "#ffd9d9", background: "#fff4f4" }
   };
   return (
-    <AntTag style={colors[tone]} className="m-0 rounded-full px-2.5 py-0.5">
+    <AntTag bordered={bordered} style={colors[tone]} className={className}>
       {children}
     </AntTag>
   );
@@ -85,8 +94,8 @@ export function MetricCard({
 
   return (
     <Surface tight className="sprix-metric-card p-5">
-      <div className="flex items-start gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-[#e7f7f2] text-accent">
+      <div className="flex items-center gap-5">
+        <div className="flex size-[92px] shrink-0 items-center justify-center">
           {icon ?? <CircleDollarSign size={19} />}
         </div>
         <div className="min-w-0">

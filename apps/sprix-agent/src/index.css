@@ -725,6 +725,15 @@ select {
   line-height: 1.12;
 }
 
+.sprix-task-market-category-tag.ant-tag {
+  margin: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #f7f7f5;
+  padding: 2px 10px;
+  color: #56657a;
+}
+
 .sprix-home-fade-in {
   animation: sprix-home-fade-in 360ms ease-out both;
 }
