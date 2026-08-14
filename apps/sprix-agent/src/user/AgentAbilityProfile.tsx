@@ -185,7 +185,7 @@ export function AgentAbilityProfile({
           ))}
         </div>
       ) : (
-        <div className="mt-8 rounded-[22px] border border-dashed border-line p-7 text-center">
+        <div className="mt-8 rounded-xl border border-dashed border-line p-7 text-center">
           <BrainCircuit className="mx-auto text-ink-soft" />
           <h4 className="mt-3 text-lg font-semibold">{ability.title}</h4>
           <p className="mt-2 text-sm text-ink-soft">{ability.description}</p>

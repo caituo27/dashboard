@@ -25,8 +25,12 @@ const agentTheme: ThemeConfig = {
     colorBorder: "#eeeeee",
     colorBgContainer: "#ffffff",
     colorBgElevated: "rgba(255, 255, 255, 0.98)",
-    borderRadius: 10,
-    borderRadiusLG: 22,
+    borderRadius: 8,
+    borderRadiusLG: 16,
+    fontSize: 14,
+    fontSizeLG: 16,
+    fontSizeSM: 12,
+    fontSizeXL: 20,
     fontFamily: "\"PingFang SC\", \"Source Han Sans SC\", \"Noto Sans CJK SC\", \"Noto Sans SC\", \"Microsoft YaHei\", sans-serif"
   },
   components: {
@@ -46,7 +50,8 @@ const agentTheme: ThemeConfig = {
     Modal: {
       contentBg: "rgba(255, 255, 255, 0.98)",
       headerBg: "transparent",
-      titleColor: "#1a1a1a"
+      titleColor: "#1a1a1a",
+      titleFontSize: 24
     },
     Pagination: {
       itemActiveBg: "#ffffff"

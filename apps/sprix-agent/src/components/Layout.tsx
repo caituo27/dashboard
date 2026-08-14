@@ -42,7 +42,7 @@ function Sidebar({
             <Link
               key={route.key}
               to={route.path}
-              className={`flex items-center gap-3 rounded-full px-4 py-3 text-sm font-medium no-underline transition ${
+              className={`flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium no-underline transition ${
                 active
                   ? "bg-pill text-white shadow-[0_10px_24px_rgba(17,17,17,0.12)]"
                   : "text-ink-soft hover:bg-white hover:text-ink"

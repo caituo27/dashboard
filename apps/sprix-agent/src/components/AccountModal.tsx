@@ -13,12 +13,12 @@ import { AccountProfileEditModal, type AccountProfileEditMode } from "./AccountP
 const maxAlipayAccountTextLength = 15;
 
 const accountActionRowClassName = [
-  "flex flex-col gap-2 rounded-2xl border border-line bg-white px-3 py-3",
+  "flex flex-col gap-2 rounded-xl border border-line bg-white px-3 py-3",
   "sm:flex-row sm:items-center sm:justify-between"
 ].join(" ");
 
 const accountInfoRowClassName = [
-  "grid grid-cols-[88px_minmax(0,1fr)] items-center gap-3 rounded-2xl bg-[#fafafa] px-4 py-3",
+  "grid grid-cols-[88px_minmax(0,1fr)] items-center gap-3 rounded-xl bg-[#fafafa] px-4 py-3",
   "sm:grid-cols-[112px_minmax(0,1fr)]"
 ].join(" ");
 
@@ -163,7 +163,7 @@ export function AccountModal({
               )
             }
           />
-          <div className="mt-2 grid gap-2 rounded-2xl bg-[#fafafa] p-3">
+          <div className="mt-2 grid gap-2 rounded-xl bg-[#fafafa] p-3">
             {editActions.map((action) => (
               <div
                 key={action.key}
