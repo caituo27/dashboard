@@ -331,7 +331,7 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
         <MetricCard
           title="我的任务"
           value={myTasks.length || "-"}
-          icon={<img className="size-[92px] object-contain" src={myTasks.length > 0 ? "/task-metric-tasks-filled.svg" : "/task-metric-tasks.svg"} alt="" aria-hidden="true" />}
+          icon={<img className="size-[92px] object-contain" src="/task-metric-tasks.svg" alt="" aria-hidden="true" />}
         />
       </div>
       <div className="sprix-grid-auto">
