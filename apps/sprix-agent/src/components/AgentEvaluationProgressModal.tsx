@@ -210,7 +210,7 @@ export function AgentEvaluationProgressModal({
                   <strong>{scoreText(completedResult.overallScore)}</strong>
                 </div>
               )}
-              {!isCompleted && <div className="sprix-evaluation-step-count\">{`${activeStepIndex + 1}/6`}</div>}
+              {!isCompleted && <div className="sprix-evaluation-step-count">{`${activeStepIndex + 1}/6`}</div>}
             </div>
 
             {isCompleted ? (

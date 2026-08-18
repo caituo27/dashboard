@@ -101,7 +101,9 @@ const BUTTON_ICON_PATHS = {
   alipay: "/button-icons/alipay.png",
   currentAgent: "/button-icons/agent-current.png",
   switchAgent: "/button-icons/agent-switch.png",
-  evaluation: "/button-icons/evaluation.png"
+  evaluation: "/button-icons/evaluation.png",
+  evaluationProgress: "/button-icons/evaluation-progress.svg",
+  login: "/button-icons/login.svg"
 } as const;
 
 function ButtonIcon({ src }: { src: string }) {
@@ -1057,10 +1059,20 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
             agent.evaluation && (isCompletedAgentEvaluation(agent.evaluation) || agent.evaluation.status === "failed" || agent.evaluation.result?.status === "failed");
           const showEvaluationAction = !canRestartEvaluation;
           const isSettingCurrent = settingCurrentAgentId === agent.id;
+          const evaluationActionLabel = getAgentEvaluationActionLabel(agent);
+          const evaluationActionIcon =
+            evaluationActionLabel === "查看进度" ? (
+              <ButtonIcon src={BUTTON_ICON_PATHS.evaluationProgress} />
+            ) : undefined;
           return agent.role === "当前执行 Agent" ? (
             <>
               {agent.authStatus === "login_required" && (
-                <SecondaryButton onClick={() => promptClaudeLogin(agent, async () => undefined)}>登录</SecondaryButton>
+                <SecondaryButton
+                  icon={<ButtonIcon src={BUTTON_ICON_PATHS.login} />}
+                  onClick={() => promptClaudeLogin(agent, async () => undefined)}
+                >
+                  登录
+                </SecondaryButton>
               )}
               <SecondaryButton
                 disabled
@@ -1068,7 +1080,14 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
               >
                 当前执行 Agent
               </SecondaryButton>
-              {showEvaluationAction && <SecondaryButton onClick={() => openAgentEvaluation(agent)}>{getAgentEvaluationActionLabel(agent)}</SecondaryButton>}
+              {showEvaluationAction && (
+                <SecondaryButton
+                  icon={evaluationActionIcon}
+                  onClick={() => openAgentEvaluation(agent)}
+                >
+                  {evaluationActionLabel}
+                </SecondaryButton>
+              )}
               {canRestartEvaluation && (
                 <SecondaryButton
                   icon={<ButtonIcon src={BUTTON_ICON_PATHS.evaluation} />}
@@ -1081,7 +1100,12 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
           ) : (
             <>
               {agent.authStatus === "login_required" && (
-                <SecondaryButton onClick={() => promptClaudeLogin(agent, async () => undefined)}>登录</SecondaryButton>
+                <SecondaryButton
+                  icon={<ButtonIcon src={BUTTON_ICON_PATHS.login} />}
+                  onClick={() => promptClaudeLogin(agent, async () => undefined)}
+                >
+                  登录
+                </SecondaryButton>
               )}
               <ActionButton
                 disabled={Boolean(settingCurrentAgentId)}
@@ -1091,7 +1115,14 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
               >
                 {isSettingCurrent ? "设置中" : "设为当前执行 Agent"}
               </ActionButton>
-              {showEvaluationAction && <SecondaryButton onClick={() => openAgentEvaluation(agent)}>{getAgentEvaluationActionLabel(agent)}</SecondaryButton>}
+              {showEvaluationAction && (
+                <SecondaryButton
+                  icon={evaluationActionIcon}
+                  onClick={() => openAgentEvaluation(agent)}
+                >
+                  {evaluationActionLabel}
+                </SecondaryButton>
+              )}
               {canRestartEvaluation && (
                 <SecondaryButton
                   icon={<ButtonIcon src={BUTTON_ICON_PATHS.evaluation} />}

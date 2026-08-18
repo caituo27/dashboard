@@ -4014,48 +4014,48 @@ select {
 
 .sprix-evaluation-step-hero {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
   gap: 14px;
   align-items: center;
-  border: 1px solid rgba(15, 118, 110, 0.16);
+  border: 1px solid rgba(15, 118, 110, 0.14);
   border-radius: var(--radius-compact);
-  background:
-    linear-gradient(135deg, rgba(240, 253, 250, 0.86), rgba(255, 255, 255, 0.98) 58%, rgba(250, 250, 250, 0.96)),
-    #ffffff;
-  padding: 14px 16px;
+  background: #ffffff;
+  padding: 16px;
 }
 
 .sprix-evaluation-step-core {
   position: relative;
   display: grid;
-  width: 54px;
-  height: 54px;
+  width: 40px;
+  height: 40px;
   overflow: hidden;
   place-items: center;
-  border: 1px solid rgba(15, 118, 110, 0.18);
+  border: 1px solid rgba(15, 118, 110, 0.16);
   border-radius: var(--radius-pill);
-  background: #ffffff;
+  background: rgba(240, 253, 250, 0.68);
   color: var(--color-accent);
 }
 
 .sprix-evaluation-step-core span {
   position: absolute;
-  inset: -38%;
-  background: conic-gradient(from 30deg, transparent 0 58%, rgba(15, 118, 110, 0.46), transparent 76% 100%);
+  inset: -45%;
+  background: conic-gradient(from 30deg, transparent 0 64%, rgba(15, 118, 110, 0.3), transparent 82% 100%);
   animation: sprix-evaluation-core-spin 3s linear infinite;
 }
 
 .sprix-evaluation-step-core::after {
   content: "";
   position: absolute;
-  inset: 5px;
+  inset: 3px;
   border-radius: var(--radius-pill);
-  background: #ffffff;
+  background: rgba(247, 253, 252, 0.98);
 }
 
 .sprix-evaluation-step-core svg {
   position: relative;
   z-index: 1;
+  width: 17px;
+  height: 17px;
 }
 
 .sprix-evaluation-step-hero:not(.is-active) .sprix-evaluation-step-core span {
@@ -4073,8 +4073,8 @@ select {
 }
 
 .sprix-evaluation-step-hero.is-completed .sprix-evaluation-step-core {
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   background: rgba(240, 253, 250, 0.82);
 }
 
@@ -4085,8 +4085,8 @@ select {
 .sprix-evaluation-step-copy strong {
   display: block;
   color: var(--color-ink);
-  font-size: 20px;
-  font-weight: 820;
+  font-size: 18px;
+  font-weight: 760;
   line-height: 1.3;
 }
 
@@ -4098,16 +4098,12 @@ select {
 }
 
 .sprix-evaluation-step-count {
-  display: grid;
-  width: 48px;
-  height: 48px;
-  place-items: center;
-  border: 1px solid rgba(15, 118, 110, 0.18);
-  border-radius: var(--radius-pill);
-  background: rgba(255, 255, 255, 0.74);
-  color: var(--color-accent);
+  min-width: 42px;
+  color: var(--color-ink);
   font-size: var(--sprix-font-size-body);
-  font-weight: 860;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  text-align: right;
 }
 
 .sprix-evaluation-step-score {
@@ -4138,32 +4134,25 @@ select {
 .sprix-evaluation-step-track {
   position: relative;
   display: grid;
-  gap: 8px;
+  gap: 6px;
   margin-top: 12px;
 }
 
 .sprix-evaluation-step-track::before {
-  content: "";
-  position: absolute;
-  left: 18px;
-  top: 18px;
-  bottom: 18px;
-  width: 1px;
-  border-radius: var(--radius-pill);
-  background: linear-gradient(180deg, rgba(15, 118, 110, 0.42), rgba(15, 118, 110, 0.14), rgba(225, 234, 232, 0.9));
+  content: none;
 }
 
 .sprix-evaluation-step {
   position: relative;
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) auto;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
-  min-height: 54px;
+  min-height: 56px;
   overflow: hidden;
-  border: 1px solid rgba(238, 238, 238, 0.9);
+  border: 1px solid var(--color-line);
   border-radius: var(--radius-compact);
-  background: rgba(252, 253, 253, 0.94);
+  background: #ffffff;
   padding: 9px 12px 9px 0;
   animation: sprix-evaluation-enter 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
   transition:
@@ -4177,8 +4166,8 @@ select {
   position: relative;
   z-index: 1;
   display: grid;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   justify-self: center;
   place-items: center;
   border: 1px solid rgba(218, 228, 226, 0.96);
@@ -4215,12 +4204,11 @@ select {
 }
 
 .sprix-evaluation-step-state {
-  border-radius: var(--radius-pill);
-  background: rgba(245, 246, 246, 0.96);
-  padding: 5px 9px;
+  background: transparent;
+  padding: 0;
   color: rgba(105, 114, 118, 0.82);
   font-size: 12px;
-  font-weight: 820;
+  font-weight: 650;
   white-space: nowrap;
   transition:
     background 360ms ease,
@@ -4232,16 +4220,20 @@ select {
   background: rgba(240, 253, 250, 0.66);
 }
 
-.sprix-evaluation-step.is-done .sprix-evaluation-step-dot,
-.sprix-evaluation-step.is-done .sprix-evaluation-step-state {
+.sprix-evaluation-step.is-done .sprix-evaluation-step-dot {
   background: rgba(15, 118, 110, 0.1);
   color: var(--color-accent);
 }
 
+.sprix-evaluation-step.is-done .sprix-evaluation-step-state {
+  background: transparent;
+  color: var(--color-ink-soft);
+}
+
 .sprix-evaluation-step.is-active {
-  border-color: rgba(15, 118, 110, 0.34);
+  border-color: rgba(15, 118, 110, 0.28);
   background: #ffffff;
-  box-shadow: 0 10px 30px rgba(20, 20, 20, 0.055), inset 0 0 0 1px rgba(15, 118, 110, 0.06);
+  box-shadow: none;
 }
 
 .sprix-evaluation-step.is-active::before {
@@ -4249,24 +4241,25 @@ select {
   position: absolute;
   inset: 0;
   width: 42%;
-  background: linear-gradient(90deg, transparent, rgba(15, 118, 110, 0.08), transparent);
+  background: linear-gradient(90deg, transparent, rgba(15, 118, 110, 0.055), transparent);
   animation: sprix-evaluation-step-sweep 2.35s ease-in-out infinite;
 }
 
 .sprix-evaluation-step.is-active .sprix-evaluation-step-dot {
   border-color: rgba(15, 118, 110, 0.34);
+  background: rgba(240, 253, 250, 0.72);
   color: var(--color-accent);
   transform: scale(1.04);
   animation: sprix-evaluation-step-pulse 1.6s ease-in-out infinite;
 }
 
 .sprix-evaluation-step.is-active .sprix-evaluation-step-state {
-  background: rgba(15, 118, 110, 0.1);
+  background: transparent;
   color: var(--color-accent);
 }
 
 .sprix-evaluation-step.is-waiting {
-  opacity: 0.66;
+  opacity: 0.72;
 }
 
 .sprix-evaluation-step.is-error {
@@ -5405,13 +5398,20 @@ select {
   }
 
   .sprix-evaluation-step-hero {
-    grid-template-columns: 1fr;
-    text-align: center;
+    grid-template-columns: 40px minmax(0, 1fr);
+    text-align: left;
   }
 
-  .sprix-evaluation-step-core,
-  .sprix-evaluation-step-count {
-    margin: 0 auto;
+  .sprix-evaluation-step-core {
+    margin: 0;
+  }
+
+  .sprix-evaluation-step-count,
+  .sprix-evaluation-step-score {
+    grid-column: 2;
+    justify-self: start;
+    margin: 0;
+    text-align: left;
   }
 
   .sprix-evaluation-failure-status {

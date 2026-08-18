@@ -1,26 +1,25 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Modal, message } from "antd";
+import {
+  ChevronRight,
+  CreditCard,
+  ImagePlus,
+  PencilLine,
+  ShieldCheck,
+  Smartphone,
+  UserRound
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useSprixStore } from "../store/sprixStore";
 import { cancelRemoteAccount, readRemoteWithdrawalAccountState } from "../services/sprixApi";
-import { getAccountEditActions, getAccountProfileRows, hasBoundPayoutAccount, type AccountEditAction } from "../user/accountView";
-import { ActionButton, SecondaryButton, StatusTag } from "./Primitives";
+import { hasBoundPayoutAccount } from "../user/accountView";
+import { SecondaryButton, StatusTag } from "./Primitives";
 import { showRequestError } from "./requestErrors";
 import { AccountPhoneChangeModal } from "./AccountPhoneChangeModal";
 import { AccountProfileEditModal, type AccountProfileEditMode } from "./AccountProfileEditModal";
 
 const maxAlipayAccountTextLength = 15;
-
-const accountActionRowClassName = [
-  "flex flex-col gap-2 rounded-xl border border-line bg-white px-3 py-3",
-  "sm:flex-row sm:items-center sm:justify-between"
-].join(" ");
-
-const accountInfoRowClassName = [
-  "grid grid-cols-[88px_minmax(0,1fr)] items-center gap-3 rounded-xl bg-[#fafafa] px-4 py-3",
-  "sm:grid-cols-[112px_minmax(0,1fr)]"
-].join(" ");
 
 type AccountModalProps = {
   open: boolean;
@@ -42,8 +41,6 @@ export function AccountModal({
   const navigate = useNavigate();
   const [profileMode, setProfileMode] = useState<AccountProfileEditMode | null>(null);
   const [phoneOpen, setPhoneOpen] = useState(false);
-  const profileRows = getAccountProfileRows(account);
-  const editActions = getAccountEditActions();
   const payoutAccountBound = hasBoundPayoutAccount(account);
 
   useEffect(() => {
@@ -63,15 +60,7 @@ export function AccountModal({
     };
   }, [mergeRemoteState, open]);
 
-  const runAction = (action: AccountEditAction) => {
-    if (action.key === "avatar" || action.key === "nickname") {
-      setProfileMode(action.key);
-      return;
-    }
-    if (action.key === "phone") {
-      setPhoneOpen(true);
-      return;
-    }
+  const cancelAccount = () => {
     confirmCancelAccount(logout, queryClient, navigate, onClose);
   };
 
@@ -99,89 +88,75 @@ export function AccountModal({
         title="账户信息"
         open={open}
         onCancel={onClose}
-        footer={<ActionButton onClick={onClose}>关闭</ActionButton>}
-        width={620}
+        footer={null}
+        width={640}
       >
-        <div className="grid gap-3 text-sm">
-          <InfoRow
-            label="头像"
-            value={
-              account.avatarUrl ? (
-                <img
-                  src={account.avatarUrl}
-                  alt=""
-                  className="size-10 rounded-full object-cover"
-                />
-              ) : (
-                "-"
-              )
-            }
-          />
-          {profileRows.map((row) => (
-            <InfoRow
-              key={row.label}
-              label={row.label}
+        <div className="text-sm">
+          <div className="grid gap-3">
+            <AccountSettingRow
+              icon={<ImagePlus aria-hidden="true" />}
+              label="修改头像"
               value={
-                row.label === "接单资格" ? (
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    {account.qualificationStatus === "已开通" ? (
-                      <StatusTag status={row.value} />
-                    ) : (
-                      <button
-                        type="button"
-                        className="inline-flex cursor-pointer border-0 bg-transparent p-0"
-                        onClick={openQualification}
-                        aria-label={`${row.value}，开通接单资格`}
-                      >
-                        <StatusTag status={row.value} />
-                      </button>
-                    )}
-                    <SecondaryButton
-                      size="small"
-                      onClick={handleQualificationAction}
-                    >
-                      {row.value === "已开通" ? "查看记录" : "去开通"}
-                    </SecondaryButton>
-                  </div>
+                account.avatarUrl ? (
+                  <img
+                    src={account.avatarUrl}
+                    alt=""
+                    className="size-11 rounded-full object-cover"
+                  />
                 ) : (
-                  row.value
+                  <span className="grid size-11 place-items-center rounded-full bg-[#f5f5f3] text-ink-soft">
+                    <UserRound aria-hidden="true" size={20} strokeWidth={1.7} />
+                  </span>
                 )
               }
+              onClick={() => setProfileMode("avatar")}
             />
-          ))}
-          <InfoRow
-            label="收款支付宝"
-            value={
-              payoutAccountBound ? (
-                <span title={account.alipayAccountMasked || undefined}>
-                  {formatAlipayAccountText(account.alipayAccountMasked)}
-                </span>
-              ) : (
-                <SecondaryButton size="small" onClick={onBindAlipay}>
-                  绑定支付宝
-                </SecondaryButton>
-              )
-            }
-          />
-          <div className="mt-2 grid gap-2 rounded-xl bg-[#fafafa] p-3">
-            {editActions.map((action) => (
-              <div
-                key={action.key}
-                className={accountActionRowClassName}
-              >
-                <div>
-                  <div className="font-medium text-ink">{action.label}</div>
-                  <div className="mt-1 text-xs text-ink-soft">{action.description}</div>
-                </div>
-                <SecondaryButton
-                  size="small"
-                  danger={action.danger}
-                  onClick={() => runAction(action)}
-                >
-                  {action.buttonLabel}
-                </SecondaryButton>
+            <AccountSettingRow
+              icon={<PencilLine aria-hidden="true" />}
+              label="修改昵称"
+              value={account.nickname || "未设置"}
+              onClick={() => setProfileMode("nickname")}
+            />
+            <AccountSettingRow
+              icon={<Smartphone aria-hidden="true" />}
+              label="绑定手机号"
+              value={account.maskedPhone || "未绑定"}
+              onClick={() => setPhoneOpen(true)}
+            />
+            <AccountSettingRow
+              icon={<ShieldCheck aria-hidden="true" />}
+              label="接单资格"
+              description="查看认证状态和历史记录"
+              value={<StatusTag status={account.qualificationStatus} />}
+              onClick={handleQualificationAction}
+            />
+            <AccountSettingRow
+              icon={<CreditCard aria-hidden="true" />}
+              label="收款支付宝"
+              description={payoutAccountBound ? "当前收款账户" : "绑定后用于任务结算收款"}
+              value={
+                payoutAccountBound ? (
+                  <span title={account.alipayAccountMasked || undefined}>
+                    {formatAlipayAccountText(account.alipayAccountMasked)}
+                  </span>
+                ) : (
+                  "未绑定"
+                )
+              }
+              onClick={payoutAccountBound ? undefined : onBindAlipay}
+            />
+          </div>
+
+          <div className="mt-7 flex flex-col gap-3 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="font-medium text-ink">注销账户</div>
+              <div className="mt-1 text-xs text-ink-soft">
+                注销后将退出登录，且无法恢复账户数据
               </div>
-            ))}
+            </div>
+            <SecondaryButton size="small" danger onClick={cancelAccount}>
+              注销账户
+            </SecondaryButton>
           </div>
         </div>
       </Modal>
@@ -203,12 +178,47 @@ function formatAlipayAccountText(value?: string) {
   return Array.from(value).slice(0, maxAlipayAccountTextLength).join("");
 }
 
-function InfoRow({ label, value }: { label: string; value: ReactNode }) {
+function AccountSettingRow({
+  icon,
+  label,
+  description,
+  value,
+  onClick
+}: {
+  icon: ReactNode;
+  label: string;
+  description?: string;
+  value?: ReactNode;
+  onClick?: () => void;
+}) {
   return (
-    <div className={accountInfoRowClassName}>
-      <span className="text-ink-soft">{label}</span>
-      <div className="min-w-0 justify-self-end break-words text-right font-medium text-ink [overflow-wrap:anywhere]">{value}</div>
-    </div>
+    <button
+      type="button"
+      disabled={!onClick}
+      onClick={onClick}
+      className="group grid min-h-[76px] w-full grid-cols-[40px_minmax(0,1fr)_auto_18px] items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3 text-left text-inherit transition-[border-color,background-color,box-shadow] enabled:cursor-pointer enabled:hover:border-[#d8dad9] enabled:hover:bg-[#fcfcfb] enabled:hover:shadow-[0_8px_24px_rgba(20,24,25,0.05)] disabled:cursor-default"
+    >
+      <span className="grid size-10 place-items-center rounded-xl bg-[#f5f5f3] text-ink-soft [&>svg]:size-[19px] [&>svg]:stroke-[1.8]">
+        {icon}
+      </span>
+      <span className="min-w-0">
+        <span className="block font-medium text-ink">{label}</span>
+        {description ? (
+          <span className="mt-1 block text-xs text-ink-soft">{description}</span>
+        ) : null}
+      </span>
+      {value ? (
+        <span className="flex max-w-[190px] items-center justify-end truncate text-right text-xs font-medium text-ink-soft sm:text-sm">
+          {value}
+        </span>
+      ) : null}
+      <ChevronRight
+        aria-hidden="true"
+        className={onClick ? "text-[#a7aaa9]" : "invisible"}
+        size={18}
+        strokeWidth={1.8}
+      />
+    </button>
   );
 }
 
