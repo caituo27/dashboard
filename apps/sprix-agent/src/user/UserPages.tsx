@@ -1,5 +1,6 @@
 import { type KeyboardEvent, type MouseEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Form, Input, Modal, Steps, Tabs, message } from "antd";
+import { InfoCircleOutlined, PieChartOutlined, TagsOutlined, ThunderboltOutlined, UserOutlined, WifiOutlined } from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
@@ -13,7 +14,6 @@ import {
   ListChecks,
   Paperclip,
   PlugZap,
-  ShieldCheck,
   UsersRound
 } from "lucide-react";
 import type { FaceVerificationSession } from "../apis/sprix";
@@ -85,6 +85,15 @@ type UserPageProps = {
 
 function currentAgentDisplayName(name?: string) {
   return name?.replace(/\s+Agent$/i, "") || "-";
+}
+
+function getAgentIconSrc(name: string) {
+  const normalizedName = name.toLowerCase();
+  if (normalizedName.includes("claude")) return "/agent-icons/claude.png";
+  if (normalizedName.includes("hermes")) return "/agent-icons/hermes.png";
+  if (normalizedName.includes("opencode")) return "/agent-icons/opencode.png";
+  if (normalizedName.includes("codex")) return "/agent-icons/gpt.png";
+  return undefined;
 }
 
 type FaceVerificationFormValues = FaceVerificationIdentity;
@@ -394,7 +403,7 @@ function SmartAcceptModal({
       title={enabled ? "智能接单已开启" : "开启智能接单"}
       open={open}
       onCancel={onCancel}
-      width={620}
+      width={540}
       className="sprix-smart-accept-modal"
       footer={
         enabled ? (
@@ -412,14 +421,17 @@ function SmartAcceptModal({
     >
       <div className="sprix-smart-accept-agent">
         <div className="sprix-smart-accept-agent-icon">
-          <Bot size={24} />
+          {getAgentIconSrc(agentName) ? (
+            <img src={getAgentIconSrc(agentName)} alt="" aria-hidden="true" />
+          ) : (
+            <Bot size={24} />
+          )}
         </div>
         <div className="sprix-smart-accept-agent-copy">
           <div className="sprix-smart-accept-agent-title">
             <strong>{agentName}</strong>
             <span>{enabled ? "智能接单中" : "已连接"}</span>
           </div>
-          <p>{enabled ? "系统会持续按当前执行 Agent 的能力画像匹配任务。" : "开启后将使用当前执行 Agent 自动判断可接取任务。"}</p>
         </div>
       </div>
       <div className="sprix-smart-accept-metrics">
@@ -436,17 +448,14 @@ function SmartAcceptModal({
           <strong>{enabled ? "已开启" : "待开启"}</strong>
         </div>
       </div>
-      <div className="sprix-smart-accept-copy">
-        <ShieldCheck size={18} />
-        <div>
-          <strong>{enabled ? "已开启智能接单" : "开启后自动接取高匹配任务"}</strong>
-          <p>
-            {enabled
-              ? "系统将持续根据任务与当前执行 Agent 的匹配度判断是否接单。"
-              : "当平台任务与当前执行 Agent 的匹配度达到 92% 及以上时，系统将自动为你接取该任务。"}
-          </p>
-        </div>
-      </div>
+      <p className="sprix-smart-accept-hint">
+        <InfoCircleOutlined aria-hidden="true" />
+        <span>
+          {enabled
+            ? "系统将持续根据任务与当前执行 Agent 的匹配度判断是否接单。"
+            : "开启后，当平台任务与当前执行 Agent 的匹配度达到 92% 及以上时，系统将自动为你接取该任务。"}
+        </span>
+      </p>
     </Modal>
   );
 }
@@ -636,24 +645,25 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
           </button>
         </div>
 
-        <header className="sprix-task-detail-hero">
-          <h1 className="sprix-task-detail-title">{task.title}</h1>
-          <div className="sprix-task-detail-meta">
-            <Metric icon={<CircleDollarSign size={24} />} label="奖励" value={currency(task.reward)} />
-            <Metric icon={<UsersRound size={24} />} label="剩余名额" value={`${task.remainingSlots}/${task.totalSlots}`} />
-            <Metric icon={<CircleDot size={24} />} label={estimatedToken.label} value={estimatedToken.value} />
-            <Metric icon={<CheckCircle2 size={24} />} label="匹配度" value={task.agentMatchScore > 0 ? `${task.agentMatchScore}%` : "-"} accent />
-          </div>
+        <div className="sprix-task-detail-content">
+          <header className="sprix-task-detail-hero">
+            <h1 className="sprix-task-detail-title">{task.title}</h1>
+            <div className="sprix-task-detail-meta">
+              <Metric icon={<CircleDollarSign size={24} />} label="奖励" value={currency(task.reward)} />
+              <Metric icon={<UsersRound size={24} />} label="剩余名额" value={`${task.remainingSlots}/${task.totalSlots}`} />
+              <Metric icon={<ThunderboltOutlined />} label={estimatedToken.label} value={estimatedToken.value} />
+              <Metric icon={<TagsOutlined />} label="任务类别" value={task.category} />
+            </div>
         </header>
 
         <div className="sprix-task-detail-layout">
           <main className="sprix-task-detail-main">
-            <InfoBlock icon={<FileText size={18} />} title="任务说明" body={task.description} />
-            <InfoBlock icon={<ListChecks size={18} />} title="交付标准" body={task.deliverables} />
-            <InfoBlock icon={<CheckCircle2 size={18} />} title="验收标准" body={task.acceptanceCriteria} />
+            <InfoBlock icon={<FileText size={16} />} title="任务说明" body={task.description} />
+            <InfoBlock icon={<ListChecks size={16} />} title="交付标准" body={task.deliverables} />
+            <InfoBlock icon={<CheckCircle2 size={16} />} title="验收标准" body={task.acceptanceCriteria} />
             <div className="sprix-task-info-card sprix-task-attachments">
               <h3>
-                <span><Paperclip size={18} /></span>
+                <span><Paperclip size={16} /></span>
                 任务附件
               </h3>
               {taskAttachmentsQuery.isLoading ? (
@@ -668,7 +678,7 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
                       <div key={attachment.attachmentId} className="sprix-task-attachment-row">
                         <div className="min-w-0">
                           <div className="sprix-task-attachment-name truncate" title={attachment.filename}>{attachment.filename}</div>
-                          <div className="sprix-task-attachment-meta">{attachment.mimeType || "未知类型"} · {formatTaskAttachmentSize(attachment.sizeBytes)}</div>
+                          <div className="sprix-task-attachment-meta">{formatTaskAttachmentSize(attachment.sizeBytes)}</div>
                         </div>
                         <div className="sprix-task-attachment-actions">
                           {previewable && <SecondaryButton onClick={() => void previewAttachment(attachment)}>预览</SecondaryButton>}
@@ -687,19 +697,19 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
           <aside className="sprix-task-detail-aside">
             <Surface className="sprix-task-side-card sprix-task-side-panel">
               <div className="sprix-task-side-score sprix-task-side-item">
-                <CircleDot size={22} />
+                <PieChartOutlined />
                 <span>系统评估匹配度</span>
                 <b>{task.agentMatchScore > 0 ? `${task.agentMatchScore}%` : "-"}</b>
               </div>
               <div className="sprix-task-side-divider" />
               <div className="sprix-task-side-section">
               <div className="sprix-task-agent-row is-current-agent sprix-task-side-item">
-                <UsersRound size={22} />
+                <UserOutlined />
                 <span>当前 Agent</span>
                 <b>{currentAgent?.name ?? "未设置"}</b>
               </div>
               <div className="sprix-task-agent-row sprix-task-side-item">
-                <PlugZap size={22} />
+                <WifiOutlined />
                 <span>连接状态</span>
                 <b className={currentAgent ? "is-online" : "is-offline"}>
                   <span />
@@ -713,6 +723,7 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
               </div>
             </Surface>
           </aside>
+        </div>
         </div>
       </div>
     </div>
@@ -1317,16 +1328,17 @@ export function MyTasksPage({ openLogin, openAppeal }: UserPageProps) {
   }
 
   return (
-    <>
+    <div className="sprix-my-tasks-page">
       <PageHeader title="我的任务" />
-      <Surface className="p-5">
+      <div className="sprix-my-tasks-shell">
         <Tabs
+          className="sprix-my-tasks-tabs"
           activeKey={tab}
           onChange={setTab}
           items={["全部", "执行中", "已终止", "已完成"].map((label) => ({ key: label, label }))}
         />
         {visible.length > 0 ? (
-          <div className="mt-5 space-y-3">
+          <div className="sprix-my-tasks-list">
             {visible.map((task) => (
               <MyTaskRow
                 key={task.id}
@@ -1341,8 +1353,8 @@ export function MyTasksPage({ openLogin, openAppeal }: UserPageProps) {
         ) : (
           <MyTasksEmptyState tab={tab} hasAnyTask={myTasks.length > 0} />
         )}
-      </Surface>
-    </>
+      </div>
+    </div>
   );
 }
 
@@ -1388,24 +1400,24 @@ function MyTaskRow({
     isRunning: task.status === "执行中" || task.status === "待平台审核"
   });
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-line bg-white p-4 xl:flex-row xl:items-center xl:justify-between">
-      <div>
-        <div className="flex flex-wrap items-center gap-2">
+    <Surface className="sprix-my-task-row">
+      <div className="sprix-my-task-row-copy">
+        <div className="sprix-my-task-row-status">
           {showPrimaryStatus && <StatusTag status={task.status} />}
           {shouldShowAppealStatus(task.appealStatus) && <StatusTag status={task.appealStatus} />}
         </div>
-        <Link to={`/agent/my-tasks/${task.id}`} className="mt-2 block text-lg font-semibold text-ink no-underline hover:text-accent">
+        <Link to={`/agent/my-tasks/${task.id}`} className="sprix-my-task-row-title">
           {task.title}
         </Link>
-        <p className="mt-1 text-sm text-ink-soft">
+        <p className="sprix-my-task-row-meta">
           {metaItems.join(" · ")}
         </p>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="sprix-my-task-row-actions">
         {actions.appealLabel && (
-          <ActionButton disabled={!actions.appealEnabled} onClick={() => actions.appealEnabled && onAppeal(task.id)}>
+          <SecondaryButton disabled={!actions.appealEnabled} onClick={() => actions.appealEnabled && onAppeal(task.id)}>
             {actions.appealLabel}
-          </ActionButton>
+          </SecondaryButton>
         )}
         {actions.terminateLabel && (
           <SecondaryButton danger disabled={!actions.terminateEnabled || canceling} loading={canceling} onClick={() => actions.terminateEnabled && onCancel(task.id)}>
@@ -1415,7 +1427,7 @@ function MyTaskRow({
         {actions.rerun && <SecondaryButton onClick={() => onRerun(task.id)}>重新执行</SecondaryButton>}
         <SecondaryButton href={`/agent/my-tasks/${task.id}`}>{actions.viewLabel}</SecondaryButton>
       </div>
-    </div>
+    </Surface>
   );
 }
 
