@@ -217,6 +217,12 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
                 )}
               </div>
             </div>
+            <img
+              className="sprix-execution-hero-illustration"
+              src={summary.status === "执行中" ? "/doing.svg" : "/done.svg"}
+              alt=""
+              aria-hidden="true"
+            />
           </section>
 
           <div className="sprix-execution-detail-layout">
@@ -246,7 +252,7 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
               <Surface className="sprix-execution-side-panel p-0">
                 <TaskRequirementSection detail={detail} />
                 <TaskAttachmentsSection taskId={detail.task?.id ?? detail.taskId} />
-                <HistorySection detail={detail} />
+                <HistorySection detail={detail} displayProgress={displayProgress} />
               </Surface>
             </aside>
           </div>
@@ -962,7 +968,7 @@ function TimelineSection({ detail }: { detail: MyTaskExecutionDetail }) {
                       </p>
                     </div>
                     <div className="sprix-timeline-meta">
-                      <SoftTag tone="neutral">{formatDateTime(getTimelineTime(event))}</SoftTag>
+                      <span className="sprix-timeline-time">{formatDateTime(getTimelineTime(event))}</span>
                     </div>
                   </div>
                 </div>
@@ -997,7 +1003,7 @@ function shouldAutoRefreshExecutionDetail(detail: MyTaskExecutionDetail) {
   return (detail.status ?? "").toUpperCase() === "RUNNING" && !detail.completedAt;
 }
 
-function HistorySection({ detail }: { detail: MyTaskExecutionDetail }) {
+function HistorySection({ detail, displayProgress }: { detail: MyTaskExecutionDetail; displayProgress?: number }) {
   const histories = detail.historyExecutions ?? [];
   return (
     <section className="sprix-history-panel">
@@ -1018,7 +1024,9 @@ function HistorySection({ detail }: { detail: MyTaskExecutionDetail }) {
               </div>
               <div className="sprix-history-detail">
                 <span className="sprix-history-time">{formatDateTime(history.startedAt ?? history.createdAt)}</span>
-                <span className="sprix-history-progress">{history.progress || "-"}</span>
+                <span className="sprix-history-progress">
+                  {history.current && displayProgress !== undefined ? `${displayProgress}%` : history.progress || "-"}
+                </span>
               </div>
             </Link>
           ))}

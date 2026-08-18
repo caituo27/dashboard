@@ -654,6 +654,7 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
               <Metric icon={<ThunderboltOutlined />} label={estimatedToken.label} value={estimatedToken.value} />
               <Metric icon={<TagsOutlined />} label="任务类别" value={task.category} />
             </div>
+            <img className="sprix-task-detail-hero-illustration" src="/task.svg" alt="" aria-hidden="true" />
         </header>
 
         <div className="sprix-task-detail-layout">
@@ -1331,12 +1332,15 @@ export function MyTasksPage({ openLogin, openAppeal }: UserPageProps) {
     <div className="sprix-my-tasks-page">
       <PageHeader title="我的任务" />
       <div className="sprix-my-tasks-shell">
-        <Tabs
-          className="sprix-my-tasks-tabs"
-          activeKey={tab}
-          onChange={setTab}
-          items={["全部", "执行中", "已终止", "已完成"].map((label) => ({ key: label, label }))}
-        />
+        <div className="sprix-my-tasks-tabs-row">
+          <Tabs
+            className="sprix-my-tasks-tabs"
+            activeKey={tab}
+            onChange={setTab}
+            items={["全部", "执行中", "已终止", "已完成"].map((label) => ({ key: label, label }))}
+          />
+          <img className="sprix-my-tasks-illustration" src="/mytask.svg" alt="" aria-hidden="true" />
+        </div>
         {visible.length > 0 ? (
           <div className="sprix-my-tasks-list">
             {visible.map((task) => (

@@ -517,6 +517,19 @@ select {
   margin-top: 6px;
 }
 
+.sprix-my-tasks-tabs-row {
+  position: relative;
+}
+
+.sprix-my-tasks-illustration {
+  position: absolute;
+  right: 0;
+  bottom: 18px;
+  width: auto;
+  height: 110px;
+  pointer-events: none;
+}
+
 .sprix-my-tasks-tabs .ant-tabs-nav {
   margin: 0 0 26px;
 }
@@ -581,6 +594,7 @@ select {
 
 .sprix-my-task-row-title {
   display: block;
+  min-width: 0;
   color: var(--color-ink);
   font-size: 17px;
   font-weight: 720;
@@ -2664,6 +2678,7 @@ select {
 }
 
 .sprix-task-detail-hero {
+  position: relative;
   display: grid;
   justify-items: start;
   gap: 28px;
@@ -2671,9 +2686,18 @@ select {
   border: 0;
   border-radius: 0;
   background: transparent;
-  padding: 8px 0 4px;
+  padding: 8px 160px 4px 0;
   box-shadow: none;
   text-align: left;
+}
+
+.sprix-task-detail-hero-illustration {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: auto;
+  height: 140px;
+  pointer-events: none;
 }
 
 .sprix-task-detail-kicker {
@@ -3090,11 +3114,21 @@ select {
 
 .sprix-execution-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(300px, 360px);
   gap: 20px 28px;
   align-items: start;
   margin: 0;
   margin-bottom: 24px;
+  border-bottom: 1px solid var(--color-line);
+  padding-bottom: 24px;
+}
+
+.sprix-execution-hero-illustration {
+  align-self: end;
+  justify-self: end;
+  width: auto;
+  height: 120px;
+  pointer-events: none;
 }
 
 .sprix-execution-hero-copy {
@@ -3119,11 +3153,10 @@ select {
 .sprix-execution-hero-side {
   display: grid;
   min-width: 0;
-  justify-items: end;
-  justify-self: end;
+  align-self: start;
   align-content: start;
-  gap: 18px;
-  padding-top: 14px;
+  justify-items: end;
+  gap: 12px;
 }
 
 .sprix-execution-hero-progress {
@@ -4171,6 +4204,12 @@ select {
   justify-content: flex-end;
   gap: 6px;
   min-width: 0;
+}
+
+.sprix-timeline-time {
+  color: var(--color-ink-soft);
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .sprix-timeline-heading-actions,
@@ -6455,6 +6494,8 @@ select {
   .sprix-execution-hero-side {
     min-width: 0;
     justify-items: stretch;
+    border-left: 0;
+    padding-left: 0;
   }
 
   .sprix-hero-title {
@@ -6473,6 +6514,22 @@ select {
   .sprix-task-detail-layout {
     grid-template-columns: 1fr;
     gap: 18px;
+  }
+
+  .sprix-my-tasks-illustration {
+    display: none;
+  }
+
+  .sprix-execution-hero-illustration {
+    display: none;
+  }
+
+  .sprix-task-detail-hero-illustration {
+    display: none;
+  }
+
+  .sprix-task-detail-hero {
+    padding-right: 0;
   }
 
   .sprix-task-detail-aside {
