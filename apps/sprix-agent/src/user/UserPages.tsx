@@ -1163,37 +1163,48 @@ function CurrentAgentCard({ agent }: { agent?: Agent }) {
   const evaluationResult = agent?.evaluation?.result?.status === "completed" ? agent.evaluation.result : undefined;
   const dimensionInteraction = useAbilityDimensionInteraction(Boolean(evaluationResult));
   return (
-    <Surface className="sprix-current-agent-card sprix-agent-profile-card p-6">
+    <Surface
+      className={`sprix-current-agent-card sprix-agent-profile-card p-6 ${evaluationResult ? "is-figma-result" : ""}`}
+    >
       {summary ? (
-        <>
-          <div className="sprix-agent-identity-panel">
-            <div className="sprix-current-agent-body">
-              <div className="min-w-0 flex-1">
-                <span className="sprix-agent-current-label">当前执行 Agent</span>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h4 className="text-2xl font-semibold">{summary.title}</h4>
-                </div>
-                <div className="sprix-agent-current-tags flex flex-wrap gap-2">
-                  {tagLabels.map((tag) => (
-                    <span key={tag} className="sprix-agent-ability-result-tag">
-                      {tag}
-                    </span>
-                  ))}
+        evaluationResult ? (
+          <AgentAbilityProfile
+            agent={agent}
+            embedded
+            resultPresentation
+            agentCenterPresentation
+          />
+        ) : (
+          <>
+            <div className="sprix-agent-identity-panel">
+              <div className="sprix-current-agent-body">
+                <div className="min-w-0 flex-1">
+                  <span className="sprix-agent-current-label">当前执行 Agent</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="text-2xl font-semibold">{summary.title}</h4>
+                  </div>
+                  <div className="sprix-agent-current-tags flex flex-wrap gap-2">
+                    {tagLabels.map((tag) => (
+                      <span key={tag} className="sprix-agent-ability-result-tag">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-          <div className="sprix-agent-ability-section">
-            <AgentAbilityProfile
-              agent={agent}
-              embedded
-              showScore={false}
-              resultPresentation
-              compactDetails
-              dimensionInteraction={dimensionInteraction}
-            />
-          </div>
-        </>
+            <div className="sprix-agent-ability-section">
+              <AgentAbilityProfile
+                agent={agent}
+                embedded
+                showScore={false}
+                resultPresentation
+                compactDetails
+                dimensionInteraction={dimensionInteraction}
+              />
+            </div>
+          </>
+        )
       ) : (
         <div className="sprix-current-agent-empty rounded-2xl border border-dashed border-line p-7 text-center">
           <Bot className="mx-auto text-ink-soft" />

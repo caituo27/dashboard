@@ -25,6 +25,8 @@ type AgentAbilityProfileProps = {
   embedded?: boolean;
   showScore?: boolean;
   resultPresentation?: boolean;
+  agentCenterPresentation?: boolean;
+  onboardingResultPresentation?: boolean;
   compactDetails?: boolean;
   dimensionInteraction?: AbilityDimensionInteraction;
 };
@@ -76,6 +78,215 @@ function HoverCopy({ text, className, enabled }: HoverCopyProps) {
 }
 
 type EvaluationDimension = ReturnType<typeof evaluationDimensions>[number];
+
+function getScorePerformanceLabel(score: number) {
+  if (score >= 90) return "表现卓越";
+  if (score >= 75) return "表现优秀";
+  if (score >= 60) return "表现良好";
+  return "持续提升";
+}
+
+type AgentCenterAbilityResultProps = {
+  agent: Agent;
+  result: AgentEvaluation["result"];
+  dimensions: EvaluationDimension[];
+  evaluationStatusLabel: string;
+};
+
+function AgentCenterAbilityResult({
+  agent,
+  result,
+  dimensions,
+  evaluationStatusLabel
+}: AgentCenterAbilityResultProps) {
+  const score = result.overallScore ?? 0;
+
+  return (
+    <div className="sprix-agent-center-result">
+      <span className="sprix-agent-center-result-status">
+        <UserRoundCheck size={14} strokeWidth={1.8} aria-hidden="true" />
+        {evaluationStatusLabel}
+      </span>
+
+      <div className="sprix-agent-center-result-overview">
+        <div className="sprix-agent-center-result-score-column">
+          <div className="sprix-agent-center-result-identity">
+            <span>当前执行 Agent</span>
+            <h3>{agent.name}</h3>
+          </div>
+          <div className="sprix-agent-center-score-progress" data-node-id="141:688">
+            <img
+              className="sprix-agent-center-score-clock-ring"
+              src="/agent-score-clock-ring.svg"
+              alt=""
+              aria-hidden="true"
+            />
+            <Progress
+              type="circle"
+              percent={score}
+              size={180}
+              strokeWidth={5}
+              strokeColor="#2baa96"
+              trailColor="#f0f2f5"
+              format={() => (
+                <span className="sprix-agent-center-score-content">
+                  <strong>{score}</strong>
+                  <span>综合评分</span>
+                  <em>{getScorePerformanceLabel(score)}</em>
+                </span>
+              )}
+            />
+          </div>
+        </div>
+
+        <div className="sprix-agent-center-result-dimensions">
+          {dimensions.map((dimension) => (
+            <article key={dimension.key} className="sprix-agent-center-result-dimension">
+              <div className="sprix-agent-center-result-dimension-heading">
+                <h4>{dimension.label}</h4>
+                <strong>{dimension.score}</strong>
+              </div>
+              <div className="sprix-agent-center-result-progress" aria-hidden="true">
+                <span style={{ width: `${dimension.score}%` }} />
+              </div>
+              {dimension.comment && <p>{dimension.comment}</p>}
+            </article>
+          ))}
+        </div>
+      </div>
+
+      {result.summary && (
+        <section className="sprix-agent-center-result-summary">
+          <h4>综合评估</h4>
+          <p>{result.summary}</p>
+        </section>
+      )}
+
+      {result.improvements.length > 0 && (
+        <section className="sprix-agent-center-result-suggestions">
+          <h4>优化建议</h4>
+          <ol>
+            {result.improvements.map((item, index) => (
+              <li key={`${index}-${item}`}>
+                <span>{index + 1}</span>
+                <p>{item}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+    </div>
+  );
+}
+
+type OnboardingAbilityResultProps = AgentCenterAbilityResultProps;
+
+function OnboardingAbilityResult({
+  agent,
+  result,
+  dimensions,
+  evaluationStatusLabel
+}: OnboardingAbilityResultProps) {
+  const score = result.overallScore ?? 0;
+  const careerRoleName = result.careerProfile?.roleName?.trim();
+  const summary = getAgentAdmissionSummary(agent);
+
+  return (
+    <div className="sprix-onboarding-result">
+      <header className="sprix-onboarding-result-head">
+        <span>当前执行 Agent</span>
+        <h2>{agent.name}</h2>
+        {agent.tags.length > 0 && (
+          <div className="sprix-agent-ability-result-tags">
+            {agent.tags.map((tag) => (
+              <span key={tag} className="sprix-agent-ability-result-tag">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </header>
+
+      {careerRoleName && (
+        <section className="sprix-onboarding-result-career">
+          <div>
+            <span>职位定位：</span>
+            <strong>{careerRoleName}</strong>
+          </div>
+          {result.summary && <p>{result.summary}</p>}
+        </section>
+      )}
+
+      <section className="sprix-onboarding-result-ability">
+        <div className="sprix-onboarding-result-section-head">
+          <div>
+            <h3>能力画像</h3>
+            <p>最近评测：{summary.lastEvaluatedAt}</p>
+          </div>
+          <span className="sprix-agent-center-result-status">
+            <UserRoundCheck size={14} strokeWidth={1.8} aria-hidden="true" />
+            {evaluationStatusLabel}
+          </span>
+        </div>
+
+        <div className="sprix-onboarding-result-overview">
+          <div className="sprix-agent-center-score-progress" data-node-id="141:688">
+            <img
+              className="sprix-agent-center-score-clock-ring"
+              src="/agent-score-clock-ring.svg"
+              alt=""
+              aria-hidden="true"
+            />
+            <Progress
+              type="circle"
+              percent={score}
+              size={180}
+              strokeWidth={5}
+              strokeColor="#2baa96"
+              trailColor="#f0f2f5"
+              format={() => (
+                <span className="sprix-agent-center-score-content">
+                  <strong>{score}</strong>
+                  <span>综合评分</span>
+                  <em>{getScorePerformanceLabel(score)}</em>
+                </span>
+              )}
+            />
+          </div>
+
+          <div className="sprix-agent-center-result-dimensions">
+            {dimensions.map((dimension) => (
+              <article key={dimension.key} className="sprix-agent-center-result-dimension">
+                <div className="sprix-agent-center-result-dimension-heading">
+                  <h4>{dimension.label}</h4>
+                  <strong>{dimension.score}</strong>
+                </div>
+                <div className="sprix-agent-center-result-progress" aria-hidden="true">
+                  <span style={{ width: `${dimension.score}%` }} />
+                </div>
+                {dimension.comment && <p>{dimension.comment}</p>}
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {result.improvements.length > 0 && (
+        <section className="sprix-agent-center-result-suggestions sprix-onboarding-result-suggestions">
+          <h4>改进建议</h4>
+          <ol>
+            {result.improvements.map((item, index) => (
+              <li key={`${index}-${item}`}>
+                <span>{index + 1}</span>
+                <p>{item}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+    </div>
+  );
+}
 
 export type AbilityDimensionInteraction = {
   enabled: boolean;
@@ -225,6 +436,8 @@ export function AgentAbilityProfile({
   embedded = false,
   showScore = false,
   resultPresentation = false,
+  agentCenterPresentation = false,
+  onboardingResultPresentation = false,
   compactDetails = false,
   dimensionInteraction
 }: AgentAbilityProfileProps) {
@@ -239,6 +452,28 @@ export function AgentAbilityProfile({
   const careerRoleName = evaluationResult?.careerProfile?.roleName?.trim();
   const careerSummary = careerRoleName ? evaluationResult?.summary?.trim() : "";
   const isAbilityPending = !evaluationResult && hasPendingAgentEvaluation(agent);
+
+  if (agentCenterPresentation && agent && evaluationResult) {
+    return (
+      <AgentCenterAbilityResult
+        agent={agent}
+        result={evaluationResult}
+        dimensions={dimensions}
+        evaluationStatusLabel={evaluationStatusLabel}
+      />
+    );
+  }
+
+  if (onboardingResultPresentation && agent && evaluationResult) {
+    return (
+      <OnboardingAbilityResult
+        agent={agent}
+        result={evaluationResult}
+        dimensions={dimensions}
+        evaluationStatusLabel={evaluationStatusLabel}
+      />
+    );
+  }
 
   const content = (
     <>

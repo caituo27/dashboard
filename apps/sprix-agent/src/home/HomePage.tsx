@@ -352,7 +352,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
         centered
         open={abilityResultModalOpen}
         title={null}
-        width={960}
+        width={1100}
         className="sprix-agent-ability-result-modal"
         closable={false}
         maskClosable={false}
@@ -366,22 +366,12 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
         }
       >
         {abilityResultAgent && (
-          <div className="sprix-agent-ability-result">
-            <div className="sprix-agent-ability-result-head">
-              <span className="sprix-agent-current-label">当前执行 Agent</span>
-              <h2>{abilityResultAgent.name}</h2>
-              {abilityResultAgent.tags.length > 0 && (
-                <div className="sprix-agent-ability-result-tags">
-                  {abilityResultAgent.tags.map((tag) => (
-                    <span key={tag} className="sprix-agent-ability-result-tag">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-            <AgentAbilityProfile agent={abilityResultAgent} embedded resultPresentation />
-          </div>
+          <AgentAbilityProfile
+            agent={abilityResultAgent}
+            embedded
+            resultPresentation
+            onboardingResultPresentation
+          />
         )}
       </Modal>
     </main>
