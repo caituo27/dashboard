@@ -1,10 +1,12 @@
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type KeyboardEvent, type MouseEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Form, Input, Modal, Steps, Tabs, message } from "antd";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Bot,
   CheckCircle2,
+  CircleDollarSign,
+  CircleDot,
   ChevronLeft,
   Download,
   FileText,
@@ -322,21 +324,24 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
     <>
       <PageHeader
         title="可接取任务"
-        subtitle="浏览当前可接取的任务，选择适合你的 Agent 执行的工作，并持续跟踪执行进度与收益。"
-        actions={SMART_ACCEPT_VISIBLE ? (
-          <ActionButton icon={<PlugZap size={16} />} onClick={openSmartAcceptModal}>
-            {smartAcceptEnabled ? "智能接单已开启" : "智能接单"}
-          </ActionButton>
-        ) : undefined}
       />
-      <div className="mb-5 grid gap-4 md:grid-cols-3">
-        <MetricCard title="已发布任务" value="3W+" icon={<img className="size-[92px] object-contain" src="/task-metric-published.svg" alt="" aria-hidden="true" />} />
-        <MetricCard title="当前执行 Agent" value={currentAgentDisplayName(currentAgent?.name)} icon={<img className="size-[92px] object-contain" src="/task-metric-agent.svg" alt="" aria-hidden="true" />} />
-        <MetricCard
-          title="我的任务"
-          value={myTasks.length || "-"}
-          icon={<img className="size-[92px] object-contain" src="/task-metric-tasks.svg" alt="" aria-hidden="true" />}
-        />
+      <div className="sprix-task-market-stats">
+        {SMART_ACCEPT_VISIBLE && (
+          <div className="sprix-task-market-smart-accept-row">
+            <ActionButton icon={<PlugZap size={16} />} onClick={openSmartAcceptModal}>
+              {smartAcceptEnabled ? "智能接单已开启" : "智能接单"}
+            </ActionButton>
+          </div>
+        )}
+        <div className="mb-5 grid gap-4 md:grid-cols-3">
+          <MetricCard title="已发布任务" value="3W+" icon={<img className="size-[92px] object-contain" src="/task-metric-published.svg" alt="" aria-hidden="true" />} />
+          <MetricCard title="当前执行 Agent" value={currentAgentDisplayName(currentAgent?.name)} icon={<img className="size-[92px] object-contain" src="/task-metric-agent.svg" alt="" aria-hidden="true" />} />
+          <MetricCard
+            title="我的任务"
+            value={myTasks.length || "-"}
+            icon={<img className="size-[92px] object-contain" src="/task-metric-tasks.svg" alt="" aria-hidden="true" />}
+          />
+        </div>
       </div>
       <div className="sprix-grid-auto">
         {visibleTasks.map((task) => (
@@ -442,9 +447,28 @@ function SmartAcceptModal({
 }
 
 function TaskCard({ task, onAccept, onOpenDetail }: { task: Task; onAccept: () => void; onOpenDetail: () => void }) {
+  const navigate = useNavigate();
   const estimatedToken = getEstimatedTokenField(task.estimatedTokens);
+  const openTaskDetail = (event: MouseEvent<HTMLElement>) => {
+    if (event.target instanceof Element && event.target.closest("button")) return;
+    onOpenDetail();
+    navigate(`/agent/task/${task.id}`);
+  };
+  const handleTaskCardKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.target instanceof Element && event.target.closest("button")) return;
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    onOpenDetail();
+    navigate(`/agent/task/${task.id}`);
+  };
   return (
-    <Surface className="flex min-h-[332px] flex-col p-5">
+    <Surface
+      className="sprix-task-market-card flex min-h-[280px] flex-col p-5"
+      onClick={openTaskDetail}
+      onKeyDown={handleTaskCardKeyDown}
+      role="link"
+      tabIndex={0}
+    >
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <SoftTag tone="neutral" bordered={false} className="sprix-task-market-category-tag m-0 px-2.5 py-0.5">
           {task.category}
@@ -455,22 +479,24 @@ function TaskCard({ task, onAccept, onOpenDetail }: { task: Task; onAccept: () =
           </SoftTag>
         )}
       </div>
-      <Link to={`/agent/task/${task.id}`} className="text-xl font-semibold leading-7 text-ink no-underline hover:text-accent" onClick={onOpenDetail}>
+      <div className="sprix-task-market-title text-xl font-semibold leading-7 text-ink" title={task.title}>
         {task.title}
-      </Link>
-      <p className="mt-3 flex-1 text-sm leading-7 text-ink-soft">{compactText(task.cardSummary, 104)}</p>
-      {task.recommendedReason && <p className="mt-3 rounded-lg bg-[#fafafa] p-3 text-sm leading-6 text-ink-soft">{task.recommendedReason}</p>}
-      <div className="mt-4 grid gap-2 text-sm text-ink-soft">
-        <span>奖励：<b className="text-ink">{currency(task.reward)}</b></span>
-        <span>剩余名额：{task.remainingSlots}/{task.totalSlots}</span>
-        <span>{estimatedToken.label}：{estimatedToken.value}</span>
-        <span>来源：{task.sourceName}</span>
       </div>
-      <div className="mt-5 flex gap-2">
-        <ActionButton onClick={onAccept}>接单</ActionButton>
-        <Link to={`/agent/task/${task.id}`} className="no-underline" onClick={onOpenDetail}>
-          <SecondaryButton>查看详情</SecondaryButton>
-        </Link>
+      <p
+        className="sprix-task-market-summary mt-3 flex-1 text-sm leading-7 text-ink-soft"
+        title={task.recommendedReason ? `${task.cardSummary}\n\n推荐理由：${task.recommendedReason}` : task.cardSummary}
+      >
+        {compactText(task.cardSummary, 104)}
+      </p>
+      <div className="sprix-task-market-card-footer">
+        <div className="grid gap-2 text-sm text-ink-soft">
+          <span>奖励：<b className="text-ink">{currency(task.reward)}</b></span>
+          <span>剩余名额：{task.remainingSlots}/{task.totalSlots}</span>
+          <span>{estimatedToken.label}：{estimatedToken.value}</span>
+        </div>
+        <div className="sprix-task-market-card-actions">
+          <ActionButton onClick={(event) => { event.stopPropagation(); onAccept(); }}>接单</ActionButton>
+        </div>
       </div>
     </Surface>
   );
@@ -599,27 +625,28 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
     <div className="sprix-task-detail-page">
       <div className="sprix-task-detail-shell">
         <div className="sprix-detail-back-row">
-          <SecondaryButton onClick={handleBackToTaskList} icon={<ChevronLeft size={16} />}>
+          <button type="button" className="sprix-detail-back-button" onClick={handleBackToTaskList}>
+            <ChevronLeft size={18} />
             返回任务列表
-          </SecondaryButton>
+          </button>
         </div>
 
         <header className="sprix-task-detail-hero">
           <h1 className="sprix-task-detail-title">{task.title}</h1>
           <div className="sprix-task-detail-meta">
-            <span>{task.category}</span>
-            <span>奖励 <b>{currency(task.reward)}</b></span>
-            <span className="is-success">剩余名额 {task.remainingSlots}/{task.totalSlots}</span>
-            <span>{estimatedToken.label}: {estimatedToken.value}</span>
+            <Metric icon={<CircleDollarSign size={24} />} label="奖励" value={currency(task.reward)} />
+            <Metric icon={<UsersRound size={24} />} label="剩余名额" value={`${task.remainingSlots}/${task.totalSlots}`} />
+            <Metric icon={<CircleDot size={24} />} label={estimatedToken.label} value={estimatedToken.value} />
+            <Metric icon={<CheckCircle2 size={24} />} label="匹配度" value={task.agentMatchScore > 0 ? `${task.agentMatchScore}%` : "-"} accent />
           </div>
         </header>
 
         <div className="sprix-task-detail-layout">
           <main className="sprix-task-detail-main">
-            <InfoBlock icon={<FileText size={18} />} title="详细任务描述" body={task.description} />
+            <InfoBlock icon={<FileText size={18} />} title="任务说明" body={task.description} />
             <InfoBlock icon={<ListChecks size={18} />} title="交付标准" body={task.deliverables} />
             <InfoBlock icon={<CheckCircle2 size={18} />} title="验收标准" body={task.acceptanceCriteria} />
-            <Surface className="sprix-task-info-card">
+            <div className="sprix-task-info-card sprix-task-attachments">
               <h3>
                 <span><Paperclip size={18} /></span>
                 任务附件
@@ -633,12 +660,12 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
                   {taskAttachmentsQuery.data.map((attachment) => {
                     const previewable = attachment.mimeType.startsWith("image/");
                     return (
-                      <div key={attachment.attachmentId} className="flex flex-col gap-3 rounded-xl border border-line bg-[#fafafa] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div key={attachment.attachmentId} className="sprix-task-attachment-row">
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold text-ink" title={attachment.filename}>{attachment.filename}</div>
-                          <div className="mt-1 text-xs text-ink-soft">{attachment.mimeType || "未知类型"} · {formatTaskAttachmentSize(attachment.sizeBytes)}</div>
+                          <div className="sprix-task-attachment-name truncate" title={attachment.filename}>{attachment.filename}</div>
+                          <div className="sprix-task-attachment-meta">{attachment.mimeType || "未知类型"} · {formatTaskAttachmentSize(attachment.sizeBytes)}</div>
                         </div>
-                        <div className="flex shrink-0 gap-2">
+                        <div className="sprix-task-attachment-actions">
                           {previewable && <SecondaryButton onClick={() => void previewAttachment(attachment)}>预览</SecondaryButton>}
                           <SecondaryButton icon={<Download size={15} />} onClick={() => void downloadAttachment(attachment)}>下载</SecondaryButton>
                         </div>
@@ -649,29 +676,25 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
               ) : (
                 <p className="sprix-detail-prose">暂无任务附件</p>
               )}
-            </Surface>
+            </div>
           </main>
 
           <aside className="sprix-task-detail-aside">
-            <Surface className="sprix-task-side-card">
-              <h3>匹配信息</h3>
-              <div className="sprix-task-side-score">
+            <Surface className="sprix-task-side-card sprix-task-side-panel">
+              <div className="sprix-task-side-score sprix-task-side-item">
+                <CircleDot size={22} />
                 <span>系统评估匹配度</span>
                 <b>{task.agentMatchScore > 0 ? `${task.agentMatchScore}%` : "-"}</b>
               </div>
               <div className="sprix-task-side-divider" />
-              <h3 className="is-muted">来源信息</h3>
-              <InfoRow label="来源平台" value={task.sourceName} />
-              <InfoRow label="任务类型" value={task.category} />
-            </Surface>
-
-            <Surface className="sprix-task-side-card">
-              <h3>执行与接单</h3>
-              <div className="sprix-task-agent-row is-current-agent">
+              <div className="sprix-task-side-section">
+              <div className="sprix-task-agent-row is-current-agent sprix-task-side-item">
+                <UsersRound size={22} />
                 <span>当前 Agent</span>
                 <b>{currentAgent?.name ?? "未设置"}</b>
               </div>
-              <div className="sprix-task-agent-row">
+              <div className="sprix-task-agent-row sprix-task-side-item">
+                <PlugZap size={22} />
                 <span>连接状态</span>
                 <b className={currentAgent ? "is-online" : "is-offline"}>
                   <span />
@@ -682,6 +705,7 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
                 确认接单
               </ActionButton>
               <p className="sprix-task-accept-note">接单后将立即进入执行队列</p>
+              </div>
             </Surface>
           </aside>
         </div>
@@ -692,22 +716,25 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
 
 function InfoBlock({ icon, title, body }: { icon: ReactNode; title: string; body: string }) {
   return (
-    <Surface className="sprix-task-info-card">
+    <section className="sprix-task-info-card">
       <h3>
         <span>{icon}</span>
         {title}
       </h3>
       <p className="sprix-detail-prose">{body}</p>
-    </Surface>
+    </section>
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function Metric({ icon, label, value, accent = false }: { icon: ReactNode; label: string; value: string; accent?: boolean }) {
   return (
-    <div className="sprix-task-info-row">
-      <span>{label}</span>
-      <b>{value}</b>
-    </div>
+    <span className={`sprix-task-detail-metric${accent ? " is-accent" : ""}`}>
+      {icon}
+      <span>
+        <small>{label}</small>
+        <b>{value}</b>
+      </span>
+    </span>
   );
 }
 
@@ -1245,7 +1272,7 @@ export function MyTasksPage({ openLogin, openAppeal }: UserPageProps) {
 
   return (
     <>
-      <PageHeader title="我的任务" subtitle="查看任务执行、验收、申诉和结算状态。" />
+      <PageHeader title="我的任务" />
       <Surface className="p-5">
         <Tabs
           activeKey={tab}
@@ -1390,7 +1417,7 @@ export function EarningsPage({ openLogin, openBindAlipay }: UserPageProps) {
   const accountWarning = getPayoutAccountWarning(account);
   return (
     <>
-      <PageHeader title="打款记录" subtitle={getPayoutPageSubtitle()} />
+      <PageHeader title="打款记录" />
       <Surface className="mb-5 p-6">
         <div className="sprix-payout-summary">
           <div className="sprix-payout-summary-copy">
@@ -1627,7 +1654,6 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
     <>
       <PageHeader
         title="开通接单资格"
-        subtitle="首次接单前需完成支付宝人脸核验，并同意《自由职业者服务框架协议》。"
       />
       <Surface className="mb-5 p-6">
         <Steps className="sprix-qualification-steps" current={step} items={["支付宝人脸核验", "同意服务协议", "开通成功"].map((title) => ({ title }))} />
