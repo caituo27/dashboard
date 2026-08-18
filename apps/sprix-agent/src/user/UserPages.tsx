@@ -48,7 +48,10 @@ import { isApiRequestError, isGlobalAuthError } from "../utils/http";
 import { freelancerAgreementDocument } from "../content/agreementDocuments";
 import { getLocalAgentEmptyMessage } from "../home/localAgentInventory";
 import { QrPayloadBox } from "../components/QrSession";
-import { AgentAbilityProfile, EvaluationRadar } from "./AgentAbilityProfile";
+import {
+  AgentAbilityProfile,
+  useAbilityDimensionInteraction
+} from "./AgentAbilityProfile";
 import { getAgentAdmissionSummary, getAgentEvaluationStatusLabel, getAgentTagLabels } from "./agentResult";
 import {
   getPayoutAccountActionLabel,
@@ -1038,7 +1041,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   };
 
   return (
-    <>
+    <div className="sprix-agent-center-page">
       <PageHeader
         title="Agent 中心"
       />
@@ -1102,7 +1105,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         }}
       />
       <AgentEvaluationProgressModal open={evaluationModalOpen} agent={evaluationAgent} evaluation={evaluation} loading={evaluationLoading} error={evaluationError} onClose={closeEvaluation} />
-    </>
+    </div>
   );
 }
 
@@ -1127,6 +1130,7 @@ function CurrentAgentCard({ agent }: { agent?: Agent }) {
   const summary = agent ? getAgentAdmissionSummary(agent) : undefined;
   const tagLabels = summary ? getAgentTagLabels(summary.tags) : [];
   const evaluationResult = agent?.evaluation?.result?.status === "completed" ? agent.evaluation.result : undefined;
+  const dimensionInteraction = useAbilityDimensionInteraction(Boolean(evaluationResult));
   return (
     <Surface className="sprix-current-agent-card sprix-agent-profile-card p-6">
       {summary ? (
@@ -1138,25 +1142,25 @@ function CurrentAgentCard({ agent }: { agent?: Agent }) {
                 <div className="flex flex-wrap items-center gap-2">
                   <h4 className="text-2xl font-semibold">{summary.title}</h4>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="sprix-agent-current-tags flex flex-wrap gap-2">
                   {tagLabels.map((tag) => (
                     <span key={tag} className="sprix-agent-ability-result-tag">
                       {tag}
                     </span>
                   ))}
                 </div>
-                {evaluationResult && (
-                  <div className="sprix-agent-score-panel">
-                    <strong>{evaluationResult.overallScore ?? "-"}</strong>
-                    <span>综合评分</span>
-                    <EvaluationRadar result={evaluationResult} />
-                  </div>
-                )}
               </div>
             </div>
           </div>
           <div className="sprix-agent-ability-section">
-            <AgentAbilityProfile agent={agent} embedded showScore={false} resultPresentation />
+            <AgentAbilityProfile
+              agent={agent}
+              embedded
+              showScore={false}
+              resultPresentation
+              compactDetails
+              dimensionInteraction={dimensionInteraction}
+            />
           </div>
         </>
       ) : (

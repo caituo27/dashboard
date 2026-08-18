@@ -6,3 +6,4 @@ apps/*/dist/
 *.log
 .DS_Store
 .codegraph/
+.agents/

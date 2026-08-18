@@ -1,5 +1,6 @@
+import { useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Progress } from "antd";
-import { BrainCircuit, UserRoundCheck } from "lucide-react";
+import { BrainCircuit, Info, UserRoundCheck } from "lucide-react";
 import type { Agent, AgentEvaluation } from "../types";
 import { SoftTag, StatusTag, Surface } from "../components/Primitives";
 import {
@@ -24,38 +25,169 @@ type AgentAbilityProfileProps = {
   embedded?: boolean;
   showScore?: boolean;
   resultPresentation?: boolean;
+  compactDetails?: boolean;
+  dimensionInteraction?: AbilityDimensionInteraction;
 };
 
-export function EvaluationRadar({ result }: { result: AgentEvaluation["result"] }) {
+type HoverCopyProps = {
+  text: string;
+  className: string;
+  enabled: boolean;
+};
+
+function HoverCopy({ text, className, enabled }: HoverCopyProps) {
+  const detailId = useId();
+  const contentRef = useRef<HTMLParagraphElement>(null);
+  const [overflowing, setOverflowing] = useState(false);
+
+  useLayoutEffect(() => {
+    if (!enabled) return;
+    const content = contentRef.current;
+    if (!content) return;
+
+    const measureOverflow = () => {
+      setOverflowing(content.scrollHeight > content.clientHeight + 1);
+    };
+
+    measureOverflow();
+    const observer = new ResizeObserver(measureOverflow);
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, [enabled, text]);
+
+  if (!enabled) return <p className={className}>{text}</p>;
+
+  return (
+    <div
+      className={`sprix-hover-copy ${overflowing ? "has-overflow" : ""}`}
+      tabIndex={overflowing ? 0 : undefined}
+      aria-describedby={overflowing ? detailId : undefined}
+    >
+      <p ref={contentRef} className={className}>
+        {text}
+      </p>
+      {overflowing && (
+        <div id={detailId} className="sprix-hover-copy-detail" role="tooltip">
+          {text}
+        </div>
+      )}
+    </div>
+  );
+}
+
+type EvaluationDimension = ReturnType<typeof evaluationDimensions>[number];
+
+export type AbilityDimensionInteraction = {
+  enabled: boolean;
+  activeDimensionKey: string | null;
+  setHoveredDimensionKey: (dimensionKey: string | null) => void;
+  clearSelection: () => void;
+};
+
+export function useAbilityDimensionInteraction(enabled: boolean): AbilityDimensionInteraction {
+  const [hoveredDimensionKey, setHoveredDimensionKey] = useState<string | null>(null);
+
+  return {
+    enabled,
+    activeDimensionKey: enabled ? hoveredDimensionKey : null,
+    setHoveredDimensionKey: (dimensionKey) => {
+      setHoveredDimensionKey(enabled ? dimensionKey : null);
+    },
+    clearSelection: () => {
+      setHoveredDimensionKey(null);
+    }
+  };
+}
+
+type EvaluationRadarProps = {
+  result: AgentEvaluation["result"];
+  interaction?: AbilityDimensionInteraction;
+};
+
+export function EvaluationRadar({ result, interaction }: EvaluationRadarProps) {
   const dimensions = evaluationDimensions(result);
   const size = 220;
   const center = size / 2;
   const radius = 76;
   const rings = [20, 40, 60, 80, 100];
+  const interactive = interaction?.enabled ?? false;
   const pointFor = (index: number, value: number) => {
     const angle = -Math.PI / 2 + (Math.PI * 2 * index) / dimensions.length;
     const nextRadius = radius * (value / 100);
-    return `${center + Math.cos(angle) * nextRadius},${center + Math.sin(angle) * nextRadius}`;
+    return {
+      x: center + Math.cos(angle) * nextRadius,
+      y: center + Math.sin(angle) * nextRadius
+    };
   };
-  const polygon = dimensions.map((item, index) => pointFor(index, item.score)).join(" ");
+  const pointsForValue = (value: number) =>
+    dimensions
+      .map((_, index) => {
+        const point = pointFor(index, value);
+        return `${point.x},${point.y}`;
+      })
+      .join(" ");
+  const polygon = dimensions
+    .map((item, index) => {
+      const point = pointFor(index, item.score);
+      return `${point.x},${point.y}`;
+    })
+    .join(" ");
+
+  const handleDimensionKeyDown = (event: KeyboardEvent<SVGGElement>) => {
+    if (!interactive || event.key !== "Escape") return;
+    event.preventDefault();
+    interaction?.clearSelection();
+  };
 
   return (
-    <svg className="sprix-evaluation-radar" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="六维能力雷达图">
+    <svg
+      className={`sprix-evaluation-radar ${interactive ? "is-interactive" : ""}`}
+      viewBox={`0 0 ${size} ${size}`}
+      role="group"
+      aria-label="六维能力雷达图，可悬停能力维度查看详情"
+    >
       {rings.map((ring) => (
         <polygon
           key={ring}
-          points={dimensions.map((_, index) => pointFor(index, ring)).join(" ")}
+          points={pointsForValue(ring)}
           className="sprix-evaluation-radar-ring"
         />
       ))}
       {dimensions.map((item, index) => {
         const axisEnd = pointFor(index, 100);
-        const [x, y] = axisEnd.split(",").map(Number);
-        const labelX = center + (x - center) * 1.18;
-        const labelY = center + (y - center) * 1.18;
+        const labelX = center + (axisEnd.x - center) * 1.18;
+        const labelY = center + (axisEnd.y - center) * 1.18;
+        const hitStartX = center + (axisEnd.x - center) * 0.36;
+        const hitStartY = center + (axisEnd.y - center) * 0.36;
+        const active = interaction?.activeDimensionKey === item.key;
         return (
-          <g key={item.key}>
-            <line x1={center} y1={center} x2={x} y2={y} className="sprix-evaluation-radar-axis" />
+          <g
+            key={item.key}
+            className={`sprix-evaluation-radar-dimension ${active ? "is-active" : ""}`}
+            tabIndex={interactive ? 0 : undefined}
+            aria-label={interactive ? `${item.label} ${item.score} 分` : undefined}
+            onMouseEnter={() => interaction?.setHoveredDimensionKey(item.key)}
+            onMouseLeave={() => interaction?.setHoveredDimensionKey(null)}
+            onFocus={() => interaction?.setHoveredDimensionKey(item.key)}
+            onBlur={() => interaction?.setHoveredDimensionKey(null)}
+            onKeyDown={handleDimensionKeyDown}
+          >
+            <line
+              x1={center}
+              y1={center}
+              x2={axisEnd.x}
+              y2={axisEnd.y}
+              className="sprix-evaluation-radar-axis"
+            />
+            {interactive && (
+              <line
+                x1={hitStartX}
+                y1={hitStartY}
+                x2={labelX}
+                y2={labelY}
+                className="sprix-evaluation-radar-hit-area"
+              />
+            )}
             <text x={labelX} y={labelY} textAnchor="middle" dominantBaseline="middle" className="sprix-evaluation-radar-label">
               {item.label}
             </text>
@@ -65,9 +197,25 @@ export function EvaluationRadar({ result }: { result: AgentEvaluation["result"] 
       <polygon points={polygon} className="sprix-evaluation-radar-area" />
       <polyline points={`${polygon} ${polygon.split(" ")[0]}`} className="sprix-evaluation-radar-line" />
       {dimensions.map((item, index) => {
-        const [x, y] = pointFor(index, item.score).split(",").map(Number);
-        return <circle key={item.key} cx={x} cy={y} r="3.8" className="sprix-evaluation-radar-dot" />;
+        const point = pointFor(index, item.score);
+        const active = interaction?.activeDimensionKey === item.key;
+        return (
+          <circle
+            key={item.key}
+            cx={point.x}
+            cy={point.y}
+            r={active ? 5.2 : 3.8}
+            className={`sprix-evaluation-radar-dot ${active ? "is-active" : ""}`}
+          />
+        );
       })}
+      <circle cx={center} cy={center} r="24" className="sprix-evaluation-radar-score-backdrop" />
+      <text x={center} y={center - 2} textAnchor="middle" className="sprix-evaluation-radar-score">
+        {result.overallScore ?? "-"}
+      </text>
+      <text x={center} y={center + 12} textAnchor="middle" className="sprix-evaluation-radar-score-label">
+        综合评分
+      </text>
     </svg>
   );
 }
@@ -75,9 +223,14 @@ export function EvaluationRadar({ result }: { result: AgentEvaluation["result"] 
 export function AgentAbilityProfile({
   agent,
   embedded = false,
-  showScore = true,
-  resultPresentation = false
+  showScore = false,
+  resultPresentation = false,
+  compactDetails = false,
+  dimensionInteraction
 }: AgentAbilityProfileProps) {
+  const contentId = useId();
+  const localDimensionInteraction = useAbilityDimensionInteraction(compactDetails);
+  const resolvedDimensionInteraction = dimensionInteraction ?? localDimensionInteraction;
   const ability = getAgentAbilityResult(agent);
   const summary = agent ? getAgentAdmissionSummary(agent) : undefined;
   const evaluationResult = agent?.evaluation?.result?.status === "completed" ? agent.evaluation.result : undefined;
@@ -86,6 +239,7 @@ export function AgentAbilityProfile({
   const careerRoleName = evaluationResult?.careerProfile?.roleName?.trim();
   const careerSummary = careerRoleName ? evaluationResult?.summary?.trim() : "";
   const isAbilityPending = !evaluationResult && hasPendingAgentEvaluation(agent);
+
   const content = (
     <>
       {careerRoleName && (
@@ -94,7 +248,13 @@ export function AgentAbilityProfile({
             <span>职位定位：</span>
             <strong>{careerRoleName}</strong>
           </div>
-          {careerSummary && <p className="sprix-ability-career-summary">{careerSummary}</p>}
+          {careerSummary && (
+            <HoverCopy
+              text={careerSummary}
+              className="sprix-ability-career-summary"
+              enabled={compactDetails}
+            />
+          )}
         </div>
       )}
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -114,25 +274,50 @@ export function AgentAbilityProfile({
         <div className={`sprix-ability-profile mt-5 ${showScore ? "" : "is-bars-only"}`}>
           {showScore && (
             <div className="sprix-ability-score">
-              <strong>{evaluationResult.overallScore ?? "-"}</strong>
-              <span>综合评分</span>
-              <EvaluationRadar result={evaluationResult} />
+              <EvaluationRadar
+                result={evaluationResult}
+                interaction={resolvedDimensionInteraction}
+              />
             </div>
           )}
           <div className="sprix-ability-detail">
             <div className="sprix-ability-bars">
-              {dimensions.map((dimension, index) => (
-                <div key={dimension.key} className="sprix-ability-dimension">
-                  <div className="sprix-ability-dimension-row">
-                    <span>{dimension.label}</span>
-                    <div>
-                      <span style={{ width: `${dimension.score}%`, transitionDelay: `${index * 60}ms` }} />
+              {dimensions.map((dimension, index) => {
+                const detailId = `${contentId}-${dimension.key}-detail`;
+                const detailOpen = resolvedDimensionInteraction.activeDimensionKey === dimension.key;
+                return (
+                  <div key={dimension.key} className={`sprix-ability-dimension ${detailOpen ? "is-detail-open" : ""}`}>
+                    <div
+                      className="sprix-ability-dimension-row"
+                      aria-describedby={dimension.comment ? detailId : undefined}
+                      tabIndex={dimension.comment && compactDetails ? 0 : undefined}
+                      onMouseEnter={() => resolvedDimensionInteraction.setHoveredDimensionKey(dimension.key)}
+                      onMouseLeave={() => resolvedDimensionInteraction.setHoveredDimensionKey(null)}
+                      onFocus={() => resolvedDimensionInteraction.setHoveredDimensionKey(dimension.key)}
+                      onBlur={() => resolvedDimensionInteraction.setHoveredDimensionKey(null)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape") resolvedDimensionInteraction.clearSelection();
+                      }}
+                    >
+                      <span>{dimension.label}</span>
+                      <div>
+                        <span style={{ width: `${dimension.score}%`, transitionDelay: `${index * 60}ms` }} />
+                      </div>
+                      <strong>{dimension.score}</strong>
+                      {dimension.comment && compactDetails && (
+                        <Info className="sprix-ability-dimension-info" size={14} aria-hidden="true" />
+                      )}
                     </div>
-                    <strong>{dimension.score}</strong>
+                    {dimension.comment && !compactDetails && <p className="sprix-ability-dimension-copy">{dimension.comment}</p>}
+                    {dimension.comment && compactDetails && (
+                      <div id={detailId} className="sprix-ability-dimension-detail" role="tooltip">
+                        <strong>{dimension.label}</strong>
+                        <p>{dimension.comment}</p>
+                      </div>
+                    )}
                   </div>
-                  {dimension.comment && <p>{dimension.comment}</p>}
-                </div>
-              ))}
+                );
+              })}
             </div>
             {evaluationResult.summary && !careerRoleName && <p className="sprix-ability-summary">{evaluationResult.summary}</p>}
             {!resultPresentation && evaluationResult.improvements.length > 0 && (
@@ -146,13 +331,23 @@ export function AgentAbilityProfile({
             )}
           </div>
           {resultPresentation && evaluationResult.improvements.length > 0 && (
-            <ul className="sprix-ability-result-improvements" aria-label="改进建议">
-              {evaluationResult.improvements.map((item, index) => (
-                <li key={`${index}-${item}`} className="sprix-ability-result-improvement">
-                  {item}
-                </li>
-              ))}
-            </ul>
+            <section className="sprix-ability-result-improvements" aria-labelledby={`${contentId}-improvements`}>
+              <div className="sprix-ability-improvements-heading">
+                <h4 id={`${contentId}-improvements`}>改进建议</h4>
+                <span>{evaluationResult.improvements.length} 条</span>
+              </div>
+              <ul>
+                {evaluationResult.improvements.map((item, index) => (
+                  <li key={`${index}-${item}`} className="sprix-ability-result-improvement">
+                    <HoverCopy
+                      text={item}
+                      className="sprix-ability-improvement-copy"
+                      enabled={compactDetails}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
         </div>
       ) : isAbilityPending ? (
