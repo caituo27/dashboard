@@ -2,7 +2,6 @@ import { useState } from "react";
 import { message } from "antd";
 import { Download } from "lucide-react";
 import type { ArtifactSnapshot } from "../apis/sprix";
-import { SecondaryButton } from "../components/Primitives";
 import { saveTaskArtifact } from "./artifactDownload";
 
 type ArtifactDownloadButtonProps = {
@@ -30,8 +29,8 @@ export function ArtifactDownloadButton({ executionId, artifact, fileId }: Artifa
   }
 
   return (
-    <SecondaryButton loading={downloading} disabled={downloading} icon={<Download size={15} />} onClick={() => void handleDownload()}>
-      下载
-    </SecondaryButton>
+    <button type="button" className="sprix-icon-action" disabled={downloading} aria-label="下载" title="下载" onClick={() => void handleDownload()}>
+      <Download size={16} />
+    </button>
   );
 }

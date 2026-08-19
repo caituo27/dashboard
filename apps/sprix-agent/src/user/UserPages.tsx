@@ -1,17 +1,19 @@
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type KeyboardEvent, type MouseEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Form, Input, Modal, Steps, Tabs, message } from "antd";
+import { InfoCircleOutlined, PieChartOutlined, TagsOutlined, ThunderboltOutlined, UserOutlined, WifiOutlined } from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Bot,
   CheckCircle2,
+  CircleDollarSign,
+  CircleDot,
   ChevronLeft,
   Download,
   FileText,
   ListChecks,
   Paperclip,
   PlugZap,
-  ShieldCheck,
   UsersRound
 } from "lucide-react";
 import type { FaceVerificationSession } from "../apis/sprix";
@@ -46,7 +48,10 @@ import { isApiRequestError, isGlobalAuthError } from "../utils/http";
 import { freelancerAgreementDocument } from "../content/agreementDocuments";
 import { getLocalAgentEmptyMessage } from "../home/localAgentInventory";
 import { QrPayloadBox } from "../components/QrSession";
-import { AgentAbilityProfile, EvaluationRadar } from "./AgentAbilityProfile";
+import {
+  AgentAbilityProfile,
+  useAbilityDimensionInteraction
+} from "./AgentAbilityProfile";
 import { getAgentAdmissionSummary, getAgentEvaluationStatusLabel, getAgentTagLabels } from "./agentResult";
 import {
   getPayoutAccountActionLabel,
@@ -82,6 +87,15 @@ function currentAgentDisplayName(name?: string) {
   return name?.replace(/\s+Agent$/i, "") || "-";
 }
 
+function getAgentIconSrc(name: string) {
+  const normalizedName = name.toLowerCase();
+  if (normalizedName.includes("claude")) return "/agent-icons/claude.png";
+  if (normalizedName.includes("hermes")) return "/agent-icons/hermes.png";
+  if (normalizedName.includes("opencode")) return "/agent-icons/opencode.png";
+  if (normalizedName.includes("codex")) return "/agent-icons/gpt.png";
+  return undefined;
+}
+
 type FaceVerificationFormValues = FaceVerificationIdentity;
 
 const FACE_VERIFICATION_POLL_INTERVAL_MS = 2_000;
@@ -96,7 +110,9 @@ const BUTTON_ICON_PATHS = {
   alipay: "/button-icons/alipay.png",
   currentAgent: "/button-icons/agent-current.png",
   switchAgent: "/button-icons/agent-switch.png",
-  evaluation: "/button-icons/evaluation.png"
+  evaluation: "/button-icons/evaluation.png",
+  evaluationProgress: "/button-icons/evaluation-progress.svg",
+  login: "/button-icons/login.svg"
 } as const;
 
 function ButtonIcon({ src }: { src: string }) {
@@ -322,21 +338,24 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
     <>
       <PageHeader
         title="可接取任务"
-        subtitle="浏览当前可接取的任务，选择适合你的 Agent 执行的工作，并持续跟踪执行进度与收益。"
-        actions={SMART_ACCEPT_VISIBLE ? (
-          <ActionButton icon={<PlugZap size={16} />} onClick={openSmartAcceptModal}>
-            {smartAcceptEnabled ? "智能接单已开启" : "智能接单"}
-          </ActionButton>
-        ) : undefined}
       />
-      <div className="mb-5 grid gap-4 md:grid-cols-3">
-        <MetricCard title="已发布任务" value="3W+" icon={<img className="size-[92px] object-contain" src="/task-metric-published.svg" alt="" aria-hidden="true" />} />
-        <MetricCard title="当前执行 Agent" value={currentAgentDisplayName(currentAgent?.name)} icon={<img className="size-[92px] object-contain" src="/task-metric-agent.svg" alt="" aria-hidden="true" />} />
-        <MetricCard
-          title="我的任务"
-          value={myTasks.length || "-"}
-          icon={<img className="size-[92px] object-contain" src="/task-metric-tasks.svg" alt="" aria-hidden="true" />}
-        />
+      <div className="sprix-task-market-stats">
+        {SMART_ACCEPT_VISIBLE && (
+          <div className="sprix-task-market-smart-accept-row">
+            <ActionButton icon={<PlugZap size={16} />} onClick={openSmartAcceptModal}>
+              {smartAcceptEnabled ? "智能接单已开启" : "智能接单"}
+            </ActionButton>
+          </div>
+        )}
+        <div className="mb-5 grid gap-4 md:grid-cols-3">
+          <MetricCard title="已发布任务" value="3W+" icon={<img className="size-[92px] object-contain" src="/task-metric-published.svg" alt="" aria-hidden="true" />} />
+          <MetricCard title="当前执行 Agent" value={currentAgentDisplayName(currentAgent?.name)} icon={<img className="size-[92px] object-contain" src="/task-metric-agent.svg" alt="" aria-hidden="true" />} />
+          <MetricCard
+            title="我的任务"
+            value={myTasks.length || "-"}
+            icon={<img className="size-[92px] object-contain" src="/task-metric-tasks.svg" alt="" aria-hidden="true" />}
+          />
+        </div>
       </div>
       <div className="sprix-grid-auto">
         {visibleTasks.map((task) => (
@@ -384,7 +403,7 @@ function SmartAcceptModal({
       title={enabled ? "智能接单已开启" : "开启智能接单"}
       open={open}
       onCancel={onCancel}
-      width={620}
+      width={540}
       className="sprix-smart-accept-modal"
       footer={
         enabled ? (
@@ -402,14 +421,17 @@ function SmartAcceptModal({
     >
       <div className="sprix-smart-accept-agent">
         <div className="sprix-smart-accept-agent-icon">
-          <Bot size={24} />
+          {getAgentIconSrc(agentName) ? (
+            <img src={getAgentIconSrc(agentName)} alt="" aria-hidden="true" />
+          ) : (
+            <Bot size={24} />
+          )}
         </div>
         <div className="sprix-smart-accept-agent-copy">
           <div className="sprix-smart-accept-agent-title">
             <strong>{agentName}</strong>
             <span>{enabled ? "智能接单中" : "已连接"}</span>
           </div>
-          <p>{enabled ? "系统会持续按当前执行 Agent 的能力画像匹配任务。" : "开启后将使用当前执行 Agent 自动判断可接取任务。"}</p>
         </div>
       </div>
       <div className="sprix-smart-accept-metrics">
@@ -426,25 +448,41 @@ function SmartAcceptModal({
           <strong>{enabled ? "已开启" : "待开启"}</strong>
         </div>
       </div>
-      <div className="sprix-smart-accept-copy">
-        <ShieldCheck size={18} />
-        <div>
-          <strong>{enabled ? "已开启智能接单" : "开启后自动接取高匹配任务"}</strong>
-          <p>
-            {enabled
-              ? "系统将持续根据任务与当前执行 Agent 的匹配度判断是否接单。"
-              : "当平台任务与当前执行 Agent 的匹配度达到 92% 及以上时，系统将自动为你接取该任务。"}
-          </p>
-        </div>
-      </div>
+      <p className="sprix-smart-accept-hint">
+        <InfoCircleOutlined aria-hidden="true" />
+        <span>
+          {enabled
+            ? "系统将持续根据任务与当前执行 Agent 的匹配度判断是否接单。"
+            : "开启后，当平台任务与当前执行 Agent 的匹配度达到 92% 及以上时，系统将自动为你接取该任务。"}
+        </span>
+      </p>
     </Modal>
   );
 }
 
 function TaskCard({ task, onAccept, onOpenDetail }: { task: Task; onAccept: () => void; onOpenDetail: () => void }) {
+  const navigate = useNavigate();
   const estimatedToken = getEstimatedTokenField(task.estimatedTokens);
+  const openTaskDetail = (event: MouseEvent<HTMLElement>) => {
+    if (event.target instanceof Element && event.target.closest("button")) return;
+    onOpenDetail();
+    navigate(`/agent/task/${task.id}`);
+  };
+  const handleTaskCardKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.target instanceof Element && event.target.closest("button")) return;
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    onOpenDetail();
+    navigate(`/agent/task/${task.id}`);
+  };
   return (
-    <Surface className="flex min-h-[332px] flex-col p-5">
+    <Surface
+      className="sprix-task-market-card flex min-h-[280px] flex-col p-5"
+      onClick={openTaskDetail}
+      onKeyDown={handleTaskCardKeyDown}
+      role="link"
+      tabIndex={0}
+    >
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <SoftTag tone="neutral" bordered={false} className="sprix-task-market-category-tag m-0 px-2.5 py-0.5">
           {task.category}
@@ -455,22 +493,24 @@ function TaskCard({ task, onAccept, onOpenDetail }: { task: Task; onAccept: () =
           </SoftTag>
         )}
       </div>
-      <Link to={`/agent/task/${task.id}`} className="text-xl font-semibold leading-7 text-ink no-underline hover:text-accent" onClick={onOpenDetail}>
+      <div className="sprix-task-market-title text-xl font-semibold leading-7 text-ink" title={task.title}>
         {task.title}
-      </Link>
-      <p className="mt-3 flex-1 text-sm leading-7 text-ink-soft">{compactText(task.cardSummary, 104)}</p>
-      {task.recommendedReason && <p className="mt-3 rounded-lg bg-[#fafafa] p-3 text-sm leading-6 text-ink-soft">{task.recommendedReason}</p>}
-      <div className="mt-4 grid gap-2 text-sm text-ink-soft">
-        <span>奖励：<b className="text-ink">{currency(task.reward)}</b></span>
-        <span>剩余名额：{task.remainingSlots}/{task.totalSlots}</span>
-        <span>{estimatedToken.label}：{estimatedToken.value}</span>
-        <span>来源：{task.sourceName}</span>
       </div>
-      <div className="mt-5 flex gap-2">
-        <ActionButton onClick={onAccept}>接单</ActionButton>
-        <Link to={`/agent/task/${task.id}`} className="no-underline" onClick={onOpenDetail}>
-          <SecondaryButton>查看详情</SecondaryButton>
-        </Link>
+      <p
+        className="sprix-task-market-summary mt-3 flex-1 text-sm leading-7 text-ink-soft"
+        title={task.recommendedReason ? `${task.cardSummary}\n\n推荐理由：${task.recommendedReason}` : task.cardSummary}
+      >
+        {compactText(task.cardSummary, 104)}
+      </p>
+      <div className="sprix-task-market-card-footer">
+        <div className="grid gap-2 text-sm text-ink-soft">
+          <span>奖励：<b className="text-ink">{currency(task.reward)}</b></span>
+          <span>剩余名额：{task.remainingSlots}/{task.totalSlots}</span>
+          <span>{estimatedToken.label}：{estimatedToken.value}</span>
+        </div>
+        <div className="sprix-task-market-card-actions">
+          <ActionButton onClick={(event) => { event.stopPropagation(); onAccept(); }}>接单</ActionButton>
+        </div>
       </div>
     </Surface>
   );
@@ -599,29 +639,32 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
     <div className="sprix-task-detail-page">
       <div className="sprix-task-detail-shell">
         <div className="sprix-detail-back-row">
-          <SecondaryButton onClick={handleBackToTaskList} icon={<ChevronLeft size={16} />}>
+          <button type="button" className="sprix-detail-back-button" onClick={handleBackToTaskList}>
+            <ChevronLeft size={18} />
             返回任务列表
-          </SecondaryButton>
+          </button>
         </div>
 
-        <header className="sprix-task-detail-hero">
-          <h1 className="sprix-task-detail-title">{task.title}</h1>
-          <div className="sprix-task-detail-meta">
-            <span>{task.category}</span>
-            <span>奖励 <b>{currency(task.reward)}</b></span>
-            <span className="is-success">剩余名额 {task.remainingSlots}/{task.totalSlots}</span>
-            <span>{estimatedToken.label}: {estimatedToken.value}</span>
-          </div>
+        <div className="sprix-task-detail-content">
+          <header className="sprix-task-detail-hero">
+            <h1 className="sprix-task-detail-title">{task.title}</h1>
+            <div className="sprix-task-detail-meta">
+              <Metric icon={<CircleDollarSign size={24} />} label="奖励" value={currency(task.reward)} />
+              <Metric icon={<UsersRound size={24} />} label="剩余名额" value={`${task.remainingSlots}/${task.totalSlots}`} />
+              <Metric icon={<ThunderboltOutlined />} label={estimatedToken.label} value={estimatedToken.value} />
+              <Metric icon={<TagsOutlined />} label="任务类别" value={task.category} />
+            </div>
+            <img className="sprix-task-detail-hero-illustration" src="/task.svg" alt="" aria-hidden="true" />
         </header>
 
         <div className="sprix-task-detail-layout">
           <main className="sprix-task-detail-main">
-            <InfoBlock icon={<FileText size={18} />} title="详细任务描述" body={task.description} />
-            <InfoBlock icon={<ListChecks size={18} />} title="交付标准" body={task.deliverables} />
-            <InfoBlock icon={<CheckCircle2 size={18} />} title="验收标准" body={task.acceptanceCriteria} />
-            <Surface className="sprix-task-info-card">
+            <InfoBlock icon={<FileText size={16} />} title="任务说明" body={task.description} />
+            <InfoBlock icon={<ListChecks size={16} />} title="交付标准" body={task.deliverables} />
+            <InfoBlock icon={<CheckCircle2 size={16} />} title="验收标准" body={task.acceptanceCriteria} />
+            <div className="sprix-task-info-card sprix-task-attachments">
               <h3>
-                <span><Paperclip size={18} /></span>
+                <span><Paperclip size={16} /></span>
                 任务附件
               </h3>
               {taskAttachmentsQuery.isLoading ? (
@@ -633,12 +676,12 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
                   {taskAttachmentsQuery.data.map((attachment) => {
                     const previewable = attachment.mimeType.startsWith("image/");
                     return (
-                      <div key={attachment.attachmentId} className="flex flex-col gap-3 rounded-xl border border-line bg-[#fafafa] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div key={attachment.attachmentId} className="sprix-task-attachment-row">
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold text-ink" title={attachment.filename}>{attachment.filename}</div>
-                          <div className="mt-1 text-xs text-ink-soft">{attachment.mimeType || "未知类型"} · {formatTaskAttachmentSize(attachment.sizeBytes)}</div>
+                          <div className="sprix-task-attachment-name truncate" title={attachment.filename}>{attachment.filename}</div>
+                          <div className="sprix-task-attachment-meta">{formatTaskAttachmentSize(attachment.sizeBytes)}</div>
                         </div>
-                        <div className="flex shrink-0 gap-2">
+                        <div className="sprix-task-attachment-actions">
                           {previewable && <SecondaryButton onClick={() => void previewAttachment(attachment)}>预览</SecondaryButton>}
                           <SecondaryButton icon={<Download size={15} />} onClick={() => void downloadAttachment(attachment)}>下载</SecondaryButton>
                         </div>
@@ -649,29 +692,25 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
               ) : (
                 <p className="sprix-detail-prose">暂无任务附件</p>
               )}
-            </Surface>
+            </div>
           </main>
 
           <aside className="sprix-task-detail-aside">
-            <Surface className="sprix-task-side-card">
-              <h3>匹配信息</h3>
-              <div className="sprix-task-side-score">
+            <Surface className="sprix-task-side-card sprix-task-side-panel">
+              <div className="sprix-task-side-score sprix-task-side-item">
+                <PieChartOutlined />
                 <span>系统评估匹配度</span>
                 <b>{task.agentMatchScore > 0 ? `${task.agentMatchScore}%` : "-"}</b>
               </div>
               <div className="sprix-task-side-divider" />
-              <h3 className="is-muted">来源信息</h3>
-              <InfoRow label="来源平台" value={task.sourceName} />
-              <InfoRow label="任务类型" value={task.category} />
-            </Surface>
-
-            <Surface className="sprix-task-side-card">
-              <h3>执行与接单</h3>
-              <div className="sprix-task-agent-row is-current-agent">
+              <div className="sprix-task-side-section">
+              <div className="sprix-task-agent-row is-current-agent sprix-task-side-item">
+                <UserOutlined />
                 <span>当前 Agent</span>
                 <b>{currentAgent?.name ?? "未设置"}</b>
               </div>
-              <div className="sprix-task-agent-row">
+              <div className="sprix-task-agent-row sprix-task-side-item">
+                <WifiOutlined />
                 <span>连接状态</span>
                 <b className={currentAgent ? "is-online" : "is-offline"}>
                   <span />
@@ -682,8 +721,10 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
                 确认接单
               </ActionButton>
               <p className="sprix-task-accept-note">接单后将立即进入执行队列</p>
+              </div>
             </Surface>
           </aside>
+        </div>
         </div>
       </div>
     </div>
@@ -692,22 +733,25 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
 
 function InfoBlock({ icon, title, body }: { icon: ReactNode; title: string; body: string }) {
   return (
-    <Surface className="sprix-task-info-card">
+    <section className="sprix-task-info-card">
       <h3>
         <span>{icon}</span>
         {title}
       </h3>
       <p className="sprix-detail-prose">{body}</p>
-    </Surface>
+    </section>
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function Metric({ icon, label, value, accent = false }: { icon: ReactNode; label: string; value: string; accent?: boolean }) {
   return (
-    <div className="sprix-task-info-row">
-      <span>{label}</span>
-      <b>{value}</b>
-    </div>
+    <span className={`sprix-task-detail-metric${accent ? " is-accent" : ""}`}>
+      {icon}
+      <span>
+        <small>{label}</small>
+        <b>{value}</b>
+      </span>
+    </span>
   );
 }
 
@@ -1011,7 +1055,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   };
 
   return (
-    <>
+    <div className="sprix-agent-center-page">
       <PageHeader
         title="Agent 中心"
       />
@@ -1027,10 +1071,20 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
             agent.evaluation && (isCompletedAgentEvaluation(agent.evaluation) || agent.evaluation.status === "failed" || agent.evaluation.result?.status === "failed");
           const showEvaluationAction = !canRestartEvaluation;
           const isSettingCurrent = settingCurrentAgentId === agent.id;
+          const evaluationActionLabel = getAgentEvaluationActionLabel(agent);
+          const evaluationActionIcon =
+            evaluationActionLabel === "查看进度" ? (
+              <ButtonIcon src={BUTTON_ICON_PATHS.evaluationProgress} />
+            ) : undefined;
           return agent.role === "当前执行 Agent" ? (
             <>
               {agent.authStatus === "login_required" && (
-                <SecondaryButton onClick={() => promptClaudeLogin(agent, async () => undefined)}>登录</SecondaryButton>
+                <SecondaryButton
+                  icon={<ButtonIcon src={BUTTON_ICON_PATHS.login} />}
+                  onClick={() => promptClaudeLogin(agent, async () => undefined)}
+                >
+                  登录
+                </SecondaryButton>
               )}
               <SecondaryButton
                 disabled
@@ -1038,7 +1092,14 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
               >
                 当前执行 Agent
               </SecondaryButton>
-              {showEvaluationAction && <SecondaryButton onClick={() => openAgentEvaluation(agent)}>{getAgentEvaluationActionLabel(agent)}</SecondaryButton>}
+              {showEvaluationAction && (
+                <SecondaryButton
+                  icon={evaluationActionIcon}
+                  onClick={() => openAgentEvaluation(agent)}
+                >
+                  {evaluationActionLabel}
+                </SecondaryButton>
+              )}
               {canRestartEvaluation && (
                 <SecondaryButton
                   icon={<ButtonIcon src={BUTTON_ICON_PATHS.evaluation} />}
@@ -1051,7 +1112,12 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
           ) : (
             <>
               {agent.authStatus === "login_required" && (
-                <SecondaryButton onClick={() => promptClaudeLogin(agent, async () => undefined)}>登录</SecondaryButton>
+                <SecondaryButton
+                  icon={<ButtonIcon src={BUTTON_ICON_PATHS.login} />}
+                  onClick={() => promptClaudeLogin(agent, async () => undefined)}
+                >
+                  登录
+                </SecondaryButton>
               )}
               <ActionButton
                 disabled={Boolean(settingCurrentAgentId)}
@@ -1061,7 +1127,14 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
               >
                 {isSettingCurrent ? "设置中" : "设为当前执行 Agent"}
               </ActionButton>
-              {showEvaluationAction && <SecondaryButton onClick={() => openAgentEvaluation(agent)}>{getAgentEvaluationActionLabel(agent)}</SecondaryButton>}
+              {showEvaluationAction && (
+                <SecondaryButton
+                  icon={evaluationActionIcon}
+                  onClick={() => openAgentEvaluation(agent)}
+                >
+                  {evaluationActionLabel}
+                </SecondaryButton>
+              )}
               {canRestartEvaluation && (
                 <SecondaryButton
                   icon={<ButtonIcon src={BUTTON_ICON_PATHS.evaluation} />}
@@ -1075,7 +1148,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         }}
       />
       <AgentEvaluationProgressModal open={evaluationModalOpen} agent={evaluationAgent} evaluation={evaluation} loading={evaluationLoading} error={evaluationError} onClose={closeEvaluation} />
-    </>
+    </div>
   );
 }
 
@@ -1100,38 +1173,50 @@ function CurrentAgentCard({ agent }: { agent?: Agent }) {
   const summary = agent ? getAgentAdmissionSummary(agent) : undefined;
   const tagLabels = summary ? getAgentTagLabels(summary.tags) : [];
   const evaluationResult = agent?.evaluation?.result?.status === "completed" ? agent.evaluation.result : undefined;
+  const dimensionInteraction = useAbilityDimensionInteraction(Boolean(evaluationResult));
   return (
-    <Surface className="sprix-current-agent-card sprix-agent-profile-card p-6">
+    <Surface
+      className={`sprix-current-agent-card sprix-agent-profile-card p-6 ${evaluationResult ? "is-figma-result" : ""}`}
+    >
       {summary ? (
-        <>
-          <div className="sprix-agent-identity-panel">
-            <div className="sprix-current-agent-body">
-              <div className="min-w-0 flex-1">
-                <span className="sprix-agent-current-label">当前执行 Agent</span>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h4 className="text-2xl font-semibold">{summary.title}</h4>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {tagLabels.map((tag) => (
-                    <span key={tag} className="sprix-agent-ability-result-tag">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-                {evaluationResult && (
-                  <div className="sprix-agent-score-panel">
-                    <strong>{evaluationResult.overallScore ?? "-"}</strong>
-                    <span>综合评分</span>
-                    <EvaluationRadar result={evaluationResult} />
+        evaluationResult ? (
+          <AgentAbilityProfile
+            agent={agent}
+            embedded
+            resultPresentation
+            agentCenterPresentation
+          />
+        ) : (
+          <>
+            <div className="sprix-agent-identity-panel">
+              <div className="sprix-current-agent-body">
+                <div className="min-w-0 flex-1">
+                  <span className="sprix-agent-current-label">当前执行 Agent</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="text-2xl font-semibold">{summary.title}</h4>
                   </div>
-                )}
+                  <div className="sprix-agent-current-tags flex flex-wrap gap-2">
+                    {tagLabels.map((tag) => (
+                      <span key={tag} className="sprix-agent-ability-result-tag">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="sprix-agent-ability-section">
-            <AgentAbilityProfile agent={agent} embedded showScore={false} resultPresentation />
-          </div>
-        </>
+            <div className="sprix-agent-ability-section">
+              <AgentAbilityProfile
+                agent={agent}
+                embedded
+                showScore={false}
+                resultPresentation
+                compactDetails
+                dimensionInteraction={dimensionInteraction}
+              />
+            </div>
+          </>
+        )
       ) : (
         <div className="sprix-current-agent-empty rounded-2xl border border-dashed border-line p-7 text-center">
           <Bot className="mx-auto text-ink-soft" />
@@ -1244,16 +1329,20 @@ export function MyTasksPage({ openLogin, openAppeal }: UserPageProps) {
   }
 
   return (
-    <>
-      <PageHeader title="我的任务" subtitle="查看任务执行、验收、申诉和结算状态。" />
-      <Surface className="p-5">
-        <Tabs
-          activeKey={tab}
-          onChange={setTab}
-          items={["全部", "执行中", "已终止", "已完成"].map((label) => ({ key: label, label }))}
-        />
+    <div className="sprix-my-tasks-page">
+      <PageHeader title="我的任务" />
+      <div className="sprix-my-tasks-shell">
+        <div className="sprix-my-tasks-tabs-row">
+          <Tabs
+            className="sprix-my-tasks-tabs"
+            activeKey={tab}
+            onChange={setTab}
+            items={["全部", "执行中", "已终止", "已完成"].map((label) => ({ key: label, label }))}
+          />
+          <img className="sprix-my-tasks-illustration" src="/mytask.svg" alt="" aria-hidden="true" />
+        </div>
         {visible.length > 0 ? (
-          <div className="mt-5 space-y-3">
+          <div className="sprix-my-tasks-list">
             {visible.map((task) => (
               <MyTaskRow
                 key={task.id}
@@ -1268,8 +1357,8 @@ export function MyTasksPage({ openLogin, openAppeal }: UserPageProps) {
         ) : (
           <MyTasksEmptyState tab={tab} hasAnyTask={myTasks.length > 0} />
         )}
-      </Surface>
-    </>
+      </div>
+    </div>
   );
 }
 
@@ -1315,24 +1404,24 @@ function MyTaskRow({
     isRunning: task.status === "执行中" || task.status === "待平台审核"
   });
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-line bg-white p-4 xl:flex-row xl:items-center xl:justify-between">
-      <div>
-        <div className="flex flex-wrap items-center gap-2">
+    <Surface className="sprix-my-task-row">
+      <div className="sprix-my-task-row-copy">
+        <div className="sprix-my-task-row-status">
           {showPrimaryStatus && <StatusTag status={task.status} />}
           {shouldShowAppealStatus(task.appealStatus) && <StatusTag status={task.appealStatus} />}
         </div>
-        <Link to={`/agent/my-tasks/${task.id}`} className="mt-2 block text-lg font-semibold text-ink no-underline hover:text-accent">
+        <Link to={`/agent/my-tasks/${task.id}`} className="sprix-my-task-row-title">
           {task.title}
         </Link>
-        <p className="mt-1 text-sm text-ink-soft">
+        <p className="sprix-my-task-row-meta">
           {metaItems.join(" · ")}
         </p>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="sprix-my-task-row-actions">
         {actions.appealLabel && (
-          <ActionButton disabled={!actions.appealEnabled} onClick={() => actions.appealEnabled && onAppeal(task.id)}>
+          <SecondaryButton disabled={!actions.appealEnabled} onClick={() => actions.appealEnabled && onAppeal(task.id)}>
             {actions.appealLabel}
-          </ActionButton>
+          </SecondaryButton>
         )}
         {actions.terminateLabel && (
           <SecondaryButton danger disabled={!actions.terminateEnabled || canceling} loading={canceling} onClick={() => actions.terminateEnabled && onCancel(task.id)}>
@@ -1342,7 +1431,7 @@ function MyTaskRow({
         {actions.rerun && <SecondaryButton onClick={() => onRerun(task.id)}>重新执行</SecondaryButton>}
         <SecondaryButton href={`/agent/my-tasks/${task.id}`}>{actions.viewLabel}</SecondaryButton>
       </div>
-    </div>
+    </Surface>
   );
 }
 
@@ -1390,7 +1479,7 @@ export function EarningsPage({ openLogin, openBindAlipay }: UserPageProps) {
   const accountWarning = getPayoutAccountWarning(account);
   return (
     <>
-      <PageHeader title="打款记录" subtitle={getPayoutPageSubtitle()} />
+      <PageHeader title="打款记录" />
       <Surface className="mb-5 p-6">
         <div className="sprix-payout-summary">
           <div className="sprix-payout-summary-copy">
@@ -1627,7 +1716,6 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
     <>
       <PageHeader
         title="开通接单资格"
-        subtitle="首次接单前需完成支付宝人脸核验，并同意《自由职业者服务框架协议》。"
       />
       <Surface className="mb-5 p-6">
         <Steps className="sprix-qualification-steps" current={step} items={["支付宝人脸核验", "同意服务协议", "开通成功"].map((title) => ({ title }))} />

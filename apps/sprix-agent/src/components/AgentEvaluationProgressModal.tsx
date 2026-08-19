@@ -106,6 +106,7 @@ export function AgentEvaluationProgressModal({
   const isActive = !isFailed && (loading || isEvaluationActive(status));
   const isCompleted = !isFailed && status === "completed";
   const hasResultDetails = Boolean(completedResult?.summary) || Boolean(completedResult?.improvements.length);
+  const resultPreview = completedResult?.summary.trim() || completedResult?.improvements[0] || "";
   const serverActiveStepIndex = activeEvaluationStepIndex(evaluation, status);
   const [displayStepIndex, setDisplayStepIndex] = useState(0);
   const displayedEvaluationKeyRef = useRef<string>();
@@ -209,7 +210,7 @@ export function AgentEvaluationProgressModal({
                   <strong>{scoreText(completedResult.overallScore)}</strong>
                 </div>
               )}
-              {!isCompleted && <div className="sprix-evaluation-step-count\">{`${activeStepIndex + 1}/6`}</div>}
+              {!isCompleted && <div className="sprix-evaluation-step-count">{`${activeStepIndex + 1}/6`}</div>}
             </div>
 
             {isCompleted ? (
@@ -246,8 +247,14 @@ export function AgentEvaluationProgressModal({
             )}
 
             {hasResultDetails && (
-              <div className="sprix-evaluation-result is-compact">
-                <div>
+              <details className="sprix-evaluation-result is-compact">
+                <summary className="sprix-evaluation-result-toggle">
+                  <span className="sprix-evaluation-result-toggle-copy">
+                    <strong>评价摘要与改进建议</strong>
+                    {resultPreview && <span>{resultPreview}</span>}
+                  </span>
+                </summary>
+                <div className="sprix-evaluation-result-body">
                   {completedResult?.summary && <p>{completedResult.summary}</p>}
                   {completedResult?.improvements.length ? (
                     <ul className="sprix-ability-result-improvements" aria-label="改进建议">
@@ -259,7 +266,7 @@ export function AgentEvaluationProgressModal({
                     </ul>
                   ) : null}
                 </div>
-              </div>
+              </details>
             )}
           </>
         )}

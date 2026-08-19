@@ -146,9 +146,7 @@ export function getTaskRequirementRows(detail: MyTaskExecutionDetail) {
   return [
     { label: "任务描述", value: task?.description },
     { label: "交付要求", value: task?.deliverables },
-    { label: "验收标准", value: task?.acceptanceCriteria },
-    { label: "任务分类", value: task?.category },
-    { label: "任务来源", value: task?.sourceName }
+    { label: "验收标准", value: task?.acceptanceCriteria }
   ].filter((item) => Boolean(item.value?.trim()));
 }
 

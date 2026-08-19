@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { KeyboardEventHandler, MouseEventHandler, ReactNode } from "react";
 import { Button, Empty, Tag as AntTag } from "antd";
 import type { ButtonProps } from "antd";
 import { CheckCircle2, Clock3, CircleAlert, CircleDollarSign, PlugZap } from "lucide-react";
@@ -26,13 +26,31 @@ export function PageHeader({
 export function Surface({
   children,
   className = "",
-  tight = false
+  tight = false,
+  onClick,
+  onKeyDown,
+  role,
+  tabIndex
 }: {
   children: ReactNode;
   className?: string;
   tight?: boolean;
+  onClick?: MouseEventHandler<HTMLElement>;
+  onKeyDown?: KeyboardEventHandler<HTMLElement>;
+  role?: string;
+  tabIndex?: number;
 }) {
-  return <section className={`${tight ? "sprix-card-tight" : "sprix-card"} ${className}`}>{children}</section>;
+  return (
+    <section
+      className={`${tight ? "sprix-card-tight" : "sprix-card"} ${className}`}
+      onClick={onClick}
+      onKeyDown={onKeyDown}
+      role={role}
+      tabIndex={tabIndex}
+    >
+      {children}
+    </section>
+  );
 }
 
 export function ActionButton(props: ButtonProps) {
