@@ -18,6 +18,7 @@ import { isGlobalAuthError } from "../utils/http";
 import { AgentEvaluationProgressModal } from "../components/AgentEvaluationProgressModal";
 import { ActionButton } from "../components/Primitives";
 import { AgentAbilityProfile } from "../user/AgentAbilityProfile";
+import { isAgentLoginRequired, isAgentSelectable } from "../utils/agentStatus";
 import { useAgentBindPolling } from "./useAgentBindPolling";
 import { useHomeBootstrap } from "./useHomeBootstrap";
 import { useHomeAgentState } from "./useHomeAgentState";
@@ -75,7 +76,6 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
     syncing: pickerSyncing,
     start: startPickerPolling
   } = useAgentBindPolling({ open: agentPickerOpen });
-  const homeState = useHomeAgentState(account, agents, currentAgent, localAgent, pickerSyncing);
   const [evaluationAgent, setEvaluationAgent] = useState<Agent | null>(null);
   const [evaluation, setEvaluation] = useState<AgentEvaluation | undefined>();
   const [evaluationModalOpen, setEvaluationModalOpen] = useState(false);
@@ -87,7 +87,9 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
   const shouldOpenConnectModal = Boolean((location.state as { openConnectAgentModal?: boolean } | null)?.openConnectAgentModal);
   const shouldOpenAgentPicker = searchParams.get("modal") === "agent-picker";
 
-  const availableAgents = useMemo(() => agents.filter((agent) => agent.status !== "离线"), [agents]);
+  const usableCurrentAgent = useMemo(() => (currentAgent && !isAgentLoginRequired(currentAgent) ? currentAgent : undefined), [currentAgent]);
+  const availableAgents = useMemo(() => agents.filter(isAgentSelectable), [agents]);
+  const homeState = useHomeAgentState(account, agents, usableCurrentAgent, localAgent, pickerSyncing);
 
   const refreshAgents = useCallback(async (preferredCurrentAgent?: Agent) => {
     const [remoteAgents, refreshedCurrentAgent] = await Promise.all([
@@ -114,7 +116,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
           await requestRemoteAgentLogin(agent.id);
           message.info("请在本机终端和浏览器中完成 Claude Code 登录");
           const authenticatedAgent = await waitForRemoteAgentAuthentication(agent.id);
-          await refreshAgents(authenticatedAgent);
+          await refreshAgents();
           message.success("Claude Code 登录成功");
           await onAuthenticated(authenticatedAgent);
         } catch (error) {
@@ -163,7 +165,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       openLogin();
       return;
     }
-    if (agent.authStatus === "login_required") {
+    if (isAgentLoginRequired(agent)) {
       setAgentPickerOpen(false);
       promptClaudeLogin(agent, selectAgentForEvaluation);
       return;
@@ -291,12 +293,12 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
   }, [agentPickerOpen, startPickerPolling]);
 
   useEffect(() => {
-    if (account.isLoggedIn && currentAgent && !connectModalOpen && !shouldOpenConnectModal && !abilityResultModalOpen && !abilityResultFlowRef.current) {
+    if (account.isLoggedIn && usableCurrentAgent && !connectModalOpen && !shouldOpenConnectModal && !abilityResultModalOpen && !abilityResultFlowRef.current) {
       navigate("/agent/market", { replace: true });
     }
-  }, [abilityResultModalOpen, account.isLoggedIn, connectModalOpen, currentAgent, navigate, shouldOpenConnectModal]);
+  }, [abilityResultModalOpen, account.isLoggedIn, connectModalOpen, navigate, shouldOpenConnectModal, usableCurrentAgent]);
 
-  if (account.isLoggedIn && currentAgent && !connectModalOpen && !shouldOpenConnectModal && !abilityResultModalOpen && !abilityResultFlowRef.current) {
+  if (account.isLoggedIn && usableCurrentAgent && !connectModalOpen && !shouldOpenConnectModal && !abilityResultModalOpen && !abilityResultFlowRef.current) {
     return null;
   }
 
@@ -305,7 +307,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       <section className="sprix-landing-inner">
         <HomeTopAccount account={account} onLogout={onLogout} />
         <HomeHero />
-        <HomeAgentCard agent={currentAgent} onEnterMarket={() => navigate("/agent/market")} onManageAgent={() => navigate("/agent/center")} />
+        <HomeAgentCard agent={usableCurrentAgent} onEnterMarket={() => navigate("/agent/market")} onManageAgent={() => navigate("/agent/center")} />
         <HomeStats overview={platformOverview} />
         <HomeAgentEntry
           state={homeState}

@@ -3,6 +3,7 @@ import { message } from "antd";
 import { readRemoteAgents } from "../services/sprixApi";
 import { useSprixStore } from "../store/sprixStore";
 import { showRequestError } from "../components/requestErrors";
+import { isAgentReady } from "../utils/agentStatus";
 import type { LocalAgentDiagnostic } from "../types";
 import { shouldPollLocalAgentInventory } from "./localAgentInventory";
 
@@ -78,9 +79,9 @@ export function useAgentBindPolling({ open }: UseAgentBindPollingOptions) {
   const recognize = useCallback(async () => {
     const result = await refreshOnce();
     if (!result) return;
-    const hasDetectedAgents = result.agents.some((agent) => agent.status !== "离线");
+    const hasReadyAgents = result.agents.some(isAgentReady);
     const inventorySyncPending = result.localAgent?.bound === true && shouldPollLocalAgentInventory(result.localAgent.inventoryStatus);
-    if (hasDetectedAgents) {
+    if (hasReadyAgents) {
       setSyncing(false);
       const remainingMs = minimumVisibleUntilRef.current - Date.now();
       if (remainingMs > 0) {

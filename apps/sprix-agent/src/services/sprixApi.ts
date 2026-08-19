@@ -211,6 +211,7 @@ export type RemoteAgentsResult = {
 
 type RemoteAgentProfileResponse = AgentProfileResponse & {
   authStatus?: string | null;
+  authenticated?: boolean | null;
   evaluation?: RemoteAgentEvaluation | null;
 };
 
@@ -1066,14 +1067,23 @@ function mapAgent(agent: RemoteAgentProfileResponse): Agent {
     lastEvaluatedAt: evaluation?.lastEvaluatedAt ?? "",
     summary: tags.join("、"),
     tags,
-    authStatus: normalizeAgentAuthStatus(agent.authStatus),
+    authStatus: normalizeAgentAuthStatus(agent),
     evaluation
   };
 }
 
-function normalizeAgentAuthStatus(status?: string | null): Agent["authStatus"] {
+function normalizeAgentAuthStatus(agent: RemoteAgentProfileResponse): Agent["authStatus"] {
+  const status = agent.authStatus?.trim().toLowerCase();
   if (status === "authenticated" || status === "login_required") return status;
+  if (status === "unauthenticated" || status === "not_authenticated" || status === "not_logged_in") return "login_required";
+  if (agent.authenticated === true) return "authenticated";
+  if (agent.authenticated === false) return "login_required";
+  if (agent.status !== "DISCONNECTED" && isClaudeCodeAgentName(agent.name)) return "login_required";
   return "unknown";
+}
+
+function isClaudeCodeAgentName(name?: string | null) {
+  return name?.trim().toLowerCase().includes("claude") === true;
 }
 
 function normalizeOptionalAgentEvaluation(evaluation?: RemoteAgentEvaluation | null) {

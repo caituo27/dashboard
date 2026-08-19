@@ -3,6 +3,7 @@ import { Empty, Modal, Spin } from "antd";
 import { Bot, CheckCircle2 } from "lucide-react";
 import { ActionButton, SecondaryButton, StatusTag } from "../components/Primitives";
 import type { Agent } from "../types";
+import { getAgentStatusLabel, isAgentLoginRequired } from "../utils/agentStatus";
 
 type HomeAgentPickerModalProps = {
   open: boolean;
@@ -11,6 +12,19 @@ type HomeAgentPickerModalProps = {
   onSelect: (agent: Agent) => void;
   onClose: () => void;
 };
+
+function getAgentPickerDescription(agent: Agent, evaluationActive: boolean) {
+  if (evaluationActive) return "能力画像生成中，点击可查看当前进度";
+  if (isAgentLoginRequired(agent)) return "Claude Code 尚未登录，选择后将先打开登录流程";
+  if (agent.evaluation) return "已有能力画像，可重新评测并设为当前执行 Agent";
+  return "未生成能力画像，评测完成后设为当前执行 Agent";
+}
+
+function getAgentPickerActionLabel(agent: Agent | undefined, evaluationActive: boolean) {
+  if (evaluationActive) return "查看生成进度";
+  if (isAgentLoginRequired(agent)) return "登录并生成能力画像";
+  return "生成能力画像";
+}
 
 export function HomeAgentPickerModal({
   open,
@@ -25,9 +39,12 @@ export function HomeAgentPickerModal({
   const showInitialLoading = recognizing && agents.length === 0;
 
   useEffect(() => {
-    if (open) {
-      setSelectedAgentId(agents[0]?.id);
-    }
+    if (!open) return;
+    setSelectedAgentId((currentAgentId) =>
+      currentAgentId && agents.some((agent) => agent.id === currentAgentId)
+        ? currentAgentId
+        : agents[0]?.id
+    );
   }, [agents, open]);
 
   return (
@@ -72,19 +89,11 @@ export function HomeAgentPickerModal({
                   </span>
                   <span className="sprix-agent-picker-copy">
                     <strong>{agent.name}</strong>
-                    <span>
-                      {evaluationActive
-                        ? "能力画像生成中，点击可查看当前进度"
-                        : agent.authStatus === "login_required"
-                          ? "Claude Code 尚未登录，选择后将先打开登录流程"
-                        : agent.evaluation
-                          ? "已有能力画像，可重新评测并设为当前执行 Agent"
-                          : "未生成能力画像，评测完成后设为当前执行 Agent"}
-                    </span>
+                    <span>{getAgentPickerDescription(agent, evaluationActive)}</span>
                   </span>
                 </span>
                 <span className="sprix-agent-picker-meta">
-                  <StatusTag status={agent.status} />
+                  <StatusTag status={getAgentStatusLabel(agent)} />
                   <span className="sprix-agent-picker-check">{isSelected ? <CheckCircle2 size={18} /> : "选择"}</span>
                 </span>
               </button>
@@ -95,11 +104,7 @@ export function HomeAgentPickerModal({
       <div className="sprix-agent-picker-footer">
         <SecondaryButton onClick={onClose}>取消</SecondaryButton>
         <ActionButton disabled={!selectedAgent} onClick={() => selectedAgent && onSelect(selectedAgent)}>
-          {selectedEvaluationActive
-            ? "查看生成进度"
-            : selectedAgent?.authStatus === "login_required"
-              ? "登录并生成能力画像"
-              : "生成能力画像"}
+          {getAgentPickerActionLabel(selectedAgent, selectedEvaluationActive)}
         </ActionButton>
       </div>
     </Modal>
