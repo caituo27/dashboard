@@ -240,7 +240,9 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
             <div className="sprix-execution-hero-side">
               <div className="sprix-execution-hero-progress">
                 <div className="sprix-execution-hero-progress-head">
-                  <strong>{displayProgress === undefined ? summary.progress : `${displayProgress}%`}</strong>
+                  <strong>
+                    {isExecutionRunning && displayProgress !== undefined ? `${displayProgress}%` : summary.progress}
+                  </strong>
                 </div>
               </div>
               <div className="sprix-execution-hero-actions">
@@ -291,7 +293,10 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
               <Surface className="sprix-execution-side-panel p-0">
                 <TaskRequirementSection detail={detail} />
                 <TaskAttachmentsSection taskId={detail.task?.id ?? detail.taskId} />
-                <HistorySection detail={detail} displayProgress={displayProgress} />
+                <HistorySection
+                  detail={detail}
+                  displayProgress={isExecutionRunning ? displayProgress : undefined}
+                />
               </Surface>
             </aside>
           </div>
