@@ -120,16 +120,18 @@ export function HomeAgentPickerModal({
           })}
         </div>
       )}
-      <div className="sprix-agent-picker-footer">
-        <SecondaryButton onClick={onClose}>取消</SecondaryButton>
-        <ActionButton disabled={!selectedAgent} onClick={() => selectedAgent && onSelect(selectedAgent)}>
-          {selectedEvaluationActive
-            ? "查看生成进度"
-            : selectedAgent?.authStatus === "login_required"
-              ? "登录并生成能力画像"
-              : "生成能力画像"}
-        </ActionButton>
-      </div>
+      {agents.length > 0 && (
+        <div className="sprix-agent-picker-footer">
+          <SecondaryButton onClick={onClose}>取消</SecondaryButton>
+          <ActionButton disabled={!selectedAgent} onClick={() => selectedAgent && onSelect(selectedAgent)}>
+            {selectedEvaluationActive
+              ? "查看生成进度"
+              : selectedAgent?.authStatus === "login_required"
+                ? "登录并生成能力画像"
+                : "生成能力画像"}
+          </ActionButton>
+        </div>
+      )}
     </Modal>
   );
 }
