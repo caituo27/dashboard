@@ -130,6 +130,10 @@ function EvaluationProgressButtonIcon() {
   return <ButtonIcon src={BUTTON_ICON_PATHS.evaluationProgress} />;
 }
 
+function EvaluationButtonIcon() {
+  return <ButtonIcon src={BUTTON_ICON_PATHS.evaluation} />;
+}
+
 function formatTaskAttachmentSize(sizeBytes: number) {
   if (sizeBytes < 1024) return `${sizeBytes} B`;
   if (sizeBytes < 1024 * 1024) return `${(sizeBytes / 1024).toFixed(1)} KiB`;
@@ -1121,7 +1125,9 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
           const evaluationActionIcon =
             evaluationActionLabel === "查看进度" ? (
               <EvaluationProgressButtonIcon />
-            ) : undefined;
+            ) : (
+              <EvaluationButtonIcon />
+            );
           return agent.role === "当前执行 Agent" ? (
             <>
               {agent.authStatus === "login_required" && (
@@ -1148,7 +1154,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
               )}
               {canRestartEvaluation && (
                 <SecondaryButton
-                  icon={<ButtonIcon src={BUTTON_ICON_PATHS.evaluation} />}
+                  icon={<EvaluationButtonIcon />}
                   onClick={() => openAgentEvaluation(agent, { forceStart: true })}
                 >
                   重新评测
@@ -1183,7 +1189,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
               )}
               {canRestartEvaluation && (
                 <SecondaryButton
-                  icon={<ButtonIcon src={BUTTON_ICON_PATHS.evaluation} />}
+                  icon={<EvaluationButtonIcon />}
                   onClick={() => openAgentEvaluation(agent, { forceStart: true })}
                 >
                   重新评测
