@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Empty, Modal, Spin } from "antd";
-import { Bot, CheckCircle2 } from "lucide-react";
+import { Bot, CheckCircle2, Download } from "lucide-react";
 import { ActionButton, SecondaryButton, StatusTag } from "../components/Primitives";
+import { LOCAL_AGENT_DOWNLOAD_URL } from "../localAgentDownload";
 import type { Agent } from "../types";
 
 type HomeAgentPickerModalProps = {
@@ -63,7 +64,7 @@ export function HomeAgentPickerModal({
               showRecognitionError
                 ? recognitionFailed
                   ? "识别本机 Agent 失败，请确认插件已启动后重试。"
-                  : "暂未识别到本机 Agent，请确认插件已启动后重试。"
+                  : "插件已启动，但暂未识别到 Agent，请重新识别或下载插件。"
                 : recognizing
                   ? "暂时还没拿到可选 Agent，系统仍在自动刷新。"
                   : "当前还没有可选 Agent。"
@@ -71,8 +72,11 @@ export function HomeAgentPickerModal({
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           />
           {showRecognitionError && (
-            <div className="mt-4 flex justify-center">
+            <div className="mt-4 flex justify-center gap-3">
               <ActionButton onClick={onRetry}>重新识别</ActionButton>
+              <SecondaryButton href={LOCAL_AGENT_DOWNLOAD_URL} target="_blank" rel="noreferrer" icon={<Download size={16} />}>
+                下载插件
+              </SecondaryButton>
             </div>
           )}
         </div>
