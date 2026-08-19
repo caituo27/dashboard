@@ -3,16 +3,18 @@ import { ExclamationCircleOutlined } from "@ant-design/icons";
 import { Modal, Tooltip } from "antd";
 import { Download, PlugZap } from "lucide-react";
 import { LOCAL_AGENT_DOWNLOAD_URL } from "../localAgentDownload";
-import { ActionButton } from "../components/Primitives";
+import { ActionButton, SecondaryButton } from "../components/Primitives";
 import type { HomeAgentStateResult } from "./homeTypes";
 import { useAgentBindPolling } from "./useAgentBindPolling";
 
 type HomeAgentEntryProps = {
   state: HomeAgentStateResult;
+  checking?: boolean;
   connectModalOpen: boolean;
   onOpenLogin: () => void;
   onOpenConnectModal: () => void;
   onCloseConnectModal: () => void;
+  onCompleteConnectModal?: () => void;
   onOpenAgentPicker: () => void;
   onEnterMarket: () => void;
 };
@@ -38,14 +40,17 @@ const SUPPORTED_AGENTS = [
 
 export function HomeAgentEntry({
   state,
+  checking = false,
   connectModalOpen,
   onOpenLogin,
   onOpenConnectModal,
   onCloseConnectModal,
+  onCompleteConnectModal,
   onOpenAgentPicker,
   onEnterMarket
 }: HomeAgentEntryProps) {
-  const { start } = useAgentBindPolling({ open: connectModalOpen, localAgent: state.localAgent });
+  const { recognizing, syncing, recognitionComplete, recognitionFailed, recognitionTimedOut, start } = useAgentBindPolling({ open: connectModalOpen });
+  const completeConnectModal = onCompleteConnectModal ?? onCloseConnectModal;
 
   useEffect(() => {
     if (!connectModalOpen) return;
@@ -54,17 +59,19 @@ export function HomeAgentEntry({
 
   useEffect(() => {
     if (!connectModalOpen) return;
+    if (!recognitionComplete || recognitionFailed || recognitionTimedOut || recognizing || syncing) return;
     if (state.state === "logged_in_with_agents_without_current") {
-      onCloseConnectModal();
+      completeConnectModal();
       onOpenAgentPicker();
       return;
     }
     if (state.state === "logged_in_with_current_agent") {
       onCloseConnectModal();
     }
-  }, [connectModalOpen, onCloseConnectModal, onOpenAgentPicker, state.state]);
+  }, [completeConnectModal, connectModalOpen, onCloseConnectModal, onOpenAgentPicker, recognitionComplete, recognitionFailed, recognizing, recognitionTimedOut, state.state, syncing]);
 
   const handlePrimaryAction = () => {
+    if (checking) return;
     if (state.state === "guest") {
       onOpenLogin();
       return;
@@ -83,8 +90,8 @@ export function HomeAgentEntry({
   return (
     <>
       <div className="sprix-hero-actions sprix-home-primary-actions">
-        <ActionButton icon={<PlugZap size={16} />} onClick={handlePrimaryAction}>
-          {state.primaryActionLabel}
+        <ActionButton icon={<PlugZap size={16} />} onClick={handlePrimaryAction} disabled={checking}>
+          {checking ? "正在检查本地 Agent…" : state.primaryActionLabel}
         </ActionButton>
       </div>
       <Modal
@@ -98,17 +105,34 @@ export function HomeAgentEntry({
         <div className="sprix-connect-agent-modal">
           <img className="sprix-hero-logo" src="/sprix-wordmark.png" alt="Sprix AI" />
           <h2>连接本地 Agent</h2>
-          <p className="sprix-connect-agent-primary-copy">安装后请稍候，插件启动后将自动打开连接页面。</p>
+          <p className="sprix-connect-agent-primary-copy">
+            {recognitionFailed
+              ? "识别本机 Agent 失败，请确认插件已启动后重试。"
+              : recognitionTimedOut
+                ? "暂未识别到本机 Agent，请确认插件已启动后重试。"
+                : recognizing || syncing || !recognitionComplete
+                  ? "正在识别本机 Agent，请稍候…"
+                  : "安装后请稍候，插件启动后将自动打开连接页面。"}
+          </p>
           <div className="sprix-connect-agent-cta">
-            <ActionButton
-              href={LOCAL_AGENT_DOWNLOAD_URL}
-              target="_blank"
-              rel="noreferrer"
-              icon={<Download size={16} />}
-              className="sprix-connect-agent-download-button"
-            >
-              下载 Sprix AI 连接插件（Mac 版）
-            </ActionButton>
+            {recognitionFailed || recognitionTimedOut ? (
+              <div className="flex items-center justify-center gap-3">
+                <ActionButton onClick={() => start({ announceCompletion: true, minimumVisibleMs: 800 })}>重新识别</ActionButton>
+                <SecondaryButton href={LOCAL_AGENT_DOWNLOAD_URL} target="_blank" rel="noreferrer" icon={<Download size={16} />}>
+                  下载插件
+                </SecondaryButton>
+              </div>
+            ) : (
+              <ActionButton
+                href={LOCAL_AGENT_DOWNLOAD_URL}
+                target="_blank"
+                rel="noreferrer"
+                icon={<Download size={16} />}
+                className="sprix-connect-agent-download-button"
+              >
+                下载 Sprix AI 连接插件（Mac 版）
+              </ActionButton>
+            )}
           </div>
           <div className="sprix-supported-agent-section" aria-label="支持的 Agent 列表">
             <p className="sprix-supported-agent-copy">

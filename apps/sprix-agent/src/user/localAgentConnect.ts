@@ -7,7 +7,7 @@ export type LocalAgentHealthResult =
       kind: "unavailable";
     };
 
-export const LOCAL_AGENT_HEALTH_URL = import.meta.env.VITE_LOCAL_AGENT_HEALTH_URL ?? "http://127.0.0.1:8765/health";
+export const LOCAL_AGENT_HEALTH_URL = import.meta.env.VITE_LOCAL_AGENT_HEALTH_URL ?? "http://127.0.0.1:38765/health";
 
 export async function checkLocalAgentHealth(fetcher: typeof fetch = fetch, healthUrl = LOCAL_AGENT_HEALTH_URL): Promise<LocalAgentHealthResult> {
   try {

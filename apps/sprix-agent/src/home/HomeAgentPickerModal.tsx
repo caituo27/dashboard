@@ -8,6 +8,9 @@ type HomeAgentPickerModalProps = {
   open: boolean;
   agents: Agent[];
   recognizing: boolean;
+  recognitionFailed: boolean;
+  recognitionTimedOut: boolean;
+  onRetry: () => void;
   onSelect: (agent: Agent) => void;
   onClose: () => void;
 };
@@ -16,17 +19,25 @@ export function HomeAgentPickerModal({
   open,
   agents,
   recognizing,
+  recognitionFailed,
+  recognitionTimedOut,
+  onRetry,
   onSelect,
   onClose
 }: HomeAgentPickerModalProps) {
   const [selectedAgentId, setSelectedAgentId] = useState<string>();
   const selectedAgent = useMemo(() => agents.find((agent) => agent.id === selectedAgentId) ?? agents[0], [agents, selectedAgentId]);
   const selectedEvaluationActive = selectedAgent?.evaluation?.status === "running" || selectedAgent?.evaluation?.status === "judging";
+  const hasCompletedEvaluation = (agent?: Agent) => agent?.evaluation?.status === "completed" || agent?.evaluation?.result?.status === "completed";
   const showInitialLoading = recognizing && agents.length === 0;
+  const showRecognitionError = (recognitionFailed || recognitionTimedOut) && agents.length === 0;
 
   useEffect(() => {
     if (open) {
-      setSelectedAgentId(agents[0]?.id);
+      setSelectedAgentId((currentSelection) => {
+        if (currentSelection && agents.some((agent) => agent.id === currentSelection)) return currentSelection;
+        return agents[0]?.id;
+      });
     }
   }, [agents, open]);
 
@@ -48,9 +59,22 @@ export function HomeAgentPickerModal({
       ) : agents.length === 0 ? (
         <div className="px-6 py-4">
           <Empty
-            description={recognizing ? "暂时还没拿到可选 Agent，系统仍在自动刷新。" : "当前还没有可选 Agent。"}
+            description={
+              showRecognitionError
+                ? recognitionFailed
+                  ? "识别本机 Agent 失败，请确认插件已启动后重试。"
+                  : "暂未识别到本机 Agent，请确认插件已启动后重试。"
+                : recognizing
+                  ? "暂时还没拿到可选 Agent，系统仍在自动刷新。"
+                  : "当前还没有可选 Agent。"
+            }
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           />
+          {showRecognitionError && (
+            <div className="mt-4 flex justify-center">
+              <ActionButton onClick={onRetry}>重新识别</ActionButton>
+            </div>
+          )}
         </div>
       ) : (
         <div className="sprix-agent-picker-grid">
@@ -77,7 +101,7 @@ export function HomeAgentPickerModal({
                         ? "能力画像生成中，点击可查看当前进度"
                         : agent.authStatus === "login_required"
                           ? "Claude Code 尚未登录，选择后将先打开登录流程"
-                        : agent.evaluation
+                        : hasCompletedEvaluation(agent)
                           ? "已有能力画像，可重新评测并设为当前执行 Agent"
                           : "未生成能力画像，评测完成后设为当前执行 Agent"}
                     </span>

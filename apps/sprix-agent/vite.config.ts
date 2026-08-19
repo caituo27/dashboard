@@ -4,7 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 
 declare const process: { env: Record<string, string | undefined> };
 
-const apiProxyTarget = process.env.VITE_API_PROXY_TARGET ?? "http://43.138.142.128:18084";
+const apiProxyTarget = process.env.VITE_API_PROXY_TARGET ?? "http://42.194.150.73:8084";
 
 export default defineConfig({
   base: "/",

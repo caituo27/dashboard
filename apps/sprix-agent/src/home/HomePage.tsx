@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Modal, message } from "antd";
 import { ArrowRight } from "lucide-react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import type { Agent, AgentEvaluation } from "../types";
-import { useSprixStore } from "../store/sprixStore";
+import { useSprixStore, type SprixRemoteStatePatch } from "../store/sprixStore";
 import {
   markRemoteCurrentAgent,
   readCurrentRemoteAgent,
@@ -38,6 +39,50 @@ type HomePageProps = {
 const ICP_RECORD_NO = import.meta.env.VITE_ICP_RECORD_NO ?? "粤ICP备2025376732号-5";
 const PUBLIC_SECURITY_RECORD_NO = "粤公网安备44030002015291号";
 const PUBLIC_SECURITY_RECORD_URL = "https://beian.mps.gov.cn/#/query/webSearch?code=44030002015291";
+const AGENT_SETUP_FLOW_STORAGE_KEY = "sprix-agent-setup-flow-active";
+const CONNECT_MODAL_DISMISSED_STORAGE_KEY = "sprix-connect-agent-dismissed-account";
+const AGENT_PICKER_DISMISSED_STORAGE_KEY = "sprix-agent-picker-dismissed-account";
+
+function readAgentSetupFlowState() {
+  try {
+    return window.sessionStorage.getItem(AGENT_SETUP_FLOW_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeAgentSetupFlowState(active: boolean) {
+  try {
+    if (active) {
+      window.sessionStorage.setItem(AGENT_SETUP_FLOW_STORAGE_KEY, "1");
+    } else {
+      window.sessionStorage.removeItem(AGENT_SETUP_FLOW_STORAGE_KEY);
+    }
+  } catch {
+    // sessionStorage may be unavailable in privacy-restricted browser contexts.
+  }
+}
+
+function readAccountDismissed(storageKey: string, accountScope: string) {
+  if (!accountScope) return false;
+  try {
+    return window.sessionStorage.getItem(storageKey) === accountScope;
+  } catch {
+    return false;
+  }
+}
+
+function writeAccountDismissed(storageKey: string, accountScope: string, dismissed: boolean) {
+  try {
+    if (dismissed && accountScope) {
+      window.sessionStorage.setItem(storageKey, accountScope);
+    } else if (!dismissed) {
+      window.sessionStorage.removeItem(storageKey);
+    }
+  } catch {
+    // sessionStorage may be unavailable in privacy-restricted browser contexts.
+  }
+}
 
 function isEvaluationTerminal(status: AgentEvaluation["status"]) {
   return status === "completed" || status === "failed";
@@ -57,25 +102,42 @@ function showHomeRequestError(error: unknown, fallback: string, prefix = "") {
 }
 
 export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePageProps) {
-  useHomeBootstrap();
   const location = useLocation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const account = useSprixStore((state) => state.account);
   const agents = useSprixStore((state) => state.agents);
   const localAgent = useSprixStore((state) => state.localAgent);
-  const currentAgent = useSprixStore((state) => state.currentAgent);
   const platformOverview = useSprixStore((state) => state.platformOverview);
   const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
+  const homeBootstrap = useHomeBootstrap();
   const autoSetCurrentAgentIdRef = useRef<string>();
+  const completingEvaluationIdRef = useRef<string>();
+  const completedEvaluationIdRef = useRef<string>();
+  const connectModalDismissedRef = useRef(false);
+  const agentPickerDismissedRef = useRef(false);
+  const dismissedAccountScopeRef = useRef("");
+  const [agentSetupFlowActive, setAgentSetupFlowActive] = useState(readAgentSetupFlowState);
   const [agentPickerOpen, setAgentPickerOpen] = useState(false);
   const [connectModalOpen, setConnectModalOpen] = useState(false);
+  const setAgentSetupFlow = useCallback((active: boolean) => {
+    setAgentSetupFlowActive(active);
+    writeAgentSetupFlowState(active);
+  }, []);
   const {
     recognizing: pickerRecognizing,
     syncing: pickerSyncing,
+    recognitionFailed: pickerRecognitionFailed,
+    recognitionTimedOut: pickerRecognitionTimedOut,
     start: startPickerPolling
   } = useAgentBindPolling({ open: agentPickerOpen });
-  const homeState = useHomeAgentState(account, agents, currentAgent, localAgent, pickerSyncing);
+  const bootstrapReady = homeBootstrap.isSuccess && !homeBootstrap.isFetching;
+  const freshCurrentAgent = bootstrapReady ? homeBootstrap.data?.currentAgent : undefined;
+  const effectiveCurrentAgent = freshCurrentAgent?.status === "离线" ? undefined : freshCurrentAgent;
+  const bootstrapAgents = bootstrapReady ? homeBootstrap.data?.agents ?? [] : agents;
+  const availableAgents = useMemo(() => bootstrapAgents.filter((agent) => agent.status !== "离线"), [bootstrapAgents]);
+  const homeState = useHomeAgentState(account, availableAgents, effectiveCurrentAgent, localAgent, pickerSyncing);
   const [evaluationAgent, setEvaluationAgent] = useState<Agent | null>(null);
   const [evaluation, setEvaluation] = useState<AgentEvaluation | undefined>();
   const [evaluationModalOpen, setEvaluationModalOpen] = useState(false);
@@ -84,10 +146,30 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
   const [abilityResultAgent, setAbilityResultAgent] = useState<Agent | null>(null);
   const [abilityResultModalOpen, setAbilityResultModalOpen] = useState(false);
   const abilityResultFlowRef = useRef(false);
+  const evaluationFlowActive =
+    evaluationLoading ||
+    Boolean(evaluationAgent) ||
+    Boolean(evaluation && isEvaluationActive(evaluation.status));
   const shouldOpenConnectModal = Boolean((location.state as { openConnectAgentModal?: boolean } | null)?.openConnectAgentModal);
   const shouldOpenAgentPicker = searchParams.get("modal") === "agent-picker";
-
-  const availableAgents = useMemo(() => agents.filter((agent) => agent.status !== "离线"), [agents]);
+  const accountScope = account.phone || account.maskedPhone || account.nickname;
+  const currentAgentReady = Boolean(
+    effectiveCurrentAgent &&
+      !(effectiveCurrentAgent.evaluation && isEvaluationActive(effectiveCurrentAgent.evaluation.status))
+  );
+  const canAutoEnterMarket = Boolean(
+    account.isLoggedIn &&
+      bootstrapReady &&
+      currentAgentReady &&
+      !agentSetupFlowActive &&
+      !evaluationFlowActive &&
+      !connectModalOpen &&
+      !shouldOpenConnectModal &&
+      !agentPickerOpen &&
+      !shouldOpenAgentPicker &&
+      !abilityResultModalOpen &&
+      !abilityResultFlowRef.current
+  );
 
   const refreshAgents = useCallback(async (preferredCurrentAgent?: Agent) => {
     const [remoteAgents, refreshedCurrentAgent] = await Promise.all([
@@ -95,13 +177,25 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       readCurrentRemoteAgent().catch(() => undefined)
     ]);
     const currentAgentFromList = remoteAgents.currentAgentId ? remoteAgents.agents.find((agent) => agent.id === remoteAgents.currentAgentId) : undefined;
+    const nextCurrentAgent = preferredCurrentAgent ?? refreshedCurrentAgent ?? currentAgentFromList;
     mergeRemoteState({
       agents: remoteAgents.agents,
       localAgent: remoteAgents.localAgent,
       currentAgentId: remoteAgents.currentAgentId,
-      currentAgent: refreshedCurrentAgent ?? preferredCurrentAgent ?? currentAgentFromList
+      currentAgent: nextCurrentAgent
     });
-  }, [mergeRemoteState]);
+    queryClient.setQueryData<SprixRemoteStatePatch>(["sprix-agent", "home-bootstrap"], (previous) =>
+      previous
+        ? {
+            ...previous,
+            agents: remoteAgents.agents,
+            localAgent: remoteAgents.localAgent,
+            currentAgentId: remoteAgents.currentAgentId,
+            currentAgent: nextCurrentAgent
+          }
+        : previous
+    );
+  }, [mergeRemoteState, queryClient]);
 
   const promptClaudeLogin = useCallback((agent: Agent, onAuthenticated: (authenticatedAgent: Agent) => Promise<void>) => {
     Modal.confirm({
@@ -128,6 +222,8 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
   const markCurrentAfterCompletedEvaluation = useCallback(
     async (agent: Agent, nextEvaluation: AgentEvaluation) => {
       if (autoSetCurrentAgentIdRef.current !== agent.id || !isCompletedAgentEvaluation(nextEvaluation)) return;
+      if (completedEvaluationIdRef.current === nextEvaluation.evaluationId || completingEvaluationIdRef.current === nextEvaluation.evaluationId) return;
+      completingEvaluationIdRef.current = nextEvaluation.evaluationId;
       try {
         const updatedCurrentAgent = await markRemoteCurrentAgent(agent.id);
         const preferredCurrentAgent = updatedCurrentAgent ?? { ...agent, role: "当前执行 Agent" as const };
@@ -146,16 +242,31 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
         setAbilityResultAgent(completedCurrentAgent);
         setAbilityResultModalOpen(true);
         mergeRemoteState({ currentAgent: completedCurrentAgent });
+        queryClient.setQueryData<SprixRemoteStatePatch>(["sprix-agent", "home-bootstrap"], (previous) =>
+          previous
+            ? {
+                ...previous,
+                agents: previous.agents?.map((item) => (item.id === completedCurrentAgent.id ? completedCurrentAgent : item)),
+                currentAgentId: completedCurrentAgent.id,
+                currentAgent: completedCurrentAgent
+              }
+            : previous
+        );
+        completedEvaluationIdRef.current = nextEvaluation.evaluationId;
+        completingEvaluationIdRef.current = undefined;
         autoSetCurrentAgentIdRef.current = undefined;
         message.success("测评完成，已设置当前执行 Agent");
         void refreshAgents(completedCurrentAgent).catch((error) => {
           showHomeRequestError(error, "刷新 Agent 状态失败", "刷新 Agent 状态失败：");
         });
       } catch (error) {
+        if (completingEvaluationIdRef.current === nextEvaluation.evaluationId) {
+          completingEvaluationIdRef.current = undefined;
+        }
         showHomeRequestError(error, "设置当前执行 Agent 失败", "设置当前执行 Agent 失败：");
       }
     },
-    [mergeRemoteState, refreshAgents]
+    [mergeRemoteState, queryClient, refreshAgents]
   );
 
   const selectAgentForEvaluation = async (agent: Agent) => {
@@ -163,6 +274,8 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       openLogin();
       return;
     }
+    agentPickerDismissedRef.current = true;
+    writeAccountDismissed(AGENT_PICKER_DISMISSED_STORAGE_KEY, accountScope, true);
     if (agent.authStatus === "login_required") {
       setAgentPickerOpen(false);
       promptClaudeLogin(agent, selectAgentForEvaluation);
@@ -250,6 +363,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
     setEvaluationModalOpen(false);
     const shouldKeepEvaluationContext = evaluationLoading || Boolean(evaluation && isEvaluationActive(evaluation.status));
     if (!shouldKeepEvaluationContext) {
+      setAgentSetupFlow(false);
       setEvaluationAgent(null);
       setEvaluation(undefined);
     }
@@ -257,6 +371,9 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
   };
 
   const openAgentPicker = useCallback(() => {
+    agentPickerDismissedRef.current = false;
+    writeAccountDismissed(AGENT_PICKER_DISMISSED_STORAGE_KEY, accountScope, false);
+    setAgentSetupFlow(true);
     const shouldRestoreEvaluation =
       Boolean(evaluationAgent) && (evaluationLoading || Boolean(evaluation && isEvaluationActive(evaluation.status)));
     if (shouldRestoreEvaluation) {
@@ -264,26 +381,37 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       return;
     }
     setAgentPickerOpen(true);
-  }, [evaluation, evaluationAgent, evaluationLoading]);
+  }, [accountScope, evaluation, evaluationAgent, evaluationLoading, setAgentSetupFlow]);
 
   const enterMarketFromAbilityResult = () => {
     abilityResultFlowRef.current = false;
+    setAgentSetupFlow(false);
     navigate("/agent/market");
   };
 
   useEffect(() => {
-    if (shouldOpenConnectModal) {
+    if (shouldOpenConnectModal && !shouldOpenAgentPicker) {
+      setAgentSetupFlow(true);
       setConnectModalOpen(true);
       navigate(".", { replace: true, state: null });
     }
-  }, [navigate, shouldOpenConnectModal]);
+  }, [navigate, setAgentSetupFlow, shouldOpenAgentPicker, shouldOpenConnectModal]);
 
   useEffect(() => {
     if (shouldOpenAgentPicker) {
+      setAgentSetupFlow(true);
       openAgentPicker();
-      navigate(".", { replace: true });
+      const nextSearchParams = new URLSearchParams(searchParams);
+      nextSearchParams.delete("modal");
+      navigate(
+        {
+          pathname: location.pathname,
+          search: nextSearchParams.toString() ? `?${nextSearchParams.toString()}` : ""
+        },
+        { replace: true, state: null }
+      );
     }
-  }, [navigate, openAgentPicker, shouldOpenAgentPicker]);
+  }, [location.pathname, navigate, openAgentPicker, searchParams, setAgentSetupFlow, shouldOpenAgentPicker]);
 
   useEffect(() => {
     if (!agentPickerOpen) return;
@@ -291,12 +419,102 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
   }, [agentPickerOpen, startPickerPolling]);
 
   useEffect(() => {
-    if (account.isLoggedIn && currentAgent && !connectModalOpen && !shouldOpenConnectModal && !abilityResultModalOpen && !abilityResultFlowRef.current) {
+    if (!account.isLoggedIn) {
+      dismissedAccountScopeRef.current = "";
+      connectModalDismissedRef.current = false;
+      agentPickerDismissedRef.current = false;
+      return;
+    }
+    if (!accountScope || dismissedAccountScopeRef.current === accountScope) return;
+    dismissedAccountScopeRef.current = accountScope;
+    connectModalDismissedRef.current = readAccountDismissed(CONNECT_MODAL_DISMISSED_STORAGE_KEY, accountScope);
+    agentPickerDismissedRef.current = readAccountDismissed(AGENT_PICKER_DISMISSED_STORAGE_KEY, accountScope);
+  }, [account.isLoggedIn, accountScope]);
+
+  useEffect(() => {
+    completedEvaluationIdRef.current = undefined;
+    completingEvaluationIdRef.current = undefined;
+  }, [accountScope]);
+
+  useEffect(() => {
+    if (
+      !account.isLoggedIn ||
+      !bootstrapReady ||
+      agentPickerOpen ||
+      abilityResultModalOpen ||
+      !effectiveCurrentAgent?.evaluation ||
+      !isEvaluationActive(effectiveCurrentAgent.evaluation.status)
+    ) {
+      return;
+    }
+    const restoredEvaluation = effectiveCurrentAgent.evaluation;
+    if (completedEvaluationIdRef.current === restoredEvaluation.evaluationId || completingEvaluationIdRef.current === restoredEvaluation.evaluationId) return;
+    if (evaluationAgent?.id === effectiveCurrentAgent.id && evaluation?.evaluationId === restoredEvaluation.evaluationId) return;
+    autoSetCurrentAgentIdRef.current = effectiveCurrentAgent.id;
+    setEvaluationAgent(effectiveCurrentAgent);
+    setEvaluation(restoredEvaluation);
+    setEvaluationError(undefined);
+    setEvaluationLoading(false);
+    setEvaluationModalOpen(true);
+  }, [abilityResultModalOpen, account.isLoggedIn, agentPickerOpen, bootstrapReady, effectiveCurrentAgent, evaluation, evaluationAgent]);
+
+  useEffect(() => {
+    if (canAutoEnterMarket) {
       navigate("/agent/market", { replace: true });
     }
-  }, [abilityResultModalOpen, account.isLoggedIn, connectModalOpen, currentAgent, navigate, shouldOpenConnectModal]);
+  }, [canAutoEnterMarket, navigate]);
 
-  if (account.isLoggedIn && currentAgent && !connectModalOpen && !shouldOpenConnectModal && !abilityResultModalOpen && !abilityResultFlowRef.current) {
+  useEffect(() => {
+    if (
+      !agentSetupFlowActive ||
+      !bootstrapReady ||
+      connectModalOpen ||
+      agentPickerOpen ||
+      evaluationFlowActive ||
+      abilityResultModalOpen ||
+      connectModalDismissedRef.current ||
+      agentPickerDismissedRef.current ||
+      shouldOpenAgentPicker
+    ) {
+      return;
+    }
+    if (effectiveCurrentAgent) {
+      if (currentAgentReady) setAgentSetupFlow(false);
+      return;
+    }
+    setConnectModalOpen(true);
+  }, [abilityResultModalOpen, agentPickerOpen, agentSetupFlowActive, bootstrapReady, connectModalOpen, currentAgentReady, effectiveCurrentAgent, evaluationFlowActive, setAgentSetupFlow, shouldOpenAgentPicker]);
+
+  useEffect(() => {
+    if (!account.isLoggedIn) {
+      connectModalDismissedRef.current = false;
+      setAgentSetupFlow(false);
+      return;
+    }
+    if (effectiveCurrentAgent) {
+      connectModalDismissedRef.current = false;
+      return;
+    }
+    if (
+      !homeBootstrap.isSuccess ||
+      homeBootstrap.isFetching ||
+      !accountScope ||
+      shouldOpenAgentPicker ||
+      (agentSetupFlowActive && availableAgents.length > 0) ||
+      connectModalDismissedRef.current ||
+      agentPickerDismissedRef.current ||
+      evaluationFlowActive ||
+      abilityResultModalOpen ||
+      connectModalOpen ||
+      agentPickerOpen
+    ) {
+      return;
+    }
+    setAgentSetupFlow(true);
+    setConnectModalOpen(true);
+  }, [abilityResultModalOpen, account.isLoggedIn, accountScope, agentPickerOpen, agentSetupFlowActive, connectModalOpen, effectiveCurrentAgent, evaluationFlowActive, homeBootstrap.isFetching, homeBootstrap.isSuccess, setAgentSetupFlow, shouldOpenAgentPicker]);
+
+  if (canAutoEnterMarket) {
     return null;
   }
 
@@ -305,14 +523,24 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       <section className="sprix-landing-inner">
         <HomeTopAccount account={account} onLogout={onLogout} />
         <HomeHero />
-        <HomeAgentCard agent={currentAgent} onEnterMarket={() => navigate("/agent/market")} onManageAgent={() => navigate("/agent/center")} />
+        <HomeAgentCard agent={effectiveCurrentAgent} onEnterMarket={() => navigate("/agent/market")} onManageAgent={() => navigate("/agent/center")} />
         <HomeStats overview={platformOverview} />
         <HomeAgentEntry
           state={homeState}
+          checking={account.isLoggedIn && homeBootstrap.isFetching}
           connectModalOpen={connectModalOpen}
           onOpenLogin={openLogin}
-          onOpenConnectModal={() => setConnectModalOpen(true)}
-          onCloseConnectModal={() => setConnectModalOpen(false)}
+          onOpenConnectModal={() => {
+            setAgentSetupFlow(true);
+            setConnectModalOpen(true);
+          }}
+          onCloseConnectModal={() => {
+            connectModalDismissedRef.current = true;
+            writeAccountDismissed(CONNECT_MODAL_DISMISSED_STORAGE_KEY, accountScope, true);
+            setAgentSetupFlow(false);
+            setConnectModalOpen(false);
+          }}
+          onCompleteConnectModal={() => setConnectModalOpen(false)}
           onOpenAgentPicker={openAgentPicker}
           onEnterMarket={() => navigate("/agent/market")}
         />
@@ -337,8 +565,16 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
         open={agentPickerOpen}
         agents={availableAgents}
         recognizing={pickerRecognizing}
+        recognitionFailed={pickerRecognitionFailed}
+        recognitionTimedOut={pickerRecognitionTimedOut}
+        onRetry={() => startPickerPolling()}
         onSelect={selectAgentForEvaluation}
-        onClose={() => setAgentPickerOpen(false)}
+        onClose={() => {
+          agentPickerDismissedRef.current = true;
+          writeAccountDismissed(AGENT_PICKER_DISMISSED_STORAGE_KEY, accountScope, true);
+          setAgentPickerOpen(false);
+          setAgentSetupFlow(false);
+        }}
       />
       <AgentEvaluationProgressModal
         open={evaluationModalOpen}

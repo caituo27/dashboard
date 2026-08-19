@@ -1,7 +1,7 @@
 import type { LocalAgentDiagnostic, LocalAgentInventoryStatus } from "../types";
 
 export function shouldPollLocalAgentInventory(status?: LocalAgentInventoryStatus) {
-  return status === "WAITING_INVENTORY" || status === "INVENTORY_STALE";
+  return status === "NOT_BOUND" || status === "DEVICE_OFFLINE" || status === "WAITING_INVENTORY" || status === "INVENTORY_STALE";
 }
 
 export function getLocalAgentEmptyMessage(localAgent?: LocalAgentDiagnostic) {
