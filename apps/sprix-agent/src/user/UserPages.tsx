@@ -103,6 +103,9 @@ const TASK_MARKET_SCROLL_TOP_KEY = "sprix-task-market-scroll-top";
 const TASK_MARKET_VISIBLE_COUNT_KEY = "sprix-task-market-visible-count";
 const TASK_MARKET_PAGE_KEY = "sprix-task-market-page";
 const TASK_MARKET_BATCH_SIZE = 24;
+const MY_TASKS_SCROLL_TOP_KEY = "sprix-my-tasks-scroll-top";
+const MY_TASKS_TAB_KEY = "sprix-my-tasks-tab";
+const MY_TASKS_TABS = ["全部", "执行中", "已终止", "已完成"];
 const SMART_ACCEPT_VISIBLE = true;
 const AGENT_EVALUATION_POLL_INTERVAL_MS = 1_500;
 
@@ -119,6 +122,14 @@ function ButtonIcon({ src }: { src: string }) {
   return <img className="sprix-button-icon" src={src} alt="" aria-hidden="true" />;
 }
 
+function LoginButtonIcon() {
+  return <ButtonIcon src={BUTTON_ICON_PATHS.login} />;
+}
+
+function EvaluationProgressButtonIcon() {
+  return <ButtonIcon src={BUTTON_ICON_PATHS.evaluationProgress} />;
+}
+
 function formatTaskAttachmentSize(sizeBytes: number) {
   if (sizeBytes < 1024) return `${sizeBytes} B`;
   if (sizeBytes < 1024 * 1024) return `${(sizeBytes / 1024).toFixed(1)} KiB`;
@@ -130,7 +141,7 @@ function showRequestError(error: unknown, fallback: string, prefix = "") {
   message.error(error instanceof Error ? `${prefix}${error.message}` : fallback);
 }
 
-function getTaskMarketScrollContainer() {
+function getPageScrollContainer() {
   const container = document.querySelector<HTMLElement>(".sprix-main");
   if (!container) return null;
 
@@ -139,8 +150,8 @@ function getTaskMarketScrollContainer() {
   return canScroll && overflowY !== "visible" && overflowY !== "clip" ? container : null;
 }
 
-function scrollTaskMarketTo(scrollTop: number) {
-  const scrollContainer = getTaskMarketScrollContainer();
+function scrollPageTo(scrollTop: number) {
+  const scrollContainer = getPageScrollContainer();
   if (scrollContainer) {
     scrollContainer.scrollTo({ top: scrollTop, behavior: "auto" });
     return;
@@ -149,9 +160,44 @@ function scrollTaskMarketTo(scrollTop: number) {
   window.scrollTo({ top: scrollTop, behavior: "auto" });
 }
 
+function readSavedScrollTop(storageKey: string) {
+  const savedValue = sessionStorage.getItem(storageKey);
+  if (savedValue === null) return null;
+
+  const value = Number(savedValue);
+  return Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+function saveCurrentPageScrollTop(storageKey: string) {
+  const scrollTop = getPageScrollContainer()?.scrollTop ?? window.scrollY;
+  sessionStorage.setItem(storageKey, String(Math.max(0, Math.round(scrollTop))));
+}
+
+function restoreSavedPageScrollTop(storageKey: string, onRestored: () => void) {
+  const scrollTop = readSavedScrollTop(storageKey);
+  if (scrollTop === null) return undefined;
+
+  let timeout = 0;
+  const frame = window.requestAnimationFrame(() => {
+    scrollPageTo(scrollTop);
+    timeout = window.setTimeout(() => {
+      scrollPageTo(scrollTop);
+      onRestored();
+    }, 80);
+  });
+
+  return () => {
+    window.cancelAnimationFrame(frame);
+    window.clearTimeout(timeout);
+  };
+}
+
+function scrollTaskMarketTo(scrollTop: number) {
+  scrollPageTo(scrollTop);
+}
+
 function saveTaskMarketScrollTop() {
-  const scrollTop = getTaskMarketScrollContainer()?.scrollTop ?? window.scrollY;
-  sessionStorage.setItem(TASK_MARKET_SCROLL_TOP_KEY, String(Math.max(0, Math.round(scrollTop))));
+  saveCurrentPageScrollTop(TASK_MARKET_SCROLL_TOP_KEY);
 }
 
 function saveTaskMarketReturnState(visibleCount: number) {
@@ -160,8 +206,7 @@ function saveTaskMarketReturnState(visibleCount: number) {
 }
 
 function readSavedTaskMarketScrollTop() {
-  const value = Number(sessionStorage.getItem(TASK_MARKET_SCROLL_TOP_KEY));
-  return Number.isFinite(value) && value > 0 ? value : null;
+  return readSavedScrollTop(TASK_MARKET_SCROLL_TOP_KEY);
 }
 
 function readSavedTaskMarketVisibleCount() {
@@ -178,6 +223,21 @@ function clearTaskMarketReturnState() {
   sessionStorage.removeItem(TASK_MARKET_SCROLL_TOP_KEY);
   sessionStorage.removeItem(TASK_MARKET_VISIBLE_COUNT_KEY);
   sessionStorage.removeItem(TASK_MARKET_PAGE_KEY);
+}
+
+function saveMyTasksReturnState(tab: string) {
+  saveCurrentPageScrollTop(MY_TASKS_SCROLL_TOP_KEY);
+  sessionStorage.setItem(MY_TASKS_TAB_KEY, tab);
+}
+
+function readSavedMyTasksTab() {
+  const savedTab = sessionStorage.getItem(MY_TASKS_TAB_KEY);
+  return savedTab && MY_TASKS_TABS.includes(savedTab) ? savedTab : "全部";
+}
+
+function clearMyTasksReturnState() {
+  sessionStorage.removeItem(MY_TASKS_SCROLL_TOP_KEY);
+  sessionStorage.removeItem(MY_TASKS_TAB_KEY);
 }
 
 const agentEvaluationActionLabels: Record<AgentEvaluation["status"], string> = {
@@ -217,22 +277,8 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
   }, [availableTasks.length]);
 
   useEffect(() => {
-    const scrollTop = readSavedTaskMarketScrollTop();
-    if (scrollTop === null || visibleTasks.length === 0) return;
-
-    let timeout = 0;
-    const frame = window.requestAnimationFrame(() => {
-      scrollTaskMarketTo(scrollTop);
-      timeout = window.setTimeout(() => {
-        scrollTaskMarketTo(scrollTop);
-        clearTaskMarketReturnState();
-      }, 80);
-    });
-
-    return () => {
-      window.cancelAnimationFrame(frame);
-      window.clearTimeout(timeout);
-    };
+    if (visibleTasks.length === 0) return;
+    return restoreSavedPageScrollTop(TASK_MARKET_SCROLL_TOP_KEY, clearTaskMarketReturnState);
   }, [visibleTasks.length]);
 
   const loadMoreTasks = useCallback(() => {
@@ -256,7 +302,7 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
         }
       },
       {
-        root: getTaskMarketScrollContainer(),
+        root: getPageScrollContainer(),
         rootMargin: "360px 0px"
       }
     );
@@ -1074,13 +1120,13 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
           const evaluationActionLabel = getAgentEvaluationActionLabel(agent);
           const evaluationActionIcon =
             evaluationActionLabel === "查看进度" ? (
-              <ButtonIcon src={BUTTON_ICON_PATHS.evaluationProgress} />
+              <EvaluationProgressButtonIcon />
             ) : undefined;
           return agent.role === "当前执行 Agent" ? (
             <>
               {agent.authStatus === "login_required" && (
                 <SecondaryButton
-                  icon={<ButtonIcon src={BUTTON_ICON_PATHS.login} />}
+                  icon={<LoginButtonIcon />}
                   onClick={() => promptClaudeLogin(agent, async () => undefined)}
                 >
                   登录
@@ -1113,7 +1159,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
             <>
               {agent.authStatus === "login_required" && (
                 <SecondaryButton
-                  icon={<ButtonIcon src={BUTTON_ICON_PATHS.login} />}
+                  icon={<LoginButtonIcon />}
                   onClick={() => promptClaudeLogin(agent, async () => undefined)}
                 >
                   登录
@@ -1294,7 +1340,7 @@ export function MyTasksPage({ openLogin, openAppeal }: UserPageProps) {
   const account = useSprixStore((state) => state.account);
   const myTasks = useSprixStore((state) => state.myTasks);
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState("全部");
+  const [tab, setTab] = useState(readSavedMyTasksTab);
   const [cancelingTaskId, setCancelingTaskId] = useState<string>();
   const rerunTask = useRerunTask();
   const cancelTask = (executionId: string) => {
@@ -1324,6 +1370,15 @@ export function MyTasksPage({ openLogin, openAppeal }: UserPageProps) {
     return task.status === tab;
   });
 
+  useEffect(() => {
+    if (visible.length === 0) return;
+    return restoreSavedPageScrollTop(MY_TASKS_SCROLL_TOP_KEY, clearMyTasksReturnState);
+  }, [visible.length]);
+
+  const saveMyTasksReturnPosition = useCallback(() => {
+    saveMyTasksReturnState(tab);
+  }, [tab]);
+
   if (!account.isLoggedIn) {
     return <EmptyState title="登录后查看我的任务" description="登录后可查看执行记录、验收结果、申诉状态和重新执行入口。" action={<ActionButton onClick={openLogin}>登录 / 注册</ActionButton>} />;
   }
@@ -1337,7 +1392,7 @@ export function MyTasksPage({ openLogin, openAppeal }: UserPageProps) {
             className="sprix-my-tasks-tabs"
             activeKey={tab}
             onChange={setTab}
-            items={["全部", "执行中", "已终止", "已完成"].map((label) => ({ key: label, label }))}
+            items={MY_TASKS_TABS.map((label) => ({ key: label, label }))}
           />
           <img className="sprix-my-tasks-illustration" src="/mytask.svg" alt="" aria-hidden="true" />
         </div>
@@ -1350,6 +1405,7 @@ export function MyTasksPage({ openLogin, openAppeal }: UserPageProps) {
                 canceling={cancelingTaskId === task.id}
                 onAppeal={openAppeal}
                 onCancel={cancelTask}
+                onOpenDetail={saveMyTasksReturnPosition}
                 onRerun={rerunTask}
               />
             ))}
@@ -1387,17 +1443,25 @@ function MyTaskRow({
   canceling,
   onAppeal,
   onCancel,
+  onOpenDetail,
   onRerun
 }: {
   task: MyTask;
   canceling: boolean;
   onAppeal: (executionId: string) => void;
   onCancel: (executionId: string) => void;
+  onOpenDetail: () => void;
   onRerun: (executionId: string) => void;
 }) {
+  const navigate = useNavigate();
   const actions = getMyTaskActions(task);
   const metaItems = getMyTaskMetaItems(task);
   const showPrimaryStatus = !(task.status === "验收未通过" && shouldShowAppealStatus(task.appealStatus));
+  const detailPath = `/agent/my-tasks/${task.id}`;
+  const openDetail = () => {
+    onOpenDetail();
+    navigate(detailPath);
+  };
   useExecutionDisplayProgress({
     executionId: task.id,
     actualProgress: parseExecutionProgress(task.progress),
@@ -1410,7 +1474,7 @@ function MyTaskRow({
           {showPrimaryStatus && <StatusTag status={task.status} />}
           {shouldShowAppealStatus(task.appealStatus) && <StatusTag status={task.appealStatus} />}
         </div>
-        <Link to={`/agent/my-tasks/${task.id}`} className="sprix-my-task-row-title">
+        <Link to={detailPath} className="sprix-my-task-row-title" onClick={onOpenDetail}>
           {task.title}
         </Link>
         <p className="sprix-my-task-row-meta">
@@ -1429,7 +1493,7 @@ function MyTaskRow({
           </SecondaryButton>
         )}
         {actions.rerun && <SecondaryButton onClick={() => onRerun(task.id)}>重新执行</SecondaryButton>}
-        <SecondaryButton href={`/agent/my-tasks/${task.id}`}>{actions.viewLabel}</SecondaryButton>
+        <SecondaryButton onClick={openDetail}>{actions.viewLabel}</SecondaryButton>
       </div>
     </Surface>
   );

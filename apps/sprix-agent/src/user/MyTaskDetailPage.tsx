@@ -1,8 +1,8 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import type { ChangeEvent, MouseEvent, ReactNode } from "react";
 import { Input, Modal, Spin, message } from "antd";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { InfoCircleOutlined } from "@ant-design/icons";
 import { Bot, CheckCircle2, ChevronDown, ChevronLeft, CircleAlert, Clock3, Copy, Download, FileText, History as HistoryIcon, Lightbulb, Paperclip, RotateCw, UploadCloud, X } from "lucide-react";
 import type { ArtifactSnapshot, MyTaskExecutionDetail } from "../apis/sprix";
@@ -54,8 +54,28 @@ function validateManualSubmissionFile(file: File) {
   return null;
 }
 
+function getPageScrollContainer() {
+  const container = document.querySelector<HTMLElement>(".sprix-main");
+  if (!container) return null;
+
+  const overflowY = window.getComputedStyle(container).overflowY;
+  const canScroll = container.scrollHeight > container.clientHeight;
+  return canScroll && overflowY !== "visible" && overflowY !== "clip" ? container : null;
+}
+
+function scrollPageToTop() {
+  const scrollContainer = getPageScrollContainer();
+  if (scrollContainer) {
+    scrollContainer.scrollTo({ top: 0, behavior: "auto" });
+    return;
+  }
+
+  window.scrollTo({ top: 0, behavior: "auto" });
+}
+
 export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
   const { id } = useParams();
+  const navigate = useNavigate();
   const rerunTask = useRerunTask();
   const queryClient = useQueryClient();
   const [detail, setDetail] = useState<MyTaskExecutionDetailView>();
@@ -84,6 +104,10 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
     },
     [id]
   );
+
+  useLayoutEffect(() => {
+    scrollPageToTop();
+  }, [id]);
 
   useEffect(() => {
     setDetail(undefined);
@@ -140,9 +164,18 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
       }
     });
   };
+  const returnToMyTasks = () => {
+    navigate("/agent/my-tasks");
+  };
 
   if (!id) {
-    return <EmptyState title="执行记录不存在" description="缺少执行记录 ID，无法读取任务详情。" action={<SecondaryButton href="/agent/my-tasks">返回我的任务</SecondaryButton>} />;
+    return (
+      <EmptyState
+        title="执行记录不存在"
+        description="缺少执行记录 ID，无法读取任务详情。"
+        action={<SecondaryButton onClick={returnToMyTasks}>返回我的任务</SecondaryButton>}
+      />
+    );
   }
 
   if (loading && !detail) {
@@ -156,7 +189,7 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
         description={error}
         action={
           <div className="flex justify-center gap-2">
-            <SecondaryButton href="/agent/my-tasks">返回我的任务</SecondaryButton>
+            <SecondaryButton onClick={returnToMyTasks}>返回我的任务</SecondaryButton>
             <ActionButton onClick={() => void loadDetail(false)}>重新加载</ActionButton>
           </div>
         }
@@ -165,7 +198,13 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
   }
 
   if (!detail || !summary) {
-    return <EmptyState title="执行记录不存在" description="该任务记录暂不可访问。" action={<SecondaryButton href="/agent/my-tasks">返回我的任务</SecondaryButton>} />;
+    return (
+      <EmptyState
+        title="执行记录不存在"
+        description="该任务记录暂不可访问。"
+        action={<SecondaryButton onClick={returnToMyTasks}>返回我的任务</SecondaryButton>}
+      />
+    );
   }
 
   return (
