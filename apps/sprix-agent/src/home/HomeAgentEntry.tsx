@@ -3,7 +3,7 @@ import { ExclamationCircleOutlined } from "@ant-design/icons";
 import { Modal, Tooltip } from "antd";
 import { Download, PlugZap } from "lucide-react";
 import { LOCAL_AGENT_DOWNLOAD_URL } from "../localAgentDownload";
-import { ActionButton, SecondaryButton } from "../components/Primitives";
+import { ActionButton } from "../components/Primitives";
 import type { HomeAgentStateResult } from "./homeTypes";
 import { useAgentBindPolling } from "./useAgentBindPolling";
 
@@ -120,34 +120,17 @@ export function HomeAgentEntry({
         <div className="sprix-connect-agent-modal">
           <img className="sprix-hero-logo" src="/sprix-wordmark.png" alt="Sprix AI" />
           <h2>连接本地 Agent</h2>
-          <p className="sprix-connect-agent-primary-copy">
-            {recognitionFailed
-              ? "识别本机 Agent 失败，请确认插件已启动后重试。"
-              : recognitionTimedOut
-                ? "暂未识别到本机 Agent，请确认插件已启动后重试。"
-                : recognizing || syncing || !recognitionComplete
-                  ? "正在识别本机 Agent，请稍候…"
-                  : "安装后请稍候，插件启动后将自动打开连接页面。"}
-          </p>
+          <p className="sprix-connect-agent-primary-copy">安装后请稍候，插件启动后将自动打开连接页面。</p>
           <div className="sprix-connect-agent-cta">
-            {recognitionFailed || recognitionTimedOut ? (
-              <div className="flex items-center justify-center gap-3">
-                <ActionButton onClick={() => start({ minimumVisibleMs: 800 })}>重新识别</ActionButton>
-                <SecondaryButton href={LOCAL_AGENT_DOWNLOAD_URL} target="_blank" rel="noreferrer" icon={<Download size={16} />}>
-                  下载插件
-                </SecondaryButton>
-              </div>
-            ) : (
-              <ActionButton
-                href={LOCAL_AGENT_DOWNLOAD_URL}
-                target="_blank"
-                rel="noreferrer"
-                icon={<Download size={16} />}
-                className="sprix-connect-agent-download-button"
-              >
-                下载 Sprix AI 连接插件（Mac 版）
-              </ActionButton>
-            )}
+            <ActionButton
+              href={LOCAL_AGENT_DOWNLOAD_URL}
+              target="_blank"
+              rel="noreferrer"
+              icon={<Download size={16} />}
+              className="sprix-connect-agent-download-button"
+            >
+              下载 Sprix AI 连接插件（Mac 版）
+            </ActionButton>
           </div>
           <div className="sprix-supported-agent-section" aria-label="支持的 Agent 列表">
             <p className="sprix-supported-agent-copy">
