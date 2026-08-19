@@ -1,15 +1,13 @@
 import { Bot } from "lucide-react";
-import { SecondaryButton, StatusTag } from "../components/Primitives";
+import { StatusTag } from "../components/Primitives";
 import type { Agent } from "../types";
 import { scoreText } from "../utils/format";
 
 type HomeAgentCardProps = {
   agent?: Agent;
-  onEnterMarket: () => void;
-  onManageAgent: () => void;
 };
 
-export function HomeAgentCard({ agent, onEnterMarket, onManageAgent }: HomeAgentCardProps) {
+export function HomeAgentCard({ agent }: HomeAgentCardProps) {
   if (!agent) return null;
 
   return (
@@ -27,10 +25,6 @@ export function HomeAgentCard({ agent, onEnterMarket, onManageAgent }: HomeAgent
             <span>{scoreText(agent.evaluation?.result.overallScore ?? null)}</span>
           </div>
         </div>
-      </div>
-      <div className="sprix-current-agent-actions">
-        <SecondaryButton onClick={onEnterMarket}>进入任务市场</SecondaryButton>
-        <SecondaryButton onClick={onManageAgent}>管理 Agent</SecondaryButton>
       </div>
     </section>
   );

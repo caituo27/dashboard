@@ -23,8 +23,13 @@ export function AuthModal({ open, onClose, onLoginSuccess }: AuthModalProps) {
     if (remoteState.account?.isLoggedIn !== true) {
       throw new Error("登录未完成，请重新登录");
     }
-    mergeRemoteState(remoteState);
+    await Promise.all([
+      queryClient.cancelQueries({ queryKey: ["sprix-agent", "home-bootstrap"] }),
+      queryClient.cancelQueries({ queryKey: ["sprix-agent", "snapshot"] })
+    ]);
+    queryClient.setQueryData(["sprix-agent", "home-bootstrap"], remoteState);
     queryClient.setQueryData(["sprix-agent", "snapshot"], remoteState);
+    mergeRemoteState(remoteState);
     message.success("成功");
     onClose();
     try {

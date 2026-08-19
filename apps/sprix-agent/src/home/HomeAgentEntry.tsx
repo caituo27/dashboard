@@ -10,6 +10,7 @@ import { useAgentBindPolling } from "./useAgentBindPolling";
 type HomeAgentEntryProps = {
   state: HomeAgentStateResult;
   checking?: boolean;
+  localAgentHealthy?: boolean;
   connectModalOpen: boolean;
   onOpenLogin: () => void;
   onOpenConnectModal: () => void;
@@ -41,6 +42,7 @@ const SUPPORTED_AGENTS = [
 export function HomeAgentEntry({
   state,
   checking = false,
+  localAgentHealthy = false,
   connectModalOpen,
   onOpenLogin,
   onOpenConnectModal,
@@ -54,13 +56,14 @@ export function HomeAgentEntry({
 
   useEffect(() => {
     if (!connectModalOpen) return;
-    start({ announceCompletion: true, minimumVisibleMs: 800 });
+    start({ minimumVisibleMs: 800 });
   }, [connectModalOpen, start]);
 
   useEffect(() => {
     if (!connectModalOpen) return;
     if (!recognitionComplete || recognitionFailed || recognitionTimedOut || recognizing || syncing) return;
     if (state.state === "logged_in_with_agents_without_current") {
+      if (!localAgentHealthy) return;
       completeConnectModal();
       onOpenAgentPicker();
       return;
@@ -68,7 +71,7 @@ export function HomeAgentEntry({
     if (state.state === "logged_in_with_current_agent") {
       onCloseConnectModal();
     }
-  }, [completeConnectModal, connectModalOpen, onCloseConnectModal, onOpenAgentPicker, recognitionComplete, recognitionFailed, recognizing, recognitionTimedOut, state.state, syncing]);
+  }, [completeConnectModal, connectModalOpen, localAgentHealthy, onCloseConnectModal, onOpenAgentPicker, recognitionComplete, recognitionFailed, recognizing, recognitionTimedOut, state.state, syncing]);
 
   const handlePrimaryAction = () => {
     if (checking) return;
@@ -77,11 +80,19 @@ export function HomeAgentEntry({
       return;
     }
     if (state.state === "logged_in_without_agents") {
-      onOpenConnectModal();
+      if (localAgentHealthy) {
+        onOpenAgentPicker();
+      } else {
+        onOpenConnectModal();
+      }
       return;
     }
     if (state.state === "logged_in_with_agents_without_current") {
-      onOpenAgentPicker();
+      if (localAgentHealthy) {
+        onOpenAgentPicker();
+      } else {
+        onOpenConnectModal();
+      }
       return;
     }
     onEnterMarket();
@@ -91,7 +102,11 @@ export function HomeAgentEntry({
     <>
       <div className="sprix-hero-actions sprix-home-primary-actions">
         <ActionButton icon={<PlugZap size={16} />} onClick={handlePrimaryAction} disabled={checking}>
-          {checking ? "正在检查本地 Agent…" : state.primaryActionLabel}
+          {checking
+            ? "正在检查本地 Agent…"
+            : state.state === "logged_in_with_agents_without_current" && !localAgentHealthy
+              ? "连接本地 Agent"
+              : state.primaryActionLabel}
         </ActionButton>
       </div>
       <Modal
@@ -117,7 +132,7 @@ export function HomeAgentEntry({
           <div className="sprix-connect-agent-cta">
             {recognitionFailed || recognitionTimedOut ? (
               <div className="flex items-center justify-center gap-3">
-                <ActionButton onClick={() => start({ announceCompletion: true, minimumVisibleMs: 800 })}>重新识别</ActionButton>
+                <ActionButton onClick={() => start({ minimumVisibleMs: 800 })}>重新识别</ActionButton>
                 <SecondaryButton href={LOCAL_AGENT_DOWNLOAD_URL} target="_blank" rel="noreferrer" icon={<Download size={16} />}>
                   下载插件
                 </SecondaryButton>

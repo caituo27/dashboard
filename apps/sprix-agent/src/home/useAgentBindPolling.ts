@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { message } from "antd";
 import { readRemoteAgents } from "../services/sprixApi";
 import { useSprixStore, type SprixRemoteStatePatch } from "../store/sprixStore";
 import { showRequestError } from "../components/requestErrors";
@@ -11,7 +10,6 @@ type UseAgentBindPollingOptions = {
 };
 
 type AgentBindPollingStartOptions = {
-  announceCompletion?: boolean;
   minimumVisibleMs?: number;
 };
 
@@ -35,10 +33,9 @@ export function useAgentBindPolling({ open }: UseAgentBindPollingOptions) {
   const deadlineTimerRef = useRef<number>();
   const runIdRef = useRef(0);
   const pollingActiveRef = useRef(false);
-  const announceCompletionRef = useRef(false);
   const minimumVisibleUntilRef = useRef(0);
 
-  const stop = useCallback((announceCompletion = false) => {
+  const stop = useCallback(() => {
     if (timerRef.current) {
       window.clearTimeout(timerRef.current);
       timerRef.current = undefined;
@@ -61,12 +58,6 @@ export function useAgentBindPolling({ open }: UseAgentBindPollingOptions) {
     elapsedMsRef.current = 0;
     setElapsedMs(0);
     minimumVisibleUntilRef.current = 0;
-    if (announceCompletion && announceCompletionRef.current) {
-      announceCompletionRef.current = false;
-      message.success("检测完成，本地 Agent 可用");
-      return;
-    }
-    announceCompletionRef.current = false;
   }, []);
 
   const refreshOnce = useCallback(async (runId: number) => {
@@ -105,7 +96,7 @@ export function useAgentBindPolling({ open }: UseAgentBindPollingOptions) {
     const result = await refreshOnce(runId);
     if (runId !== runIdRef.current || !pollingActiveRef.current) return;
     if (!result) {
-      stop(false);
+      stop();
       setRecognitionComplete(true);
       setRecognitionFailed(true);
       return;
@@ -117,18 +108,18 @@ export function useAgentBindPolling({ open }: UseAgentBindPollingOptions) {
       const remainingMs = minimumVisibleUntilRef.current - Date.now();
       if (remainingMs > 0) {
         delayedStopRef.current = window.setTimeout(() => {
-          stop(true);
+          stop();
           setRecognitionComplete(true);
         }, remainingMs);
         return;
       }
-      stop(true);
+      stop();
       setRecognitionComplete(true);
       return;
     }
     if (!inventorySyncPending) {
       setSyncing(false);
-      stop(false);
+      stop();
       setRecognitionComplete(true);
       setRecognitionFailed(true);
     }
@@ -142,14 +133,13 @@ export function useAgentBindPolling({ open }: UseAgentBindPollingOptions) {
     setRecognitionFailed(false);
     setRecognitionTimedOut(false);
     setSyncing(true);
-    announceCompletionRef.current = options?.announceCompletion === true;
     minimumVisibleUntilRef.current = options?.minimumVisibleMs ? Date.now() + options.minimumVisibleMs : 0;
     pollingActiveRef.current = true;
     setRecognizing(true);
     elapsedMsRef.current = 0;
     deadlineTimerRef.current = window.setTimeout(() => {
       if (runId !== runIdRef.current || !pollingActiveRef.current) return;
-      stop(false);
+      stop();
       setRecognitionComplete(true);
       setRecognitionTimedOut(true);
     }, MAX_POLLING_DURATION_MS);

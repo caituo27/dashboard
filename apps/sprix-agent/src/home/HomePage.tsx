@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Modal, message } from "antd";
 import { ArrowRight } from "lucide-react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
@@ -28,6 +28,7 @@ import { HomeAgentPickerModal } from "./HomeAgentPickerModal";
 import { HomeHero } from "./HomeHero";
 import { HomeStats } from "./HomeStats";
 import { HomeTopAccount } from "./HomeTopAccount";
+import { checkLocalAgentHealth } from "../localAgentDownload";
 
 type HomePageProps = {
   openLogin: () => void;
@@ -112,6 +113,16 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
   const platformOverview = useSprixStore((state) => state.platformOverview);
   const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
   const homeBootstrap = useHomeBootstrap();
+  const localAgentHealth = useQuery({
+    queryKey: ["sprix-agent", "local-agent-health"],
+    queryFn: checkLocalAgentHealth,
+    enabled: account.isLoggedIn,
+    retry: false,
+    staleTime: 0,
+    refetchInterval: 5_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true
+  });
   const autoSetCurrentAgentIdRef = useRef<string>();
   const completingEvaluationIdRef = useRef<string>();
   const completedEvaluationIdRef = useRef<string>();
@@ -133,11 +144,19 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
     start: startPickerPolling
   } = useAgentBindPolling({ open: agentPickerOpen });
   const bootstrapReady = homeBootstrap.isSuccess && !homeBootstrap.isFetching;
+  const homeAccount = useMemo(() => {
+    const bootstrapAccount = homeBootstrap.data?.account;
+    if (account.isLoggedIn && bootstrapAccount?.isLoggedIn === true) {
+      return { ...account, ...bootstrapAccount, isLoggedIn: true };
+    }
+    return account;
+  }, [account, homeBootstrap.data?.account]);
   const freshCurrentAgent = bootstrapReady ? homeBootstrap.data?.currentAgent : undefined;
-  const effectiveCurrentAgent = freshCurrentAgent?.status === "离线" ? undefined : freshCurrentAgent;
+  const effectiveCurrentAgent = homeAccount.isLoggedIn && freshCurrentAgent?.status !== "离线" ? freshCurrentAgent : undefined;
   const bootstrapAgents = bootstrapReady ? homeBootstrap.data?.agents ?? [] : agents;
   const availableAgents = useMemo(() => bootstrapAgents.filter((agent) => agent.status !== "离线"), [bootstrapAgents]);
-  const homeState = useHomeAgentState(account, availableAgents, effectiveCurrentAgent, localAgent, pickerSyncing);
+  const homeState = useHomeAgentState(homeAccount, availableAgents, effectiveCurrentAgent, localAgent, pickerSyncing);
+  const localAgentHealthy = localAgentHealth.isSuccess;
   const [evaluationAgent, setEvaluationAgent] = useState<Agent | null>(null);
   const [evaluation, setEvaluation] = useState<AgentEvaluation | undefined>();
   const [evaluationModalOpen, setEvaluationModalOpen] = useState(false);
@@ -145,6 +164,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
   const [evaluationError, setEvaluationError] = useState<string>();
   const [abilityResultAgent, setAbilityResultAgent] = useState<Agent | null>(null);
   const [abilityResultModalOpen, setAbilityResultModalOpen] = useState(false);
+  const evaluationFlowClaimedRef = useRef(false);
   const abilityResultFlowRef = useRef(false);
   const evaluationFlowActive =
     evaluationLoading ||
@@ -152,13 +172,13 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
     Boolean(evaluation && isEvaluationActive(evaluation.status));
   const shouldOpenConnectModal = Boolean((location.state as { openConnectAgentModal?: boolean } | null)?.openConnectAgentModal);
   const shouldOpenAgentPicker = searchParams.get("modal") === "agent-picker";
-  const accountScope = account.phone || account.maskedPhone || account.nickname;
+  const accountScope = homeAccount.phone || homeAccount.maskedPhone || homeAccount.nickname;
   const currentAgentReady = Boolean(
     effectiveCurrentAgent &&
       !(effectiveCurrentAgent.evaluation && isEvaluationActive(effectiveCurrentAgent.evaluation.status))
   );
   const canAutoEnterMarket = Boolean(
-    account.isLoggedIn &&
+    homeAccount.isLoggedIn &&
       bootstrapReady &&
       currentAgentReady &&
       !agentSetupFlowActive &&
@@ -168,6 +188,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       !agentPickerOpen &&
       !shouldOpenAgentPicker &&
       !abilityResultModalOpen &&
+      !evaluationFlowClaimedRef.current &&
       !abilityResultFlowRef.current
   );
 
@@ -270,10 +291,11 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
   );
 
   const selectAgentForEvaluation = async (agent: Agent) => {
-    if (!account.isLoggedIn) {
+    if (!homeAccount.isLoggedIn) {
       openLogin();
       return;
     }
+    evaluationFlowClaimedRef.current = true;
     agentPickerDismissedRef.current = true;
     writeAccountDismissed(AGENT_PICKER_DISMISSED_STORAGE_KEY, accountScope, true);
     if (agent.authStatus === "login_required") {
@@ -307,6 +329,9 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
         startedEvaluation = true;
         nextEvaluation = await startRemoteAgentEvaluation(agent.id);
       }
+      if (!nextEvaluation.evaluationId) {
+        nextEvaluation = await readLatestRemoteAgentEvaluation(agent.id);
+      }
       if (isCompletedAgentEvaluation(nextEvaluation)) {
         await markCurrentAfterCompletedEvaluation(agent, nextEvaluation);
       } else {
@@ -326,7 +351,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
   };
 
   useEffect(() => {
-    if (!evaluationAgent || !evaluation || isEvaluationTerminal(evaluation.status)) return;
+    if (!evaluationAgent || !evaluation || !evaluation.evaluationId || isEvaluationTerminal(evaluation.status)) return;
 
     let cancelled = false;
     const poll = window.setInterval(async () => {
@@ -384,6 +409,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
   }, [accountScope, evaluation, evaluationAgent, evaluationLoading, setAgentSetupFlow]);
 
   const enterMarketFromAbilityResult = () => {
+    evaluationFlowClaimedRef.current = false;
     abilityResultFlowRef.current = false;
     setAgentSetupFlow(false);
     navigate("/agent/market");
@@ -419,7 +445,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
   }, [agentPickerOpen, startPickerPolling]);
 
   useEffect(() => {
-    if (!account.isLoggedIn) {
+    if (!homeAccount.isLoggedIn) {
       dismissedAccountScopeRef.current = "";
       connectModalDismissedRef.current = false;
       agentPickerDismissedRef.current = false;
@@ -429,16 +455,17 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
     dismissedAccountScopeRef.current = accountScope;
     connectModalDismissedRef.current = readAccountDismissed(CONNECT_MODAL_DISMISSED_STORAGE_KEY, accountScope);
     agentPickerDismissedRef.current = readAccountDismissed(AGENT_PICKER_DISMISSED_STORAGE_KEY, accountScope);
-  }, [account.isLoggedIn, accountScope]);
+  }, [accountScope, homeAccount.isLoggedIn]);
 
   useEffect(() => {
     completedEvaluationIdRef.current = undefined;
     completingEvaluationIdRef.current = undefined;
+    evaluationFlowClaimedRef.current = false;
   }, [accountScope]);
 
   useEffect(() => {
     if (
-      !account.isLoggedIn ||
+      !homeAccount.isLoggedIn ||
       !bootstrapReady ||
       agentPickerOpen ||
       abilityResultModalOpen ||
@@ -449,17 +476,44 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
     }
     const restoredEvaluation = effectiveCurrentAgent.evaluation;
     if (completedEvaluationIdRef.current === restoredEvaluation.evaluationId || completingEvaluationIdRef.current === restoredEvaluation.evaluationId) return;
-    if (evaluationAgent?.id === effectiveCurrentAgent.id && evaluation?.evaluationId === restoredEvaluation.evaluationId) return;
+    if (
+      evaluationAgent?.id === effectiveCurrentAgent.id &&
+      (evaluationLoading || Boolean(evaluation && isEvaluationActive(evaluation.status)))
+    ) {
+      return;
+    }
+
+    if (!restoredEvaluation.evaluationId) {
+      let cancelled = false;
+      readLatestRemoteAgentEvaluation(effectiveCurrentAgent.id)
+        .then((latestEvaluation) => {
+          if (cancelled || !isEvaluationActive(latestEvaluation.status)) return;
+          autoSetCurrentAgentIdRef.current = effectiveCurrentAgent.id;
+          setEvaluationAgent(effectiveCurrentAgent);
+          setEvaluation(latestEvaluation);
+          setEvaluationError(undefined);
+          setEvaluationLoading(false);
+          setEvaluationModalOpen(true);
+        })
+        .catch(() => {
+          // The summary may briefly be ahead of the detail endpoint after a refresh.
+          // Leave the current page stable and let the next bootstrap refresh retry.
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+
     autoSetCurrentAgentIdRef.current = effectiveCurrentAgent.id;
     setEvaluationAgent(effectiveCurrentAgent);
     setEvaluation(restoredEvaluation);
     setEvaluationError(undefined);
     setEvaluationLoading(false);
     setEvaluationModalOpen(true);
-  }, [abilityResultModalOpen, account.isLoggedIn, agentPickerOpen, bootstrapReady, effectiveCurrentAgent, evaluation, evaluationAgent]);
+  }, [abilityResultModalOpen, agentPickerOpen, bootstrapReady, effectiveCurrentAgent, evaluation, evaluationAgent, evaluationLoading, homeAccount.isLoggedIn]);
 
   useEffect(() => {
-    if (canAutoEnterMarket) {
+    if (!evaluationFlowClaimedRef.current && canAutoEnterMarket) {
       navigate("/agent/market", { replace: true });
     }
   }, [canAutoEnterMarket, navigate]);
@@ -482,11 +536,16 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       if (currentAgentReady) setAgentSetupFlow(false);
       return;
     }
-    setConnectModalOpen(true);
-  }, [abilityResultModalOpen, agentPickerOpen, agentSetupFlowActive, bootstrapReady, connectModalOpen, currentAgentReady, effectiveCurrentAgent, evaluationFlowActive, setAgentSetupFlow, shouldOpenAgentPicker]);
+    if (localAgentHealth.isPending) return;
+    if (localAgentHealthy) {
+      openAgentPicker();
+    } else {
+      setConnectModalOpen(true);
+    }
+  }, [abilityResultModalOpen, agentPickerOpen, agentSetupFlowActive, bootstrapReady, connectModalOpen, currentAgentReady, effectiveCurrentAgent, evaluationFlowActive, localAgentHealth.isPending, localAgentHealthy, openAgentPicker, setAgentSetupFlow, shouldOpenAgentPicker]);
 
   useEffect(() => {
-    if (!account.isLoggedIn) {
+    if (!homeAccount.isLoggedIn) {
       connectModalDismissedRef.current = false;
       setAgentSetupFlow(false);
       return;
@@ -506,13 +565,18 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       evaluationFlowActive ||
       abilityResultModalOpen ||
       connectModalOpen ||
-      agentPickerOpen
+      agentPickerOpen ||
+      localAgentHealth.isPending
     ) {
       return;
     }
     setAgentSetupFlow(true);
-    setConnectModalOpen(true);
-  }, [abilityResultModalOpen, account.isLoggedIn, accountScope, agentPickerOpen, agentSetupFlowActive, connectModalOpen, effectiveCurrentAgent, evaluationFlowActive, homeBootstrap.isFetching, homeBootstrap.isSuccess, setAgentSetupFlow, shouldOpenAgentPicker]);
+    if (localAgentHealthy) {
+      openAgentPicker();
+    } else {
+      setConnectModalOpen(true);
+    }
+  }, [abilityResultModalOpen, accountScope, agentPickerOpen, agentSetupFlowActive, connectModalOpen, effectiveCurrentAgent, evaluationFlowActive, homeAccount.isLoggedIn, homeBootstrap.isFetching, homeBootstrap.isSuccess, localAgentHealth.isPending, localAgentHealthy, openAgentPicker, setAgentSetupFlow, shouldOpenAgentPicker]);
 
   if (canAutoEnterMarket) {
     return null;
@@ -521,13 +585,14 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
   return (
     <main className="sprix-landing">
       <section className="sprix-landing-inner">
-        <HomeTopAccount account={account} onLogout={onLogout} />
+        <HomeTopAccount account={homeAccount} onLogout={onLogout} />
         <HomeHero />
-        <HomeAgentCard agent={effectiveCurrentAgent} onEnterMarket={() => navigate("/agent/market")} onManageAgent={() => navigate("/agent/center")} />
+        <HomeAgentCard agent={effectiveCurrentAgent} />
         <HomeStats overview={platformOverview} />
         <HomeAgentEntry
           state={homeState}
-          checking={account.isLoggedIn && homeBootstrap.isFetching}
+          checking={homeAccount.isLoggedIn && (homeBootstrap.isFetching || localAgentHealth.isPending)}
+          localAgentHealthy={localAgentHealthy}
           connectModalOpen={connectModalOpen}
           onOpenLogin={openLogin}
           onOpenConnectModal={() => {
@@ -553,7 +618,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
             <img src="/gongan.png" width="14" height="14" alt="" aria-hidden="true" />
             {PUBLIC_SECURITY_RECORD_NO}
           </a>
-          {!account.isLoggedIn && (
+          {!homeAccount.isLoggedIn && (
             <>
               <button type="button" onClick={openContact}>联系我们</button>
               <button type="button" onClick={openAbout}>关于我们</button>

@@ -18,11 +18,17 @@ export const useSprixStore = create<SprixState & SprixActions>()(
     (set) => ({
       ...createInitialSprixState(),
       mergeRemoteState: (remoteState) =>
-        set((state) => ({
-          ...state,
-          ...remoteState,
-          account: remoteState.account ? { ...state.account, ...remoteState.account } : state.account
-        })),
+        set((state) => {
+          const preserveLoggedInAccount = state.account.isLoggedIn && remoteState.account?.isLoggedIn === false;
+          return {
+            ...state,
+            ...remoteState,
+            account:
+              preserveLoggedInAccount || !remoteState.account
+                ? state.account
+                : { ...state.account, ...remoteState.account }
+          };
+        }),
       setSmartAcceptEnabled: (enabled) => set({ smartAcceptEnabled: enabled }),
       logout: () => set((state) => logOut(state))
     }),
