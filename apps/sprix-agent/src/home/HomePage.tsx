@@ -28,7 +28,7 @@ import { HomeAgentPickerModal } from "./HomeAgentPickerModal";
 import { HomeHero } from "./HomeHero";
 import { HomeStats } from "./HomeStats";
 import { HomeTopAccount } from "./HomeTopAccount";
-import { checkLocalAgentHealth } from "../localAgentDownload";
+import { checkLocalAgentHealth } from "../user/localAgentConnect";
 
 type HomePageProps = {
   openLogin: () => void;
@@ -115,7 +115,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
   const homeBootstrap = useHomeBootstrap();
   const localAgentHealth = useQuery({
     queryKey: ["sprix-agent", "local-agent-health"],
-    queryFn: checkLocalAgentHealth,
+    queryFn: () => checkLocalAgentHealth(),
     enabled: account.isLoggedIn,
     retry: false,
     staleTime: 0,
@@ -156,7 +156,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
   const bootstrapAgents = bootstrapReady ? homeBootstrap.data?.agents ?? [] : agents;
   const availableAgents = useMemo(() => bootstrapAgents.filter((agent) => agent.status !== "离线"), [bootstrapAgents]);
   const homeState = useHomeAgentState(homeAccount, availableAgents, effectiveCurrentAgent, localAgent, pickerSyncing);
-  const localAgentHealthy = localAgentHealth.isSuccess;
+  const localAgentHealthy = localAgentHealth.data?.kind === "running";
   const [evaluationAgent, setEvaluationAgent] = useState<Agent | null>(null);
   const [evaluation, setEvaluation] = useState<AgentEvaluation | undefined>();
   const [evaluationModalOpen, setEvaluationModalOpen] = useState(false);
