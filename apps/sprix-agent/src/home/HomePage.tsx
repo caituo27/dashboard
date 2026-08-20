@@ -178,7 +178,6 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
     (persistedEvaluationFlow.status === "running" || persistedEvaluationFlow.status === "judging");
   const evaluationFlowActive =
     evaluationLoading ||
-    Boolean(evaluationAgent) ||
     Boolean(evaluation && isEvaluationActive(evaluation.status)) ||
     currentAgentEvaluationFlowActive;
   const shouldOpenConnectModal = Boolean((location.state as { openConnectAgentModal?: boolean } | null)?.openConnectAgentModal);
@@ -362,7 +361,14 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       if (isCompletedAgentEvaluation(nextEvaluation)) {
         await markCurrentAfterCompletedEvaluation(agent, nextEvaluation);
       } else {
-        if (nextEvaluation.status === "failed") clearEvaluationFlow();
+        if (nextEvaluation.status === "failed") {
+          setEvaluationFlow({
+            agentId: agent.id,
+            evaluationId: nextEvaluation.evaluationId,
+            status: "failed",
+            wasCurrentAgent: true
+          });
+        }
         setEvaluation(nextEvaluation);
         await refreshAgents();
       }
@@ -399,7 +405,12 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
           window.clearInterval(poll);
           if (next.status === "failed") {
             autoSetCurrentAgentIdRef.current = undefined;
-            clearEvaluationFlow();
+            setEvaluationFlow({
+              agentId: evaluationAgent.id,
+              evaluationId: next.evaluationId,
+              status: "failed",
+              wasCurrentAgent: true
+            });
             setEvaluation(next);
           }
           if (next.status === "completed") {
@@ -579,12 +590,15 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       !flow?.wasCurrentAgent ||
       !flow.agentId ||
       !flow.evaluationId ||
-      (evaluationAgent?.id === flow.agentId && evaluation && isEvaluationActive(evaluation.status))
+      (evaluationAgent?.id === flow.agentId &&
+        evaluation?.evaluationId === flow.evaluationId &&
+        evaluation &&
+        (isEvaluationActive(evaluation.status) || evaluation.status === "failed"))
     ) {
       return;
     }
 
-    if (effectiveCurrentAgent?.id === flow.agentId) {
+    if (effectiveCurrentAgent?.id === flow.agentId && flow.status !== "failed") {
       const currentEvaluationStatus = effectiveCurrentAgent.evaluation?.status ?? effectiveCurrentAgent.evaluation?.result?.status;
       if (
         effectiveCurrentAgent.evaluation?.evaluationId === flow.evaluationId &&
@@ -615,6 +629,15 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
           setEvaluationError(undefined);
           setEvaluationLoading(false);
           setEvaluationModalOpen(!modalDismissed);
+          return;
+        }
+
+        if (latestEvaluation.status === "failed") {
+          autoSetCurrentAgentIdRef.current = undefined;
+          setEvaluationAgent(flowAgent);
+          setEvaluation(latestEvaluation);
+          setEvaluationLoading(false);
+          setEvaluationModalOpen(false);
           return;
         }
 

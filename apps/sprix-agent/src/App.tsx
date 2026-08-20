@@ -29,7 +29,7 @@ import { AuthCallbackPage } from "./auth/AuthCallbackPage";
 import { useRemoteSprixBootstrap } from "./services/useRemoteSprixBootstrap";
 import { logoutConsumer, markRemoteCurrentAgent, readAgentSnapshot, readRemoteAgentEvaluation } from "./services/sprixApi";
 import { useSprixStore } from "./store/sprixStore";
-import { canVisitAgentDuringEvaluation, getUserAdmissionState } from "./user/admission";
+import { canBrowseAgentRoutes, getUserAdmissionState } from "./user/admission";
 import { isGlobalAuthError } from "./utils/http";
 
 const queryClient = new QueryClient();
@@ -55,7 +55,7 @@ function RemoteSprixBridge({ bootstrapEnabled, pollEvaluation }: { bootstrapEnab
   const evaluationPollInFlightRef = useRef(false);
 
   useEffect(() => {
-    if (!pollEvaluation || !evaluationFlow) return;
+    if (!pollEvaluation || !evaluationFlow || (evaluationFlow.status !== "running" && evaluationFlow.status !== "judging")) return;
 
     let cancelled = false;
     const syncEvaluationFlow = async () => {
@@ -90,7 +90,16 @@ function RemoteSprixBridge({ bootstrapEnabled, pollEvaluation }: { bootstrapEnab
           mergeRemoteState(stateAfterEvaluation);
           queryClient.setQueryData(["sprix-agent", "snapshot"], stateAfterEvaluation);
           queryClient.setQueryData(["sprix-agent", "home-bootstrap"], stateAfterEvaluation);
-          clearEvaluationFlow();
+          if (evaluation.status === "failed" && evaluationFlow.wasCurrentAgent === true) {
+            setEvaluationFlow({
+              agentId: evaluationFlow.agentId,
+              evaluationId: evaluationFlow.evaluationId,
+              status: "failed",
+              wasCurrentAgent: true
+            });
+          } else {
+            clearEvaluationFlow();
+          }
         }
       } catch {
         // Keep the active flow on transient errors so navigation is not interrupted.
@@ -288,16 +297,14 @@ function AdmissionGate({ children }: { children: ReactNode }) {
   const location = useLocation();
   const account = useSprixStore((state) => state.account);
   const currentAgent = useSprixStore((state) => state.currentAgent);
-  const evaluationFlow = useSprixStore((state) => state.evaluationFlow);
   const remoteSnapshotReady = useSprixStore((state) => state.remoteSnapshotReady);
 
   const admission = getUserAdmissionState(account, currentAgent);
-
   if (account.isLoggedIn && !remoteSnapshotReady) {
     return <>{children}</>;
   }
 
-  if (account.isLoggedIn && evaluationFlow?.wasCurrentAgent === true && canVisitAgentDuringEvaluation(location.pathname)) {
+  if (account.isLoggedIn && canBrowseAgentRoutes(location.pathname)) {
     return <>{children}</>;
   }
 

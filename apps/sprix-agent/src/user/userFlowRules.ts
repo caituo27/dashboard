@@ -26,6 +26,10 @@ export type TaskAcceptGate =
       path: "/agent/center";
     }
   | {
+      kind: "evaluation-failed";
+      message: string;
+    }
+  | {
       kind: "evaluation-active";
       message: string;
     }
@@ -80,10 +84,22 @@ export function getTaskAcceptGate(
     return { kind: "login" };
   }
 
-  if (evaluationFlow?.wasCurrentAgent === true) {
+  const evaluationFlowAppliesToCurrentAgent =
+    evaluationFlow?.wasCurrentAgent === true &&
+    (!currentAgent || currentAgent.id === evaluationFlow.agentId) &&
+    !(currentAgent && isCurrentAgentExecutionAvailable(currentAgent));
+
+  if (evaluationFlowAppliesToCurrentAgent && evaluationFlow?.status !== "failed") {
     return {
       kind: "evaluation-active",
       message: "当前 Agent 正在测评，完成后才可以接单"
+    };
+  }
+
+  if (evaluationFlowAppliesToCurrentAgent && evaluationFlow?.status === "failed") {
+    return {
+      kind: "evaluation-failed",
+      message: "当前 Agent 测评未通过，请重新测评后再接单"
     };
   }
 

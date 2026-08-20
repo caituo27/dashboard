@@ -148,8 +148,8 @@ function showRequestError(error: unknown, fallback: string, prefix = "") {
   message.error(error instanceof Error ? `${prefix}${error.message}` : fallback);
 }
 
-function getPageScrollContainer() {
-  const container = document.querySelector<HTMLElement>(".sprix-main");
+function getScrollContainer(selector = ".sprix-main") {
+  const container = document.querySelector<HTMLElement>(selector);
   if (!container) return null;
 
   const overflowY = window.getComputedStyle(container).overflowY;
@@ -157,8 +157,12 @@ function getPageScrollContainer() {
   return canScroll && overflowY !== "visible" && overflowY !== "clip" ? container : null;
 }
 
-function scrollPageTo(scrollTop: number) {
-  const scrollContainer = getPageScrollContainer();
+function getPageScrollContainer() {
+  return getScrollContainer();
+}
+
+function scrollPageTo(scrollTop: number, selector?: string) {
+  const scrollContainer = selector ? getScrollContainer(selector) ?? getPageScrollContainer() : getPageScrollContainer();
   if (scrollContainer) {
     scrollContainer.scrollTo({ top: scrollTop, behavior: "auto" });
     return;
@@ -175,20 +179,21 @@ function readSavedScrollTop(storageKey: string) {
   return Number.isFinite(value) && value >= 0 ? value : null;
 }
 
-function saveCurrentPageScrollTop(storageKey: string) {
-  const scrollTop = getPageScrollContainer()?.scrollTop ?? window.scrollY;
+function saveCurrentPageScrollTop(storageKey: string, selector?: string) {
+  const scrollContainer = selector ? getScrollContainer(selector) ?? getPageScrollContainer() : getPageScrollContainer();
+  const scrollTop = scrollContainer?.scrollTop ?? window.scrollY;
   sessionStorage.setItem(storageKey, String(Math.max(0, Math.round(scrollTop))));
 }
 
-function restoreSavedPageScrollTop(storageKey: string, onRestored: () => void) {
+function restoreSavedPageScrollTop(storageKey: string, onRestored: () => void, selector?: string) {
   const scrollTop = readSavedScrollTop(storageKey);
   if (scrollTop === null) return undefined;
 
   let timeout = 0;
   const frame = window.requestAnimationFrame(() => {
-    scrollPageTo(scrollTop);
+    scrollPageTo(scrollTop, selector);
     timeout = window.setTimeout(() => {
-      scrollPageTo(scrollTop);
+      scrollPageTo(scrollTop, selector);
       onRestored();
     }, 80);
   });
@@ -233,7 +238,7 @@ function clearTaskMarketReturnState() {
 }
 
 function saveMyTasksReturnState(tab: string) {
-  saveCurrentPageScrollTop(MY_TASKS_SCROLL_TOP_KEY);
+  saveCurrentPageScrollTop(MY_TASKS_SCROLL_TOP_KEY, ".sprix-my-tasks-list");
   sessionStorage.setItem(MY_TASKS_TAB_KEY, tab);
 }
 
@@ -339,6 +344,10 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
       return;
     }
     if (gate.kind === "evaluation-active") {
+      message.warning(gate.message);
+      return;
+    }
+    if (gate.kind === "evaluation-failed") {
       message.warning(gate.message);
       return;
     }
@@ -633,6 +642,10 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
       message.warning(gate.message);
       return;
     }
+    if (gate.kind === "evaluation-failed") {
+      message.warning(gate.message);
+      return;
+    }
     if (gate.kind === "task-unavailable") {
       message.warning(gate.message);
       return;
@@ -854,10 +867,13 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   const [evaluationError, setEvaluationError] = useState<string>();
   const [settingCurrentAgentId, setSettingCurrentAgentId] = useState<string>();
   const evaluationAccountScope = account.isLoggedIn ? account.phone || account.maskedPhone || account.nickname || "logged-in" : "logged-out";
-  const reevaluatingCurrentAgentId = evaluationFlow?.wasCurrentAgent ? evaluationFlow.agentId : undefined;
+  const reevaluatingCurrentAgentId = evaluationFlow?.wasCurrentAgent && evaluationFlow.status !== "failed" ? evaluationFlow.agentId : undefined;
   const currentEvaluationFailed = currentEvaluation?.status === "failed" || currentEvaluation?.result?.status === "failed";
+  const currentAgentFailed = evaluationFlow?.status === "failed" && evaluationFlow.agentId === current?.id;
   const preservedCurrentAgent = currentEvaluationFailed
     ? undefined
+    : currentAgentFailed
+      ? undefined
     : current ?? (reevaluatingCurrentAgentId ? agents.find((agent) => agent.id === reevaluatingCurrentAgentId) : undefined);
   const currentWithEvaluation = currentEvaluation && preservedCurrentAgent
     ? { ...preservedCurrentAgent, evaluation: currentEvaluation, score: currentEvaluation.result.overallScore ?? null }
@@ -930,6 +946,9 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       setCurrentEvaluation(undefined);
       mergeRemoteState({ currentAgent: preferredCurrentAgent });
       await refreshAgents(preferredCurrentAgent);
+      if (evaluationFlow && (evaluationFlow.agentId !== agent.id || evaluationFlow.status === "failed")) {
+        clearEvaluationFlow();
+      }
       message.success("已设置当前执行 Agent");
     } catch (error) {
       if (error instanceof Error && error.message === "Agent evaluation not found") {
@@ -974,7 +993,11 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       promptClaudeLogin(agent, (authenticatedAgent) => openAgentEvaluation(authenticatedAgent, { setCurrentAfterCompletion, forceStart }));
       return;
     }
-    if (current?.id === agent.id) {
+    const wasCurrentAgent =
+      current?.id === agent.id ||
+      agent.role === "当前执行 Agent" ||
+      (evaluationFlow?.agentId === agent.id && evaluationFlow.wasCurrentAgent === true);
+    if (wasCurrentAgent) {
       autoSetCurrentAgentIdRef.current = agent.id;
     }
     if (setCurrentAfterCompletion) {
@@ -1033,7 +1056,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
           agentId: agent.id,
           evaluationId: nextEvaluation.evaluationId,
           status: nextEvaluation.status,
-          wasCurrentAgent: current?.id === agent.id
+          wasCurrentAgent
         });
       } else {
         evaluationSessionsRef.current.delete(agent.id);
@@ -1041,7 +1064,12 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
           if (autoSetCurrentAgentIdRef.current === agent.id) {
             autoSetCurrentAgentIdRef.current = undefined;
           }
-          clearEvaluationFlow();
+          setEvaluationFlow({
+            agentId: agent.id,
+            evaluationId: nextEvaluation.evaluationId,
+            status: "failed",
+            wasCurrentAgent
+          });
         }
       }
       setEvaluation(nextEvaluation);
@@ -1051,7 +1079,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       await refreshAgents();
       if (!isCurrentRequest()) return;
       const currentAgentRestored = await markCurrentAfterCompletedEvaluation(agent, nextEvaluation);
-      if (nextEvaluation.status === "failed" || (nextEvaluation.status === "completed" && currentAgentRestored)) {
+      if (nextEvaluation.status === "completed" && currentAgentRestored) {
         clearEvaluationFlow();
       }
       if (shouldStartEvaluation && isEvaluationActive(nextEvaluation.status)) {
@@ -1092,7 +1120,15 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
           window.clearInterval(poll);
           if (next.status === "failed") {
             autoSetCurrentAgentIdRef.current = undefined;
-            clearEvaluationFlow();
+            const wasCurrentEvaluation = evaluationFlow?.agentId === evaluationAgent.id
+              ? evaluationFlow.wasCurrentAgent === true
+              : current?.id === evaluationAgent.id || evaluationAgent.role === "当前执行 Agent";
+            setEvaluationFlow({
+              agentId: evaluationAgent.id,
+              evaluationId: next.evaluationId,
+              status: "failed",
+              wasCurrentAgent: wasCurrentEvaluation
+            });
           }
           if (next.status === "completed") {
             const currentAgentRestored = await markCurrentAfterCompletedEvaluation(evaluationAgent, next);
@@ -1114,7 +1150,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       cancelled = true;
       window.clearInterval(poll);
     };
-  }, [clearEvaluationFlow, current?.id, evaluation, evaluationAgent, refreshAgents, setEvaluationFlow]);
+  }, [clearEvaluationFlow, current?.id, evaluation, evaluationAgent, evaluationFlow, refreshAgents, setEvaluationFlow]);
 
   useEffect(() => {
     const previousAccountScope = evaluationAccountScopeRef.current;
@@ -1164,8 +1200,13 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
 
   useEffect(() => {
     if (!account.isLoggedIn || !evaluationFlow?.agentId || !evaluationFlow.evaluationId) return;
-    if (evaluationAgent?.id === evaluationFlow.agentId && evaluation && isEvaluationActive(evaluation.status)) return;
-    if (current?.id === evaluationFlow.agentId && current.evaluation?.evaluationId === evaluationFlow.evaluationId) {
+    if (
+      evaluationAgent?.id === evaluationFlow.agentId &&
+      evaluation?.evaluationId === evaluationFlow.evaluationId &&
+      evaluation &&
+      (isEvaluationActive(evaluation.status) || evaluation.status === "failed")
+    ) return;
+    if (evaluationFlow.status !== "failed" && current?.id === evaluationFlow.agentId && current.evaluation?.evaluationId === evaluationFlow.evaluationId) {
       clearEvaluationFlow();
       return;
     }
@@ -1191,6 +1232,16 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
           setEvaluationError(undefined);
           setEvaluationLoading(false);
           setEvaluationModalOpen(!modalDismissed);
+          return;
+        }
+
+        if (latestEvaluation.status === "failed") {
+          autoSetCurrentAgentIdRef.current = undefined;
+          setEvaluationAgent(flowAgent);
+          setEvaluation(latestEvaluation);
+          setCurrentEvaluation(latestEvaluation);
+          setEvaluationLoading(false);
+          setEvaluationModalOpen(false);
           return;
         }
 
@@ -1535,7 +1586,7 @@ export function MyTasksPage({ openLogin, openAppeal }: UserPageProps) {
 
   useEffect(() => {
     if (visible.length === 0) return;
-    return restoreSavedPageScrollTop(MY_TASKS_SCROLL_TOP_KEY, clearMyTasksReturnState);
+    return restoreSavedPageScrollTop(MY_TASKS_SCROLL_TOP_KEY, clearMyTasksReturnState, ".sprix-my-tasks-list");
   }, [visible.length]);
 
   const saveMyTasksReturnPosition = useCallback(() => {

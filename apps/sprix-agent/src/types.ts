@@ -120,7 +120,7 @@ export type AgentEvaluation = {
 export type EvaluationFlowState = {
   agentId: string;
   evaluationId: string;
-  status: Extract<AgentEvaluationStatus, "running" | "judging">;
+  status: Extract<AgentEvaluationStatus, "running" | "judging" | "failed">;
   wasCurrentAgent?: boolean;
 };
 

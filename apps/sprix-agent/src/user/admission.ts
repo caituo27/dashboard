@@ -10,11 +10,7 @@ export type UserAdmissionState =
       reason: string;
     };
 
-export function canVisitAgentCenterBeforeAdmission(pathname: string) {
-  return pathname.replace(/\/+$/, "") === "/agent/center";
-}
-
-export function canVisitAgentDuringEvaluation(pathname: string) {
+export function canBrowseAgentRoutes(pathname: string) {
   const normalizedPathname = pathname.replace(/\/+$/, "") || "/";
   return normalizedPathname === "/agent" || normalizedPathname.startsWith("/agent/");
 }

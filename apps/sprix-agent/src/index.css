@@ -525,10 +525,21 @@ select {
 
 .sprix-my-tasks-page {
   width: min(1520px, 100%);
+  height: calc(100dvh - 82px);
+  box-sizing: border-box;
+  min-height: 0;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .sprix-my-tasks-shell {
+  position: relative;
+  min-height: 0;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
   margin-top: 6px;
 }
 
@@ -576,8 +587,14 @@ select {
 }
 
 .sprix-my-tasks-list {
+  min-height: 0;
+  flex: 1 1 auto;
   display: grid;
   gap: 14px;
+  overflow-y: auto;
+  padding-right: 8px;
+  padding-bottom: 12px;
+  scrollbar-gutter: stable;
 }
 
 .sprix-my-task-row {
@@ -4279,7 +4296,7 @@ select {
 
 .sprix-smart-accept-modal .ant-modal-header {
   margin: 0;
-  padding: 22px 28px 10px;
+  padding: 22px 28px 6px;
   text-align: left;
 }
 
@@ -4290,12 +4307,12 @@ select {
 }
 
 .sprix-smart-accept-modal .ant-modal-body {
-  padding: 0 28px 12px;
+  padding: 0 28px 4px;
 }
 
 .sprix-smart-accept-modal .ant-modal-footer {
   margin: 0;
-  padding: 0 28px 22px;
+  padding: 0 28px 18px;
 }
 
 .sprix-smart-accept-agent {
@@ -4303,7 +4320,7 @@ select {
   grid-template-columns: 44px minmax(0, 1fr);
   align-items: center;
   gap: 12px;
-  padding: 2px 0 16px;
+  padding: 2px 0 10px;
   text-align: left;
 }
 
@@ -4356,6 +4373,7 @@ select {
 
 .sprix-smart-accept-metrics {
   display: grid;
+  width: 100%;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0;
   border-top: 1px solid var(--color-line);
@@ -4364,13 +4382,12 @@ select {
 
 .sprix-smart-accept-metrics div {
   min-width: 0;
-  padding: 12px 16px 12px 0;
-  text-align: left;
+  padding: 12px 16px;
+  text-align: center;
 }
 
 .sprix-smart-accept-metrics div + div {
   border-left: 1px solid var(--color-line);
-  padding-left: 16px;
 }
 
 .sprix-smart-accept-metrics span {
@@ -4382,7 +4399,7 @@ select {
 
 .sprix-smart-accept-metrics strong {
   display: block;
-  margin-top: 4px;
+  margin-top: 2px;
   color: var(--color-ink);
   font-size: 18px;
   font-weight: 650;
@@ -4394,7 +4411,7 @@ select {
   align-items: flex-start;
   gap: 6px;
   margin: 0;
-  padding: 12px 0 2px;
+  padding: 8px 0 0;
   color: var(--color-ink-soft);
   font-size: 13px;
   line-height: 1.6;
@@ -6379,6 +6396,21 @@ select {
 @media (max-width: 860px) {
   .sprix-page-hero .sprix-hero-title {
     font-size: var(--sprix-font-size-page-title);
+  }
+
+  .sprix-my-tasks-page {
+    height: auto;
+    display: block;
+    overflow: visible;
+  }
+
+  .sprix-my-tasks-shell {
+    display: block;
+  }
+
+  .sprix-my-tasks-list {
+    overflow: visible;
+    padding-right: 0;
   }
 
   .sprix-my-tasks-tabs .ant-tabs-nav {
