@@ -349,6 +349,10 @@ select {
   filter: brightness(0) invert(1);
 }
 
+.sprix-agent-current-action-button .sprix-button-icon {
+  filter: brightness(0) saturate(100%) invert(64%) sepia(8%) saturate(400%) hue-rotate(180deg) brightness(91%) contrast(88%);
+}
+
 .sprix-payout-table-wrap {
   overflow-x: auto;
   border: 1px solid rgba(238, 238, 238, 0.96);
@@ -2506,8 +2510,14 @@ select {
 
 .sprix-my-task-detail-shell .sprix-detail-back-row {
   top: -30px;
-  margin: 0 -20px 0;
-  padding: 10px 20px 14px;
+  margin: -30px -20px 0;
+  padding: 30px 20px 14px;
+}
+
+.sprix-task-detail-shell:not(.sprix-my-task-detail-shell) .sprix-detail-back-row {
+  top: -30px;
+  margin: -30px -20px 0;
+  padding: 30px 20px 14px;
 }
 
 .sprix-my-task-detail-shell .sprix-execution-hero {
@@ -2670,6 +2680,11 @@ select {
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+}
+
+.sprix-my-task-detail-shell .sprix-execution-hero {
+  border-bottom: 1px solid var(--color-line);
+  padding-bottom: 16px;
 }
 
 .sprix-detail-toolbar {
@@ -3128,6 +3143,29 @@ select {
   justify-self: end;
   width: auto;
   height: 120px;
+  pointer-events: none;
+}
+
+.sprix-execution-hero-video-frame {
+  position: relative;
+  z-index: 1;
+  align-self: end;
+  justify-self: end;
+  width: min(280px, 100%);
+  max-width: 280px;
+  height: 200px;
+  max-height: 200px;
+  margin-bottom: -44px;
+  transform: translateY(-28px);
+}
+
+.sprix-execution-hero-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  border-radius: 18px;
   pointer-events: none;
 }
 
@@ -3909,6 +3947,10 @@ select {
   line-height: 1;
 }
 
+.sprix-acceptance-status {
+  margin-left: auto;
+}
+
 .sprix-acceptance-summary {
   margin: 0;
   min-width: 0;
@@ -4159,10 +4201,11 @@ select {
 }
 
 .sprix-timeline-card.is-narrative {
-  border: 1px solid rgba(15, 118, 110, 0.14);
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(231, 247, 242, 0.62), rgba(255, 255, 255, 0.96));
-  padding: 14px 16px;
+  border: 0;
+  border-bottom: 1px solid rgba(238, 238, 238, 0.88);
+  border-radius: 0;
+  background: transparent;
+  padding: 0 0 14px;
 }
 
 .sprix-timeline-content {
@@ -6476,6 +6519,10 @@ select {
     flex-direction: column;
   }
 
+  .sprix-acceptance-status {
+    margin-left: 0;
+  }
+
   .sprix-execution-hero-progress {
     justify-items: center;
     min-width: 0;
@@ -6521,6 +6568,10 @@ select {
   }
 
   .sprix-execution-hero-illustration {
+    display: none;
+  }
+
+  .sprix-execution-hero-video-frame {
     display: none;
   }
 

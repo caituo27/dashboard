@@ -1089,6 +1089,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
                 </SecondaryButton>
               )}
               <SecondaryButton
+                className="sprix-agent-current-action-button"
                 disabled
                 icon={<ButtonIcon src={BUTTON_ICON_PATHS.currentAgent} />}
               >
@@ -1122,6 +1123,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
                 </SecondaryButton>
               )}
               <ActionButton
+                className="sprix-agent-current-action-button"
                 disabled={Boolean(settingCurrentAgentId)}
                 icon={<ButtonIcon src={BUTTON_ICON_PATHS.switchAgent} />}
                 loading={isSettingCurrent}

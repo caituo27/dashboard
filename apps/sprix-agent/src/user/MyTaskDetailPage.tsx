@@ -217,12 +217,25 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
                 )}
               </div>
             </div>
-            <img
-              className="sprix-execution-hero-illustration"
-              src={summary.status === "执行中" ? "/doing.svg" : "/done.svg"}
-              alt=""
-              aria-hidden="true"
-            />
+            {summary.status === "执行中" ? (
+              <div className="sprix-execution-hero-video-frame" aria-hidden="true">
+                <video
+                  className="sprix-execution-hero-video"
+                  width={280}
+                  height={200}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  preload="metadata"
+                  poster="/doing.svg"
+                >
+                  <source src="/execution-background.mp4" type="video/mp4" />
+                </video>
+              </div>
+            ) : (
+              <img className="sprix-execution-hero-illustration" src="/done.svg" alt="" aria-hidden="true" />
+            )}
           </section>
 
           <div className="sprix-execution-detail-layout">
@@ -864,13 +877,7 @@ function AcceptanceSection({ detail, action }: { detail: MyTaskExecutionDetail; 
   const suggestions = getAcceptanceSuggestions(acceptance);
   const summary = getAcceptanceSummary(acceptance);
   const readableStatus = getReadableAcceptanceStatus(acceptance?.status);
-  const [issuesExpanded, setIssuesExpanded] = useState(false);
-  const [suggestionsExpanded, setSuggestionsExpanded] = useState(false);
   const summaryText = summary || "暂无验收摘要";
-  const visibleIssues = issuesExpanded ? issues : issues.slice(0, 4);
-  const hiddenIssueCount = issues.length - visibleIssues.length;
-  const visibleSuggestions = suggestionsExpanded ? suggestions : suggestions.slice(0, 2);
-  const hiddenSuggestionCount = suggestions.length - visibleSuggestions.length;
   const preview = acceptance
     ? [readableStatus, acceptance.score == null ? "" : `${acceptance.score} 分`].filter(Boolean).join(" · ") || "查看验收摘要"
     : "暂无验收结果";
@@ -884,10 +891,14 @@ function AcceptanceSection({ detail, action }: { detail: MyTaskExecutionDetail; 
       {acceptance ? (
         <div className="sprix-acceptance-content space-y-4">
           <div className="sprix-section-heading sprix-acceptance-head">
-            {readableStatus && <SoftTag tone={getAcceptanceStatusTone(readableStatus)}>{readableStatus}</SoftTag>}
             <span className="sprix-acceptance-score-inline">
               评分 <b>{acceptance.score == null ? "-" : acceptance.score}</b>
             </span>
+            {readableStatus && (
+              <SoftTag className="sprix-acceptance-status" tone={getAcceptanceStatusTone(readableStatus)}>
+                {readableStatus}
+              </SoftTag>
+            )}
           </div>
           <p className="sprix-acceptance-summary">{summaryText}</p>
           {issues.length > 0 && (
@@ -897,16 +908,10 @@ function AcceptanceSection({ detail, action }: { detail: MyTaskExecutionDetail; 
                 <SoftTag tone="red">{issues.length} 项问题</SoftTag>
               </div>
               <ul>
-                {visibleIssues.map((issue) => (
+                {issues.map((issue) => (
                   <li key={issue}>{issue}</li>
                 ))}
               </ul>
-              {issues.length > 4 && (
-                <button type="button" className="sprix-acceptance-expand" onClick={() => setIssuesExpanded((expanded) => !expanded)}>
-                  {issuesExpanded ? "收起问题" : `展开全部 ${issues.length} 项问题`}
-                  {!issuesExpanded && hiddenIssueCount > 0 ? <span>还有 {hiddenIssueCount} 项</span> : null}
-                </button>
-              )}
             </div>
           )}
           {suggestions.length > 0 && (
@@ -916,20 +921,10 @@ function AcceptanceSection({ detail, action }: { detail: MyTaskExecutionDetail; 
                 <SoftTag tone="neutral">{suggestions.length} 项建议</SoftTag>
               </div>
               <ul>
-                {visibleSuggestions.map((suggestion) => (
+                {suggestions.map((suggestion) => (
                   <li key={suggestion}>{suggestion}</li>
                 ))}
               </ul>
-              {suggestions.length > 2 && (
-                <button
-                  type="button"
-                  className="sprix-acceptance-summary-toggle"
-                  onClick={() => setSuggestionsExpanded((expanded) => !expanded)}
-                >
-                  {suggestionsExpanded ? "收起建议" : `展开全部 ${suggestions.length} 项建议`}
-                  {!suggestionsExpanded && hiddenSuggestionCount > 0 ? <span>还有 {hiddenSuggestionCount} 项</span> : null}
-                </button>
-              )}
             </div>
           )}
         </div>
@@ -1051,7 +1046,7 @@ function CollapsibleSection({
   action?: ReactNode;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   return (
     <section className={`sprix-collapsible-panel ${open ? "is-open" : ""}`}>
       <div className="sprix-collapsible-head">
