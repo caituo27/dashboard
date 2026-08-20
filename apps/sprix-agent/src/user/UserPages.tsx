@@ -47,7 +47,7 @@ import { freelancerAgreementDocument } from "../content/agreementDocuments";
 import { getLocalAgentEmptyMessage } from "../home/localAgentInventory";
 import { QrPayloadBox } from "../components/QrSession";
 import { AgentAbilityProfile, EvaluationRadar } from "./AgentAbilityProfile";
-import { getAgentAdmissionSummary, getAgentEvaluationStatusLabel, getAgentTagLabels } from "./agentResult";
+import { canSetAgentCurrent, getAgentAdmissionSummary, getAgentEvaluationStatusLabel, getAgentTagLabels } from "./agentResult";
 import {
   getPayoutAccountActionLabel,
   getPayoutAccountText,
@@ -750,7 +750,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         )
       : agents;
 
-  const refreshAgents = useCallback(async (preferredCurrentAgent?: Agent) => {
+  const refreshAgents = useCallback(async (_preferredCurrentAgent?: Agent) => {
     const [remoteAgents, refreshedCurrentAgent] = await Promise.all([
       readRemoteAgents(),
       readCurrentRemoteAgent().catch(() => undefined)
@@ -760,7 +760,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       agents: remoteAgents.agents,
       localAgent: remoteAgents.localAgent,
       currentAgentId: remoteAgents.currentAgentId,
-      currentAgent: refreshedCurrentAgent ?? preferredCurrentAgent ?? currentAgentFromList
+      currentAgent: refreshedCurrentAgent ?? currentAgentFromList
     });
   }, [mergeRemoteState]);
 
@@ -1026,6 +1026,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
           const canRestartEvaluation =
             agent.evaluation && (isCompletedAgentEvaluation(agent.evaluation) || agent.evaluation.status === "failed" || agent.evaluation.result?.status === "failed");
           const showEvaluationAction = !canRestartEvaluation;
+          const canSetCurrent = canSetAgentCurrent(agent);
           const isSettingCurrent = settingCurrentAgentId === agent.id;
           return agent.role === "当前执行 Agent" ? (
             <>
@@ -1053,14 +1054,16 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
               {agent.authStatus === "login_required" && (
                 <SecondaryButton onClick={() => promptClaudeLogin(agent, async () => undefined)}>登录</SecondaryButton>
               )}
-              <ActionButton
-                disabled={Boolean(settingCurrentAgentId)}
-                icon={<ButtonIcon src={BUTTON_ICON_PATHS.switchAgent} />}
-                loading={isSettingCurrent}
-                onClick={() => setCurrent(agent)}
-              >
-                {isSettingCurrent ? "设置中" : "设为当前执行 Agent"}
-              </ActionButton>
+              {canSetCurrent && (
+                <ActionButton
+                  disabled={Boolean(settingCurrentAgentId)}
+                  icon={<ButtonIcon src={BUTTON_ICON_PATHS.switchAgent} />}
+                  loading={isSettingCurrent}
+                  onClick={() => setCurrent(agent)}
+                >
+                  {isSettingCurrent ? "设置中" : "设为当前执行 Agent"}
+                </ActionButton>
+              )}
               {showEvaluationAction && <SecondaryButton onClick={() => openAgentEvaluation(agent)}>{getAgentEvaluationActionLabel(agent)}</SecondaryButton>}
               {canRestartEvaluation && (
                 <SecondaryButton
