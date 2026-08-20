@@ -193,13 +193,16 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       !abilityResultFlowRef.current
   );
 
-  const refreshAgents = useCallback(async (preferredCurrentAgent?: Agent) => {
+  const refreshAgents = useCallback(async (_preferredCurrentAgent?: Agent) => {
     const [remoteAgents, refreshedCurrentAgent] = await Promise.all([
       readRemoteAgents(),
       readCurrentRemoteAgent().catch(() => undefined)
     ]);
     const currentAgentFromList = remoteAgents.currentAgentId ? remoteAgents.agents.find((agent) => agent.id === remoteAgents.currentAgentId) : undefined;
-    const nextCurrentAgent = preferredCurrentAgent ?? refreshedCurrentAgent ?? currentAgentFromList;
+    // Only treat the server-confirmed current Agent as executable. The local
+    // preferred value is used for the completion modal, but must not override
+    // the latest eligibility result returned by the backend.
+    const nextCurrentAgent = refreshedCurrentAgent ?? currentAgentFromList;
     mergeRemoteState({
       agents: remoteAgents.agents,
       localAgent: remoteAgents.localAgent,

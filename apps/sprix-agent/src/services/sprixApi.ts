@@ -545,8 +545,8 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
   const account = accountResponse;
   const agentsResult = mapRemoteAgentsResult(agentsResponse);
   const agents = agentsResult.agents;
-  const currentAgentFromList = agentsResult.currentAgentId ? agents.find((agent) => agent.id === agentsResult.currentAgentId) : undefined;
-  const currentAgent = currentAgentResponse ? mapAgent(currentAgentResponse) : currentAgentFromList;
+  const mappedCurrentAgent = currentAgentResponse ? mapAgent(currentAgentResponse) : undefined;
+  const currentAgent = isAgentExecutionEligible(mappedCurrentAgent) ? mappedCurrentAgent : undefined;
   const taskById = new Map(tasks.map((task) => [task.id, task]));
   const agentById = new Map(agents.map((agent) => [agent.id, agent]));
   const myTasks = listValue<MyTaskExecutionDetail>(myTasksResponse).map((item) => mapMyTask(item, taskById, agentById));
@@ -559,7 +559,7 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
     platformOverview,
     agents,
     localAgent: agentsResult.localAgent,
-    currentAgentId: agentsResult.currentAgentId,
+    currentAgentId: currentAgent?.id ?? null,
     currentAgent,
     myTasks,
     withdrawals,
@@ -607,7 +607,8 @@ export async function readRemoteAgents(): Promise<RemoteAgentsResult> {
 
 export async function readCurrentRemoteAgent(): Promise<Agent | undefined> {
   const response = await agentApi.current();
-  return response ? mapAgent(response) : undefined;
+  const agent = response ? mapAgent(response) : undefined;
+  return isAgentExecutionEligible(agent) ? agent : undefined;
 }
 
 export async function disconnectRemoteAgent(agentId: string): Promise<Agent | undefined> {
@@ -1011,10 +1012,13 @@ function mapRemoteAgentsResult(response: RemoteAgentListResponse | undefined | n
   }
 
   const agents = sortCodexFirst(agentListValue(response).map(mapAgent));
+  const currentAgent = response?.currentAgentId
+    ? agents.find((agent) => agent.id === response.currentAgentId && isAgentExecutionEligible(agent))
+    : undefined;
   return {
     agents,
     localAgent: mapLocalAgentDiagnostic(response?.localAgent),
-    currentAgentId: response?.currentAgentId ?? null
+    currentAgentId: currentAgent?.id ?? null
   };
 }
 
@@ -1056,13 +1060,14 @@ function normalizeLocalAgentInventoryStatus(status?: string | null): LocalAgentI
 function mapAgent(agent: RemoteAgentProfileResponse): Agent {
   const status = mapAgentStatus(agent.status);
   const evaluation = normalizeOptionalAgentEvaluation(agent.evaluation);
+  const currentExecution = Boolean(agent.currentExecution) && evaluation?.status === "completed";
   const tags = evaluation?.result.abilityTags ?? [];
   const score = evaluation?.result.overallScore ?? null;
   return {
     id: agent.id ?? "",
     name: agent.name ?? "",
     status,
-    role: agent.currentExecution ? "当前执行 Agent" : status === "离线" ? "离线 Agent" : "可用 Agent",
+    role: currentExecution ? "当前执行 Agent" : status === "离线" ? "离线 Agent" : "可用 Agent",
     score,
     lastEvaluatedAt: evaluation?.lastEvaluatedAt ?? "",
     summary: tags.join("、"),
@@ -1070,6 +1075,10 @@ function mapAgent(agent: RemoteAgentProfileResponse): Agent {
     authStatus: normalizeAgentAuthStatus(agent),
     evaluation
   };
+}
+
+function isAgentExecutionEligible(agent?: Agent): agent is Agent {
+  return Boolean(agent && agent.role === "当前执行 Agent" && agent.evaluation?.status === "completed");
 }
 
 function normalizeAgentAuthStatus(agent: RemoteAgentProfileResponse): Agent["authStatus"] {
@@ -1210,7 +1219,8 @@ function normalizeEvaluationTranscript(transcript?: RemoteAgentEvaluationTranscr
 }
 
 function normalizeEvaluationStatus(status?: string | null): AgentEvaluationStatus {
-  if (status === "not_started" || status === "running" || status === "judging" || status === "completed" || status === "failed") return status;
+  const normalized = status?.trim().toLowerCase();
+  if (normalized === "not_started" || normalized === "running" || normalized === "judging" || normalized === "completed" || normalized === "failed") return normalized;
   return "running";
 }
 

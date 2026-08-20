@@ -135,7 +135,11 @@ describe("readAgentSnapshot", () => {
       name: "Codex Agent",
       status: "ONLINE",
       currentExecution: true,
-      abilityTags: "software-development"
+      abilityTags: "software-development",
+      evaluation: {
+        evaluationId: "evaluation-1",
+        status: "COMPLETED"
+      }
     });
     apiMocks.myTask.list.mockResolvedValue({ content: [] });
 
@@ -181,7 +185,13 @@ describe("readAgentSnapshot", () => {
           status: "AVAILABLE",
           currentExecution: true,
           score: 84,
-          abilityTags: "software-development,web-generation,code-repair"
+          abilityTags: "software-development,web-generation,code-repair",
+          evaluation: {
+            evaluationId: "evaluation-1",
+            status: "COMPLETED",
+            overallScore: 84,
+            abilityTags: ["software-development", "web-generation", "code-repair"]
+          }
         },
         {
           id: "agent-2",
@@ -206,6 +216,34 @@ describe("readAgentSnapshot", () => {
       score: 84,
       tags: ["软件开发", "网页生成", "代码修复"]
     });
+  });
+
+  it("does not expose a failed evaluation as the current Agent", async () => {
+    apiMocks.agent.list1.mockResolvedValue({
+      currentAgentId: "agent-1",
+      agents: [
+        {
+          id: "agent-1",
+          name: "Codex Agent",
+          status: "AVAILABLE",
+          currentExecution: true,
+          evaluation: {
+            evaluationId: "evaluation-failed",
+            status: "FAILED",
+            error: "evaluation failed"
+          }
+        }
+      ]
+    });
+    apiMocks.agent.current.mockResolvedValue(undefined);
+
+    const agentsResult = await readRemoteAgents();
+    const snapshot = await readAgentSnapshot();
+
+    expect(agentsResult.currentAgentId).toBeNull();
+    expect(agentsResult.agents[0]?.role).toBe("可用 Agent");
+    expect(snapshot.currentAgentId).toBeNull();
+    expect(snapshot.currentAgent).toBeUndefined();
   });
 
   it("uses the agent list last evaluated time field", async () => {
