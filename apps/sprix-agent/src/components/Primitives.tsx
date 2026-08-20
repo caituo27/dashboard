@@ -65,7 +65,7 @@ export function SoftTag({
   children,
   tone = "teal",
   bordered = true,
-  className = "m-0 rounded-full px-2.5 py-0.5"
+  className = ""
 }: {
   children: ReactNode;
   tone?: "teal" | "neutral" | "amber" | "red";
@@ -79,7 +79,7 @@ export function SoftTag({
     red: { color: "#b42318", borderColor: "#ffd9d9", background: "#fff4f4" }
   };
   return (
-    <AntTag bordered={bordered} style={colors[tone]} className={className}>
+    <AntTag bordered={bordered} style={colors[tone]} className={`m-0 rounded-full px-2.5 py-0.5 ${className}`.trim()}>
       {children}
     </AntTag>
   );

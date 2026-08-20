@@ -349,8 +349,16 @@ select {
   filter: brightness(0) invert(1);
 }
 
-.sprix-agent-current-action-button .sprix-button-icon {
+.sprix-agent-current-action-button.ant-btn-disabled .sprix-button-icon,
+.sprix-agent-current-action-button:disabled .sprix-button-icon {
   filter: brightness(0) saturate(100%) invert(64%) sepia(8%) saturate(400%) hue-rotate(180deg) brightness(91%) contrast(88%);
+}
+
+.sprix-agent-current-action-button.ant-btn-disabled .ant-btn-loading-icon,
+.sprix-agent-current-action-button.ant-btn-disabled .ant-btn-loading-icon .anticon,
+.sprix-agent-current-action-button.ant-btn-loading .ant-btn-loading-icon,
+.sprix-agent-current-action-button.ant-btn-loading .ant-btn-loading-icon .anticon {
+  color: #8c989f !important;
 }
 
 .sprix-payout-table-wrap {
@@ -3151,6 +3159,7 @@ select {
   z-index: 1;
   align-self: end;
   justify-self: end;
+  pointer-events: none;
   width: min(280px, 100%);
   max-width: 280px;
   height: 200px;
@@ -3963,38 +3972,6 @@ select {
   line-height: 1.85;
 }
 
-.sprix-acceptance-summary-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 28px;
-  width: fit-content;
-  margin-top: 0;
-  padding: 0 10px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-pill);
-  background: #fff;
-  color: var(--color-ink-soft);
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 650;
-  transition:
-    border-color 160ms ease,
-    background-color 160ms ease,
-    color 160ms ease;
-}
-
-.sprix-acceptance-summary-toggle:hover {
-  border-color: rgba(17, 17, 17, 0.2);
-  background: var(--color-bg);
-  color: var(--color-ink);
-}
-
-.sprix-acceptance-summary-toggle span {
-  color: var(--color-ink-soft);
-}
-
 .sprix-acceptance-issues {
   border-top: 1px solid var(--color-line);
   padding: 14px 0 2px;
@@ -4043,38 +4020,6 @@ select {
   border-radius: var(--radius-pill);
   background: #b42318;
   justify-self: center;
-}
-
-.sprix-acceptance-expand {
-  display: inline-flex;
-  min-height: 30px;
-  align-items: center;
-  gap: 8px;
-  margin-top: 14px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-pill);
-  background: #fff;
-  padding: 0 10px;
-  color: var(--color-ink-soft);
-  cursor: pointer;
-  font-size: var(--sprix-font-size-caption);
-  font-weight: 650;
-  transition:
-    background-color 160ms ease,
-    border-color 160ms ease,
-    color 160ms ease;
-}
-
-.sprix-acceptance-expand:hover {
-  border-color: rgba(17, 17, 17, 0.2);
-  background: var(--color-bg);
-  color: var(--color-ink);
-}
-
-.sprix-acceptance-expand span {
-  color: var(--color-ink-soft);
-  font-size: 12px;
-  font-weight: 650;
 }
 
 .sprix-acceptance-suggestions {
