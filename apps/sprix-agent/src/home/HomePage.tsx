@@ -89,7 +89,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
 
   const availableAgents = useMemo(() => agents.filter((agent) => agent.status !== "离线"), [agents]);
 
-  const refreshAgents = useCallback(async (preferredCurrentAgent?: Agent) => {
+  const refreshAgents = useCallback(async (_preferredCurrentAgent?: Agent) => {
     const [remoteAgents, refreshedCurrentAgent] = await Promise.all([
       readRemoteAgents(),
       readCurrentRemoteAgent().catch(() => undefined)
@@ -99,7 +99,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       agents: remoteAgents.agents,
       localAgent: remoteAgents.localAgent,
       currentAgentId: remoteAgents.currentAgentId,
-      currentAgent: refreshedCurrentAgent ?? preferredCurrentAgent ?? currentAgentFromList
+      currentAgent: refreshedCurrentAgent ?? currentAgentFromList
     });
   }, [mergeRemoteState]);
 

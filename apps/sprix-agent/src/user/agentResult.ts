@@ -119,6 +119,10 @@ export function hasPendingAgentEvaluation(agent?: Pick<Agent, "evaluation"> | nu
   return status === "running" || status === "judging";
 }
 
+export function canSetAgentCurrent(agent: Pick<Agent, "evaluation">) {
+  return agent.evaluation?.status === "completed" || agent.evaluation?.result.status === "completed";
+}
+
 export function getCurrentAgentScoreMetric(agent?: Agent) {
   return scoreText(agent?.evaluation?.result.overallScore ?? null);
 }
