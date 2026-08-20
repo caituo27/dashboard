@@ -8,6 +8,7 @@ import {
   getAgentAbilityResult,
   getAgentAdmissionSummary,
   getAgentEvaluationStatusLabel,
+  getAgentTagLabels,
   hasPendingAgentEvaluation
 } from "./agentResult";
 
@@ -100,20 +101,44 @@ function AgentCenterAbilityResult({
   evaluationStatusLabel
 }: AgentCenterAbilityResultProps) {
   const score = result.overallScore ?? 0;
+  const tagLabels = getAgentTagLabels(agent.tags);
+  const careerRoleName = result.careerProfile?.roleName?.trim();
+  const careerSummary = careerRoleName ? result.summary.trim() : "";
 
   return (
     <div className="sprix-agent-center-result">
-      <span className="sprix-agent-center-result-status">
-        <UserRoundCheck size={14} strokeWidth={1.8} aria-hidden="true" />
-        {evaluationStatusLabel}
-      </span>
+      <div className={`sprix-agent-center-result-head ${careerRoleName ? "" : "is-status-only"}`}>
+        {careerRoleName && (
+          <section className="sprix-agent-center-result-career">
+            <div className="sprix-agent-center-result-career-title">
+              <span>职位定位：</span>
+              <strong>{careerRoleName}</strong>
+            </div>
+            {careerSummary && <p>{careerSummary}</p>}
+          </section>
+        )}
+        <span className="sprix-agent-center-result-status">
+          <UserRoundCheck size={14} strokeWidth={1.8} aria-hidden="true" />
+          {evaluationStatusLabel}
+        </span>
+      </div>
+
+      <div className="sprix-agent-center-result-identity">
+        <span>当前执行 Agent</span>
+        <h3>{agent.name}</h3>
+        {tagLabels.length > 0 && (
+          <div className="sprix-agent-center-result-tags">
+            {tagLabels.map((tag) => (
+              <span key={tag} className="sprix-agent-ability-result-tag">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="sprix-agent-center-result-overview">
         <div className="sprix-agent-center-result-score-column">
-          <div className="sprix-agent-center-result-identity">
-            <span>当前执行 Agent</span>
-            <h3>{agent.name}</h3>
-          </div>
           <div className="sprix-agent-center-score-progress" data-node-id="141:688">
             <img
               className="sprix-agent-center-score-clock-ring"
@@ -155,7 +180,7 @@ function AgentCenterAbilityResult({
         </div>
       </div>
 
-      {result.summary && (
+      {result.summary && !careerRoleName && (
         <section className="sprix-agent-center-result-summary">
           <h4>综合评估</h4>
           <p>{result.summary}</p>

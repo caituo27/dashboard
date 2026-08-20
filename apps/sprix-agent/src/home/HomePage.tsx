@@ -19,6 +19,7 @@ import { isGlobalAuthError } from "../utils/http";
 import { AgentEvaluationProgressModal } from "../components/AgentEvaluationProgressModal";
 import { ActionButton } from "../components/Primitives";
 import { AgentAbilityProfile } from "../user/AgentAbilityProfile";
+import { isAgentLoginRequired } from "../utils/agentStatus";
 import { useAgentBindPolling } from "./useAgentBindPolling";
 import { useHomeBootstrap } from "./useHomeBootstrap";
 import { useHomeAgentState } from "./useHomeAgentState";
@@ -229,7 +230,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
           await requestRemoteAgentLogin(agent.id);
           message.info("请在本机终端和浏览器中完成 Claude Code 登录");
           const authenticatedAgent = await waitForRemoteAgentAuthentication(agent.id);
-          await refreshAgents(authenticatedAgent);
+          await refreshAgents();
           message.success("Claude Code 登录成功");
           await onAuthenticated(authenticatedAgent);
         } catch (error) {
@@ -298,7 +299,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
     evaluationFlowClaimedRef.current = true;
     agentPickerDismissedRef.current = true;
     writeAccountDismissed(AGENT_PICKER_DISMISSED_STORAGE_KEY, accountScope, true);
-    if (agent.authStatus === "login_required") {
+    if (isAgentLoginRequired(agent)) {
       setAgentPickerOpen(false);
       promptClaudeLogin(agent, selectAgentForEvaluation);
       return;

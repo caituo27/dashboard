@@ -4,6 +4,7 @@ import { Bot, CheckCircle2, Download } from "lucide-react";
 import { ActionButton, SecondaryButton, StatusTag } from "../components/Primitives";
 import { LOCAL_AGENT_DOWNLOAD_URL } from "../localAgentDownload";
 import type { Agent } from "../types";
+import { getAgentStatusLabel, isAgentLoginRequired } from "../utils/agentStatus";
 
 type HomeAgentPickerModalProps = {
   open: boolean;
@@ -15,6 +16,23 @@ type HomeAgentPickerModalProps = {
   onSelect: (agent: Agent) => void;
   onClose: () => void;
 };
+
+function getAgentPickerDescription(agent: Agent, evaluationActive: boolean) {
+  if (evaluationActive) return "能力画像生成中，点击可查看当前进度";
+  if (isAgentLoginRequired(agent)) return "Claude Code 尚未登录，选择后将先打开登录流程";
+  if (hasCompletedEvaluation(agent)) return "已有能力画像，可重新评测并设为当前执行 Agent";
+  return "未生成能力画像，评测完成后设为当前执行 Agent";
+}
+
+function hasCompletedEvaluation(agent?: Agent) {
+  return agent?.evaluation?.status === "completed" || agent?.evaluation?.result?.status === "completed";
+}
+
+function getAgentPickerActionLabel(agent: Agent | undefined, evaluationActive: boolean) {
+  if (evaluationActive) return "查看生成进度";
+  if (isAgentLoginRequired(agent)) return "登录并生成能力画像";
+  return "生成能力画像";
+}
 
 export function HomeAgentPickerModal({
   open,
@@ -29,17 +47,16 @@ export function HomeAgentPickerModal({
   const [selectedAgentId, setSelectedAgentId] = useState<string>();
   const selectedAgent = useMemo(() => agents.find((agent) => agent.id === selectedAgentId) ?? agents[0], [agents, selectedAgentId]);
   const selectedEvaluationActive = selectedAgent?.evaluation?.status === "running" || selectedAgent?.evaluation?.status === "judging";
-  const hasCompletedEvaluation = (agent?: Agent) => agent?.evaluation?.status === "completed" || agent?.evaluation?.result?.status === "completed";
   const showInitialLoading = recognizing && agents.length === 0;
   const showRecognitionError = (recognitionFailed || recognitionTimedOut) && agents.length === 0;
 
   useEffect(() => {
-    if (open) {
-      setSelectedAgentId((currentSelection) => {
-        if (currentSelection && agents.some((agent) => agent.id === currentSelection)) return currentSelection;
-        return agents[0]?.id;
-      });
-    }
+    if (!open) return;
+    setSelectedAgentId((currentAgentId) =>
+      currentAgentId && agents.some((agent) => agent.id === currentAgentId)
+        ? currentAgentId
+        : agents[0]?.id
+    );
   }, [agents, open]);
 
   return (
@@ -100,19 +117,11 @@ export function HomeAgentPickerModal({
                   </span>
                   <span className="sprix-agent-picker-copy">
                     <strong>{agent.name}</strong>
-                    <span>
-                      {evaluationActive
-                        ? "能力画像生成中，点击可查看当前进度"
-                        : agent.authStatus === "login_required"
-                          ? "Claude Code 尚未登录，选择后将先打开登录流程"
-                        : hasCompletedEvaluation(agent)
-                          ? "已有能力画像，可重新评测并设为当前执行 Agent"
-                          : "未生成能力画像，评测完成后设为当前执行 Agent"}
-                    </span>
+                    <span>{getAgentPickerDescription(agent, evaluationActive)}</span>
                   </span>
                 </span>
                 <span className="sprix-agent-picker-meta">
-                  <StatusTag status={agent.status} />
+                  <StatusTag status={getAgentStatusLabel(agent)} />
                   <span className="sprix-agent-picker-check">{isSelected ? <CheckCircle2 size={18} /> : "选择"}</span>
                 </span>
               </button>
@@ -124,11 +133,7 @@ export function HomeAgentPickerModal({
         <div className="sprix-agent-picker-footer">
           <SecondaryButton onClick={onClose}>取消</SecondaryButton>
           <ActionButton disabled={!selectedAgent} onClick={() => selectedAgent && onSelect(selectedAgent)}>
-            {selectedEvaluationActive
-              ? "查看生成进度"
-              : selectedAgent?.authStatus === "login_required"
-                ? "登录并生成能力画像"
-                : "生成能力画像"}
+            {getAgentPickerActionLabel(selectedAgent, selectedEvaluationActive)}
           </ActionButton>
         </div>
       )}

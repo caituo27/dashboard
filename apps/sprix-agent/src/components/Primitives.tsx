@@ -87,7 +87,9 @@ export function SoftTag({
 
 export function StatusTag({ status }: { status: string }) {
   const tone =
-    status.includes("失败") || status.includes("驳回") || status.includes("未通过") || status.includes("异常")
+    status === "已终止"
+      ? "neutral"
+      : status.includes("失败") || status.includes("驳回") || status.includes("未通过") || status.includes("异常")
       ? "red"
       : status.includes("中") || status.includes("待") || status.includes("需")
         ? "amber"

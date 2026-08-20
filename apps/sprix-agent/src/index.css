@@ -5437,6 +5437,18 @@ select {
   min-width: 0;
 }
 
+.sprix-agent-center-result-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  min-width: 0;
+}
+
+.sprix-agent-center-result-head.is-status-only {
+  justify-content: flex-end;
+}
+
 .sprix-agent-center-result-status {
   position: absolute;
   top: 0;
@@ -5454,23 +5466,32 @@ select {
   line-height: 16px;
 }
 
+.sprix-agent-center-result-head > .sprix-agent-center-result-status {
+  position: static;
+  flex: 0 0 auto;
+}
+
 .sprix-agent-center-result-overview {
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
-  gap: 40px;
-  min-height: 315px;
+  align-items: center;
+  gap: 48px;
+  margin-top: 28px;
+  min-height: 205px;
 }
 
 .sprix-agent-center-result-score-column {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 30px;
+  justify-content: center;
   min-width: 0;
+  min-height: 180px;
 }
 
 .sprix-agent-center-result-identity {
   width: 100%;
+  margin-top: 22px;
 }
 
 .sprix-agent-center-result-identity > span {
@@ -5486,6 +5507,45 @@ select {
   font-size: 22px;
   font-weight: 700;
   line-height: 33px;
+}
+
+.sprix-agent-center-result-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.sprix-agent-center-result-career {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 10px;
+  width: min(1120px, 100%);
+  min-width: 0;
+}
+
+.sprix-agent-center-result-career-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px;
+  color: var(--color-ink);
+  font-size: var(--sprix-font-size-card-title);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.sprix-agent-center-result-career-title strong {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+.sprix-agent-center-result-career p {
+  max-width: 1120px;
+  margin: 0;
+  color: #333333;
+  font-size: var(--sprix-font-size-body);
+  line-height: 1.75;
 }
 
 .sprix-agent-center-score-progress {
@@ -5552,7 +5612,6 @@ select {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px 32px;
   min-width: 0;
-  padding-top: 44px;
 }
 
 .sprix-agent-center-result-dimension {
@@ -6780,6 +6839,19 @@ select {
   .sprix-agent-center-result-status {
     position: static;
     margin-bottom: 20px;
+  }
+
+  .sprix-agent-center-result-head {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .sprix-agent-center-result-head > .sprix-agent-center-result-status {
+    margin-bottom: 0;
+  }
+
+  .sprix-agent-center-result-career-title {
+    font-size: 16px;
   }
 
   .sprix-agent-center-result-overview {

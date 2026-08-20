@@ -1,6 +1,7 @@
 import { Bot } from "lucide-react";
 import { StatusTag } from "../components/Primitives";
 import type { Agent } from "../types";
+import { getAgentStatusLabel } from "../utils/agentStatus";
 import { scoreText } from "../utils/format";
 
 type HomeAgentCardProps = {
@@ -21,7 +22,7 @@ export function HomeAgentCard({ agent }: HomeAgentCardProps) {
           <h2>{agent.name}</h2>
           <p>{agent.summary || "当前可使用该 Agent 浏览任务并接单执行。需要切换、测评或查看能力画像时，可进入 Agent 中心管理。"}</p>
           <div className="sprix-current-agent-meta">
-            <StatusTag status={agent.status} />
+            <StatusTag status={getAgentStatusLabel(agent)} />
             <span>{scoreText(agent.evaluation?.result.overallScore ?? null)}</span>
           </div>
         </div>
