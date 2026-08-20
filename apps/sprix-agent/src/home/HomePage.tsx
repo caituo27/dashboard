@@ -30,6 +30,7 @@ import { HomeHero } from "./HomeHero";
 import { HomeStats } from "./HomeStats";
 import { HomeTopAccount } from "./HomeTopAccount";
 import { checkLocalAgentHealth } from "../user/localAgentConnect";
+import { isEvaluationModalDismissed, setEvaluationModalDismissed } from "../user/evaluationModalState";
 
 type HomePageProps = {
   openLogin: () => void;
@@ -110,9 +111,12 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
   const [searchParams] = useSearchParams();
   const account = useSprixStore((state) => state.account);
   const agents = useSprixStore((state) => state.agents);
+  const persistedEvaluationFlow = useSprixStore((state) => state.evaluationFlow);
   const localAgent = useSprixStore((state) => state.localAgent);
   const platformOverview = useSprixStore((state) => state.platformOverview);
   const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
+  const setEvaluationFlow = useSprixStore((state) => state.setEvaluationFlow);
+  const clearEvaluationFlow = useSprixStore((state) => state.clearEvaluationFlow);
   const homeBootstrap = useHomeBootstrap();
   const localAgentHealth = useQuery({
     queryKey: ["sprix-agent", "local-agent-health"],
@@ -167,13 +171,20 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
   const [abilityResultModalOpen, setAbilityResultModalOpen] = useState(false);
   const evaluationFlowClaimedRef = useRef(false);
   const abilityResultFlowRef = useRef(false);
+  const evaluationPollInFlightRef = useRef(false);
+  const evaluationRestoreInFlightRef = useRef(false);
+  const currentAgentEvaluationFlowActive =
+    persistedEvaluationFlow?.wasCurrentAgent === true &&
+    (persistedEvaluationFlow.status === "running" || persistedEvaluationFlow.status === "judging");
   const evaluationFlowActive =
     evaluationLoading ||
     Boolean(evaluationAgent) ||
-    Boolean(evaluation && isEvaluationActive(evaluation.status));
+    Boolean(evaluation && isEvaluationActive(evaluation.status)) ||
+    currentAgentEvaluationFlowActive;
   const shouldOpenConnectModal = Boolean((location.state as { openConnectAgentModal?: boolean } | null)?.openConnectAgentModal);
   const shouldOpenAgentPicker = searchParams.get("modal") === "agent-picker";
   const accountScope = homeAccount.phone || homeAccount.maskedPhone || homeAccount.nickname;
+  const evaluationAccountScope = accountScope || "logged-in";
   const currentAgentReady = Boolean(
     effectiveCurrentAgent &&
       !(effectiveCurrentAgent.evaluation && isEvaluationActive(effectiveCurrentAgent.evaluation.status))
@@ -280,6 +291,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
         completedEvaluationIdRef.current = nextEvaluation.evaluationId;
         completingEvaluationIdRef.current = undefined;
         autoSetCurrentAgentIdRef.current = undefined;
+        clearEvaluationFlow();
         message.success("测评完成，已设置当前执行 Agent");
         void refreshAgents(completedCurrentAgent).catch((error) => {
           showHomeRequestError(error, "刷新 Agent 状态失败", "刷新 Agent 状态失败：");
@@ -291,7 +303,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
         showHomeRequestError(error, "设置当前执行 Agent 失败", "设置当前执行 Agent 失败：");
       }
     },
-    [mergeRemoteState, queryClient, refreshAgents]
+    [clearEvaluationFlow, mergeRemoteState, queryClient, refreshAgents]
   );
 
   const selectAgentForEvaluation = async (agent: Agent) => {
@@ -336,9 +348,21 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       if (!nextEvaluation.evaluationId) {
         nextEvaluation = await readLatestRemoteAgentEvaluation(agent.id);
       }
+      if (isEvaluationActive(nextEvaluation.status)) {
+        setEvaluationModalDismissed(evaluationAccountScope, nextEvaluation.evaluationId, false);
+        setEvaluationFlow({
+          agentId: agent.id,
+          evaluationId: nextEvaluation.evaluationId,
+          status: nextEvaluation.status,
+          // Home-page selection is always intended to become the current
+          // execution Agent after the evaluation completes.
+          wasCurrentAgent: true
+        });
+      }
       if (isCompletedAgentEvaluation(nextEvaluation)) {
         await markCurrentAfterCompletedEvaluation(agent, nextEvaluation);
       } else {
+        if (nextEvaluation.status === "failed") clearEvaluationFlow();
         setEvaluation(nextEvaluation);
         await refreshAgents();
       }
@@ -355,10 +379,19 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
   };
 
   useEffect(() => {
-    if (!evaluationAgent || !evaluation || !evaluation.evaluationId || isEvaluationTerminal(evaluation.status)) return;
+    if (
+      !evaluationAgent ||
+      !evaluation ||
+      !evaluation.evaluationId ||
+      isEvaluationTerminal(evaluation.status)
+    ) {
+      return;
+    }
 
     let cancelled = false;
     const poll = window.setInterval(async () => {
+      if (evaluationPollInFlightRef.current) return;
+      evaluationPollInFlightRef.current = true;
       try {
         const next = await readRemoteAgentEvaluation(evaluationAgent.id, evaluation.evaluationId);
         if (cancelled) return;
@@ -366,6 +399,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
           window.clearInterval(poll);
           if (next.status === "failed") {
             autoSetCurrentAgentIdRef.current = undefined;
+            clearEvaluationFlow();
             setEvaluation(next);
           }
           if (next.status === "completed") {
@@ -374,11 +408,21 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
           void refreshAgents();
           return;
         }
+        if (next.status === "running" || next.status === "judging") {
+          setEvaluationFlow({
+            agentId: evaluationAgent.id,
+            evaluationId: evaluation.evaluationId,
+            status: next.status,
+            wasCurrentAgent: true
+          });
+        }
         setEvaluation(next);
       } catch (error) {
         if (cancelled) return;
         setEvaluationError(error instanceof Error ? error.message : "评测状态获取失败");
         window.clearInterval(poll);
+      } finally {
+        evaluationPollInFlightRef.current = false;
       }
     }, 1_500);
 
@@ -386,11 +430,15 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       cancelled = true;
       window.clearInterval(poll);
     };
-  }, [evaluation, evaluationAgent, markCurrentAfterCompletedEvaluation, refreshAgents]);
+  }, [clearEvaluationFlow, evaluation, evaluationAgent, markCurrentAfterCompletedEvaluation, refreshAgents, setEvaluationFlow]);
 
   const closeEvaluation = () => {
     setEvaluationModalOpen(false);
     const shouldKeepEvaluationContext = evaluationLoading || Boolean(evaluation && isEvaluationActive(evaluation.status));
+    const activeEvaluationId = evaluation?.evaluationId ?? persistedEvaluationFlow?.evaluationId;
+    if (shouldKeepEvaluationContext && activeEvaluationId) {
+      setEvaluationModalDismissed(evaluationAccountScope, activeEvaluationId, true);
+    }
     if (!shouldKeepEvaluationContext) {
       setAgentSetupFlow(false);
       setEvaluationAgent(null);
@@ -406,11 +454,14 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
     const shouldRestoreEvaluation =
       Boolean(evaluationAgent) && (evaluationLoading || Boolean(evaluation && isEvaluationActive(evaluation.status)));
     if (shouldRestoreEvaluation) {
+      if (evaluation?.evaluationId) {
+        setEvaluationModalDismissed(evaluationAccountScope, evaluation.evaluationId, false);
+      }
       setEvaluationModalOpen(true);
       return;
     }
     setAgentPickerOpen(true);
-  }, [accountScope, evaluation, evaluationAgent, evaluationLoading, setAgentSetupFlow]);
+  }, [accountScope, evaluation, evaluationAccountScope, evaluationAgent, evaluationLoading, setAgentSetupFlow]);
 
   const enterMarketFromAbilityResult = () => {
     evaluationFlowClaimedRef.current = false;
@@ -479,6 +530,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       return;
     }
     const restoredEvaluation = effectiveCurrentAgent.evaluation;
+    if (restoredEvaluation.evaluationId && isEvaluationModalDismissed(evaluationAccountScope, restoredEvaluation.evaluationId)) return;
     if (completedEvaluationIdRef.current === restoredEvaluation.evaluationId || completingEvaluationIdRef.current === restoredEvaluation.evaluationId) return;
     if (
       evaluationAgent?.id === effectiveCurrentAgent.id &&
@@ -492,6 +544,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       readLatestRemoteAgentEvaluation(effectiveCurrentAgent.id)
         .then((latestEvaluation) => {
           if (cancelled || !isEvaluationActive(latestEvaluation.status)) return;
+          if (latestEvaluation.evaluationId && isEvaluationModalDismissed(evaluationAccountScope, latestEvaluation.evaluationId)) return;
           autoSetCurrentAgentIdRef.current = effectiveCurrentAgent.id;
           setEvaluationAgent(effectiveCurrentAgent);
           setEvaluation(latestEvaluation);
@@ -514,7 +567,85 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
     setEvaluationError(undefined);
     setEvaluationLoading(false);
     setEvaluationModalOpen(true);
-  }, [abilityResultModalOpen, agentPickerOpen, bootstrapReady, effectiveCurrentAgent, evaluation, evaluationAgent, evaluationLoading, homeAccount.isLoggedIn]);
+  }, [abilityResultModalOpen, agentPickerOpen, bootstrapReady, effectiveCurrentAgent, evaluation, evaluationAccountScope, evaluationAgent, evaluationLoading, homeAccount.isLoggedIn]);
+
+  useEffect(() => {
+    const flow = persistedEvaluationFlow;
+    if (
+      !homeAccount.isLoggedIn ||
+      !bootstrapReady ||
+      agentPickerOpen ||
+      abilityResultModalOpen ||
+      !flow?.wasCurrentAgent ||
+      !flow.agentId ||
+      !flow.evaluationId ||
+      (evaluationAgent?.id === flow.agentId && evaluation && isEvaluationActive(evaluation.status))
+    ) {
+      return;
+    }
+
+    if (effectiveCurrentAgent?.id === flow.agentId) {
+      const currentEvaluationStatus = effectiveCurrentAgent.evaluation?.status ?? effectiveCurrentAgent.evaluation?.result?.status;
+      if (
+        effectiveCurrentAgent.evaluation?.evaluationId === flow.evaluationId &&
+        currentEvaluationStatus !== "running" &&
+        currentEvaluationStatus !== "judging"
+      ) {
+        clearEvaluationFlow();
+      }
+      return;
+    }
+
+    const flowAgent = bootstrapAgents.find((agent) => agent.id === flow.agentId);
+    if (!flowAgent) return;
+    if (evaluationRestoreInFlightRef.current) return;
+    evaluationRestoreInFlightRef.current = true;
+
+    let cancelled = false;
+    let retryTimer: number | undefined;
+    const restore = async () => {
+      try {
+        const latestEvaluation = await readRemoteAgentEvaluation(flow.agentId, flow.evaluationId);
+        if (cancelled) return;
+        const modalDismissed = isEvaluationModalDismissed(evaluationAccountScope, latestEvaluation.evaluationId);
+        if (isEvaluationActive(latestEvaluation.status)) {
+          autoSetCurrentAgentIdRef.current = flow.agentId;
+          setEvaluationAgent(flowAgent);
+          setEvaluation(latestEvaluation);
+          setEvaluationError(undefined);
+          setEvaluationLoading(false);
+          setEvaluationModalOpen(!modalDismissed);
+          return;
+        }
+
+        if (latestEvaluation.status === "completed" && flow.wasCurrentAgent === true) {
+          await markRemoteCurrentAgent(flow.agentId).catch(() => undefined);
+        }
+        clearEvaluationFlow();
+        autoSetCurrentAgentIdRef.current = undefined;
+        setEvaluationAgent(null);
+        setEvaluation(latestEvaluation);
+        setEvaluationLoading(false);
+        setEvaluationModalOpen(false);
+        void refreshAgents();
+      } catch (error) {
+        if (cancelled) return;
+        if (error instanceof Error && error.message === "Agent evaluation not found") {
+          clearEvaluationFlow();
+          return;
+        }
+        retryTimer = window.setTimeout(restore, 1_500);
+      } finally {
+        evaluationRestoreInFlightRef.current = false;
+      }
+    };
+    void restore();
+
+    return () => {
+      cancelled = true;
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+    };
+  }, [abilityResultModalOpen, agentPickerOpen, bootstrapAgents, bootstrapReady, clearEvaluationFlow, effectiveCurrentAgent, evaluation, evaluationAccountScope, evaluationAgent, homeAccount.isLoggedIn, persistedEvaluationFlow, refreshAgents]);
 
   useEffect(() => {
     if (!evaluationFlowClaimedRef.current && canAutoEnterMarket) {

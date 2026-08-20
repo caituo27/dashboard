@@ -637,11 +637,6 @@ select {
   gap: 10px;
 }
 
-.sprix-my-task-row-actions .ant-btn {
-  min-height: 38px;
-  padding-inline: 18px;
-}
-
 .sprix-detail-back-row {
   position: sticky;
   top: 0;
@@ -3163,12 +3158,14 @@ select {
   align-self: end;
   justify-self: end;
   pointer-events: none;
-  width: min(280px, 100%);
-  max-width: 280px;
-  height: 200px;
-  max-height: 200px;
+  width: min(240px, 100%);
+  max-width: 240px;
+  height: 171px;
+  max-height: 171px;
   margin-bottom: -44px;
   transform: translateY(-28px);
+  overflow: hidden;
+  contain: layout paint;
 }
 
 .sprix-execution-hero-video {

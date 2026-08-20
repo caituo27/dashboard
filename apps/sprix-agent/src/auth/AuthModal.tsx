@@ -15,6 +15,8 @@ type AuthModalProps = {
 export function AuthModal({ open, onClose, onLoginSuccess }: AuthModalProps) {
   const queryClient = useQueryClient();
   const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
+  const setEvaluationFlow = useSprixStore((state) => state.setEvaluationFlow);
+  const clearEvaluationFlow = useSprixStore((state) => state.clearEvaluationFlow);
   const [activeTab, setActiveTab] = useState<AuthTabKey>("alipay");
   const [authSessionKey, setAuthSessionKey] = useState(0);
 
@@ -30,6 +32,11 @@ export function AuthModal({ open, onClose, onLoginSuccess }: AuthModalProps) {
     queryClient.setQueryData(["sprix-agent", "home-bootstrap"], remoteState);
     queryClient.setQueryData(["sprix-agent", "snapshot"], remoteState);
     mergeRemoteState(remoteState);
+    if (remoteState.activeEvaluationFlow) {
+      setEvaluationFlow(remoteState.activeEvaluationFlow);
+    } else {
+      clearEvaluationFlow();
+    }
     message.success("成功");
     onClose();
     try {
@@ -37,7 +44,7 @@ export function AuthModal({ open, onClose, onLoginSuccess }: AuthModalProps) {
     } catch {
       // 登录已经成功，后续跳转失败不影响登录态。
     }
-  }, [mergeRemoteState, onClose, onLoginSuccess, queryClient]);
+  }, [clearEvaluationFlow, mergeRemoteState, onClose, onLoginSuccess, queryClient, setEvaluationFlow]);
 
   useEffect(() => {
     if (open) {

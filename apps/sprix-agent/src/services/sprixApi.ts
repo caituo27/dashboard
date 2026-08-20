@@ -38,6 +38,7 @@ import type {
   AgentEvaluationStep,
   AgentEvaluationTranscriptItem,
   AppealStatus,
+  EvaluationFlowState,
   LocalAgentDiagnostic,
   LocalAgentInventoryStatus,
   MyTask,
@@ -547,6 +548,17 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
   const agents = agentsResult.agents;
   const mappedCurrentAgent = currentAgentResponse ? mapAgent(currentAgentResponse) : undefined;
   const currentAgent = isAgentExecutionEligible(mappedCurrentAgent) ? mappedCurrentAgent : undefined;
+  const activeEvaluationFlow =
+    currentAgentResponse?.currentExecution === true &&
+    mappedCurrentAgent?.evaluation &&
+    isActiveEvaluationStatus(mappedCurrentAgent.evaluation.status)
+      ? ({
+          agentId: mappedCurrentAgent.id,
+          evaluationId: mappedCurrentAgent.evaluation.evaluationId,
+          status: mappedCurrentAgent.evaluation.status,
+          wasCurrentAgent: true
+        } satisfies EvaluationFlowState)
+      : undefined;
   const taskById = new Map(tasks.map((task) => [task.id, task]));
   const agentById = new Map(agents.map((agent) => [agent.id, agent]));
   const myTasks = listValue<MyTaskExecutionDetail>(myTasksResponse).map((item) => mapMyTask(item, taskById, agentById));
@@ -561,6 +573,7 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
     localAgent: agentsResult.localAgent,
     currentAgentId: currentAgent?.id ?? null,
     currentAgent,
+    ...(activeEvaluationFlow ? { activeEvaluationFlow } : {}),
     myTasks,
     withdrawals,
     payouts,
@@ -1079,6 +1092,10 @@ function mapAgent(agent: RemoteAgentProfileResponse): Agent {
 
 function isAgentExecutionEligible(agent?: Agent): agent is Agent {
   return Boolean(agent && agent.role === "当前执行 Agent" && agent.evaluation?.status === "completed");
+}
+
+function isActiveEvaluationStatus(status: AgentEvaluationStatus): status is Extract<AgentEvaluationStatus, "running" | "judging"> {
+  return status === "running" || status === "judging";
 }
 
 function normalizeAgentAuthStatus(agent: RemoteAgentProfileResponse): Agent["authStatus"] {

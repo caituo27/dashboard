@@ -47,6 +47,9 @@ type MyTaskDetailPageProps = {
 const manualSubmissionMaxFileCount = 10;
 const manualSubmissionMaxFileSizeBytes = 50 * 1024 * 1024;
 const manualSubmissionMaxFileCountMessage = `每次最多上传 ${manualSubmissionMaxFileCount} 个交付文件`;
+const executionVideoWidth = 240;
+const executionVideoHeight = 171;
+const executionVideoPlaybackRate = 1.5;
 
 function validateManualSubmissionFile(file: File) {
   if (file.size === 0) return "文件不能为空";
@@ -259,17 +262,25 @@ export function MyTaskDetailPage({ openAppeal }: MyTaskDetailPageProps) {
               </div>
             </div>
             {summary.status === "执行中" ? (
-              <div className="sprix-execution-hero-video-frame" aria-hidden="true">
+              <div
+                className="sprix-execution-hero-video-frame"
+                style={{ width: executionVideoWidth, height: executionVideoHeight }}
+                aria-hidden="true"
+              >
                 <video
                   className="sprix-execution-hero-video"
-                  width={280}
-                  height={200}
+                  width={executionVideoWidth}
+                  height={executionVideoHeight}
                   autoPlay
                   muted
                   loop
                   playsInline
-                  preload="metadata"
+                  preload="auto"
                   poster="/doing.svg"
+                  onLoadedMetadata={(event) => {
+                    event.currentTarget.defaultPlaybackRate = executionVideoPlaybackRate;
+                    event.currentTarget.playbackRate = executionVideoPlaybackRate;
+                  }}
                 >
                   <source src="/execution-background.mp4" type="video/mp4" />
                 </video>

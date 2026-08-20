@@ -55,6 +55,7 @@ import {
   useAbilityDimensionInteraction
 } from "./AgentAbilityProfile";
 import { canSetAgentCurrent, getAgentAdmissionSummary, getAgentEvaluationStatusLabel, getAgentTagLabels } from "./agentResult";
+import { isEvaluationModalDismissed, setEvaluationModalDismissed } from "./evaluationModalState";
 import {
   getPayoutAccountActionLabel,
   getPayoutAccountText,
@@ -267,6 +268,7 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
   const myTasks = useSprixStore((state) => state.myTasks);
   const account = useSprixStore((state) => state.account);
   const currentAgent = useSprixStore((state) => state.currentAgent);
+  const evaluationFlow = useSprixStore((state) => state.evaluationFlow);
   const smartAcceptEnabled = useSprixStore((state) => state.smartAcceptEnabled);
   const setSmartAcceptEnabled = useSprixStore((state) => state.setSmartAcceptEnabled);
   const [smartAcceptModalOpen, setSmartAcceptModalOpen] = useState(false);
@@ -317,7 +319,7 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
   }, [hasMoreTasks, loadMoreTasks]);
 
   const handleAccept = (task: Task) => {
-    const gate = getTaskAcceptGate(account, currentAgent, task);
+    const gate = getTaskAcceptGate(account, currentAgent, task, evaluationFlow);
     if (gate.kind === "login") {
       openLogin?.();
       return;
@@ -334,6 +336,10 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
     if (gate.kind === "current-agent") {
       message.warning(gate.message);
       navigate(gate.path);
+      return;
+    }
+    if (gate.kind === "evaluation-active") {
+      message.warning(gate.message);
       return;
     }
     if (gate.kind === "task-unavailable") {
@@ -576,6 +582,7 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
   const task = useSprixStore((state) => state.tasks.find((item) => item.id === id));
   const account = useSprixStore((state) => state.account);
   const currentAgent = useSprixStore((state) => state.currentAgent);
+  const evaluationFlow = useSprixStore((state) => state.evaluationFlow);
   const estimatedToken = getEstimatedTokenField(task?.estimatedTokens);
   const taskAttachmentsQuery = useQuery({
     queryKey: ["sprix-agent", "task-attachments", id],
@@ -607,7 +614,7 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
   }
 
   const handleAccept = () => {
-    const gate = getTaskAcceptGate(account, currentAgent, task);
+    const gate = getTaskAcceptGate(account, currentAgent, task, evaluationFlow);
     if (gate.kind === "login") {
       openLogin();
       return;
@@ -620,6 +627,10 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
     if (gate.kind === "current-agent") {
       message.warning(gate.message);
       navigate(gate.path);
+      return;
+    }
+    if (gate.kind === "evaluation-active") {
+      message.warning(gate.message);
       return;
     }
     if (gate.kind === "task-unavailable") {
@@ -824,11 +835,16 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   const agents = useSprixStore((state) => state.agents);
   const localAgent = useSprixStore((state) => state.localAgent);
   const currentAgent = useSprixStore((state) => state.currentAgent);
+  const evaluationFlow = useSprixStore((state) => state.evaluationFlow);
   const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
+  const setEvaluationFlow = useSprixStore((state) => state.setEvaluationFlow);
+  const clearEvaluationFlow = useSprixStore((state) => state.clearEvaluationFlow);
   const current = currentAgent;
   const autoSetCurrentAgentIdRef = useRef<string>();
   const evaluationSessionsRef = useRef(new Map<string, AgentEvaluation>());
   const evaluationRequestIdRef = useRef(0);
+  const evaluationPollInFlightRef = useRef(false);
+  const evaluationRestoreInFlightRef = useRef(false);
   const evaluationAccountScopeRef = useRef<string>();
   const [evaluationAgent, setEvaluationAgent] = useState<Agent | null>(null);
   const [evaluation, setEvaluation] = useState<AgentEvaluation | undefined>();
@@ -838,11 +854,20 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   const [evaluationError, setEvaluationError] = useState<string>();
   const [settingCurrentAgentId, setSettingCurrentAgentId] = useState<string>();
   const evaluationAccountScope = account.isLoggedIn ? account.phone || account.maskedPhone || account.nickname || "logged-in" : "logged-out";
-  const currentWithEvaluation = currentEvaluation && current ? { ...current, evaluation: currentEvaluation, score: currentEvaluation.result.overallScore ?? null } : current;
+  const reevaluatingCurrentAgentId = evaluationFlow?.wasCurrentAgent ? evaluationFlow.agentId : undefined;
+  const currentEvaluationFailed = currentEvaluation?.status === "failed" || currentEvaluation?.result?.status === "failed";
+  const preservedCurrentAgent = currentEvaluationFailed
+    ? undefined
+    : current ?? (reevaluatingCurrentAgentId ? agents.find((agent) => agent.id === reevaluatingCurrentAgentId) : undefined);
+  const currentWithEvaluation = currentEvaluation && preservedCurrentAgent
+    ? { ...preservedCurrentAgent, evaluation: currentEvaluation, score: currentEvaluation.result.overallScore ?? null }
+    : preservedCurrentAgent;
   const agentsWithCurrentEvaluation =
-    currentEvaluation && current
+    currentEvaluation && (current?.id ?? reevaluatingCurrentAgentId)
       ? agents.map((agent) =>
-          agent.id === current.id ? { ...agent, evaluation: currentEvaluation, score: currentEvaluation.result.overallScore ?? null } : agent
+          agent.id === (current?.id ?? reevaluatingCurrentAgentId)
+            ? { ...agent, evaluation: currentEvaluation, score: currentEvaluation.result.overallScore ?? null }
+            : agent
         )
       : agents;
 
@@ -918,7 +943,8 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   };
 
   const markCurrentAfterCompletedEvaluation = async (agent: Agent, nextEvaluation: AgentEvaluation) => {
-    if (autoSetCurrentAgentIdRef.current !== agent.id || !isCompletedAgentEvaluation(nextEvaluation)) return;
+    if (!isCompletedAgentEvaluation(nextEvaluation)) return true;
+    if (autoSetCurrentAgentIdRef.current !== agent.id) return true;
     try {
       const updatedCurrentAgent = await markRemoteCurrentAgent(agent.id);
       const preferredCurrentAgent = updatedCurrentAgent ?? { ...agent, role: "当前执行 Agent" as const };
@@ -926,8 +952,13 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       autoSetCurrentAgentIdRef.current = undefined;
       await refreshAgents(preferredCurrentAgent);
       message.success("测评完成，已设置当前执行 Agent");
+      return true;
     } catch (error) {
+      if (autoSetCurrentAgentIdRef.current === agent.id) {
+        autoSetCurrentAgentIdRef.current = undefined;
+      }
       showRequestError(error, "设置当前执行 Agent 失败", "设置当前执行 Agent 失败：");
+      return false;
     }
   };
 
@@ -943,12 +974,18 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       promptClaudeLogin(agent, (authenticatedAgent) => openAgentEvaluation(authenticatedAgent, { setCurrentAfterCompletion, forceStart }));
       return;
     }
+    if (current?.id === agent.id) {
+      autoSetCurrentAgentIdRef.current = agent.id;
+    }
     if (setCurrentAfterCompletion) {
       autoSetCurrentAgentIdRef.current = agent.id;
     }
     const shouldRestoreEvaluation =
       evaluationAgent?.id === agent.id && (evaluationLoading || Boolean(evaluation && isEvaluationActive(evaluation.status)));
     if (shouldRestoreEvaluation) {
+      if (evaluation?.evaluationId) {
+        setEvaluationModalDismissed(evaluationAccountScope, evaluation.evaluationId, false);
+      }
       setEvaluationModalOpen(true);
       setEvaluationError(undefined);
       return;
@@ -991,8 +1028,21 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       if (!isCurrentRequest()) return;
       if (isEvaluationActive(nextEvaluation.status)) {
         evaluationSessionsRef.current.set(agent.id, nextEvaluation);
+        setEvaluationModalDismissed(evaluationAccountScope, nextEvaluation.evaluationId, false);
+        setEvaluationFlow({
+          agentId: agent.id,
+          evaluationId: nextEvaluation.evaluationId,
+          status: nextEvaluation.status,
+          wasCurrentAgent: current?.id === agent.id
+        });
       } else {
         evaluationSessionsRef.current.delete(agent.id);
+        if (nextEvaluation.status === "failed") {
+          if (autoSetCurrentAgentIdRef.current === agent.id) {
+            autoSetCurrentAgentIdRef.current = undefined;
+          }
+          clearEvaluationFlow();
+        }
       }
       setEvaluation(nextEvaluation);
       if (current?.id === agent.id) {
@@ -1000,12 +1050,18 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       }
       await refreshAgents();
       if (!isCurrentRequest()) return;
-      await markCurrentAfterCompletedEvaluation(agent, nextEvaluation);
+      const currentAgentRestored = await markCurrentAfterCompletedEvaluation(agent, nextEvaluation);
+      if (nextEvaluation.status === "failed" || (nextEvaluation.status === "completed" && currentAgentRestored)) {
+        clearEvaluationFlow();
+      }
       if (shouldStartEvaluation && isEvaluationActive(nextEvaluation.status)) {
         message.success("评测已开始");
       }
     } catch (error) {
       if (!isCurrentRequest()) return;
+      if (autoSetCurrentAgentIdRef.current === agent.id) {
+        autoSetCurrentAgentIdRef.current = undefined;
+      }
       setEvaluationError(error instanceof Error ? error.message : "评测操作失败");
       showRequestError(error, "评测操作失败", "评测操作失败：");
     } finally {
@@ -1018,6 +1074,8 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
 
     let cancelled = false;
     const poll = window.setInterval(async () => {
+      if (evaluationPollInFlightRef.current) return;
+      evaluationPollInFlightRef.current = true;
       try {
         const next = await readRemoteAgentEvaluation(evaluationAgent.id, evaluation.evaluationId);
         if (cancelled) return;
@@ -1034,15 +1092,21 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
           window.clearInterval(poll);
           if (next.status === "failed") {
             autoSetCurrentAgentIdRef.current = undefined;
+            clearEvaluationFlow();
           }
           if (next.status === "completed") {
-            await markCurrentAfterCompletedEvaluation(evaluationAgent, next);
+            const currentAgentRestored = await markCurrentAfterCompletedEvaluation(evaluationAgent, next);
+            if (currentAgentRestored) {
+              clearEvaluationFlow();
+            }
           }
           void refreshAgents();
         }
       } catch {
         if (cancelled) return;
         window.clearInterval(poll);
+      } finally {
+        evaluationPollInFlightRef.current = false;
       }
     }, AGENT_EVALUATION_POLL_INTERVAL_MS);
 
@@ -1050,23 +1114,27 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       cancelled = true;
       window.clearInterval(poll);
     };
-  }, [current?.id, evaluation, evaluationAgent, refreshAgents]);
+  }, [clearEvaluationFlow, current?.id, evaluation, evaluationAgent, refreshAgents, setEvaluationFlow]);
 
   useEffect(() => {
-    if (evaluationAccountScopeRef.current === evaluationAccountScope) return;
+    const previousAccountScope = evaluationAccountScopeRef.current;
+    if (previousAccountScope === evaluationAccountScope) return;
 
     evaluationAccountScopeRef.current = evaluationAccountScope;
     evaluationRequestIdRef.current += 1;
     evaluationSessionsRef.current.clear();
     clearAgentEvaluationProgressCache();
     autoSetCurrentAgentIdRef.current = undefined;
+    if (previousAccountScope) {
+      clearEvaluationFlow();
+    }
     setEvaluationModalOpen(false);
     setEvaluationAgent(null);
     setEvaluation(undefined);
     setCurrentEvaluation(undefined);
     setEvaluationLoading(false);
     setEvaluationError(undefined);
-  }, [evaluationAccountScope]);
+  }, [clearEvaluationFlow, evaluationAccountScope]);
 
   useEffect(() => {
     if (!account.isLoggedIn || !current?.id || current.evaluation?.result?.status === "completed") {
@@ -1094,10 +1162,77 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
     };
   }, [account.isLoggedIn, current?.id, current?.evaluation?.lastEvaluatedAt, current?.evaluation?.result?.status, evaluationAccountScope]);
 
+  useEffect(() => {
+    if (!account.isLoggedIn || !evaluationFlow?.agentId || !evaluationFlow.evaluationId) return;
+    if (evaluationAgent?.id === evaluationFlow.agentId && evaluation && isEvaluationActive(evaluation.status)) return;
+    if (current?.id === evaluationFlow.agentId && current.evaluation?.evaluationId === evaluationFlow.evaluationId) {
+      clearEvaluationFlow();
+      return;
+    }
+
+    const flowAgent = agents.find((agent) => agent.id === evaluationFlow.agentId);
+    if (!flowAgent) return;
+    if (evaluationRestoreInFlightRef.current) return;
+    evaluationRestoreInFlightRef.current = true;
+
+    let cancelled = false;
+    let retryTimer: number | undefined;
+    const restore = async () => {
+      try {
+        const latestEvaluation = await readRemoteAgentEvaluation(evaluationFlow.agentId, evaluationFlow.evaluationId);
+        if (cancelled) return;
+        const modalDismissed = isEvaluationModalDismissed(evaluationAccountScope, latestEvaluation.evaluationId);
+        if (isEvaluationActive(latestEvaluation.status)) {
+          if (evaluationFlow.wasCurrentAgent === true) {
+            autoSetCurrentAgentIdRef.current = evaluationFlow.agentId;
+          }
+          setEvaluationAgent(flowAgent);
+          setEvaluation(latestEvaluation);
+          setEvaluationError(undefined);
+          setEvaluationLoading(false);
+          setEvaluationModalOpen(!modalDismissed);
+          return;
+        }
+
+        if (latestEvaluation.status === "completed" && evaluationFlow.wasCurrentAgent === true) {
+          await markRemoteCurrentAgent(evaluationFlow.agentId).catch(() => undefined);
+        }
+        clearEvaluationFlow();
+        autoSetCurrentAgentIdRef.current = undefined;
+        setEvaluationAgent(null);
+        setEvaluation(latestEvaluation);
+        setEvaluationLoading(false);
+        setEvaluationModalOpen(false);
+        void refreshAgents();
+      } catch (error) {
+        if (cancelled) return;
+        if (isAgentEvaluationNotFound(error)) {
+          clearEvaluationFlow();
+          return;
+        }
+        retryTimer = window.setTimeout(restore, AGENT_EVALUATION_POLL_INTERVAL_MS);
+      } finally {
+        evaluationRestoreInFlightRef.current = false;
+      }
+    };
+    void restore();
+
+    return () => {
+      cancelled = true;
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+    };
+  }, [account.isLoggedIn, agents, clearEvaluationFlow, evaluation, evaluationAgent, evaluationAccountScope, evaluationFlow, refreshAgents]);
+
   const closeEvaluation = () => {
     evaluationRequestIdRef.current += 1;
     setEvaluationModalOpen(false);
     const shouldKeepEvaluationContext = evaluationLoading || Boolean(evaluation && isEvaluationActive(evaluation.status));
+    if (shouldKeepEvaluationContext) {
+      const activeEvaluationId = evaluation?.evaluationId ?? evaluationFlow?.evaluationId;
+      if (activeEvaluationId) {
+        setEvaluationModalDismissed(evaluationAccountScope, activeEvaluationId, true);
+      }
+    }
     setEvaluationLoading(false);
     if (!shouldKeepEvaluationContext) {
       setEvaluationAgent(null);
@@ -1112,7 +1247,10 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         title="Agent 中心"
       />
       <div className="mb-5">
-        <CurrentAgentCard agent={currentWithEvaluation} />
+        <CurrentAgentCard
+          agent={currentWithEvaluation}
+          evaluationActive={Boolean(evaluationFlow?.wasCurrentAgent && isEvaluationActive(evaluationFlow.status))}
+        />
       </div>
       <AgentList
         title="Agent 列表"
@@ -1123,6 +1261,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
             agent.evaluation && (isCompletedAgentEvaluation(agent.evaluation) || agent.evaluation.status === "failed" || agent.evaluation.result?.status === "failed");
           const showEvaluationAction = !canRestartEvaluation;
           const canSetCurrent = canSetAgentCurrent(agent);
+          const hasFailedEvaluation = agent.evaluation?.status === "failed" || agent.evaluation?.result?.status === "failed";
           const isSettingCurrent = settingCurrentAgentId === agent.id;
           const evaluationActionLabel = getAgentEvaluationActionLabel(agent);
           const evaluationActionIcon =
@@ -1131,7 +1270,12 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
             ) : evaluationActionLabel === "开始评测" ? (
               <EvaluationButtonIcon />
             ) : undefined;
-          return agent.role === "当前执行 Agent" ? (
+          const isReevaluatingCurrent =
+            reevaluatingCurrentAgentId === agent.id &&
+            evaluationFlow?.agentId === agent.id &&
+            evaluationFlow.wasCurrentAgent === true &&
+            isEvaluationActive(evaluationFlow.status);
+          return (agent.role === "当前执行 Agent" && !hasFailedEvaluation) || isReevaluatingCurrent ? (
             <>
               {agent.authStatus === "login_required" && (
                 <SecondaryButton
@@ -1228,7 +1372,7 @@ function isAgentEvaluationNotFound(error: unknown) {
   return error instanceof Error && ["Agent evaluation not found", "Agent 测评记录不存在"].includes(error.message);
 }
 
-function CurrentAgentCard({ agent }: { agent?: Agent }) {
+function CurrentAgentCard({ agent, evaluationActive = false }: { agent?: Agent; evaluationActive?: boolean }) {
   const summary = agent ? getAgentAdmissionSummary(agent) : undefined;
   const tagLabels = summary ? getAgentTagLabels(summary.tags) : [];
   const evaluationResult = agent?.evaluation?.result?.status === "completed" ? agent.evaluation.result : undefined;
@@ -1237,7 +1381,13 @@ function CurrentAgentCard({ agent }: { agent?: Agent }) {
     <Surface
       className={`sprix-current-agent-card sprix-agent-profile-card p-6 ${evaluationResult ? "is-figma-result" : ""}`}
     >
-      {summary ? (
+      {evaluationActive ? (
+        <div className="sprix-current-agent-empty rounded-2xl border border-dashed border-line p-7 text-center">
+          <Bot className="mx-auto text-ink-soft" />
+          <h4 className="mt-3 text-lg font-semibold">当前执行 Agent 正在测评</h4>
+          <p className="mt-2 text-sm text-ink-soft">测评完成后将更新执行状态，完成前暂不能接单。</p>
+        </div>
+      ) : summary ? (
         evaluationResult ? (
           <AgentAbilityProfile
             agent={agent}

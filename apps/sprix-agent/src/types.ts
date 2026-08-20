@@ -117,6 +117,13 @@ export type AgentEvaluation = {
   updatedAt: string;
 };
 
+export type EvaluationFlowState = {
+  agentId: string;
+  evaluationId: string;
+  status: Extract<AgentEvaluationStatus, "running" | "judging">;
+  wasCurrentAgent?: boolean;
+};
+
 export type Agent = {
   id: string;
   name: string;
@@ -334,11 +341,13 @@ export type PlatformOverview = {
 
 export type SprixState = {
   account: Account;
+  remoteSnapshotReady: boolean;
   platformOverview: PlatformOverview;
   agents: Agent[];
   localAgent?: LocalAgentDiagnostic;
   currentAgentId?: string | null;
   currentAgent?: Agent;
+  evaluationFlow?: EvaluationFlowState;
   smartAcceptEnabled: boolean;
   tasks: Task[];
   myTasks: MyTask[];

@@ -5,6 +5,7 @@ import { useSprixStore } from "../store/sprixStore";
 
 export function useHomeBootstrap() {
   const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
+  const setEvaluationFlow = useSprixStore((state) => state.setEvaluationFlow);
   const query = useQuery({
     queryKey: ["sprix-agent", "home-bootstrap"],
     queryFn: readAgentSnapshot,
@@ -19,8 +20,11 @@ export function useHomeBootstrap() {
   useEffect(() => {
     if (query.data) {
       mergeRemoteState(query.data);
+      if (query.data.activeEvaluationFlow) {
+        setEvaluationFlow(query.data.activeEvaluationFlow);
+      }
     }
-  }, [mergeRemoteState, query.data]);
+  }, [mergeRemoteState, query.data, setEvaluationFlow]);
 
   return query;
 }

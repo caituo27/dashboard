@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { Navigate, Route, BrowserRouter as Router, Routes, useLocation, useNavigate } from "react-router-dom";
 import { message } from "antd";
 import {
@@ -27,9 +27,9 @@ import { LocalAgentClaimPage } from "./user/LocalAgentClaimPage";
 import { HomePage } from "./home/HomePage";
 import { AuthCallbackPage } from "./auth/AuthCallbackPage";
 import { useRemoteSprixBootstrap } from "./services/useRemoteSprixBootstrap";
-import { logoutConsumer } from "./services/sprixApi";
+import { logoutConsumer, markRemoteCurrentAgent, readAgentSnapshot, readRemoteAgentEvaluation } from "./services/sprixApi";
 import { useSprixStore } from "./store/sprixStore";
-import { canVisitAgentCenterBeforeAdmission, getUserAdmissionState } from "./user/admission";
+import { canVisitAgentDuringEvaluation, getUserAdmissionState } from "./user/admission";
 import { isGlobalAuthError } from "./utils/http";
 
 const queryClient = new QueryClient();
@@ -44,8 +44,68 @@ export default function App() {
   );
 }
 
-function RemoteSprixBridge({ enabled }: { enabled: boolean }) {
-  useRemoteSprixBootstrap(enabled);
+function RemoteSprixBridge({ bootstrapEnabled, pollEvaluation }: { bootstrapEnabled: boolean; pollEvaluation: boolean }) {
+  useRemoteSprixBootstrap(bootstrapEnabled);
+
+  const evaluationFlow = useSprixStore((state) => state.evaluationFlow);
+  const setEvaluationFlow = useSprixStore((state) => state.setEvaluationFlow);
+  const clearEvaluationFlow = useSprixStore((state) => state.clearEvaluationFlow);
+  const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
+  const queryClient = useQueryClient();
+  const evaluationPollInFlightRef = useRef(false);
+
+  useEffect(() => {
+    if (!pollEvaluation || !evaluationFlow) return;
+
+    let cancelled = false;
+    const syncEvaluationFlow = async () => {
+      if (evaluationPollInFlightRef.current) return;
+      evaluationPollInFlightRef.current = true;
+      try {
+        const evaluation = await readRemoteAgentEvaluation(evaluationFlow.agentId, evaluationFlow.evaluationId);
+        if (cancelled) return;
+        if (evaluation.status === "running" || evaluation.status === "judging") {
+          setEvaluationFlow({
+            agentId: evaluationFlow.agentId,
+            evaluationId: evaluationFlow.evaluationId,
+            status: evaluation.status,
+            wasCurrentAgent: evaluationFlow.wasCurrentAgent
+          });
+        } else {
+          const remoteState = await readAgentSnapshot();
+          if (cancelled) return;
+          const { activeEvaluationFlow: _activeEvaluationFlow, ...snapshotAfterEvaluation } = remoteState;
+          let stateAfterEvaluation = snapshotAfterEvaluation;
+          if (evaluation.status === "completed" && evaluationFlow.wasCurrentAgent === true && stateAfterEvaluation.currentAgent?.id !== evaluationFlow.agentId) {
+            const restoredCurrentAgent = await markRemoteCurrentAgent(evaluationFlow.agentId);
+            if (cancelled) return;
+            if (restoredCurrentAgent) {
+              stateAfterEvaluation = {
+                ...stateAfterEvaluation,
+                currentAgentId: restoredCurrentAgent.id,
+                currentAgent: restoredCurrentAgent
+              };
+            }
+          }
+          mergeRemoteState(stateAfterEvaluation);
+          queryClient.setQueryData(["sprix-agent", "snapshot"], stateAfterEvaluation);
+          queryClient.setQueryData(["sprix-agent", "home-bootstrap"], stateAfterEvaluation);
+          clearEvaluationFlow();
+        }
+      } catch {
+        // Keep the active flow on transient errors so navigation is not interrupted.
+      } finally {
+        evaluationPollInFlightRef.current = false;
+      }
+    };
+
+    const interval = window.setInterval(syncEvaluationFlow, 1_500);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [clearEvaluationFlow, evaluationFlow, mergeRemoteState, pollEvaluation, queryClient, setEvaluationFlow]);
+
   return null;
 }
 
@@ -59,6 +119,7 @@ function ConsumerAppRoutes() {
   const [qualificationTaskId, setQualificationTaskId] = useState<string | undefined>();
   const [appealExecutionId, setAppealExecutionId] = useState<string | null>(null);
   const [qualificationOpen, setQualificationOpen] = useState(false);
+  const normalizedPathname = location.pathname.replace(/\/+$/, "") || "/";
 
   const title = useMemo(() => {
     if (location.pathname.includes("/agent/center")) return "Agent 中心";
@@ -131,7 +192,12 @@ function ConsumerAppRoutes() {
 
   return (
     <>
-      <RemoteSprixBridge enabled={location.pathname.startsWith("/agent")} />
+      <RemoteSprixBridge
+        bootstrapEnabled={location.pathname.startsWith("/agent")}
+        // Home and Agent Center own their modal/progress UI and poll locally;
+        // the bridge takes over only after navigation to another module.
+        pollEvaluation={normalizedPathname !== "/" && normalizedPathname !== "/agent/center"}
+      />
       <Routes>
         <Route
           path="/"
@@ -222,10 +288,16 @@ function AdmissionGate({ children }: { children: ReactNode }) {
   const location = useLocation();
   const account = useSprixStore((state) => state.account);
   const currentAgent = useSprixStore((state) => state.currentAgent);
+  const evaluationFlow = useSprixStore((state) => state.evaluationFlow);
+  const remoteSnapshotReady = useSprixStore((state) => state.remoteSnapshotReady);
 
   const admission = getUserAdmissionState(account, currentAgent);
 
-  if (account.isLoggedIn && canVisitAgentCenterBeforeAdmission(location.pathname)) {
+  if (account.isLoggedIn && !remoteSnapshotReady) {
+    return <>{children}</>;
+  }
+
+  if (account.isLoggedIn && evaluationFlow?.wasCurrentAgent === true && canVisitAgentDuringEvaluation(location.pathname)) {
     return <>{children}</>;
   }
 

@@ -1,13 +1,14 @@
-import type { Account, Agent, MyTask, Task } from "../types";
+import type { Account, Agent, EvaluationFlowState, MyTask, Task } from "../types";
 import { currency } from "../utils/format";
 import { getEstimatedTokenField } from "./tokenEstimateView";
+import { isCurrentAgentExecutionAvailable } from "./admission";
 
 const processingAppealStatuses = new Set(["申诉处理中", "待处理", "处理中", "需补充材料"]);
 const emptyAppealStatuses = new Set(["未申诉", "无申诉"]);
 const taskAcceptQualificationMessage = "首次接单前，请先完成支付宝人脸核验并同意《自由职业者服务框架协议》。";
 
 type TaskAcceptAccount = Pick<Account, "isLoggedIn" | "qualificationStatus" | "realPersonVerified" | "freelancerAgreementSigned">;
-type TaskAcceptAgent = Pick<Agent, "id"> | undefined;
+type TaskAcceptAgent = Pick<Agent, "id" | "status" | "role" | "evaluation"> | undefined;
 type TaskAcceptTask = Pick<Task, "id" | "taskStatus" | "remainingSlots">;
 
 export type TaskAcceptGate =
@@ -23,6 +24,10 @@ export type TaskAcceptGate =
       kind: "current-agent";
       message: string;
       path: "/agent/center";
+    }
+  | {
+      kind: "evaluation-active";
+      message: string;
     }
   | {
       kind: "task-unavailable";
@@ -65,9 +70,21 @@ export function getTaskAcceptQualificationGate(
   };
 }
 
-export function getTaskAcceptGate(account: TaskAcceptAccount, currentAgent: TaskAcceptAgent, task: TaskAcceptTask): TaskAcceptGate {
+export function getTaskAcceptGate(
+  account: TaskAcceptAccount,
+  currentAgent: TaskAcceptAgent,
+  task: TaskAcceptTask,
+  evaluationFlow?: EvaluationFlowState
+): TaskAcceptGate {
   if (!account.isLoggedIn) {
     return { kind: "login" };
+  }
+
+  if (evaluationFlow?.wasCurrentAgent === true) {
+    return {
+      kind: "evaluation-active",
+      message: "当前 Agent 正在测评，完成后才可以接单"
+    };
   }
 
   const qualificationGate = getTaskAcceptQualificationGate(account, task.id);
@@ -79,10 +96,10 @@ export function getTaskAcceptGate(account: TaskAcceptAccount, currentAgent: Task
     };
   }
 
-  if (!currentAgent) {
+  if (!isCurrentAgentExecutionAvailable(currentAgent)) {
     return {
       kind: "current-agent",
-      message: "请先设置当前执行 Agent",
+      message: currentAgent ? "当前执行 Agent 测评未完成或未通过，请完成测评后再继续" : "请先设置当前执行 Agent",
       path: "/agent/center"
     };
   }

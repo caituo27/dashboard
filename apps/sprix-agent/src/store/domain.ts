@@ -25,6 +25,7 @@ export function createInitialSprixState(): SprixState {
       withdrawAccountStatus: "未绑定",
       withdrawableAmount: 0
     },
+    remoteSnapshotReady: false,
     platformOverview: {
       agentCount: null,
       taskCount: null
@@ -33,6 +34,7 @@ export function createInitialSprixState(): SprixState {
     localAgent: undefined,
     currentAgentId: null,
     currentAgent: undefined,
+    evaluationFlow: undefined,
     smartAcceptEnabled: false,
     tasks: [],
     myTasks: [],
