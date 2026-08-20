@@ -10,6 +10,7 @@ import {
   CircleDot,
   ChevronLeft,
   Download,
+  Eye,
   FileText,
   ListChecks,
   Paperclip,
@@ -732,7 +733,7 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
                           <div className="sprix-task-attachment-meta">{formatTaskAttachmentSize(attachment.sizeBytes)}</div>
                         </div>
                         <div className="sprix-task-attachment-actions">
-                          {previewable && <SecondaryButton onClick={() => void previewAttachment(attachment)}>预览</SecondaryButton>}
+                          {previewable && <SecondaryButton icon={<Eye size={15} />} onClick={() => void previewAttachment(attachment)}>预览</SecondaryButton>}
                           <SecondaryButton icon={<Download size={15} />} onClick={() => void downloadAttachment(attachment)}>下载</SecondaryButton>
                         </div>
                       </div>

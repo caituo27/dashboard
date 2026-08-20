@@ -351,14 +351,17 @@ select {
 
 .sprix-agent-current-action-button.ant-btn-disabled .sprix-button-icon,
 .sprix-agent-current-action-button:disabled .sprix-button-icon {
-  filter: brightness(0) saturate(100%) invert(64%) sepia(8%) saturate(400%) hue-rotate(180deg) brightness(91%) contrast(88%);
+  filter: brightness(0);
+  opacity: 0.28;
 }
 
 .sprix-agent-current-action-button.ant-btn-disabled .ant-btn-loading-icon,
 .sprix-agent-current-action-button.ant-btn-disabled .ant-btn-loading-icon .anticon,
+.sprix-agent-current-action-button.ant-btn-disabled .ant-btn-loading-icon svg,
 .sprix-agent-current-action-button.ant-btn-loading .ant-btn-loading-icon,
-.sprix-agent-current-action-button.ant-btn-loading .ant-btn-loading-icon .anticon {
-  color: #8c989f !important;
+.sprix-agent-current-action-button.ant-btn-loading .ant-btn-loading-icon .anticon,
+.sprix-agent-current-action-button.ant-btn-loading .ant-btn-loading-icon svg {
+  color: rgba(20, 24, 25, 0.28) !important;
 }
 
 .sprix-payout-table-wrap {
