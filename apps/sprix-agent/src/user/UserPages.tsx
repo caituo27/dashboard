@@ -1075,6 +1075,8 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
           const evaluationActionIcon =
             evaluationActionLabel === "查看进度" ? (
               <ButtonIcon src={BUTTON_ICON_PATHS.evaluationProgress} />
+            ) : evaluationActionLabel === "开始评测" ? (
+              <ButtonIcon src={BUTTON_ICON_PATHS.evaluation} />
             ) : undefined;
           return agent.role === "当前执行 Agent" ? (
             <>
