@@ -598,6 +598,15 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       return;
     }
 
+    // The user is actively watching a different evaluation; never hijack or close that modal.
+    if (
+      evaluationAgent &&
+      (evaluationAgent.id !== flow.agentId || evaluation?.evaluationId !== flow.evaluationId) &&
+      (evaluationModalOpen || evaluationLoading || Boolean(evaluation && isEvaluationActive(evaluation.status)))
+    ) {
+      return;
+    }
+
     if (effectiveCurrentAgent?.id === flow.agentId && flow.status !== "failed") {
       const currentEvaluationStatus = effectiveCurrentAgent.evaluation?.status ?? effectiveCurrentAgent.evaluation?.result?.status;
       if (
@@ -668,7 +677,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       cancelled = true;
       if (retryTimer !== undefined) window.clearTimeout(retryTimer);
     };
-  }, [abilityResultModalOpen, agentPickerOpen, bootstrapAgents, bootstrapReady, clearEvaluationFlow, effectiveCurrentAgent, evaluation, evaluationAccountScope, evaluationAgent, homeAccount.isLoggedIn, persistedEvaluationFlow, refreshAgents]);
+  }, [abilityResultModalOpen, agentPickerOpen, bootstrapAgents, bootstrapReady, clearEvaluationFlow, effectiveCurrentAgent, evaluation, evaluationAccountScope, evaluationAgent, evaluationLoading, evaluationModalOpen, homeAccount.isLoggedIn, persistedEvaluationFlow, refreshAgents]);
 
   useEffect(() => {
     if (!evaluationFlowClaimedRef.current && canAutoEnterMarket) {

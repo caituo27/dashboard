@@ -51,7 +51,7 @@ export function HomeAgentEntry({
   onOpenAgentPicker,
   onEnterMarket
 }: HomeAgentEntryProps) {
-  const { recognizing, syncing, recognitionComplete, recognitionFailed, recognitionTimedOut, start } = useAgentBindPolling({ open: connectModalOpen });
+  const { start } = useAgentBindPolling({ open: connectModalOpen });
   const completeConnectModal = onCompleteConnectModal ?? onCloseConnectModal;
 
   useEffect(() => {
@@ -61,9 +61,8 @@ export function HomeAgentEntry({
 
   useEffect(() => {
     if (!connectModalOpen) return;
-    if (!recognitionComplete || recognitionFailed || recognitionTimedOut || recognizing || syncing) return;
-    if (state.state === "logged_in_with_agents_without_current") {
-      if (!localAgentHealthy) return;
+    if (!localAgentHealthy) return;
+    if (state.state === "logged_in_without_agents" || state.state === "logged_in_with_agents_without_current") {
       completeConnectModal();
       onOpenAgentPicker();
       return;
@@ -71,7 +70,7 @@ export function HomeAgentEntry({
     if (state.state === "logged_in_with_current_agent") {
       onCloseConnectModal();
     }
-  }, [completeConnectModal, connectModalOpen, localAgentHealthy, onCloseConnectModal, onOpenAgentPicker, recognitionComplete, recognitionFailed, recognizing, recognitionTimedOut, state.state, syncing]);
+  }, [completeConnectModal, connectModalOpen, localAgentHealthy, onCloseConnectModal, onOpenAgentPicker, state.state]);
 
   const handlePrimaryAction = () => {
     if (checking) return;
@@ -104,9 +103,11 @@ export function HomeAgentEntry({
         <ActionButton icon={<PlugZap size={16} />} onClick={handlePrimaryAction} disabled={checking}>
           {checking
             ? "正在检查本地 Agent…"
-            : state.state === "logged_in_with_agents_without_current" && !localAgentHealthy
-              ? "连接本地 Agent"
-              : state.primaryActionLabel}
+            : state.state === "logged_in_without_agents" && localAgentHealthy
+              ? "重新识别本机 Agent"
+              : state.state === "logged_in_with_agents_without_current" && !localAgentHealthy
+                ? "连接本地 Agent"
+                : state.primaryActionLabel}
         </ActionButton>
       </div>
       <Modal

@@ -186,6 +186,8 @@ export function AgentEvaluationProgressModal({
       title={<div className="sprix-evaluation-title">生成 Agent 能力画像</div>}
       open={open && Boolean(agent)}
       onCancel={onClose}
+      maskClosable={false}
+      keyboard={false}
       width={640}
       className="sprix-evaluation-modal sprix-evaluation-progress-modal"
       footer={footer}

@@ -1206,6 +1206,12 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       evaluation &&
       (isEvaluationActive(evaluation.status) || evaluation.status === "failed")
     ) return;
+    // The user is actively watching a different evaluation; never hijack or close that modal.
+    if (
+      evaluationAgent &&
+      (evaluationAgent.id !== evaluationFlow.agentId || evaluation?.evaluationId !== evaluationFlow.evaluationId) &&
+      (evaluationModalOpen || evaluationLoading || Boolean(evaluation && isEvaluationActive(evaluation.status)))
+    ) return;
     if (evaluationFlow.status !== "failed" && current?.id === evaluationFlow.agentId && current.evaluation?.evaluationId === evaluationFlow.evaluationId) {
       clearEvaluationFlow();
       return;
@@ -1272,7 +1278,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       cancelled = true;
       if (retryTimer !== undefined) window.clearTimeout(retryTimer);
     };
-  }, [account.isLoggedIn, agents, clearEvaluationFlow, evaluation, evaluationAgent, evaluationAccountScope, evaluationFlow, refreshAgents]);
+  }, [account.isLoggedIn, agents, clearEvaluationFlow, evaluation, evaluationAgent, evaluationAccountScope, evaluationFlow, evaluationLoading, evaluationModalOpen, refreshAgents]);
 
   const closeEvaluation = () => {
     evaluationRequestIdRef.current += 1;
