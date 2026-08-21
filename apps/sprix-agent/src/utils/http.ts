@@ -56,6 +56,10 @@ export function isApiRequestError(error: unknown): error is ApiRequestError {
   return error instanceof ApiRequestError;
 }
 
+export function isLocalAgentBindingInvalidError(error: unknown) {
+  return isApiRequestError(error) && error.code === "LOCAL_AGENT_BINDING_INVALID";
+}
+
 function requestLogin(message: string) {
   const now = Date.now();
   if (now - lastAuthRequestAt < 1200) return;

@@ -15,8 +15,9 @@ import {
   startRemoteAgentEvaluation,
   waitForRemoteAgentAuthentication
 } from "../services/sprixApi";
-import { isGlobalAuthError } from "../utils/http";
+import { isGlobalAuthError, isLocalAgentBindingInvalidError } from "../utils/http";
 import { AgentEvaluationProgressModal } from "../components/AgentEvaluationProgressModal";
+import { AgentBindingInvalidModal } from "../components/AgentBindingInvalidModal";
 import { ActionButton } from "../components/Primitives";
 import { AgentAbilityProfile } from "../user/AgentAbilityProfile";
 import { isAgentLoginRequired } from "../utils/agentStatus";
@@ -133,6 +134,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
   const completedEvaluationIdRef = useRef<string>();
   const connectModalDismissedRef = useRef(false);
   const agentPickerDismissedRef = useRef(false);
+  const bindingInvalidModalDismissedRef = useRef(false);
   const dismissedAccountScopeRef = useRef("");
   const [agentSetupFlowActive, setAgentSetupFlowActive] = useState(readAgentSetupFlowState);
   const [agentPickerOpen, setAgentPickerOpen] = useState(false);
@@ -167,6 +169,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
   const [evaluationModalOpen, setEvaluationModalOpen] = useState(false);
   const [evaluationLoading, setEvaluationLoading] = useState(false);
   const [evaluationError, setEvaluationError] = useState<string>();
+  const [bindingInvalidModalOpen, setBindingInvalidModalOpen] = useState(false);
   const [abilityResultAgent, setAbilityResultAgent] = useState<Agent | null>(null);
   const [abilityResultModalOpen, setAbilityResultModalOpen] = useState(false);
   const evaluationFlowClaimedRef = useRef(false);
@@ -197,11 +200,25 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       !connectModalOpen &&
       !shouldOpenConnectModal &&
       !agentPickerOpen &&
+      !bindingInvalidModalOpen &&
       !shouldOpenAgentPicker &&
       !abilityResultModalOpen &&
       !evaluationFlowClaimedRef.current &&
       !abilityResultFlowRef.current
   );
+
+  const openBindingInvalidModal = useCallback(() => {
+    bindingInvalidModalDismissedRef.current = false;
+    autoSetCurrentAgentIdRef.current = undefined;
+    clearEvaluationFlow();
+    setEvaluationModalOpen(false);
+    setEvaluationLoading(false);
+    setEvaluationAgent(null);
+    setEvaluation(undefined);
+    setEvaluationError(undefined);
+    setAgentSetupFlow(false);
+    setBindingInvalidModalOpen(true);
+  }, [clearEvaluationFlow, setAgentSetupFlow]);
 
   const refreshAgents = useCallback(async (_preferredCurrentAgent?: Agent) => {
     const [remoteAgents, refreshedCurrentAgent] = await Promise.all([
@@ -376,6 +393,10 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
         message.success("测评已开始");
       }
     } catch (error) {
+      if (isLocalAgentBindingInvalidError(error)) {
+        openBindingInvalidModal();
+        return;
+      }
       autoSetCurrentAgentIdRef.current = undefined;
       setEvaluationError(error instanceof Error ? error.message : "评测操作失败");
       showHomeRequestError(error, "评测操作失败", "评测操作失败：");
@@ -430,6 +451,11 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
         setEvaluation(next);
       } catch (error) {
         if (cancelled) return;
+        if (isLocalAgentBindingInvalidError(error)) {
+          window.clearInterval(poll);
+          openBindingInvalidModal();
+          return;
+        }
         setEvaluationError(error instanceof Error ? error.message : "评测状态获取失败");
         window.clearInterval(poll);
       } finally {
@@ -441,7 +467,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       cancelled = true;
       window.clearInterval(poll);
     };
-  }, [clearEvaluationFlow, evaluation, evaluationAgent, markCurrentAfterCompletedEvaluation, refreshAgents, setEvaluationFlow]);
+  }, [clearEvaluationFlow, evaluation, evaluationAgent, markCurrentAfterCompletedEvaluation, openBindingInvalidModal, refreshAgents, setEvaluationFlow]);
 
   const closeEvaluation = () => {
     setEvaluationModalOpen(false);
@@ -515,12 +541,14 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       dismissedAccountScopeRef.current = "";
       connectModalDismissedRef.current = false;
       agentPickerDismissedRef.current = false;
+      bindingInvalidModalDismissedRef.current = false;
       return;
     }
     if (!accountScope || dismissedAccountScopeRef.current === accountScope) return;
     dismissedAccountScopeRef.current = accountScope;
     connectModalDismissedRef.current = readAccountDismissed(CONNECT_MODAL_DISMISSED_STORAGE_KEY, accountScope);
     agentPickerDismissedRef.current = readAccountDismissed(AGENT_PICKER_DISMISSED_STORAGE_KEY, accountScope);
+    bindingInvalidModalDismissedRef.current = false;
   }, [accountScope, homeAccount.isLoggedIn]);
 
   useEffect(() => {
@@ -662,6 +690,10 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
         void refreshAgents();
       } catch (error) {
         if (cancelled) return;
+        if (isLocalAgentBindingInvalidError(error)) {
+          openBindingInvalidModal();
+          return;
+        }
         if (error instanceof Error && error.message === "Agent evaluation not found") {
           clearEvaluationFlow();
           return;
@@ -677,7 +709,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       cancelled = true;
       if (retryTimer !== undefined) window.clearTimeout(retryTimer);
     };
-  }, [abilityResultModalOpen, agentPickerOpen, bootstrapAgents, bootstrapReady, clearEvaluationFlow, effectiveCurrentAgent, evaluation, evaluationAccountScope, evaluationAgent, evaluationLoading, evaluationModalOpen, homeAccount.isLoggedIn, persistedEvaluationFlow, refreshAgents]);
+  }, [abilityResultModalOpen, agentPickerOpen, bootstrapAgents, bootstrapReady, clearEvaluationFlow, effectiveCurrentAgent, evaluation, evaluationAccountScope, evaluationAgent, evaluationLoading, evaluationModalOpen, homeAccount.isLoggedIn, openBindingInvalidModal, persistedEvaluationFlow, refreshAgents]);
 
   useEffect(() => {
     if (!evaluationFlowClaimedRef.current && canAutoEnterMarket) {
@@ -691,6 +723,8 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       !bootstrapReady ||
       connectModalOpen ||
       agentPickerOpen ||
+      bindingInvalidModalOpen ||
+      bindingInvalidModalDismissedRef.current ||
       evaluationFlowActive ||
       abilityResultModalOpen ||
       connectModalDismissedRef.current ||
@@ -709,7 +743,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
     } else {
       setConnectModalOpen(true);
     }
-  }, [abilityResultModalOpen, agentPickerOpen, agentSetupFlowActive, bootstrapReady, connectModalOpen, currentAgentReady, effectiveCurrentAgent, evaluationFlowActive, localAgentHealth.isPending, localAgentHealthy, openAgentPicker, setAgentSetupFlow, shouldOpenAgentPicker]);
+  }, [abilityResultModalOpen, agentPickerOpen, agentSetupFlowActive, bindingInvalidModalOpen, bootstrapReady, connectModalOpen, currentAgentReady, effectiveCurrentAgent, evaluationFlowActive, localAgentHealth.isPending, localAgentHealthy, openAgentPicker, setAgentSetupFlow, shouldOpenAgentPicker]);
 
   useEffect(() => {
     if (!homeAccount.isLoggedIn) {
@@ -733,6 +767,8 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       abilityResultModalOpen ||
       connectModalOpen ||
       agentPickerOpen ||
+      bindingInvalidModalOpen ||
+      bindingInvalidModalDismissedRef.current ||
       localAgentHealth.isPending
     ) {
       return;
@@ -743,7 +779,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
     } else {
       setConnectModalOpen(true);
     }
-  }, [abilityResultModalOpen, accountScope, agentPickerOpen, agentSetupFlowActive, connectModalOpen, effectiveCurrentAgent, evaluationFlowActive, homeAccount.isLoggedIn, homeBootstrap.isFetching, homeBootstrap.isSuccess, localAgentHealth.isPending, localAgentHealthy, openAgentPicker, setAgentSetupFlow, shouldOpenAgentPicker]);
+  }, [abilityResultModalOpen, accountScope, agentPickerOpen, agentSetupFlowActive, bindingInvalidModalOpen, connectModalOpen, effectiveCurrentAgent, evaluationFlowActive, homeAccount.isLoggedIn, homeBootstrap.isFetching, homeBootstrap.isSuccess, localAgentHealth.isPending, localAgentHealthy, openAgentPicker, setAgentSetupFlow, shouldOpenAgentPicker]);
 
   if (canAutoEnterMarket) {
     return null;
@@ -815,6 +851,13 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
         loading={evaluationLoading}
         error={evaluationError}
         onClose={closeEvaluation}
+      />
+      <AgentBindingInvalidModal
+        open={bindingInvalidModalOpen}
+        onClose={() => {
+          bindingInvalidModalDismissedRef.current = true;
+          setBindingInvalidModalOpen(false);
+        }}
       />
       <Modal
         centered

@@ -43,9 +43,10 @@ import {
 } from "../services/sprixApi";
 import { ActionButton, EmptyState, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface } from "../components/Primitives";
 import { AgentEvaluationProgressModal, clearAgentEvaluationProgressCache } from "../components/AgentEvaluationProgressModal";
+import { AgentBindingInvalidModal } from "../components/AgentBindingInvalidModal";
 import { AgreementContent } from "../components/AgreementContent";
 import { compactText, currency, scoreText } from "../utils/format";
-import { isApiRequestError, isGlobalAuthError } from "../utils/http";
+import { isApiRequestError, isGlobalAuthError, isLocalAgentBindingInvalidError } from "../utils/http";
 import { freelancerAgreementDocument } from "../content/agreementDocuments";
 import { getLocalAgentEmptyMessage } from "../home/localAgentInventory";
 import { QrPayloadBox } from "../components/QrSession";
@@ -865,6 +866,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   const [currentEvaluation, setCurrentEvaluation] = useState<AgentEvaluation | undefined>();
   const [evaluationLoading, setEvaluationLoading] = useState(false);
   const [evaluationError, setEvaluationError] = useState<string>();
+  const [bindingInvalidModalOpen, setBindingInvalidModalOpen] = useState(false);
   const [settingCurrentAgentId, setSettingCurrentAgentId] = useState<string>();
   const evaluationAccountScope = account.isLoggedIn ? account.phone || account.maskedPhone || account.nickname || "logged-in" : "logged-out";
   const reevaluatingCurrentAgentId = evaluationFlow?.wasCurrentAgent && evaluationFlow.status !== "failed" ? evaluationFlow.agentId : undefined;
@@ -981,6 +983,18 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
     }
   };
 
+  const openBindingInvalidModal = useCallback(() => {
+    autoSetCurrentAgentIdRef.current = undefined;
+    clearEvaluationFlow();
+    setEvaluationModalOpen(false);
+    setEvaluationLoading(false);
+    setEvaluationAgent(null);
+    setEvaluation(undefined);
+    setCurrentEvaluation(undefined);
+    setEvaluationError(undefined);
+    setBindingInvalidModalOpen(true);
+  }, [clearEvaluationFlow]);
+
   const openAgentEvaluation = async (
     agent: Agent,
     { setCurrentAfterCompletion = false, forceStart = false }: { setCurrentAfterCompletion?: boolean; forceStart?: boolean } = {}
@@ -1087,6 +1101,10 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       }
     } catch (error) {
       if (!isCurrentRequest()) return;
+      if (isLocalAgentBindingInvalidError(error)) {
+        openBindingInvalidModal();
+        return;
+      }
       if (autoSetCurrentAgentIdRef.current === agent.id) {
         autoSetCurrentAgentIdRef.current = undefined;
       }
@@ -1138,8 +1156,13 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
           }
           void refreshAgents();
         }
-      } catch {
+      } catch (error) {
         if (cancelled) return;
+        if (isLocalAgentBindingInvalidError(error)) {
+          window.clearInterval(poll);
+          openBindingInvalidModal();
+          return;
+        }
         window.clearInterval(poll);
       } finally {
         evaluationPollInFlightRef.current = false;
@@ -1150,7 +1173,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       cancelled = true;
       window.clearInterval(poll);
     };
-  }, [clearEvaluationFlow, current?.id, evaluation, evaluationAgent, evaluationFlow, refreshAgents, setEvaluationFlow]);
+  }, [clearEvaluationFlow, current?.id, evaluation, evaluationAgent, evaluationFlow, openBindingInvalidModal, refreshAgents, setEvaluationFlow]);
 
   useEffect(() => {
     const previousAccountScope = evaluationAccountScopeRef.current;
@@ -1263,6 +1286,10 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         void refreshAgents();
       } catch (error) {
         if (cancelled) return;
+        if (isLocalAgentBindingInvalidError(error)) {
+          openBindingInvalidModal();
+          return;
+        }
         if (isAgentEvaluationNotFound(error)) {
           clearEvaluationFlow();
           return;
@@ -1278,7 +1305,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
       cancelled = true;
       if (retryTimer !== undefined) window.clearTimeout(retryTimer);
     };
-  }, [account.isLoggedIn, agents, clearEvaluationFlow, evaluation, evaluationAgent, evaluationAccountScope, evaluationFlow, evaluationLoading, evaluationModalOpen, refreshAgents]);
+  }, [account.isLoggedIn, agents, clearEvaluationFlow, evaluation, evaluationAgent, evaluationAccountScope, evaluationFlow, evaluationLoading, evaluationModalOpen, openBindingInvalidModal, refreshAgents]);
 
   const closeEvaluation = () => {
     evaluationRequestIdRef.current += 1;
@@ -1408,6 +1435,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         }}
       />
       <AgentEvaluationProgressModal open={evaluationModalOpen} agent={evaluationAgent} evaluation={evaluation} loading={evaluationLoading} error={evaluationError} onClose={closeEvaluation} />
+      <AgentBindingInvalidModal open={bindingInvalidModalOpen} onClose={() => setBindingInvalidModalOpen(false)} />
     </div>
   );
 }
