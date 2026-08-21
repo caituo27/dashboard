@@ -1087,9 +1087,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         }
       }
       setEvaluation(nextEvaluation);
-      if (!shouldStartEvaluation || !isEvaluationActive(nextEvaluation.status)) {
-        setEvaluationModalOpen(true);
-      }
+      setEvaluationModalOpen(true);
       if (current?.id === agent.id) {
         setCurrentEvaluation(nextEvaluation);
       }

@@ -394,9 +394,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
           });
         }
         setEvaluation(nextEvaluation);
-        if (!startedEvaluation || !isEvaluationActive(nextEvaluation.status)) {
-          setEvaluationModalOpen(true);
-        }
+        setEvaluationModalOpen(true);
         await refreshAgents();
       }
       if (startedEvaluation && isEvaluationActive(nextEvaluation.status)) {
