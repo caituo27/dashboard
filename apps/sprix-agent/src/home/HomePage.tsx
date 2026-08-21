@@ -464,7 +464,6 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
           });
         }
         setEvaluation(next);
-        setEvaluationModalOpen(true);
       } catch (error) {
         if (cancelled) return;
         if (isLocalAgentBindingInvalidError(error)) {
@@ -473,7 +472,6 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
           return;
         }
         setEvaluationError(error instanceof Error ? error.message : "评测状态获取失败");
-        setEvaluationModalOpen(true);
         window.clearInterval(poll);
       } finally {
         evaluationPollInFlightRef.current = false;

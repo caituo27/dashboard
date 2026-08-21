@@ -1167,7 +1167,6 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
           return;
         }
         window.clearInterval(poll);
-        setEvaluationModalOpen(true);
       } finally {
         evaluationPollInFlightRef.current = false;
       }
