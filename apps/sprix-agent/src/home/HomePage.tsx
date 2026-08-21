@@ -273,8 +273,8 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
 
   const markCurrentAfterCompletedEvaluation = useCallback(
     async (agent: Agent, nextEvaluation: AgentEvaluation) => {
-      if (autoSetCurrentAgentIdRef.current !== agent.id || !isCompletedAgentEvaluation(nextEvaluation)) return;
-      if (completedEvaluationIdRef.current === nextEvaluation.evaluationId || completingEvaluationIdRef.current === nextEvaluation.evaluationId) return;
+      if (autoSetCurrentAgentIdRef.current !== agent.id || !isCompletedAgentEvaluation(nextEvaluation)) return true;
+      if (completedEvaluationIdRef.current === nextEvaluation.evaluationId || completingEvaluationIdRef.current === nextEvaluation.evaluationId) return true;
       completingEvaluationIdRef.current = nextEvaluation.evaluationId;
       try {
         const updatedCurrentAgent = await markRemoteCurrentAgent(agent.id);
@@ -312,11 +312,13 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
         void refreshAgents(completedCurrentAgent).catch((error) => {
           showHomeRequestError(error, "刷新 Agent 状态失败", "刷新 Agent 状态失败：");
         });
+        return true;
       } catch (error) {
         if (completingEvaluationIdRef.current === nextEvaluation.evaluationId) {
           completingEvaluationIdRef.current = undefined;
         }
         showHomeRequestError(error, "设置当前执行 Agent 失败", "设置当前执行 Agent 失败：");
+        return false;
       }
     },
     [clearEvaluationFlow, mergeRemoteState, queryClient, refreshAgents]
@@ -340,7 +342,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
     setEvaluationAgent(agent);
     setEvaluation(undefined);
     setEvaluationError(undefined);
-    setEvaluationModalOpen(true);
+    setEvaluationModalOpen(false);
     setEvaluationLoading(true);
     try {
       let nextEvaluation: AgentEvaluation | undefined;
@@ -376,7 +378,12 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
         });
       }
       if (isCompletedAgentEvaluation(nextEvaluation)) {
-        await markCurrentAfterCompletedEvaluation(agent, nextEvaluation);
+        const currentAgentRestored = await markCurrentAfterCompletedEvaluation(agent, nextEvaluation);
+        if (!currentAgentRestored) {
+          // Keep the completed result visible when setting the current Agent fails.
+          setEvaluation(nextEvaluation);
+          setEvaluationModalOpen(true);
+        }
       } else {
         if (nextEvaluation.status === "failed") {
           setEvaluationFlow({
@@ -387,6 +394,9 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
           });
         }
         setEvaluation(nextEvaluation);
+        if (!startedEvaluation || !isEvaluationActive(nextEvaluation.status)) {
+          setEvaluationModalOpen(true);
+        }
         await refreshAgents();
       }
       if (startedEvaluation && isEvaluationActive(nextEvaluation.status)) {
@@ -399,6 +409,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
       }
       autoSetCurrentAgentIdRef.current = undefined;
       setEvaluationError(error instanceof Error ? error.message : "评测操作失败");
+      setEvaluationModalOpen(true);
       showHomeRequestError(error, "评测操作失败", "评测操作失败：");
     } finally {
       setEvaluationLoading(false);
@@ -433,9 +444,15 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
               wasCurrentAgent: true
             });
             setEvaluation(next);
+            setEvaluationModalOpen(true);
           }
           if (next.status === "completed") {
-            await markCurrentAfterCompletedEvaluation(evaluationAgent, next);
+            const currentAgentRestored = await markCurrentAfterCompletedEvaluation(evaluationAgent, next);
+            if (!currentAgentRestored) {
+              // Keep the completed result visible when restoring the current Agent fails.
+              setEvaluation(next);
+              setEvaluationModalOpen(true);
+            }
           }
           void refreshAgents();
           return;
@@ -449,6 +466,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
           });
         }
         setEvaluation(next);
+        setEvaluationModalOpen(true);
       } catch (error) {
         if (cancelled) return;
         if (isLocalAgentBindingInvalidError(error)) {
@@ -457,6 +475,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
           return;
         }
         setEvaluationError(error instanceof Error ? error.message : "评测状态获取失败");
+        setEvaluationModalOpen(true);
         window.clearInterval(poll);
       } finally {
         evaluationPollInFlightRef.current = false;
@@ -571,6 +590,15 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
     const restoredEvaluation = effectiveCurrentAgent.evaluation;
     if (restoredEvaluation.evaluationId && isEvaluationModalDismissed(evaluationAccountScope, restoredEvaluation.evaluationId)) return;
     if (completedEvaluationIdRef.current === restoredEvaluation.evaluationId || completingEvaluationIdRef.current === restoredEvaluation.evaluationId) return;
+    // Do not replace the evaluation the user is currently viewing with the
+    // current Agent's restored evaluation.
+    if (
+      evaluationAgent &&
+      (evaluationAgent.id !== effectiveCurrentAgent.id || evaluation?.evaluationId !== restoredEvaluation.evaluationId) &&
+      (evaluationModalOpen || evaluationLoading || Boolean(evaluation && isEvaluationActive(evaluation.status)))
+    ) {
+      return;
+    }
     if (
       evaluationAgent?.id === effectiveCurrentAgent.id &&
       (evaluationLoading || Boolean(evaluation && isEvaluationActive(evaluation.status)))
@@ -606,7 +634,7 @@ export function HomePage({ openLogin, openContact, openAbout, onLogout }: HomePa
     setEvaluationError(undefined);
     setEvaluationLoading(false);
     setEvaluationModalOpen(true);
-  }, [abilityResultModalOpen, agentPickerOpen, bootstrapReady, effectiveCurrentAgent, evaluation, evaluationAccountScope, evaluationAgent, evaluationLoading, homeAccount.isLoggedIn]);
+  }, [abilityResultModalOpen, agentPickerOpen, bootstrapReady, effectiveCurrentAgent, evaluation, evaluationAccountScope, evaluationAgent, evaluationLoading, evaluationModalOpen, homeAccount.isLoggedIn]);
 
   useEffect(() => {
     const flow = persistedEvaluationFlow;

@@ -1031,7 +1031,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
     const isCurrentRequest = () => evaluationRequestIdRef.current === requestId;
     setEvaluationAgent(agent);
     setEvaluation(undefined);
-    setEvaluationModalOpen(true);
+    setEvaluationModalOpen(false);
     setEvaluationError(undefined);
     setEvaluationLoading(true);
     try {
@@ -1052,7 +1052,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
             nextEvaluation = latestEvaluation;
           }
         } catch (error) {
-          if (isGlobalAuthError(error)) throw error;
+          if (isGlobalAuthError(error) || isLocalAgentBindingInvalidError(error)) throw error;
           // Keep the last known session. The polling effect will retry instead of starting a new evaluation.
           nextEvaluation = runningEvaluation;
         }
@@ -1087,6 +1087,9 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         }
       }
       setEvaluation(nextEvaluation);
+      if (!shouldStartEvaluation || !isEvaluationActive(nextEvaluation.status)) {
+        setEvaluationModalOpen(true);
+      }
       if (current?.id === agent.id) {
         setCurrentEvaluation(nextEvaluation);
       }
@@ -1109,6 +1112,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         autoSetCurrentAgentIdRef.current = undefined;
       }
       setEvaluationError(error instanceof Error ? error.message : "评测操作失败");
+      setEvaluationModalOpen(true);
       showRequestError(error, "评测操作失败", "评测操作失败：");
     } finally {
       if (isCurrentRequest()) setEvaluationLoading(false);
@@ -1116,7 +1120,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
   };
 
   useEffect(() => {
-    if (!evaluationAgent || !evaluation || isEvaluationTerminal(evaluation.status)) return;
+    if (!evaluationAgent || !evaluation || !evaluation.evaluationId || isEvaluationTerminal(evaluation.status)) return;
 
     let cancelled = false;
     const poll = window.setInterval(async () => {
@@ -1148,6 +1152,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
               wasCurrentAgent: wasCurrentEvaluation
             });
           }
+          setEvaluationModalOpen(true);
           if (next.status === "completed") {
             const currentAgentRestored = await markCurrentAfterCompletedEvaluation(evaluationAgent, next);
             if (currentAgentRestored) {
@@ -1164,6 +1169,7 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
           return;
         }
         window.clearInterval(poll);
+        setEvaluationModalOpen(true);
       } finally {
         evaluationPollInFlightRef.current = false;
       }
