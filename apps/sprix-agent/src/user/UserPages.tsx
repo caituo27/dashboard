@@ -1594,6 +1594,12 @@ export function MyTasksPage({ openLogin, openAppeal }: UserPageProps) {
   const [tab, setTab] = useState(readSavedMyTasksTab);
   const [cancelingTaskId, setCancelingTaskId] = useState<string>();
   const rerunTask = useRerunTask();
+
+  useEffect(() => {
+    if (!account.isLoggedIn) return;
+    void queryClient.invalidateQueries({ queryKey: ["sprix-agent", "snapshot"] });
+  }, [account.isLoggedIn, queryClient]);
+
   const cancelTask = (executionId: string) => {
     Modal.confirm({
       title: "确认终止任务",
