@@ -1,3 +1,4 @@
+import { sharedAdminRead } from "./adminQueryClient";
 import {
   AdminAppealControllerApiFactory,
   AdminFundsControllerApiFactory,
@@ -145,7 +146,7 @@ type RemoteAdminAppealDetail = {
   deliverables: string;
   acceptanceCriteria: string;
   userName: string;
-  userPhone: string;
+  userPhone?: string | null;
   agentName: string;
   agentScore?: number | null;
   executionStatus?: string;
@@ -220,12 +221,20 @@ export async function deleteRemoteAdminTask(taskId: string, reason: string): Pro
 }
 
 export async function readRemoteAppeals(): Promise<AdminAppeal[]> {
-  const appealsResponse = await adminAppealApi.appeals();
-  return Promise.all(
-    listValue<AppealRecord>(appealsResponse).map((appeal) =>
-      readRemoteAppealDetail(requireValue(appeal.id, "申诉记录缺少 id"))
-    )
-  );
+  const response = await adminAppealApi.appeals();
+  return listValue<AppealRecord>(response).map(appeal => ({
+    backendId: requireText(appeal.id,"appeal.id"), appealNo: appeal.appealNo ?? appeal.id ?? "",
+    taskTitle: compactId(appeal.taskId,"任务"),taskCategory:"",userName:compactId(appeal.userId,"用户"),
+    userPhone:"",agentName:compactId(appeal.agentId,"Agent"),issueSummary:(appeal.reason ?? "").slice(0,32),
+    appealReason:appeal.reason ?? "",appealStatus:mapAppealStatus(appeal.status),
+    priority:appeal.priority==='HIGH'?'高风险':appeal.priority==='URGENT'?'加急':'普通',
+    submittedAt:formatDateTime(appeal.submittedAt ?? appeal.createdAt),handler:appeal.handler ?? "",
+    executionId:appeal.executionId,processLogs:[],resultDescription:appeal.resultDescription
+  }));
+}
+
+export function readCachedAppealDetail(id:string) {
+  return sharedAdminRead(`appeal-detail:${id}`,()=>readRemoteAppealDetail(id),4000);
 }
 
 export async function readRemoteFunds(): Promise<AdminFundsSnapshot> {
@@ -248,16 +257,28 @@ export async function readRemoteFunds(): Promise<AdminFundsSnapshot> {
   };
 }
 
+// Read-only settlement views do not need task bodies or fund-flow history.
+export async function readRemoteSettlementFunds(): Promise<AdminFundsSnapshot> {
+  const [summaries, settlementRows, withdrawalRows] = await Promise.all([
+    http.get<unknown, RemoteAdminTaskSummary[]>("/api/v1/admin/tasks/summaries"),
+    adminFundsApi.settlements(), adminFundsApi.withdrawals()
+  ]);
+  const taskById = new Map(listValue<RemoteAdminTaskSummary>(summaries).map(mapTaskSummary).map(task => [task.id, task]));
+  const withdrawals = listValue<WithdrawalRecord>(withdrawalRows).map(mapWithdrawal);
+  return {settlements:listValue<SettlementRecord>(settlementRows).map(row=>mapSettlement(row,taskById)),
+    withdrawals,payouts:mapPayouts(withdrawals),fundExceptions:mapFundExceptions(withdrawals),fundFlows:[]};
+}
+
 export async function startRemoteAppeal(appealId: string) {
   return adminAppealApi.start({ appealId });
 }
 
-export async function approveRemoteAppeal(appealId: string) {
-  return adminAppealApi.approve({ appealId });
+export async function approveRemoteAppeal(appealId: string, reason?: string) {
+  return adminAppealApi.approve({ appealId }, reason ? { data: { reason } } : undefined);
 }
 
-export async function rejectRemoteAppeal(appealId: string) {
-  return adminAppealApi.reject({ appealId });
+export async function rejectRemoteAppeal(appealId: string, reason?: string) {
+  return adminAppealApi.reject({ appealId }, reason ? { data: { reason } } : undefined);
 }
 
 export async function readRemoteAppealDetail(appealId: string): Promise<AdminAppeal> {
@@ -473,7 +494,7 @@ function mapAppealDetail(detail: RemoteAdminAppealDetail): AdminAppeal {
     taskTitle: requireText(detail.taskTitle, "taskTitle"),
     taskCategory: requireText(detail.taskCategory, "taskCategory"),
     userName: requireText(detail.userName, "userName"),
-    userPhone: requireText(detail.userPhone, "userPhone"),
+    userPhone: detail.userPhone?.trim() || "未提供",
     agentName: requireText(detail.agentName, "agentName"),
     issueSummary: reason.slice(0, 32),
     appealReason: reason,

@@ -1,8 +1,12 @@
 node_modules/
 dist/
 apps/*/dist/
+apps/sprix-admin/deploy/
 .turbo/
 *.tsbuildinfo
 *.log
 .DS_Store
 .codegraph/
+
+# Local presentation state (no real records)
+apps/sprix-admin/mock/.data/

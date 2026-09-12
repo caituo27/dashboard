@@ -14,10 +14,10 @@ export function hasAdminToken() {
 
 function getSafeAdminRedirect(value: string | null) {
   if (!value || !value.startsWith("/") || value.startsWith("//")) {
-    return "/tasks";
+    return "/dashboard";
   }
   if (value === "/login" || value.startsWith("/login?") || value.startsWith("/api/") || value.startsWith("/sprix-api/")) {
-    return "/tasks";
+    return "/dashboard";
   }
   return value;
 }
@@ -46,11 +46,11 @@ export function AdminLoginPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f7f7f5] px-5 py-8">
+    <main className="min-h-screen bg-bg px-5 py-8">
       <div className="mx-auto flex min-h-[calc(100vh-64px)] max-w-[440px] flex-col justify-center">
-        <section className="rounded-[28px] border border-line bg-white p-8 shadow-soft">
+        <section className="sprix-card p-8">
           <div className="mb-8">
-            <div className="sprix-title text-3xl text-ink">Sprix Admin</div>
+            <div className="sprix-title text-2xl text-ink">Sprix Admin</div>
             <p className="mt-2 text-sm text-ink-soft">登录后进入平台运营后台</p>
           </div>
           <Form<LoginValues>
@@ -63,7 +63,7 @@ export function AdminLoginPage() {
             <Form.Item label="密码" name="password" rules={[{ required: true, message: "请输入密码" }]}>
               <Input.Password size="large" autoComplete="current-password" />
             </Form.Item>
-            <Button type="primary" htmlType="submit" size="large" shape="round" block loading={submitting}>
+            <Button type="primary" htmlType="submit" size="large" block loading={submitting}>
               登录
             </Button>
           </Form>

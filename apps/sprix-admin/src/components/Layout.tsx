@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dropdown, message } from "antd";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Bot, LogOut, Menu } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 import { adminRoutes } from "../navigation";
 import { logoutAdmin } from "../services/sprixApi";
 import { useSprixStore } from "../store/sprixStore";
@@ -29,12 +29,10 @@ function Sidebar() {
   return (
     <aside className="sprix-sidebar">
       <Link to="/" className="mb-5 flex items-center gap-3 no-underline">
-        <div className="flex size-9 items-center justify-center rounded-xl bg-pill text-white">
-          <Bot size={18} />
-        </div>
+        <img src="/favicon.svg?v=sprix-brand-2" alt="" width={36} height={36} className="size-9 shrink-0" />
         <div>
           <div className="text-base font-semibold leading-none text-ink">Sprix Admin</div>
-          <div className="mt-1 text-xs text-ink-soft">Backoffice</div>
+          <div className="mt-1 text-xs text-ink-soft">后台管理平台</div>
         </div>
       </Link>
       <nav className="sprix-sidebar-nav space-y-1">
@@ -48,10 +46,10 @@ function Sidebar() {
             <Link
               key={route.key}
               to={route.path}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium no-underline transition ${
+              className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium no-underline transition ${
                 active
-                  ? "bg-pill text-white shadow-[0_8px_18px_rgba(17,17,17,0.12)]"
-                  : "text-ink-soft hover:bg-white hover:text-ink"
+                  ? "bg-pill text-white"
+                  : "text-ink-soft hover:bg-[#f2f3f5] hover:text-ink"
               }`}
             >
               <Icon size={18} />

@@ -1,12 +1,17 @@
+import { adminQueryClient } from "./services/adminQueryClient";
 import { useMemo } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { Navigate, Route, BrowserRouter as Router, Routes, useLocation } from "react-router-dom";
 import type { ReactNode } from "react";
 import { AdminLoginPage, hasAdminToken } from "./admin/AdminLoginPage";
 import { AdminAcceptanceCenter, AdminAcceptanceDetail, AdminAppealCenter, AdminAppealDetail, AdminFundCenter, AdminTaskCenter, AdminTaskDetail, AdminTaskForm } from "./admin/AdminPages";
 import { AdminShell } from "./components/Layout";
+import { AdminDashboard } from "./admin/AdminDashboard";
 
-const queryClient = new QueryClient();
+const queryClient = adminQueryClient;
+for (const key of ["task-center", "task-detail", "acceptance-reviews", "appeals", "appeal-detail", "funds"]) {
+  queryClient.setQueryDefaults(["sprix-admin", key], { staleTime: 4000, refetchInterval: 5000, refetchIntervalInBackground: false, refetchOnWindowFocus: true });
+}
 
 export default function App() {
   return (
@@ -33,6 +38,7 @@ function RequireAdminAuth({ children }: { children: ReactNode }) {
 function AdminRoutes() {
   const location = useLocation();
   const title = useMemo(() => {
+    if (location.pathname === "/dashboard") return "数据概览";
     if (location.pathname.includes("/appeals")) return "申诉处理中心";
     if (location.pathname.includes("/acceptance")) return "平台验收中心";
     if (location.pathname.includes("/funds")) return "资金管理中心";
@@ -45,7 +51,8 @@ function AdminRoutes() {
   return (
     <AdminShell title={title}>
       <Routes>
-        <Route index element={<Navigate to="/tasks" replace />} />
+        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="tasks" element={<AdminTaskCenter />} />
         <Route path="tasks/new" element={<AdminTaskForm />} />
         <Route path="tasks/:id/edit" element={<AdminTaskForm />} />

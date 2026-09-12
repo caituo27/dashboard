@@ -1,3 +1,4 @@
+import { displayText } from "../utils/displayText";
 import type { ReactNode } from "react";
 import { Button, Empty, Tag as AntTag } from "antd";
 import type { ButtonProps } from "antd";
@@ -6,20 +7,17 @@ import { CheckCircle2, Clock3, CircleAlert, CircleDollarSign, PlugZap } from "lu
 export function PageHeader({
   title,
   subtitle,
-  actions,
-  eyebrow = "Sprix AI"
+  actions
 }: {
   title: string;
   subtitle?: string;
   actions?: ReactNode;
-  eyebrow?: string;
 }) {
   return (
     <div className="sprix-page-header">
       <div className="min-w-0">
-        <div className="sprix-page-kicker">{eyebrow}</div>
-        <h1 className="sprix-page-title">{title}</h1>
-        {subtitle && <p className="sprix-page-subtitle">{subtitle}</p>}
+        <h1 className="sprix-page-title">{displayText(title)}</h1>
+        {subtitle && <p className="sprix-page-subtitle">{displayText(subtitle)}</p>}
       </div>
       {actions && <div className="sprix-page-actions">{actions}</div>}
     </div>
@@ -54,7 +52,7 @@ export function SoftTag({ children, tone = "teal" }: { children: ReactNode; tone
     red: { color: "#b42318", borderColor: "#ffd9d9", background: "#fff4f4" }
   };
   return (
-    <AntTag style={colors[tone]} className="m-0 rounded-full px-2.5 py-0.5">
+    <AntTag style={colors[tone]} className="m-0 rounded px-2.5 py-0.5">
       {children}
     </AntTag>
   );
@@ -89,12 +87,12 @@ export function MetricCard({
 }) {
   const content = (
       <div className="flex items-start gap-3">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#e7f7f2] text-accent">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-[#e7f7f2] text-accent">
           {icon ?? <CircleDollarSign size={19} />}
         </div>
         <div className="min-w-0">
           <p className="text-xs font-medium text-ink-soft">{title}</p>
-          <div className="mt-1 text-2xl font-semibold leading-none text-ink">{value}</div>
+          <div className="mt-1 text-2xl font-semibold tabular-nums leading-none text-ink">{value}</div>
           {caption && <p className="mt-1 text-xs text-ink-soft">{caption}</p>}
         </div>
       </div>

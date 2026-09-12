@@ -1,6 +1,7 @@
+import {consumerMockEnabled,isMockTask,readConsumerTaskPage,readConsumerTask} from "../services/consumerMock";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Modal, Progress, Segmented, Steps, message } from "antd";
-import { useQueryClient } from "@tanstack/react-query";
+import { Alert, Pagination, Modal, Progress, Segmented, Steps, message } from "antd";
+import { useQuery, keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Bot, BrainCircuit, Download, PlugZap, UsersRound } from "lucide-react";
 import type { FaceVerificationSession } from "../apis/sprix";
@@ -259,7 +260,10 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
   const [smartAccepting, setSmartAccepting] = useState(false);
   const [smartAcceptMessage, setSmartAcceptMessage] = useState<string>();
   const currentAgent = getCurrentExecutionAgent(agents);
-  const availableTasks = useMemo(() => tasks.filter((task) => task.taskStatus === "已发布"), [tasks]);
+  const availableTasks = useMemo(() => tasks.filter((task) => task.taskStatus === "已发布" && task.remainingSlots > 0), [tasks]);
+  const [marketPage,setMarketPage]=useState(1);
+  const marketQuery=useQuery({queryKey:['sprix-agent','consumer-market',marketPage,availableTasks],queryFn:()=>readConsumerTaskPage(availableTasks,marketPage),enabled:consumerMockEnabled,placeholderData:keepPreviousData,refetchInterval:10000,refetchIntervalInBackground:false});
+  const visibleTasks=consumerMockEnabled ? marketQuery.data?.rows ?? [] : availableTasks;
   const recommendationState = useMemo(
     () =>
       getRecommendationPanelState({
@@ -368,7 +372,7 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
         subtitle="浏览当前可接取的任务，选择适合你的 Agent 执行的工作，并持续跟踪执行进度与收益。"
       />
       <div className="mb-5 grid gap-4 md:grid-cols-3">
-        <MetricCard title="已发布任务" value={availableTasks.length || "-"} />
+        <MetricCard title="已发布任务" value={(consumerMockEnabled ? marketQuery.data?.total : availableTasks.length) || "-"} />
         <MetricCard title="当前执行 Agent" value={currentAgent?.name ?? "-"} icon={<Bot size={19} />} />
         <MetricCard title="我的任务" value={myTasks.length || "-"} icon={<UsersRound size={19} />} />
       </div>
@@ -395,11 +399,14 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
         </div>
       </Surface>
       <div className="sprix-grid-auto">
-        {availableTasks.map((task) => (
+        {visibleTasks.map((task) => (
           <TaskCard key={task.id} task={task} onAccept={() => handleAccept(task)} />
         ))}
       </div>
-      {availableTasks.length === 0 && <EmptyState title="暂无可接取任务" description="当前暂时没有新的任务，稍后再来查看适合 Agent 执行的工作。" />}
+      {consumerMockEnabled && marketQuery.isError && <Alert type="error" message="任务列表读取失败" action={<SecondaryButton onClick={()=>marketQuery.refetch()}>重试</SecondaryButton>}/>}
+      {consumerMockEnabled && marketQuery.isPending && <p>任务列表加载中…</p>}
+      {consumerMockEnabled && <Pagination className="mt-6" current={marketPage} pageSize={20} total={marketQuery.data?.total ?? 0} showSizeChanger={false} showTotal={total=>`共 ${total.toLocaleString()} 条`} onChange={setMarketPage}/>}
+      {(!consumerMockEnabled || !marketQuery.isPending) && visibleTasks.length === 0 && !marketQuery.isError && <EmptyState title="暂无可接取任务" description="当前暂时没有新的任务，稍后再来查看适合 Agent 执行的工作。" />}
     </>
   );
 }
@@ -436,13 +443,17 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const task = useSprixStore((state) => state.tasks.find((item) => item.id === id));
+  const storedTask = useSprixStore((state) => state.tasks.find((item) => item.id === id));
+  const detailQuery=useQuery({queryKey:['sprix-agent','consumer-task',id],queryFn:()=>readConsumerTask(id!),enabled:consumerMockEnabled && !!id && isMockTask(id),refetchInterval:10000,refetchIntervalInBackground:false});
+  const task=consumerMockEnabled && id && isMockTask(id) ? detailQuery.data : storedTask;
   const account = useSprixStore((state) => state.account);
   const agents = useSprixStore((state) => state.agents);
   const currentAgent = getCurrentExecutionAgent(agents);
   const executionAgentName = currentAgent?.name;
   const estimatedToken = getEstimatedTokenField();
 
+  if(consumerMockEnabled && id && isMockTask(id) && detailQuery.isPending) return <p>任务详情加载中…</p>;
+  if(consumerMockEnabled && id && isMockTask(id) && detailQuery.isError) return <Alert type="error" message="任务详情读取失败" action={<SecondaryButton onClick={()=>detailQuery.refetch()}>重试</SecondaryButton>}/>;
   if (!task) return <EmptyState title="任务不存在" description="当前任务已不可访问" action={<SecondaryButton href="/agent/market">返回任务市场</SecondaryButton>} />;
 
   const handleAccept = () => {
@@ -1136,8 +1147,12 @@ function MyTaskRow({ task, onAppeal, onRerun }: { task: MyTask; onAppeal: (execu
 export function MyTaskDetailPage({ openAppeal }: Pick<UserPageProps, "openAppeal">) {
   const { id } = useParams();
   const task = useSprixStore((state) => state.myTasks.find((item) => item.id === id));
-  const base = useSprixStore((state) => state.tasks.find((item) => item.id === task?.taskId));
+  const storedBase = useSprixStore((state) => state.tasks.find((item) => item.id === task?.taskId));
+  const baseQuery=useQuery({queryKey:['sprix-agent','consumer-task',task?.taskId],queryFn:()=>readConsumerTask(task!.taskId),enabled:consumerMockEnabled && !!task && isMockTask(task.taskId),refetchInterval:10000,refetchIntervalInBackground:false});
+  const base=task && isMockTask(task.taskId) ? baseQuery.data : storedBase;
   const rerunTask = useRerunTask();
+  if(consumerMockEnabled && task && isMockTask(task.taskId) && baseQuery.isPending) return <p>执行详情加载中…</p>;
+  if(consumerMockEnabled && task && isMockTask(task.taskId) && baseQuery.isError) return <Alert type="error" message="执行详情读取失败" action={<SecondaryButton onClick={()=>baseQuery.refetch()}>重试</SecondaryButton>}/>;
   if (!task || !base) return <EmptyState title="执行记录不存在" description="该任务记录暂不可访问" action={<SecondaryButton href="/agent/my-tasks">返回我的任务</SecondaryButton>} />;
   const requirementText = getExecutionRequirementText(base);
   const review = getExecutionReviewState(task, base);

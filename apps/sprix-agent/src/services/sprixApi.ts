@@ -1,3 +1,5 @@
+import {consumerMockEnabled,isMockTask,isMockExecution,acceptConsumerTask,readConsumerMyTasks} from "./consumerMock";
+import {useSprixStore} from "../store/sprixStore";
 import {
   AccountControllerApiFactory,
   AgentControllerApiFactory,
@@ -343,6 +345,7 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
   const taskById = new Map(tasks.map((task) => [task.id, task]));
   const agentById = new Map(agents.map((agent) => [agent.id, agent]));
   const myTasks = listValue<MyTaskExecutionDetail>(myTasksResponse).map((item) => mapMyTask(item, taskById, agentById));
+  if(consumerMockEnabled) myTasks.push(...await readConsumerMyTasks(account?.phone ?? ""));
   const withdrawableAmount = withdrawableResponse;
 
   return {
@@ -403,6 +406,13 @@ export async function readLatestRemoteAgentEvaluation(agentId: string): Promise<
 }
 
 export async function acceptRemoteTask(taskId: string): Promise<TaskExecution> {
+  if(isMockTask(taskId)) {
+    if(!consumerMockEnabled) throw new Error("任务已不可接取");
+    const {account,agents}=useSprixStore.getState();
+    const agent=agents.find(row=>row.role==='当前执行 Agent' && row.status!=='离线');
+    if(!account.isLoggedIn || !agent) throw new Error("请登录并连接当前执行 Agent");
+    return acceptConsumerTask(taskId,account,agent);
+  }
   const response = await taskApi.accept({ id: taskId });
   return requireValue<TaskExecution>(response, "接单失败");
 }
@@ -413,11 +423,17 @@ export async function smartAcceptRemoteTask(): Promise<SmartAcceptResponse> {
 }
 
 export async function rerunRemoteTask(executionId: string): Promise<TaskExecution> {
+  if(isMockExecution(executionId)) {
+    const row=useSprixStore.getState().myTasks.find(task=>task.id===executionId);
+    if(!row || !consumerMockEnabled) throw new Error("执行记录不存在");
+    return acceptRemoteTask(row.taskId);
+  }
   const response = await myTaskApi.rerun({ executionId });
   return requireValue<TaskExecution>(response, "重新执行失败");
 }
 
 export async function submitRemoteAppeal(executionId: string, reason: string): Promise<AppealRecord> {
+  if(isMockExecution(executionId)) throw new Error("该执行记录暂不支持申诉");
   const response = await appealApi.submit({ submitAppealRequest: { executionId, reason } });
   return requireValue<AppealRecord>(response, "申诉提交失败");
 }

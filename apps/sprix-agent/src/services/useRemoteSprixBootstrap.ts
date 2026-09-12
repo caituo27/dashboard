@@ -1,3 +1,4 @@
+import {consumerMockEnabled} from "./consumerMock";
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { readAgentSnapshot } from "./sprixApi";
@@ -14,7 +15,7 @@ export function useRemoteSprixBootstrap() {
     queryFn: readAgentSnapshot,
     retry: 1,
     staleTime: shouldPollForLocalAgent ? 0 : 10_000,
-    refetchInterval: shouldPollForLocalAgent ? 3_000 : false,
+    refetchInterval: shouldPollForLocalAgent ? 3_000 : consumerMockEnabled ? 5_000 : false,
     refetchOnMount: "always",
     refetchOnReconnect: "always",
     refetchOnWindowFocus: "always"
