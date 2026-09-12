@@ -18,7 +18,7 @@ export {readRemoteTaskCenterSnapshot,readRemoteAcceptanceReviews,readRemoteAppea
 export async function readRemoteTaskDetail(id:string) {return isDemoId(id)?readDetail<real.AdminTaskDetailView>('task-detail',id):real.readRemoteTaskDetail(id);}
 export async function readRemoteAppealDetail(id:string) {return isDemoId(id)?readDetail<Awaited<ReturnType<typeof real.readRemoteAppealDetail>>>('appeal-detail',id):real.readRemoteAppealDetail(id);}
 
-export const updateRemoteAdminTask: typeof real.updateRemoteAdminTask = (id, payload) => isDemoId(id) ? writeDemo(id, "edit", payload) : real.updateRemoteAdminTask(id, payload);
+export const updateRemoteAdminTask: typeof real.updateRemoteAdminTask = (id, ...args) => isDemoId(id) ? writeDemo(id, "edit", args[0]) : real.updateRemoteAdminTask(id, ...args);
 export const offlineRemoteAdminTask: typeof real.offlineRemoteAdminTask = (id, reason) => isDemoId(id) ? writeDemo(id, "offline", { reason }) : real.offlineRemoteAdminTask(id, reason);
 export const republishRemoteAdminTask: typeof real.republishRemoteAdminTask = (id) => isDemoId(id) ? writeDemo(id, "republish") : real.republishRemoteAdminTask(id);
 export const deleteRemoteAdminTask: typeof real.deleteRemoteAdminTask = (id, reason) => isDemoId(id) ? writeDemo(id, "delete", { reason }) : real.deleteRemoteAdminTask(id, reason);

@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, Result, Spin, message } from "antd";
 import { useSearchParams } from "react-router-dom";
-import { LoginRegisterModal } from "../components/GlobalModals";
+import { AuthModal } from "../auth/AuthModal";
 import { buildLocalAgentClaimUrl, createLocalAgentEnrollment, hasStoredAuthToken } from "../services/sprixApi";
 import { isGlobalAuthError } from "../utils/http";
-import { getLocalAgentClaimReturnState } from "./localAgentClaimView";
 
 type ClaimStatus = "checking" | "login-required" | "enrolling" | "redirecting" | "invalid" | "failed";
 
@@ -16,7 +15,6 @@ export function LocalAgentClaimPage() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const enrollmentStartedRef = useRef(false);
-  const returnState = getLocalAgentClaimReturnState();
 
   const redirectToBackendClaim = (nextEnrollmentToken: string) => {
     const claimUrl = buildLocalAgentClaimUrl(claimToken, nextEnrollmentToken);
@@ -86,7 +84,7 @@ export function LocalAgentClaimPage() {
   };
 
   return (
-    <main className="grid min-h-screen place-items-center px-5 py-10">
+    <main className="grid min-h-[100dvh] place-items-center px-5 py-10">
       <section className="sprix-card w-full max-w-[520px] px-6 py-8 text-center">
         {status === "invalid" && <Result status="warning" title="连接链接无效" subTitle="请重新从 LocalCLIAgent 打开连接。" />}
 
@@ -125,16 +123,12 @@ export function LocalAgentClaimPage() {
             }
           />
         )}
-        <div className="mt-4 rounded-2xl bg-[#fafafa] p-4 text-left text-sm leading-7 text-ink-soft">
-          <b className="block text-ink">{returnState.title}</b>
-          <span>{returnState.description}</span>
-        </div>
       </section>
 
-      <LoginRegisterModal
+      <AuthModal
         open={loginOpen}
         onClose={() => setLoginOpen(false)}
-        afterLogin={() => {
+        onLoginSuccess={() => {
           setLoginOpen(false);
           void startEnrollment();
         }}

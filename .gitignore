@@ -10,3 +10,4 @@ apps/sprix-admin/deploy/
 
 # Local presentation state (no real records)
 apps/sprix-admin/mock/.data/
+.agents/

@@ -7,6 +7,7 @@ import {
   AuthControllerApiFactory,
   EarningsControllerApiFactory,
   MyTaskControllerApiFactory,
+  PlatformControllerApiFactory,
   TaskControllerApiFactory,
   type AgentProfileResponse,
   type AgentEvaluationDetailResponse,
@@ -17,8 +18,10 @@ import {
   type AppealRecord,
   type AuthTokenResponse,
   type FaceVerificationSession,
+  type LocalAgentDiagnosticResponse,
   type MyTaskExecutionDetail,
   type SmartAcceptResponse,
+  type PlatformOverview as RemotePlatformOverview,
   type TaskEntity,
   type TaskExecution,
   type TaskRecommendationResponse,
@@ -37,8 +40,13 @@ import type {
   AgentEvaluationStep,
   AgentEvaluationTranscriptItem,
   AppealStatus,
+  EvaluationFlowState,
+  LocalAgentDiagnostic,
+  LocalAgentInventoryStatus,
   MyTask,
   MyTaskStatus,
+  Payout,
+  PlatformOverview,
   SettlementStatus,
   SprixState,
   Task,
@@ -46,11 +54,12 @@ import type {
   Withdrawal
 } from "../types";
 import type { SprixRemoteStatePatch } from "../store/sprixStore";
-import { http, isGlobalAuthError } from "../utils/http";
+import { http, isGlobalAuthError, resolveApiAssetUrl } from "../utils/http";
+import { formatEstimatedArrivalTime } from "./arrivalTime";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/sprix-api";
 const CONFIGURED_LOCAL_AGENT_CLAIM_BASE_URL = import.meta.env.VITE_LOCAL_AGENT_CLAIM_BASE_URL ?? "";
-const DEV_LOCAL_AGENT_CLAIM_BASE_URL = "http://42.194.150.73:8084";
+const DEV_LOCAL_AGENT_CLAIM_BASE_URL = "http://127.0.0.1:8084";
 const DEFAULT_LOCAL_AGENT_CLAIM_BASE_URL = "http://42.194.150.73:8084";
 const TOKEN_KEY = "sprix-auth-token";
 
@@ -68,6 +77,7 @@ const appealApi = AppealControllerApiFactory(undefined, API_BASE_URL, http);
 const authApi = AuthControllerApiFactory(undefined, API_BASE_URL, http);
 const earningsApi = EarningsControllerApiFactory(undefined, API_BASE_URL, http);
 const myTaskApi = MyTaskControllerApiFactory(undefined, API_BASE_URL, http);
+const platformApi = PlatformControllerApiFactory(undefined, API_BASE_URL, http);
 const taskApi = TaskControllerApiFactory(undefined, API_BASE_URL, http);
 
 export type WechatLoginSession = {
@@ -82,6 +92,9 @@ export type WechatLoginStatus = {
   status: string;
   expiresInSeconds: number;
   authenticated: boolean;
+  phoneBindRequired: boolean;
+  provider?: "ALIPAY" | "WECHAT";
+  bindTicket?: string;
 };
 
 export type AlipayLoginSession = {
@@ -96,12 +109,34 @@ export type AlipayLoginStatus = {
   status: string;
   expiresInSeconds: number;
   authenticated: boolean;
+  phoneBindRequired: boolean;
+  provider?: "ALIPAY" | "WECHAT";
+  bindTicket?: string;
+};
+
+export type ThirdPartyLoginCallbackStatus = {
+  provider: "ALIPAY" | "WECHAT";
+  sessionId: string;
+  status: string;
+  expiresInSeconds: number;
+  authenticated: boolean;
+  phoneBindRequired: boolean;
+  bindTicket?: string;
 };
 
 export type SmsCodeResponse = {
   mobile: string;
   expiresInSeconds: number;
   resendIntervalSeconds: number;
+};
+
+export type SafetyChallengeScene = "SMS_LOGIN" | "PHONE_BIND" | "PHONE_CHANGE";
+
+export type SafetyChallenge = {
+  challengeId: string;
+  challengeType: string;
+  imageBase64: string;
+  expiresInSeconds: number;
 };
 
 export type AlipayBindSession = {
@@ -119,13 +154,95 @@ export type AlipayBindStatus = {
   completed: boolean;
 };
 
+export type FaceVerificationIdentity = {
+  readonly realName: string;
+  readonly idCardNo: string;
+};
+
+export type TaskAttachment = {
+  attachmentId: string;
+  fileId: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  sha256: string;
+  sortOrder: number;
+  downloadUrl: string;
+  createdAt: string;
+};
+
+export type ManualSubmissionFile = {
+  id: string;
+  fileId: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  sha256: string;
+  sortOrder: number;
+  downloadUrl: string;
+  createdAt: string;
+};
+
+export type ManualSubmission = {
+  submissionId: string;
+  submissionNo: number;
+  source: "USER_MANUAL";
+  status: "PENDING_REVIEW" | "APPROVED" | "REJECTED";
+  description?: string | null;
+  reviewReason?: string | null;
+  submittedAt: string;
+  reviewedAt?: string | null;
+  files: ManualSubmissionFile[];
+};
+
+export type MyTaskExecutionDetailView = MyTaskExecutionDetail & {
+  canManualResubmit?: boolean;
+  reviewSource?: "AGENT" | "USER_MANUAL";
+  manualSubmissions?: ManualSubmission[];
+};
+
+export type AccountProfileUpdate = {
+  readonly nickname?: string;
+  readonly avatarUrl?: string;
+};
+
+export type RemoteAgentsResult = {
+  agents: Agent[];
+  localAgent?: LocalAgentDiagnostic;
+  currentAgentId: string | null;
+};
+
 type RemoteAgentProfileResponse = AgentProfileResponse & {
+  authStatus?: string | null;
+  authenticated?: boolean | null;
   evaluation?: RemoteAgentEvaluation | null;
 };
+
+export type AgentLoginResponse = {
+  commandId?: string | null;
+  status: "QUEUED" | "ALREADY_PENDING" | "ALREADY_AUTHENTICATED" | string;
+  message: string;
+};
+
+type RemoteAgentListResponse =
+  | RemoteAgentProfileResponse[]
+  | {
+      currentAgentId?: string | null;
+      content?: RemoteAgentProfileResponse[] | null;
+      agents?: RemoteAgentProfileResponse[] | null;
+      localAgent?: LocalAgentDiagnosticResponse | null;
+    };
 
 type RemoteAgentEvaluationDimension = {
   score?: number | null;
   comment?: string | null;
+};
+
+type RemoteAgentCareerProfile = {
+  roleCode?: string | null;
+  roleName?: string | null;
+  confidence?: number | null;
+  reason?: string | null;
 };
 
 type RemoteAgentEvaluationStep = {
@@ -150,6 +267,8 @@ type RemoteAgentEvaluationResult = {
   mode?: string | null;
   overallScore?: number | null;
   dimensions?: Record<string, RemoteAgentEvaluationDimension | null> | null;
+  careerProfile?: RemoteAgentCareerProfile | null;
+  abilityTags?: string[] | null;
   summary?: string | null;
   improvements?: string[] | null;
   steps?: RemoteAgentEvaluationStep[] | null;
@@ -165,6 +284,8 @@ type RemoteAgentEvaluation = {
   mode?: string | null;
   overallScore?: number | null;
   dimensions?: Record<string, RemoteAgentEvaluationDimension | null> | null;
+  careerProfile?: RemoteAgentCareerProfile | null;
+  abilityTags?: string[] | null;
   summary?: string | null;
   improvements?: string[] | null;
   questions?: string[] | null;
@@ -174,25 +295,36 @@ type RemoteAgentEvaluation = {
   error?: string | null;
   startedAt?: string | null;
   completedAt?: string | null;
+  lastEvaluatedAt?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
 };
 
-const tagText: Record<string, string> = {
-  "software-development": "软件开发",
-  "web-generation": "网页生成",
-  "code-repair": "代码修复",
-  workflow: "流程执行",
-  documents: "文档处理",
-  automation: "自动化办公",
-  search: "信息检索",
-  research: "报告归纳",
-  "fact-checking": "事实校验",
-  "data-processing": "数据处理"
-};
+const localAgentInventoryStatuses = new Set<LocalAgentInventoryStatus>([
+  "NOT_BOUND",
+  "DEVICE_OFFLINE",
+  "WAITING_INVENTORY",
+  "INVENTORY_STALE",
+  "NO_AVAILABLE_AGENT",
+  "READY"
+]);
 
-export async function sendSmsCode(mobile: string): Promise<SmsCodeResponse> {
-  const response = await http.post<unknown, SmsCodeResponse>("/api/v1/auth/sms-codes", { mobile });
+export async function createSafetyChallenge(scene: SafetyChallengeScene): Promise<SafetyChallenge> {
+  const response = await http.post<unknown, SafetyChallenge>("/api/v1/auth/safety-challenges", { scene });
+  return requireValue<SafetyChallenge>(response, "安全验证码不可用");
+}
+
+export async function sendSmsCode(input: {
+  mobile: string;
+  challengeId: string;
+  challengeAnswer: string;
+}): Promise<SmsCodeResponse> {
+  const response = await http.post<unknown, SmsCodeResponse>("/api/v1/auth/sms-codes", {
+    mobile: input.mobile,
+    scene: "LOGIN",
+    challengeId: input.challengeId,
+    challengeAnswer: input.challengeAnswer
+  });
   return requireValue<SmsCodeResponse>(response, "验证码发送失败");
 }
 
@@ -232,7 +364,30 @@ export async function readWechatLoginStatus(sessionId: string): Promise<WechatLo
     sessionId: scanStatus.sessionId ?? sessionId,
     status: scanStatus.status ?? "PENDING",
     expiresInSeconds: scanStatus.expiresInSeconds ?? 0,
-    authenticated: Boolean(token)
+    authenticated: Boolean(token),
+    phoneBindRequired: Boolean((scanStatus as WechatScanStatusResponse & { phoneBindRequired?: boolean }).phoneBindRequired),
+    provider: (scanStatus as WechatScanStatusResponse & { provider?: "ALIPAY" | "WECHAT" }).provider,
+    bindTicket: (scanStatus as WechatScanStatusResponse & { bindTicket?: string }).bindTicket
+  };
+}
+
+export async function confirmWechatLoginCallback(code: string, state: string): Promise<ThirdPartyLoginCallbackStatus> {
+  const response = await authApi.wechatScanCallback({ code, state });
+  const scanStatus = requireValue<WechatScanStatusResponse>(response, "微信扫码回调处理失败");
+  const token = scanStatus.token?.token;
+
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+  }
+
+  return {
+    provider: "WECHAT",
+    sessionId: scanStatus.sessionId ?? state,
+    status: scanStatus.status ?? "CONFIRMED",
+    expiresInSeconds: scanStatus.expiresInSeconds ?? 0,
+    authenticated: Boolean(token),
+    phoneBindRequired: Boolean((scanStatus as WechatScanStatusResponse & { phoneBindRequired?: boolean }).phoneBindRequired),
+    bindTicket: (scanStatus as WechatScanStatusResponse & { bindTicket?: string }).bindTicket
   };
 }
 
@@ -252,6 +407,34 @@ export async function createAlipayLoginSession(): Promise<AlipayLoginSession> {
   };
 }
 
+export async function confirmAlipayLoginCallback(authCode: string, state: string): Promise<ThirdPartyLoginCallbackStatus> {
+  const response = await authApi.alipayLoginCallback({ authCode, state });
+  const loginStatus = requireValue<AlipayLoginStatusResponse>(response, "支付宝登录回调处理失败");
+  const token = loginStatus.token?.token;
+
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+  }
+
+  return {
+    provider: "ALIPAY",
+    sessionId: loginStatus.sessionId ?? state,
+    status: loginStatus.status ?? "CONFIRMED",
+    expiresInSeconds: loginStatus.expiresInSeconds ?? 0,
+    authenticated: Boolean(token),
+    phoneBindRequired: Boolean((loginStatus as AlipayLoginStatusResponse & { phoneBindRequired?: boolean }).phoneBindRequired),
+    bindTicket: (loginStatus as AlipayLoginStatusResponse & { bindTicket?: string }).bindTicket
+  };
+}
+
+export function buildRemoteAlipayBindCallbackUrl(authCode: string, state: string) {
+  const params = new URLSearchParams({
+    auth_code: authCode,
+    state
+  });
+  return `${API_BASE_URL}/api/v1/account/alipay-bind-callback?${params.toString()}`;
+}
+
 export async function readAlipayLoginStatus(sessionId: string): Promise<AlipayLoginStatus> {
   const response = await authApi.alipayLoginSession({ sessionId });
   const loginStatus = requireValue<AlipayLoginStatusResponse>(response, "支付宝登录状态不可用");
@@ -265,8 +448,28 @@ export async function readAlipayLoginStatus(sessionId: string): Promise<AlipayLo
     sessionId: loginStatus.sessionId ?? sessionId,
     status: loginStatus.status ?? "PENDING",
     expiresInSeconds: loginStatus.expiresInSeconds ?? 0,
-    authenticated: Boolean(token)
+    authenticated: Boolean(token),
+    phoneBindRequired: Boolean((loginStatus as AlipayLoginStatusResponse & { phoneBindRequired?: boolean }).phoneBindRequired),
+    provider: (loginStatus as AlipayLoginStatusResponse & { provider?: "ALIPAY" | "WECHAT" }).provider,
+    bindTicket: (loginStatus as AlipayLoginStatusResponse & { bindTicket?: string }).bindTicket
   };
+}
+
+export async function sendPhoneBindSmsCode(input: {
+  bindTicket: string;
+  mobile: string;
+  challengeId: string;
+  challengeAnswer: string;
+}): Promise<SmsCodeResponse> {
+  const response = await http.post<unknown, SmsCodeResponse>("/api/v1/auth/phone-bind/sms-codes", input);
+  return requireValue<SmsCodeResponse>(response, "验证码发送失败");
+}
+
+export async function confirmPhoneBind(input: { bindTicket: string; mobile: string; code: string }) {
+  const response = await http.post<unknown, AuthTokenResponse>("/api/v1/auth/phone-bind/confirm", input);
+  const token = requireValue<AuthTokenResponse>(response, "绑定手机号失败").token;
+  localStorage.setItem(TOKEN_KEY, token ?? "");
+  return token;
 }
 
 export async function logoutConsumer() {
@@ -317,47 +520,85 @@ export function resolveLocalAgentClaimBaseUrlForRuntime(configuredBaseUrl: strin
 }
 
 export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
+  const [tasksResponse, platformOverview] = await Promise.all([
+    optionalSnapshotRequest(() => taskApi.market(), []),
+    optionalSnapshotRequest(() => readPlatformOverview(), { agentCount: null, taskCount: null })
+  ]);
+  let tasks = listValue<TaskEntity>(tasksResponse).map(mapTask);
   const token = localStorage.getItem(TOKEN_KEY);
 
-  if (!token) {
-    const tasksResponse = await optionalSnapshotRequest(() => taskApi.market(), []);
-    const tasks = listValue<TaskEntity>(tasksResponse).map(mapTask);
-    return { tasks, account: { isLoggedIn: false } };
-  }
+  if (!token) return { tasks, platformOverview, account: { isLoggedIn: false } };
 
   const recommendationResponse = await optionalSnapshotRequest(() => taskApi.recommendations(), []);
-  let tasks = listValue<TaskRecommendationResponse>(recommendationResponse).map(mapTaskRecommendation);
-  if (tasks.length === 0) {
-    const tasksResponse = await optionalSnapshotRequest(() => taskApi.market(), []);
-    tasks = listValue<TaskEntity>(tasksResponse).map(mapTask);
+  const recommendedTasks = listValue<TaskRecommendationResponse>(recommendationResponse).map(mapTaskRecommendation);
+  if (recommendedTasks.length > 0) {
+    tasks = recommendedTasks;
   }
 
-  const accountResponse = await accountApi.current();
-  const [agentsResponse, myTasksResponse, withdrawableResponse, withdrawalAccountResponse] = await Promise.all([
-    optionalSnapshotRequest(() => agentApi.list1(), []),
+  const accountResponse = await accountApi.current1();
+  const [agentsResponse, currentAgentResponse, myTasksResponse, withdrawableResponse, withdrawalAccountResponse, withdrawalRecordsResponse] = await Promise.all([
+    optionalSnapshotRequest<RemoteAgentListResponse | undefined>(() => agentApi.list1(), undefined),
+    optionalSnapshotRequest<AgentProfileResponse | undefined>(() => agentApi.current(), undefined),
     optionalSnapshotRequest(() => myTaskApi.list(), []),
     optionalSnapshotRequest<number | undefined>(() => earningsApi.withdrawable(), undefined),
-    optionalSnapshotRequest<WithdrawalAccount | undefined>(() => accountApi.currentWithdrawalAccount(), undefined)
+    optionalSnapshotRequest<WithdrawalAccount | undefined>(() => accountApi.currentWithdrawalAccount(), undefined),
+    optionalSnapshotRequest<WithdrawalRecord[]>(() => readRemoteEarningsWithdrawals(), [])
   ]);
 
   const account = accountResponse;
-  const agents = listValue<RemoteAgentProfileResponse>(agentsResponse).map(mapAgent);
+  const agentsResult = mapRemoteAgentsResult(agentsResponse);
+  const agents = agentsResult.agents;
+  const mappedCurrentAgent = currentAgentResponse ? mapAgent(currentAgentResponse) : undefined;
+  const currentAgent = isAgentExecutionEligible(mappedCurrentAgent) ? mappedCurrentAgent : undefined;
+  const activeEvaluationFlow =
+    currentAgentResponse?.currentExecution === true &&
+    mappedCurrentAgent?.evaluation &&
+    isActiveEvaluationStatus(mappedCurrentAgent.evaluation.status)
+      ? ({
+          agentId: mappedCurrentAgent.id,
+          evaluationId: mappedCurrentAgent.evaluation.evaluationId,
+          status: mappedCurrentAgent.evaluation.status,
+          wasCurrentAgent: true
+        } satisfies EvaluationFlowState)
+      : undefined;
   const taskById = new Map(tasks.map((task) => [task.id, task]));
   const agentById = new Map(agents.map((agent) => [agent.id, agent]));
   const myTasks = listValue<MyTaskExecutionDetail>(myTasksResponse).map((item) => mapMyTask(item, taskById, agentById));
   if(consumerMockEnabled) myTasks.push(...await readConsumerMyTasks(account?.phone ?? ""));
   const withdrawableAmount = withdrawableResponse;
+  const withdrawals = withdrawalRecordsResponse.map(mapRemoteWithdrawal);
+  const payouts = withdrawalRecordsResponse.map(mapRemotePayout);
 
   return {
     tasks,
+    platformOverview,
     agents,
+    localAgent: agentsResult.localAgent,
+    currentAgentId: currentAgent?.id ?? null,
+    currentAgent,
+    ...(activeEvaluationFlow ? { activeEvaluationFlow } : {}),
     myTasks,
+    withdrawals,
+    payouts,
     account: {
       ...(account ? mapAccount(account) : {}),
-      ...mapWithdrawalAccountState(withdrawalAccountResponse),
+      ...(withdrawalAccountResponse !== undefined ? mapWithdrawalAccountState(withdrawalAccountResponse) : {}),
       isLoggedIn: true,
       ...(typeof withdrawableAmount === "number" ? { withdrawableAmount } : {})
     }
+  };
+}
+
+async function readRemoteEarningsWithdrawals(): Promise<WithdrawalRecord[]> {
+  const response = await http.get<unknown, WithdrawalRecord[]>("/api/v1/earnings/withdrawals");
+  return listValue<WithdrawalRecord>(response);
+}
+
+export async function readPlatformOverview(): Promise<PlatformOverview> {
+  const overview = requireValue<RemotePlatformOverview>(await platformApi.overview({ suppressGlobalAuth: true }), "平台统计不可用");
+  return {
+    agentCount: typeof overview?.agentCount === "number" ? overview.agentCount : null,
+    taskCount: typeof overview?.taskCount === "number" ? overview.taskCount : null
   };
 }
 
@@ -375,9 +616,15 @@ export async function connectRemoteAgent(agentId: string): Promise<Agent | undef
   return response ? mapAgent(response) : undefined;
 }
 
-export async function readRemoteAgents(): Promise<Agent[]> {
+export async function readRemoteAgents(): Promise<RemoteAgentsResult> {
   const response = await agentApi.list1();
-  return listValue<RemoteAgentProfileResponse>(response).map(mapAgent);
+  return mapRemoteAgentsResult(requireValue<RemoteAgentListResponse>(response, "Agent 列表不可用"));
+}
+
+export async function readCurrentRemoteAgent(): Promise<Agent | undefined> {
+  const response = await agentApi.current();
+  const agent = response ? mapAgent(response) : undefined;
+  return isAgentExecutionEligible(agent) ? agent : undefined;
 }
 
 export async function disconnectRemoteAgent(agentId: string): Promise<Agent | undefined> {
@@ -386,8 +633,27 @@ export async function disconnectRemoteAgent(agentId: string): Promise<Agent | un
 }
 
 export async function markRemoteCurrentAgent(agentId: string): Promise<Agent | undefined> {
-  const response = await agentApi.markCurrent({ agentId });
+  const response = await agentApi.markCurrent({ agentId }, { timeout: 0 });
   return response ? mapAgent(response) : undefined;
+}
+
+export async function requestRemoteAgentLogin(agentId: string): Promise<AgentLoginResponse> {
+  return http.post<unknown, AgentLoginResponse>(`/api/v1/agents/${encodeURIComponent(agentId)}/login`);
+}
+
+export async function waitForRemoteAgentAuthentication(
+  agentId: string,
+  timeoutMs = 120_000,
+  intervalMs = 1_500
+): Promise<Agent> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const result = await readRemoteAgents();
+    const agent = result.agents.find((item) => item.id === agentId);
+    if (agent?.authStatus === "authenticated") return agent;
+    await new Promise((resolve) => window.setTimeout(resolve, intervalMs));
+  }
+  throw new Error("Claude Code 登录尚未完成，请在终端和浏览器中完成登录后重试");
 }
 
 export async function startRemoteAgentEvaluation(agentId: string, questions = DEFAULT_AGENT_EVALUATION_QUESTIONS): Promise<AgentEvaluation> {
@@ -408,13 +674,38 @@ export async function readLatestRemoteAgentEvaluation(agentId: string): Promise<
 export async function acceptRemoteTask(taskId: string): Promise<TaskExecution> {
   if(isMockTask(taskId)) {
     if(!consumerMockEnabled) throw new Error("任务已不可接取");
-    const {account,agents}=useSprixStore.getState();
-    const agent=agents.find(row=>row.role==='当前执行 Agent' && row.status!=='离线');
-    if(!account.isLoggedIn || !agent) throw new Error("请登录并连接当前执行 Agent");
+    const {account,currentAgent: agent}=useSprixStore.getState();
+    if(!account.isLoggedIn || !agent || agent.status === "离线") throw new Error("请登录并连接当前执行 Agent");
     return acceptConsumerTask(taskId,account,agent);
   }
   const response = await taskApi.accept({ id: taskId });
   return requireValue<TaskExecution>(response, "接单失败");
+}
+
+export async function readRemoteTaskAttachments(taskId: string): Promise<TaskAttachment[]> {
+  if (consumerMockEnabled && isMockTask(taskId)) return [];
+  const response = await http.get<unknown, TaskAttachment[]>(
+    `/api/v1/tasks/${encodeURIComponent(taskId)}/attachments`,
+    { suppressGlobalAuth: true }
+  );
+  return listValue<TaskAttachment>(response);
+}
+
+export async function readRemoteTaskAttachmentBlob(attachment: TaskAttachment): Promise<Blob> {
+  const response = await http.get<unknown, Blob>(attachment.downloadUrl, { responseType: "blob" });
+  return requireValue(response, "任务附件下载失败");
+}
+
+export async function downloadRemoteTaskAttachment(attachment: TaskAttachment) {
+  const blob = await readRemoteTaskAttachmentBlob(attachment);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = attachment.filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 export async function smartAcceptRemoteTask(): Promise<SmartAcceptResponse> {
@@ -432,10 +723,106 @@ export async function rerunRemoteTask(executionId: string): Promise<TaskExecutio
   return requireValue<TaskExecution>(response, "重新执行失败");
 }
 
+export async function cancelRemoteTask(executionId: string): Promise<TaskExecution> {
+  const response = await http.post<unknown, TaskExecution>(`/api/v1/my-tasks/${encodeURIComponent(executionId)}/cancel`);
+  return requireValue<TaskExecution>(response, "任务终止失败");
+}
+
+export async function readRemoteMyTaskDetail(executionId: string): Promise<MyTaskExecutionDetailView> {
+  const response = await http.get<unknown, MyTaskExecutionDetailView>(
+    `/api/v1/my-tasks/${encodeURIComponent(executionId)}`
+  );
+  return requireValue<MyTaskExecutionDetailView>(response, "任务执行详情不可用");
+}
+
+export async function createRemoteManualSubmission(
+  executionId: string,
+  description: string,
+  files: File[]
+): Promise<ManualSubmission> {
+  const body = new FormData();
+  body.append("request", new Blob([JSON.stringify({ description })], { type: "application/json" }));
+  files.forEach((file) => body.append("files", file));
+  const response = await http.post<FormData, ManualSubmission>(
+    `/api/v1/my-tasks/${encodeURIComponent(executionId)}/manual-submissions`,
+    body
+  );
+  return requireValue(response, "交付产物重新上传失败");
+}
+
+export async function downloadRemoteManualSubmissionFile(file: ManualSubmissionFile) {
+  const blob = await http.get<unknown, Blob>(file.downloadUrl, { responseType: "blob" });
+  const url = URL.createObjectURL(requireValue(blob, "人工补交文件下载失败"));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = file.filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+export function getMyTaskArtifactDownloadHref(executionId: string, fileId: string, downloadUrl?: string) {
+  if (downloadUrl) {
+    if (/^https?:\/\//.test(downloadUrl)) return downloadUrl;
+    if (downloadUrl.startsWith(API_BASE_URL)) return downloadUrl;
+    return `${API_BASE_URL}${downloadUrl.startsWith("/") ? downloadUrl : `/${downloadUrl}`}`;
+  }
+
+  return `${API_BASE_URL}/api/v1/my-tasks/${encodeURIComponent(executionId)}/artifacts/${encodeURIComponent(fileId)}/download`;
+}
+
+function getMyTaskArtifactDownloadPath(executionId: string, fileId: string, downloadUrl?: string) {
+  const path = downloadUrl?.trim();
+  if (path) {
+    if (path.startsWith(API_BASE_URL)) {
+      const unprefixed = path.slice(API_BASE_URL.length);
+      return unprefixed.startsWith("/") ? unprefixed : `/${unprefixed}`;
+    }
+    return path.startsWith("/") || /^https?:\/\//.test(path) ? path : `/${path}`;
+  }
+
+  return `/api/v1/my-tasks/${encodeURIComponent(executionId)}/artifacts/${encodeURIComponent(fileId)}/download`;
+}
+
+export async function downloadRemoteMyTaskArtifact(executionId: string, fileId: string, downloadUrl?: string): Promise<Blob> {
+  return http.get<Blob, Blob>(getMyTaskArtifactDownloadPath(executionId, fileId, downloadUrl), {
+    responseType: "blob",
+    headers: { Accept: "application/octet-stream" }
+  });
+}
+
 export async function submitRemoteAppeal(executionId: string, reason: string): Promise<AppealRecord> {
   if(isMockExecution(executionId)) throw new Error("该执行记录暂不支持申诉");
   const response = await appealApi.submit({ submitAppealRequest: { executionId, reason } });
   return requireValue<AppealRecord>(response, "申诉提交失败");
+}
+
+export async function updateRemoteAccountProfile(input: AccountProfileUpdate): Promise<Partial<SprixState["account"]>> {
+  const response = await http.patch<unknown, UserAccount>("/api/v1/account/profile", input);
+  return mapAccount(requireValue<UserAccount>(response, "账户资料保存失败"));
+}
+
+export async function sendPhoneChangeSmsCode(input: {
+  readonly mobile: string;
+  readonly challengeId: string;
+  readonly challengeAnswer: string;
+}): Promise<SmsCodeResponse> {
+  const response = await http.post<unknown, SmsCodeResponse>("/api/v1/account/phone-change/sms-codes", input);
+  return requireValue<SmsCodeResponse>(response, "验证码发送失败");
+}
+
+export async function confirmRemotePhoneChange(input: {
+  readonly mobile: string;
+  readonly code: string;
+}): Promise<Partial<SprixState["account"]>> {
+  const response = await http.post<unknown, UserAccount>("/api/v1/account/phone-change/confirm", input);
+  return mapAccount(requireValue<UserAccount>(response, "手机号更换失败"));
+}
+
+export async function cancelRemoteAccount(): Promise<void> {
+  await http.delete<unknown, boolean>("/api/v1/account");
+  localStorage.removeItem(TOKEN_KEY);
 }
 
 export async function bindRemoteWithdrawalAccount(account: string, verifiedName: string): Promise<WithdrawalAccount> {
@@ -472,24 +859,29 @@ export async function readRemoteAlipayBindStatus(sessionId: string): Promise<Ali
     status: normalizedStatus,
     expiresInSeconds: status.expiresInSeconds ?? 0,
     withdrawalAccount: status.withdrawalAccount,
-    completed: normalizedStatus === "COMPLETED" && Boolean(status.withdrawalAccount)
+    completed: isCompletedAlipayBindStatus(normalizedStatus)
   };
 }
 
-export async function initializeRemoteFaceVerification(): Promise<FaceVerificationSession> {
-  const response = await accountApi.initializeFaceVerification();
+export async function initializeRemoteFaceVerification(identity: FaceVerificationIdentity): Promise<FaceVerificationSession> {
+  const response = await accountApi.initializeFaceVerification({ initializeFaceVerificationRequest: identity });
   return requireValue<FaceVerificationSession>(response, "支付宝人脸核验初始化失败");
 }
 
-export async function completeRemoteFaceVerification(): Promise<Partial<SprixState["account"]>> {
-  const response = await accountApi.completeRealPersonVerification();
+export async function completeRemoteFaceVerification(certifyId: string): Promise<Partial<SprixState["account"]>> {
+  const response = await accountApi.completeRealPersonVerification({ completeFaceVerificationRequest: { certifyId } });
   const account = requireValue<UserAccount>(response, "支付宝人脸核验确认失败");
   return mapAccount(account);
 }
 
-export async function completeRemoteRealPersonVerification(): Promise<Partial<SprixState["account"]>> {
-  const response = await accountApi.completeRealPersonVerification();
+export async function completeRemoteRealPersonVerification(certifyId: string): Promise<Partial<SprixState["account"]>> {
+  const response = await accountApi.completeRealPersonVerification({ completeFaceVerificationRequest: { certifyId } });
   return mapAccount(requireValue<UserAccount>(response, "实人认证状态确认失败"));
+}
+
+export async function readRemoteWithdrawalAccountState(): Promise<Partial<SprixState["account"]>> {
+  const response = await accountApi.currentWithdrawalAccount();
+  return mapWithdrawalAccountState(response);
 }
 
 export async function signRemoteFreelancerAgreement(): Promise<Partial<SprixState["account"]>> {
@@ -506,13 +898,27 @@ export function mapRemoteWithdrawal(record: WithdrawalRecord): Withdrawal {
     userPhone: "",
     verifiedName: "-",
     alipayAccount: record.alipayAccount ?? "-",
-    realNameMatchStatus: record.realNameMatchStatus === "PASSED" ? "已通过" : "未通过",
+    realNameMatchStatus: record.realNameMatchStatus === "PASSED" ? "可用" : "待授权",
     withdrawableBalance: record.amount ?? 0,
     applyAmount: record.amount ?? 0,
-    estimatedArrivalTime: record.estimatedArrivalTime ?? "-",
+    estimatedArrivalTime: formatEstimatedArrivalTime(record.estimatedArrivalTime),
     appliedAt: formatDateTime(record.appliedAt ?? record.createdAt),
     withdrawStatus: mapWithdrawStatus(record.status),
     reviewer: record.reviewer ?? "-"
+  };
+}
+
+function mapRemotePayout(record: WithdrawalRecord): Payout {
+  return {
+    backendId: record.id,
+    withdrawalNo: record.withdrawalNo ?? record.id ?? "",
+    userName: compactId(record.userId, "用户"),
+    userPhone: "",
+    alipayAccount: record.alipayAccount ?? "-",
+    payoutAmount: record.amount ?? 0,
+    estimatedArrivalTime: formatEstimatedArrivalTime(record.estimatedArrivalTime),
+    approvedAt: formatDateTime(record.payoutCompletedAt ?? record.reviewedAt ?? record.appliedAt ?? record.createdAt),
+    withdrawStatus: mapWithdrawStatus(record.status)
   };
 }
 
@@ -521,20 +927,30 @@ function requireValue<T>(value: T | undefined, fallbackMessage: string): T {
   return value;
 }
 
-function listValue<T>(value: T[] | undefined | null): T[] {
-  return value ?? [];
+function listValue<T>(value: T[] | { content?: T[] | null } | undefined | null): T[] {
+  if (Array.isArray(value)) return value;
+  if (value && typeof value === "object" && Array.isArray(value.content)) return value.content;
+  return [];
+}
+
+function agentListValue(value: RemoteAgentListResponse | undefined | null): RemoteAgentProfileResponse[] {
+  if (value && typeof value === "object" && !Array.isArray(value) && Array.isArray(value.agents)) return value.agents;
+  return listValue<RemoteAgentProfileResponse>(value);
 }
 
 function mapAccount(account: UserAccount): Partial<SprixState["account"]> {
+  const accountWithPhone = account as UserAccount & { phoneVerified?: boolean | null };
+  const phoneVerified = accountWithPhone.phoneVerified === true;
   return {
     nickname: account.nickname ?? "",
-    email: account.email ?? "",
+    avatarUrl: resolveApiAssetUrl(account.avatarUrl),
     phone: account.phone ?? "",
-    maskedPhone: maskPhone(account.phone),
-    phoneVerified: Boolean(account.phone),
+    maskedPhone: phoneVerified ? maskPhone(account.phone) : "",
+    phoneVerified,
     qualificationStatus: mapQualificationStatus(account.qualificationStatus),
     realPersonVerified: Boolean(account.realPersonVerified),
     freelancerAgreementSigned: Boolean(account.freelancerAgreementSigned),
+    freelancerAgreementSignedAt: formatDateTime(account.freelancerAgreementSignedAt),
     withdrawableAmount: account.withdrawableAmount ?? 0
   };
 }
@@ -544,17 +960,25 @@ export function mapWithdrawalAccountState(account?: WithdrawalAccount | null): P
     return {
       alipayBound: false,
       alipayAccountMasked: "",
+      alipayVerifiedName: "",
       alipayRealNameMatched: false,
       withdrawAccountStatus: "未绑定"
     };
   }
 
+  const payoutReady = Boolean(account.alipayUserId);
   return {
     alipayBound: true,
     alipayAccountMasked: account.alipayAccount ?? "",
-    alipayRealNameMatched: Boolean(account.realNameMatched),
-    withdrawAccountStatus: account.realNameMatched ? "可用" : "需更换"
+    alipayVerifiedName: account.verifiedName ?? "",
+    alipayRealNameMatched: payoutReady,
+    withdrawAccountStatus: payoutReady ? "可用" : "需更换"
   };
+}
+
+function isCompletedAlipayBindStatus(status: string) {
+  const normalizedStatus = status.toUpperCase();
+  return ["COMPLETED", "SUCCESS", "SUCCEEDED", "AUTHORIZED", "BOUND"].includes(normalizedStatus);
 }
 
 function mapTask(task: TaskEntity): Task {
@@ -570,6 +994,7 @@ function mapTask(task: TaskEntity): Task {
     deliverables: task.deliverables ?? "",
     acceptanceCriteria: task.acceptanceCriteria ?? "",
     reward: task.reward ?? 0,
+    estimatedTokens: task.estimatedTokens ?? null,
     totalSlots: task.totalSlots ?? 0,
     remainingSlots: task.remainingSlots ?? 0,
     publishedAt: formatDateTime(task.publishedAt ?? task.createdAt),
@@ -589,55 +1014,158 @@ function mapTask(task: TaskEntity): Task {
 
 export function mapTaskRecommendation(recommendation: TaskRecommendationResponse): Task {
   const task = mapTask(requireValue(recommendation.task, "推荐任务数据不可用"));
+  const recommendedReason = normalizeRecommendationReason(recommendation.recommendedReason);
   return {
     ...task,
     agentMatchScore: recommendation.matchScore ?? 0,
     recommendedTaskType: task.category,
     suggestedTeam: recommendation.suggestedTeam ?? "",
-    matchAnalysis: recommendation.matchAnalysis ?? "",
-    riskPrompt: recommendation.autoAcceptEligible ? "匹配度超过 95%，可触发智能接单。" : "匹配度未超过 95%，仅按评分推荐，不自动接单。",
-    recommendedReason: recommendation.recommendedReason ?? ""
+    matchAnalysis: "",
+    riskPrompt: recommendation.autoAcceptEligible ? "当前匹配度可触发智能接单。" : "当前匹配度仅按评分推荐，不自动接单。",
+    recommendedReason
   };
+}
+
+function normalizeRecommendationReason(reason?: string | null) {
+  const text = reason?.trim() ?? "";
+  return text === "按当前执行 Agent 匹配度推荐。" ? "" : text;
+}
+
+function mapRemoteAgentsResult(response: RemoteAgentListResponse | undefined | null): RemoteAgentsResult {
+  if (Array.isArray(response)) {
+    return {
+      agents: sortCodexFirst(response.map(mapAgent)),
+      localAgent: undefined,
+      currentAgentId: null
+    };
+  }
+
+  const agents = sortCodexFirst(agentListValue(response).map(mapAgent));
+  const currentAgent = response?.currentAgentId
+    ? agents.find((agent) => agent.id === response.currentAgentId && isAgentExecutionEligible(agent))
+    : undefined;
+  return {
+    agents,
+    localAgent: mapLocalAgentDiagnostic(response?.localAgent),
+    currentAgentId: currentAgent?.id ?? null
+  };
+}
+
+function sortCodexFirst(agents: Agent[]) {
+  return [...agents].sort((left, right) => Number(isCodexAgent(right)) - Number(isCodexAgent(left)));
+}
+
+function isCodexAgent(agent: Agent) {
+  return agent.name?.trim()?.toLowerCase()?.startsWith("codex");
+}
+
+function mapLocalAgentDiagnostic(localAgent?: LocalAgentDiagnosticResponse | null): LocalAgentDiagnostic | undefined {
+  if (!localAgent) return undefined;
+  const inventoryStatus = normalizeLocalAgentInventoryStatus(localAgent.inventoryStatus);
+  return {
+    bound: localAgent.bound === true,
+    deviceId: localAgent.deviceId ?? "",
+    connectionStatus: localAgent.connectionStatus ?? "",
+    inventoryStatus,
+    reportedInventoryStatus: localAgent.reportedInventoryStatus ?? "",
+    inventoryUpdatedAt: localAgent.inventoryUpdatedAt ?? null,
+    lastSeenAt: localAgent.lastSeenAt ?? null,
+    lastWsConnectedAt: localAgent.lastWsConnectedAt ?? null,
+    lastWsDisconnectedAt: localAgent.lastWsDisconnectedAt ?? null,
+    totalAgentCount: localAgent.totalAgentCount ?? null,
+    availableAgentCount: localAgent.availableAgentCount ?? null,
+    reportedAgentIds: listValue(localAgent.reportedAgentIds).filter(Boolean),
+    message: localAgent.message ?? ""
+  };
+}
+
+function normalizeLocalAgentInventoryStatus(status?: string | null): LocalAgentInventoryStatus {
+  if (status && localAgentInventoryStatuses.has(status as LocalAgentInventoryStatus)) {
+    return status as LocalAgentInventoryStatus;
+  }
+  return "UNKNOWN";
 }
 
 function mapAgent(agent: RemoteAgentProfileResponse): Agent {
   const status = mapAgentStatus(agent.status);
-  const tags = splitTags(agent.abilityTags);
   const evaluation = normalizeOptionalAgentEvaluation(agent.evaluation);
-  const score = evaluation?.result.overallScore ?? agent.score ?? null;
+  const currentExecution = Boolean(agent.currentExecution) && evaluation?.status === "completed";
+  const tags = evaluation?.result.abilityTags ?? [];
+  const score = evaluation?.result.overallScore ?? null;
   return {
     id: agent.id ?? "",
     name: agent.name ?? "",
     status,
-    role: agent.currentExecution ? "当前执行 Agent" : status === "离线" ? "离线 Agent" : "可用 Agent",
+    role: currentExecution ? "当前执行 Agent" : status === "离线" ? "离线 Agent" : "可用 Agent",
     score,
-    lastEvaluatedAt: formatDateTime(agent.lastEvaluatedAt ?? evaluation?.completedAt),
+    lastEvaluatedAt: evaluation?.lastEvaluatedAt ?? "",
     summary: tags.join("、"),
     tags,
+    authStatus: normalizeAgentAuthStatus(agent),
     evaluation
   };
 }
 
+function isAgentExecutionEligible(agent?: Agent): agent is Agent {
+  return Boolean(agent && agent.role === "当前执行 Agent" && agent.evaluation?.status === "completed");
+}
+
+function isActiveEvaluationStatus(status: AgentEvaluationStatus): status is Extract<AgentEvaluationStatus, "running" | "judging"> {
+  return status === "running" || status === "judging";
+}
+
+function normalizeAgentAuthStatus(agent: RemoteAgentProfileResponse): Agent["authStatus"] {
+  const status = agent.authStatus?.trim().toLowerCase();
+  if (status === "authenticated" || status === "login_required") return status;
+  if (status === "unauthenticated" || status === "not_authenticated" || status === "not_logged_in") return "login_required";
+  if (agent.authenticated === true) return "authenticated";
+  if (agent.authenticated === false) return "login_required";
+  if (agent.status !== "DISCONNECTED" && isClaudeCodeAgentName(agent.name)) return "login_required";
+  return "unknown";
+}
+
+function isClaudeCodeAgentName(name?: string | null) {
+  return name?.trim().toLowerCase().includes("claude") === true;
+}
+
 function normalizeOptionalAgentEvaluation(evaluation?: RemoteAgentEvaluation | null) {
-  if (!evaluation?.evaluationId) return undefined;
+  if (!evaluation) return undefined;
+  const hasEvaluation =
+    Boolean(evaluation.evaluationId || evaluation.status || evaluation.result?.status || evaluation.summary || evaluation.error) ||
+    evaluation.overallScore != null ||
+    evaluation.result?.overallScore != null ||
+    listValue(evaluation.steps).length > 0;
+  if (!hasEvaluation) return undefined;
   return normalizeAgentEvaluation(evaluation);
 }
 
 function normalizeAgentEvaluation(evaluation: RemoteAgentEvaluation): AgentEvaluation {
-  const status = normalizeEvaluationStatus(evaluation.status ?? evaluation.result?.status);
+  const resultStatus = evaluation.result?.status;
+  const terminalResultStatus = resultStatus === "completed" || resultStatus === "failed" ? resultStatus : undefined;
+  const status = normalizeEvaluationStatus(terminalResultStatus ?? evaluation.status ?? resultStatus);
+  const normalizedResultStatus = status === "completed" || status === "failed" ? status : resultStatus ?? status;
   const steps = normalizeEvaluationSteps(evaluation.steps);
   const transcript = normalizeEvaluationTranscript(evaluation.transcript);
-  const resultPayload = evaluation.result ?? {
-    status: evaluation.status,
-    mode: evaluation.mode,
-    overallScore: evaluation.overallScore,
-    dimensions: evaluation.dimensions,
-    summary: evaluation.summary,
-    improvements: evaluation.improvements,
-    steps: evaluation.steps,
-    transcript: evaluation.transcript,
-    error: evaluation.error
-  };
+  const resultPayload = evaluation.result
+    ? {
+        ...evaluation.result,
+        status: normalizedResultStatus,
+        careerProfile: evaluation.result.careerProfile ?? evaluation.careerProfile,
+        abilityTags: evaluation.result.abilityTags ?? evaluation.abilityTags
+      }
+    : {
+        status: normalizedResultStatus,
+        mode: evaluation.mode,
+        overallScore: evaluation.overallScore,
+        dimensions: evaluation.dimensions,
+        careerProfile: evaluation.careerProfile,
+        abilityTags: evaluation.abilityTags,
+        summary: evaluation.summary,
+        improvements: evaluation.improvements,
+        steps: evaluation.steps,
+        transcript: evaluation.transcript,
+        error: evaluation.error
+      };
   return {
     evaluationId: evaluation.evaluationId ?? "",
     agentId: evaluation.agentId ?? "",
@@ -649,6 +1177,7 @@ function normalizeAgentEvaluation(evaluation: RemoteAgentEvaluation): AgentEvalu
     result: normalizeEvaluationResult(resultPayload, status, steps, transcript),
     startedAt: evaluation.startedAt ?? "",
     completedAt: evaluation.completedAt ?? null,
+    lastEvaluatedAt: formatDateTime(evaluation.lastEvaluatedAt) || null,
     createdAt: evaluation.createdAt ?? "",
     updatedAt: evaluation.updatedAt ?? ""
   };
@@ -667,6 +1196,8 @@ function normalizeEvaluationResult(
     mode: result?.mode ?? "",
     overallScore: result?.overallScore ?? null,
     dimensions: normalizeEvaluationDimensions(result?.dimensions),
+    careerProfile: normalizeCareerProfile(result?.careerProfile),
+    abilityTags: listValue(result?.abilityTags).filter(Boolean),
     summary: result?.summary ?? "",
     improvements: listValue(result?.improvements).filter(Boolean),
     steps: steps.length > 0 ? steps : fallbackSteps,
@@ -675,7 +1206,19 @@ function normalizeEvaluationResult(
   };
 }
 
+function normalizeCareerProfile(profile?: RemoteAgentCareerProfile | null) {
+  if (!profile || typeof profile !== "object") return null;
+  return {
+    roleCode: profile.roleCode ?? "",
+    roleName: profile.roleName ?? "",
+    confidence: profile.confidence ?? null,
+    reason: profile.reason ?? ""
+  };
+}
+
 function normalizeEvaluationDimensions(dimensions?: Record<string, RemoteAgentEvaluationDimension | null> | null): Record<string, AgentEvaluationDimension> {
+  if (!dimensions || typeof dimensions !== "object" || Array.isArray(dimensions)) return {};
+
   return Object.fromEntries(
     Object.entries(dimensions ?? {}).map(([key, value]) => [
       key,
@@ -709,7 +1252,8 @@ function normalizeEvaluationTranscript(transcript?: RemoteAgentEvaluationTranscr
 }
 
 function normalizeEvaluationStatus(status?: string | null): AgentEvaluationStatus {
-  if (status === "judging" || status === "completed" || status === "failed") return status;
+  const normalized = status?.trim().toLowerCase();
+  if (normalized === "not_started" || normalized === "running" || normalized === "judging" || normalized === "completed" || normalized === "failed") return normalized;
   return "running";
 }
 
@@ -722,6 +1266,7 @@ function mapMyTask(record: MyTaskExecutionDetail, taskById: Map<string, Task>, a
     title: task?.title ?? record.task?.title ?? "",
     category: task?.category ?? record.task?.category ?? "",
     reward: task?.reward ?? record.task?.reward ?? 0,
+    estimatedTokens: task?.estimatedTokens ?? record.task?.estimatedTokens ?? null,
     status: mapMyTaskStatus(record.status),
     agentId: record.agentId ?? "",
     agentName: agent?.name ?? record.agent?.name ?? "",
@@ -800,26 +1345,28 @@ function mapOfflineReason(reason?: string) {
 }
 
 function mapCurrentNode(node?: string) {
+  const normalized = node?.trim().toUpperCase();
   const nodes: Record<string, string> = {
     PLATFORM_ACCEPTANCE: "平台验收",
     PLATFORM_REVIEWING: "平台审核中",
-    platform_reviewing: "平台审核中",
-    platform_rejected: "平台审核不通过",
-    reward_recording: "报酬记录中",
+    PLATFORM_REJECTED: "平台审核不通过",
+    REWARD_RECORDING: "报酬记录中",
     SETTLEMENT: "报酬入账",
     GENERATING: "生成结果",
     GENERATING_RESULT: "生成结果",
+    RUNTIME_PROBE: "执行探测",
+    ANALYZING_TASK: "任务理解",
+    RUNNING: "执行中",
     QUALITY_CHECK: "质量检查"
   };
-  return node ? nodes[node] ?? node : "执行中";
+  return normalized ? nodes[normalized] ?? node : "执行中";
 }
 
 function splitTags(tags?: string) {
   return (tags ?? "")
     .split(",")
     .map((tag) => tag.trim())
-    .filter(Boolean)
-    .map((tag) => tagText[tag] ?? tag);
+    .filter(Boolean);
 }
 
 function formatDateTime(value?: string | null) {

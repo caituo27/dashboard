@@ -1,13 +1,21 @@
-import type { Agent } from "../types";
+import type { Agent, AgentEvaluation } from "../types";
 import { scoreText } from "../utils/format";
 
-const evaluationDimensionLabels: Record<string, string> = {
+export const evaluationDimensionLabels: Record<string, string> = {
   clarity: "表达清晰",
   completeness: "覆盖完整",
   safety: "安全边界",
   maintainability: "改动边界",
   specificity: "项目理解",
   efficiency: "执行效率"
+};
+
+const agentEvaluationStatusLabels: Record<AgentEvaluation["status"], string> = {
+  not_started: "未测评",
+  running: "能力画像生成中",
+  judging: "能力画像评分中",
+  completed: "能力画像已生成",
+  failed: "测评失败"
 };
 
 export type AgentAdmissionSummary = {
@@ -42,8 +50,8 @@ export function getAgentAdmissionSummary(agent: Agent): AgentAdmissionSummary {
     title: agent.name,
     status: agent.status,
     role: agent.role,
-    score: scoreText(agent.score),
-    lastEvaluatedAt: agent.lastEvaluatedAt || "待后端返回",
+    score: scoreText(agent.evaluation?.result.overallScore ?? null),
+    lastEvaluatedAt: agent.evaluation?.lastEvaluatedAt || "-",
     summary: agent.summary,
     tags: agent.tags
   };
@@ -51,6 +59,10 @@ export function getAgentAdmissionSummary(agent: Agent): AgentAdmissionSummary {
 
 export function getAgentTagLabels(tags: string[]) {
   return tags;
+}
+
+export function getAgentEvaluationStatusLabel(evaluation?: Agent["evaluation"]) {
+  return evaluation ? agentEvaluationStatusLabels[evaluation.status] : "未测评";
 }
 
 export function getAgentAbilityResult(agent?: Agent): AgentAbilityResult {
@@ -69,7 +81,7 @@ export function getAgentAbilityResult(agent?: Agent): AgentAbilityResult {
     return {
       kind: "empty",
       title: "测评失败，可重新评测",
-      description: evaluationResult?.error || "本次评测未完成，可以从 Agent 列表重新发起。"
+      description: "本次测评未完成，可以从 Agent 列表重新发起。"
     };
   }
 
@@ -107,8 +119,12 @@ export function hasPendingAgentEvaluation(agent?: Pick<Agent, "evaluation"> | nu
   return status === "running" || status === "judging";
 }
 
+export function canSetAgentCurrent(agent: Pick<Agent, "evaluation">) {
+  return agent.evaluation?.status === "completed" || agent.evaluation?.result.status === "completed";
+}
+
 export function getCurrentAgentScoreMetric(agent?: Agent) {
-  return scoreText(agent?.score);
+  return scoreText(agent?.evaluation?.result.overallScore ?? null);
 }
 
 export function getAgentProfileEditAction(): AgentProfileEditAction {

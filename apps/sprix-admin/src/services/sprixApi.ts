@@ -9,9 +9,10 @@ import {
   type AuthTokenResponse,
   type FundFlow as ApiFundFlow,
   type AdminTaskDetail,
-  type SettlementRecord,
+  type SettlementRecordRow,
   type TaskEntity,
-  type WithdrawalRecord
+  type WithdrawalRecord,
+  type WithdrawalRecordRow
 } from "../apis/sprix";
 import type {
   AdminAppeal,
@@ -49,8 +50,22 @@ export type UpsertAdminTaskPayload = {
   description: string;
   deliverables: string;
   acceptanceCriteria: string;
-  reward: number;
   totalSlots: number;
+  pricingQuoteId?: string;
+};
+
+export type TaskPricingEstimateRequest = Omit<UpsertAdminTaskPayload, "pricingQuoteId">;
+
+export type TaskPricingEstimate = {
+  quoteId: string;
+  estimatedTokens: number;
+  tokensPerUnit: number;
+  unitPriceYuan: number;
+  perParticipantAmount: number;
+  totalAmount: number;
+  model: string;
+  expiresAt: string;
+  summary: string;
 };
 
 export type AdminTaskCenterSnapshot = {
@@ -62,8 +77,82 @@ export type AdminTaskCenterSnapshot = {
 
 export type AdminTaskDetailView = {
   task: Task;
+  attachments: TaskAttachment[];
   records: AdminExecutionRecords[string];
   operationLogs: AdminOperationLog[];
+};
+
+export type TaskAttachment = {
+  attachmentId: string;
+  fileId: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  sha256: string;
+  sortOrder: number;
+  downloadUrl: string;
+  createdAt: string;
+};
+
+export type AdminExecutionResult = {
+  executionId: string;
+  taskId: string;
+  executionStatus: string;
+  reviewSource?: "AGENT" | "USER_MANUAL";
+  output?: {
+    exitCode?: number | null;
+    finalMessage?: string | null;
+    inputTokens?: number | null;
+    outputTokens?: number | null;
+    receivedAt?: string | null;
+  } | null;
+  artifacts: Array<{
+    artifactId: string;
+    fileId: string;
+    role: string;
+    name: string;
+    mimeType: string;
+    sizeBytes: number;
+    sha256: string;
+    localRelativePath: string;
+    downloadUrl: string;
+    receivedAt: string;
+  }>;
+  acceptance?: {
+    acceptanceId: string;
+    status: string;
+    score?: number | null;
+    summary?: string | null;
+    issues?: string | string[] | null;
+    failureReasons?: string | string[] | null;
+    improvementSuggestions?: string | string[] | null;
+    details?: Record<string, unknown> | null;
+    mappedBusinessStatus?: string | null;
+    receivedAt?: string | null;
+  } | null;
+  manualSubmissions?: ManualSubmission[];
+};
+
+export type ManualSubmission = {
+  submissionId: string;
+  submissionNo: number;
+  source: "USER_MANUAL";
+  status: "PENDING_REVIEW" | "APPROVED" | "REJECTED";
+  description?: string | null;
+  reviewReason?: string | null;
+  submittedAt: string;
+  reviewedAt?: string | null;
+  files: Array<{
+    id: string;
+    fileId: string;
+    filename: string;
+    mimeType: string;
+    sizeBytes: number;
+    sha256: string;
+    sortOrder: number;
+    downloadUrl: string;
+    createdAt: string;
+  }>;
 };
 
 export type AdminFundsSnapshot = {
@@ -74,8 +163,23 @@ export type AdminFundsSnapshot = {
   fundFlows: FundFlow[];
 };
 
+type AppealReviewRequest = {
+  reason?: string;
+};
+
+type RemoteTaskEntity = TaskEntity & {
+  estimatedTokens?: number | null;
+  tokenBillingUnit?: number | null;
+  tokenUnitPrice?: number | null;
+  totalAmount?: number | null;
+  pricingModel?: string | null;
+  pricingQuoteId?: string | null;
+  pricingEstimatedAt?: string | null;
+};
+
 type RemoteAdminTaskDetail = {
-  task: TaskEntity;
+  task: RemoteTaskEntity;
+  attachments?: TaskAttachment[];
   executions: RemoteAdminExecutionRow[];
   operationLogs?: RemoteAuditLog[];
 };
@@ -83,6 +187,10 @@ type RemoteAdminTaskDetail = {
 type RemoteAuditLog = {
   id?: string;
   action?: string;
+  operator?: string;
+  operatorName?: string;
+  createdBy?: string;
+  adminName?: string;
   beforeStatus?: string;
   afterStatus?: string;
   reason?: string;
@@ -90,7 +198,7 @@ type RemoteAuditLog = {
 };
 
 type RemoteAdminTaskSummary = {
-  task: TaskEntity;
+  task: RemoteTaskEntity;
   executionTotal?: number;
   runningExecutionCount?: number;
   reviewingExecutionCount?: number;
@@ -106,11 +214,27 @@ type RemoteAdminExecutionRow = {
   agentName?: string;
   agentScore?: number | null;
   executionStatus?: string;
+  acceptanceStatus?: string;
+  acceptanceScore?: number | null;
+  acceptanceSummary?: string;
+  acceptanceIssues?: string | string[];
+  acceptancePayload?: string;
+  reviewSource?: "AGENT" | "USER_MANUAL";
+  manualSubmissionNo?: number | null;
+  manualSubmissionDescription?: string | null;
+  score?: number | null;
+  summary?: string;
+  issues?: string | string[];
+  failureReasons?: string | string[];
+  improvementSuggestions?: string | string[];
+  acceptance?: RemoteAcceptanceSnapshot;
   currentNode?: string;
+  currentNodeLabel?: string;
   progress?: string;
   terminationReason?: string;
   appealStatus?: string;
   settlementStatus?: string;
+  submittedAt?: string;
   startedAt?: string;
   updatedAt?: string;
   completedAt?: string;
@@ -118,6 +242,7 @@ type RemoteAdminExecutionRow = {
 
 type RemoteAcceptanceReviewRow = {
   executionId?: string;
+  executionIndex?: number;
   taskId?: string;
   taskTitle?: string;
   taskCategory?: string;
@@ -128,13 +253,38 @@ type RemoteAcceptanceReviewRow = {
   acceptanceStatus?: string;
   acceptanceScore?: number | null;
   acceptanceSummary?: string;
-  acceptanceIssues?: string;
+  acceptanceIssues?: string | string[];
+  acceptancePayload?: string;
+  reviewSource?: "AGENT" | "USER_MANUAL";
+  manualSubmissionNo?: number | null;
+  manualSubmissionDescription?: string | null;
+  score?: number | null;
+  summary?: string;
+  issues?: string | string[];
+  failureReasons?: string | string[];
+  improvementSuggestions?: string | string[];
+  acceptance?: RemoteAcceptanceSnapshot;
   currentNode?: string;
+  currentNodeLabel?: string;
   progress?: string;
   submittedAt?: string;
   startedAt?: string;
   updatedAt?: string;
 };
+
+type RemoteAcceptanceSnapshot = {
+  status?: string;
+  score?: number | null;
+  summary?: string;
+  issues?: string | string[];
+  failureReasons?: string | string[];
+  improvementSuggestions?: string | string[];
+  acceptancePayload?: string;
+};
+
+type RemoteSettlementRecord = SettlementRecordRow;
+
+type RemoteWithdrawalRecord = WithdrawalRecordRow;
 
 type RemoteAdminAppealDetail = {
   appeal: AppealRecord;
@@ -190,19 +340,71 @@ export async function readRemoteTaskDetail(taskId: string): Promise<AdminTaskDet
   const task = mapTask(requireObject(detail.task, "task"));
   return {
     task,
+    attachments: listValue<TaskAttachment>(detail.attachments),
     records: mapAdminExecutionRows(listValue<RemoteAdminExecutionRow>(detail.executions)),
     operationLogs: listValue<RemoteAuditLog>(detail.operationLogs).map(mapOperationLog)
   };
 }
 
-export async function createRemoteAdminTask(payload: UpsertAdminTaskPayload): Promise<Task> {
-  const task = await adminTaskApi.create({ upsertTaskRequest: payload });
+export async function createRemoteAdminTask(payload: UpsertAdminTaskPayload, files: File[] = []): Promise<Task> {
+  if (files.length === 0) {
+    const task = await http.post<UpsertAdminTaskPayload, RemoteTaskEntity>("/api/v1/admin/tasks", payload);
+    return mapTask(requireValue(task, "任务发布失败"));
+  }
+  const body = taskMultipartBody(payload, files);
+  const task = await http.post<FormData, RemoteTaskEntity>("/api/v1/admin/tasks", body);
   return mapTask(requireValue(task, "任务发布失败"));
 }
 
-export async function updateRemoteAdminTask(taskId: string, payload: UpsertAdminTaskPayload): Promise<Task> {
-  const task = await adminTaskApi.update({ taskId, upsertTaskRequest: payload });
+export async function updateRemoteAdminTask(
+  taskId: string,
+  payload: UpsertAdminTaskPayload,
+  files: File[] = [],
+  retainedAttachmentIds?: string[]
+): Promise<Task> {
+  if (files.length === 0 && retainedAttachmentIds === undefined) {
+    const task = await http.put<UpsertAdminTaskPayload, RemoteTaskEntity>(`/api/v1/admin/tasks/${taskId}`, payload);
+    return mapTask(requireValue(task, "任务保存失败"));
+  }
+  const body = taskMultipartBody(payload, files, retainedAttachmentIds);
+  const task = await http.put<FormData, RemoteTaskEntity>(`/api/v1/admin/tasks/${taskId}`, body);
   return mapTask(requireValue(task, "任务保存失败"));
+}
+
+export async function readRemoteAdminExecutionResult(executionId: string): Promise<AdminExecutionResult> {
+  const result = await http.get<unknown, AdminExecutionResult>(
+    `/api/v1/admin/tasks/executions/${encodeURIComponent(executionId)}/result`
+  );
+  return requireValue(result, "执行提交结果不可用");
+}
+
+export async function downloadRemoteAdminFile(url: string, filename: string) {
+  const blob = await http.get<unknown, Blob>(url, { responseType: "blob" });
+  saveBlob(requireValue(blob, "文件下载失败"), filename);
+}
+
+function taskMultipartBody(payload: UpsertAdminTaskPayload, files: File[], retainedAttachmentIds?: string[]) {
+  const body = new FormData();
+  body.append("request", new Blob([JSON.stringify(payload)], { type: "application/json" }));
+  files.forEach((file) => body.append("files", file));
+  retainedAttachmentIds?.forEach((attachmentId) => body.append("retainedAttachmentIds", attachmentId));
+  return body;
+}
+
+function saveBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+export async function estimateRemoteTaskPricing(payload: TaskPricingEstimateRequest): Promise<TaskPricingEstimate> {
+  const estimate = await http.post<TaskPricingEstimateRequest, TaskPricingEstimate>("/api/v1/admin/tasks/pricing-estimates", payload);
+  return requireValue(estimate, "智能定价失败");
 }
 
 export async function offlineRemoteAdminTask(taskId: string, reason: string): Promise<Task> {
@@ -240,14 +442,14 @@ export function readCachedAppealDetail(id:string) {
 export async function readRemoteFunds(): Promise<AdminFundsSnapshot> {
   const [tasksResponse, settlementsResponse, withdrawalsResponse, flowsResponse] = await Promise.all([
     adminTaskApi.tasks(),
-    adminFundsApi.settlements(),
-    adminFundsApi.withdrawals(),
+    adminFundsApi.settlements1(),
+    adminFundsApi.withdrawals1(),
     adminFundsApi.flows()
   ]);
   const tasks = listValue<TaskEntity>(tasksResponse).map(mapTask);
   const taskById = new Map(tasks.map((task) => [task.id, task]));
-  const settlements = listValue<SettlementRecord>(settlementsResponse).map((item) => mapSettlement(item, taskById));
-  const withdrawals = listValue<WithdrawalRecord>(withdrawalsResponse).map(mapWithdrawal);
+  const settlements = listValue<RemoteSettlementRecord>(settlementsResponse).map((item) => mapSettlement(item, taskById));
+  const withdrawals = listValue<RemoteWithdrawalRecord>(withdrawalsResponse).map(mapWithdrawal);
   return {
     settlements,
     withdrawals,
@@ -261,11 +463,11 @@ export async function readRemoteFunds(): Promise<AdminFundsSnapshot> {
 export async function readRemoteSettlementFunds(): Promise<AdminFundsSnapshot> {
   const [summaries, settlementRows, withdrawalRows] = await Promise.all([
     http.get<unknown, RemoteAdminTaskSummary[]>("/api/v1/admin/tasks/summaries"),
-    adminFundsApi.settlements(), adminFundsApi.withdrawals()
+    adminFundsApi.settlements1(), adminFundsApi.withdrawals1()
   ]);
   const taskById = new Map(listValue<RemoteAdminTaskSummary>(summaries).map(mapTaskSummary).map(task => [task.id, task]));
-  const withdrawals = listValue<WithdrawalRecord>(withdrawalRows).map(mapWithdrawal);
-  return {settlements:listValue<SettlementRecord>(settlementRows).map(row=>mapSettlement(row,taskById)),
+  const withdrawals = listValue<RemoteWithdrawalRecord>(withdrawalRows).map(mapWithdrawal);
+  return {settlements:listValue<RemoteSettlementRecord>(settlementRows).map(row=>mapSettlement(row,taskById)),
     withdrawals,payouts:mapPayouts(withdrawals),fundExceptions:mapFundExceptions(withdrawals),fundFlows:[]};
 }
 
@@ -274,11 +476,11 @@ export async function startRemoteAppeal(appealId: string) {
 }
 
 export async function approveRemoteAppeal(appealId: string, reason?: string) {
-  return adminAppealApi.approve({ appealId }, reason ? { data: { reason } } : undefined);
+  return http.post<AppealReviewRequest, AppealRecord>(`/api/v1/admin/appeals/${encodeURIComponent(appealId)}/approve`, reviewReasonPayload(reason));
 }
 
 export async function rejectRemoteAppeal(appealId: string, reason?: string) {
-  return adminAppealApi.reject({ appealId }, reason ? { data: { reason } } : undefined);
+  return http.post<AppealReviewRequest, AppealRecord>(`/api/v1/admin/appeals/${encodeURIComponent(appealId)}/reject`, reviewReasonPayload(reason));
 }
 
 export async function readRemoteAppealDetail(appealId: string): Promise<AdminAppeal> {
@@ -290,8 +492,18 @@ export async function approveRemoteWithdrawal(withdrawalId: string) {
   return adminFundsApi.approveWithdrawal({ withdrawalId });
 }
 
+export async function approveRemoteWithdrawals(withdrawalIds: string[]): Promise<WithdrawalRecord[]> {
+  const response = await adminFundsApi.approveWithdrawals({ bulkWithdrawalRequest: { withdrawalIds } });
+  return listValue<WithdrawalRecord>(requireValue(response, "批量提现审核失败"));
+}
+
 export async function rejectRemoteWithdrawal(withdrawalId: string, reason: string) {
   return adminFundsApi.rejectWithdrawal({ withdrawalId, withdrawalReviewRequest: { reason } });
+}
+
+export async function rejectRemoteWithdrawals(withdrawalIds: string[], reason: string): Promise<WithdrawalRecord[]> {
+  const response = await adminFundsApi.rejectWithdrawals({ bulkWithdrawalReviewRequest: { withdrawalIds, reason } });
+  return listValue<WithdrawalRecord>(requireValue(response, "批量提现驳回失败"));
 }
 
 export async function postRemoteSettlement(settlementId: string) {
@@ -300,6 +512,11 @@ export async function postRemoteSettlement(settlementId: string) {
 
 export async function markRemoteWithdrawalPaid(withdrawalId: string) {
   return adminFundsApi.markWithdrawalPaid({ withdrawalId });
+}
+
+export async function markRemoteWithdrawalsPaid(withdrawalIds: string[]): Promise<WithdrawalRecord[]> {
+  const response = await adminFundsApi.markWithdrawalsPaid({ bulkWithdrawalRequest: { withdrawalIds } });
+  return listValue<WithdrawalRecord>(requireValue(response, "批量标记已打款失败"));
 }
 
 export async function payRemoteWithdrawal(withdrawalId: string): Promise<WithdrawalRecord> {
@@ -314,6 +531,16 @@ export async function queryRemoteWithdrawalPayout(withdrawalId: string): Promise
 
 export async function markRemoteWithdrawalPayoutFailed(withdrawalId: string) {
   return adminFundsApi.markWithdrawalPayoutFailed({ withdrawalId });
+}
+
+export async function markRemoteWithdrawalsPayoutFailed(withdrawalIds: string[], reason: string): Promise<WithdrawalRecord[]> {
+  const response = await adminFundsApi.markWithdrawalsPayoutFailed({ bulkWithdrawalReviewRequest: { withdrawalIds, reason } });
+  return listValue<WithdrawalRecord>(requireValue(response, "批量标记打款失败提交失败"));
+}
+
+export async function exportRemotePendingPayouts(): Promise<Withdrawal[]> {
+  const response = await adminFundsApi.pendingPayoutExport();
+  return listValue<RemoteWithdrawalRecord>(requireValue(response, "打款清单导出失败")).map(mapWithdrawal);
 }
 
 export async function returnRemoteWithdrawalForReview(withdrawalId: string, reason: string) {
@@ -346,7 +573,7 @@ function listValue<T>(value: T[] | undefined): T[] {
   return value ?? [];
 }
 
-function mapTask(task: TaskEntity): Task {
+function mapTask(task: RemoteTaskEntity): Task {
   const description = task.description ?? "";
   return {
     id: task.id ?? "",
@@ -359,6 +586,13 @@ function mapTask(task: TaskEntity): Task {
     deliverables: task.deliverables ?? "",
     acceptanceCriteria: task.acceptanceCriteria ?? "",
     reward: task.reward ?? 0,
+    estimatedTokens: numberValue(task.estimatedTokens),
+    tokenBillingUnit: numberValue(task.tokenBillingUnit),
+    tokenUnitPrice: numberValue(task.tokenUnitPrice),
+    totalAmount: numberValue(task.totalAmount),
+    pricingModel: task.pricingModel ?? "",
+    pricingQuoteId: task.pricingQuoteId ?? "",
+    pricingEstimatedAt: formatDateTime(task.pricingEstimatedAt),
     totalSlots: task.totalSlots ?? 0,
     remainingSlots: task.remainingSlots ?? 0,
     publishedAt: formatDateTime(task.publishedAt ?? task.createdAt),
@@ -401,8 +635,8 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
         userName: row.userName ?? "-",
         phone: row.userPhone ?? "-",
         agentName: row.agentName ?? "-",
-        terminationReason: row.terminationReason ?? "-",
-        terminatedNode: mapCurrentNode(row.currentNode),
+        terminationReason: mapTerminationReason(row.terminationReason),
+        terminatedNode: mapCurrentNode(row.currentNode, row.currentNodeLabel),
         terminatedAt: formatDateTime(row.completedAt ?? row.updatedAt)
       });
     } else if (row.executionStatus === "RUNNING") {
@@ -413,24 +647,30 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
         phone: row.userPhone ?? "-",
         agentName: row.agentName ?? "-",
         agentScore: row.agentScore == null ? "-" : `${row.agentScore}/100`,
-        currentNode: mapCurrentNode(row.currentNode),
+        currentNode: mapCurrentNode(row.currentNode, row.currentNodeLabel),
         progress: row.progress ?? "-",
         startedAt: formatDateTime(row.startedAt)
       });
     } else if (row.executionStatus === "PLATFORM_REVIEWING") {
       reviewing.push({
         executionId: requireText(row.executionId, "executionId"),
+        executionIndex: row.executionIndex,
         userName: row.userName ?? "-",
         phone: row.userPhone ?? "-",
         agentName: row.agentName ?? "-",
         agentScore: row.agentScore == null ? "-" : `${row.agentScore}/100`,
-        acceptanceStatus: "待平台审核",
-        acceptanceScore: "-",
-        acceptanceSummary: "-",
-        acceptanceIssues: "-",
-        currentNode: mapCurrentNode(row.currentNode),
+        acceptanceStatus: mapAcceptanceStatus(row.acceptanceStatus ?? row.acceptance?.status),
+        acceptanceScore: mapAcceptanceScore(row),
+        acceptanceSummary: mapAcceptanceSummary(row),
+        acceptanceIssues: mapAcceptanceIssues(row),
+        acceptanceFailureReasons: mapAcceptanceFailureReasons(row),
+        acceptanceImprovementSuggestions: mapAcceptanceImprovementSuggestions(row),
+        reviewSource: row.reviewSource ?? "AGENT",
+        manualSubmissionNo: row.manualSubmissionNo ?? undefined,
+        manualSubmissionDescription: row.manualSubmissionDescription ?? undefined,
+        currentNode: mapCurrentNode(row.currentNode, row.currentNodeLabel),
         progress: row.progress ?? "-",
-        submittedAt: formatDateTime(row.completedAt ?? row.updatedAt)
+        submittedAt: formatDateTime(row.submittedAt ?? row.completedAt ?? row.updatedAt)
       });
     } else {
       completed.push({
@@ -440,8 +680,13 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
         phone: row.userPhone ?? "-",
         agentName: row.agentName ?? "-",
         acceptanceStatus: row.executionStatus === "ACCEPTANCE_FAILED" ? "验收未通过" : "验收通过",
+        acceptanceScore: mapAcceptanceScore(row),
+        acceptanceSummary: mapAcceptanceSummary(row),
+        acceptanceIssues: mapAcceptanceIssues(row),
         score: row.agentScore == null ? "-" : `${row.agentScore}/100`,
-        appealStatus: mapAppealStatus(row.appealStatus),
+        currentNode: mapCurrentNode(row.currentNode, row.currentNodeLabel),
+        progress: row.progress ?? "-",
+        appealStatus: ["", "NOT_APPEALED", "NONE"].includes(row.appealStatus?.trim().toUpperCase() ?? "") ? "无申诉" : mapAppealStatus(row.appealStatus),
         settlementStatus: mapSettlementStatus(row.settlementStatus),
         completedAt: formatDateTime(row.completedAt ?? row.updatedAt)
       });
@@ -455,6 +700,7 @@ function mapAcceptanceReview(row: RemoteAcceptanceReviewRow): ReviewingExecution
   const executionId = requireText(row.executionId, "executionId");
   return {
     executionId,
+    executionIndex: row.executionIndex,
     taskId: row.taskId,
     taskTitle: row.taskTitle,
     taskCategory: row.taskCategory,
@@ -462,11 +708,16 @@ function mapAcceptanceReview(row: RemoteAcceptanceReviewRow): ReviewingExecution
     phone: row.userPhone ?? "-",
     agentName: row.agentName ?? "-",
     agentScore: row.agentScore == null ? "-" : `${row.agentScore}/100`,
-    acceptanceStatus: mapAcceptanceStatus(row.acceptanceStatus),
-    acceptanceScore: row.acceptanceScore == null ? "-" : `${row.acceptanceScore}/100`,
-    acceptanceSummary: row.acceptanceSummary || "-",
-    acceptanceIssues: mapAcceptanceIssues(row.acceptanceIssues),
-    currentNode: mapCurrentNode(row.currentNode),
+    acceptanceStatus: mapAcceptanceStatus(row.acceptanceStatus ?? row.acceptance?.status),
+    acceptanceScore: mapAcceptanceScore(row),
+    acceptanceSummary: mapAcceptanceSummary(row),
+    acceptanceIssues: mapAcceptanceIssues(row),
+    acceptanceFailureReasons: mapAcceptanceFailureReasons(row),
+    acceptanceImprovementSuggestions: mapAcceptanceImprovementSuggestions(row),
+    reviewSource: row.reviewSource ?? "AGENT",
+    manualSubmissionNo: row.manualSubmissionNo ?? undefined,
+    manualSubmissionDescription: row.manualSubmissionDescription ?? undefined,
+    currentNode: mapCurrentNode(row.currentNode, row.currentNodeLabel),
     progress: row.progress ?? "-",
     submittedAt: formatDateTime(row.submittedAt ?? row.updatedAt ?? row.startedAt)
   };
@@ -475,9 +726,10 @@ function mapAcceptanceReview(row: RemoteAcceptanceReviewRow): ReviewingExecution
 function mapOperationLog(log: RemoteAuditLog): AdminOperationLog {
   return {
     id: log.id ?? `${log.action ?? "LOG"}-${log.createdAt ?? ""}`,
-    action: log.action ?? "-",
-    beforeStatus: log.beforeStatus ?? "-",
-    afterStatus: log.afterStatus ?? "-",
+    action: mapOperationAction(log.action),
+    operator: log.operator ?? log.operatorName ?? log.createdBy ?? log.adminName ?? "系统",
+    beforeStatus: mapOperationStatus(log.beforeStatus),
+    afterStatus: mapOperationStatus(log.afterStatus),
     reason: log.reason ?? "-",
     occurredAt: formatDateTime(log.createdAt)
   };
@@ -494,13 +746,14 @@ function mapAppealDetail(detail: RemoteAdminAppealDetail): AdminAppeal {
     taskTitle: requireText(detail.taskTitle, "taskTitle"),
     taskCategory: requireText(detail.taskCategory, "taskCategory"),
     userName: requireText(detail.userName, "userName"),
-    userPhone: detail.userPhone?.trim() || "未提供",
+    userPhone: detail.userPhone?.trim() || "-",
     agentName: requireText(detail.agentName, "agentName"),
     issueSummary: reason.slice(0, 32),
     appealReason: reason,
     appealStatus: mapAppealStatus(appeal.status),
     priority: appeal.priority === "HIGH" ? "高风险" : appeal.priority === "URGENT" ? "加急" : "普通",
     submittedAt: formatDateTime(appeal.submittedAt ?? appeal.createdAt),
+    handledAt: appeal.handledAt ? formatDateTime(appeal.handledAt) : undefined,
     handler: appeal.handler ?? "",
     originalScore: detail.agentScore == null ? undefined : `${detail.agentScore}/100`,
     resultDescription: appeal.resultDescription,
@@ -513,15 +766,20 @@ function mapAppealDetail(detail: RemoteAdminAppealDetail): AdminAppeal {
   };
 }
 
-function mapSettlement(settlement: SettlementRecord, taskById: Map<string, Task>): Settlement {
+function reviewReasonPayload(reason?: string): AppealReviewRequest {
+  const trimmedReason = reason?.trim();
+  return trimmedReason ? { reason: trimmedReason } : {};
+}
+
+function mapSettlement(settlement: RemoteSettlementRecord, taskById: Map<string, Task>): Settlement {
   const task = taskById.get(settlement.taskId ?? "");
   return {
     backendId: settlement.id,
     settlementNo: settlement.settlementNo ?? settlement.id ?? "",
     taskTitle: task?.title ?? compactId(settlement.taskId, "任务"),
-    userName: compactId(settlement.userId, "用户"),
-    userPhone: "-",
-    agentName: compactId(settlement.agentId, "Agent"),
+    userName: settlement.userName || compactId(settlement.userId, "用户"),
+    userPhone: settlement.userPhone || "-",
+    agentName: settlement.agentName || compactId(settlement.agentId, "Agent"),
     taskIncome: settlement.taskIncome ?? 0,
     platformFee: settlement.platformFee ?? 0,
     netIncome: settlement.netIncome ?? 0,
@@ -532,15 +790,15 @@ function mapSettlement(settlement: SettlementRecord, taskById: Map<string, Task>
   };
 }
 
-function mapWithdrawal(withdrawal: WithdrawalRecord): Withdrawal {
+function mapWithdrawal(withdrawal: RemoteWithdrawalRecord): Withdrawal {
   return {
     backendId: withdrawal.id,
     withdrawalNo: withdrawal.withdrawalNo ?? withdrawal.id ?? "",
-    userName: compactId(withdrawal.userId, "用户"),
-    userPhone: "-",
-    verifiedName: "-",
+    userName: withdrawal.userName || compactId(withdrawal.userId, "用户"),
+    userPhone: withdrawal.userPhone || "-",
+    verifiedName: withdrawal.verifiedName || "-",
     alipayAccount: withdrawal.alipayAccount ?? "-",
-    realNameMatchStatus: withdrawal.realNameMatchStatus === "PASSED" ? "已通过" : "未通过",
+    realNameMatchStatus: withdrawal.realNameMatchStatus === "PASSED" ? "可用" : "待授权",
     withdrawableBalance: withdrawal.amount ?? 0,
     applyAmount: withdrawal.amount ?? 0,
     estimatedArrivalTime: withdrawal.estimatedArrivalTime ?? "-",
@@ -622,19 +880,68 @@ function mapTaskStatus(status?: string): TaskStatus {
   return "已发布";
 }
 
+function mapOperationAction(action?: string) {
+  const actions: Record<string, string> = {
+    CREATE_TASK: "创建任务",
+    UPDATE_TASK: "编辑任务",
+    OFFLINE_TASK: "下线任务",
+    REPUBLISH_TASK: "重新发布任务",
+    DELETE_TASK: "删除任务",
+    APPROVE_ACCEPTANCE: "平台审核通过",
+    REJECT_ACCEPTANCE: "平台审核不通过",
+    CREATE_EXECUTION: "创建执行记录",
+    CANCEL_EXECUTION: "终止执行",
+    START_SETTLEMENT: "开始结算",
+    POST_SETTLEMENT: "结算入账",
+    CREATE_WITHDRAWAL: "创建提现申请",
+    APPROVE_WITHDRAWAL: "提现审核通过",
+    REJECT_WITHDRAWAL: "提现审核驳回",
+    PAYOUT_WITHDRAWAL: "发起打款",
+    QUERY_PAYOUT: "查询打款结果"
+  };
+  const normalized = action?.trim().toUpperCase();
+  return normalized ? actions[normalized] ?? action : "-";
+}
+
+function mapOperationStatus(status?: string) {
+  const statuses: Record<string, string> = {
+    NONE: "无",
+    PUBLISHED: "已发布",
+    OFFLINE: "已下线",
+    DELETED: "已删除",
+    RUNNING: "执行中",
+    PLATFORM_REVIEWING: "待平台审核",
+    TERMINATED: "已终止",
+    ACCEPTANCE_FAILED: "验收未通过",
+    SETTLING: "结算中",
+    SETTLED: "已结算",
+    COMPLETED: "已完成",
+    POSTED: "已打款",
+    FAILED: "失败",
+    PENDING: "待处理",
+    PROCESSING: "处理中",
+    APPROVED: "已通过",
+    REJECTED: "已驳回"
+  };
+  const normalized = status?.trim().toUpperCase();
+  return normalized ? statuses[normalized] ?? status : "-";
+}
+
 function mapAppealStatus(status?: string): AppealStatus {
-  if (status === "NOT_APPEALED") return "未申诉";
-  if (status === "PENDING") return "待处理";
-  if (status === "PROCESSING") return "处理中";
-  if (status === "APPROVED") return "申诉通过";
-  if (status === "REJECTED") return "申诉不通过";
-  if (status === "NONE") return "无申诉";
+  const normalized = status?.trim().toUpperCase();
+  if (!normalized || normalized === "NOT_APPEALED" || normalized === "NONE") return "未申诉";
+  if (normalized === "PENDING") return "待处理";
+  if (normalized === "PROCESSING") return "处理中";
+  if (normalized === "NEED_SUPPLEMENT") return "需补充材料";
+  if (normalized === "APPROVED") return "申诉通过";
+  if (normalized === "REJECTED") return "申诉不通过";
   return "待处理";
 }
 
 function mapSettlementStatus(status?: string): SettlementStatus {
   if (status === "SETTLING") return "结算中";
-  if (status === "POSTED" || status === "SETTLED") return "已入账";
+  if (status === "SETTLED") return "已结算";
+  if (status === "POSTED") return "已打款";
   if (status === "FAILED") return "结算异常";
   return "未入账";
 }
@@ -655,23 +962,51 @@ function mapSourceType(type?: string) {
 }
 
 function mapOfflineReason(reason?: string) {
-  if (reason === "FULL" || reason === "SLOT_FULL") return "名额已满";
-  return reason ?? "";
+  const normalized = reason?.trim().toUpperCase();
+  if (normalized === "FULL" || normalized === "SLOT_FULL") return "名额已满";
+  if (normalized === "OFFLINE" || normalized === "ADMIN OFFLINED TASK") return "手动操作下线";
+  return reason?.trim() ?? "";
 }
 
-function mapCurrentNode(node?: string) {
+function mapCurrentNode(node?: string, label?: string) {
+  if (label?.trim()) return label.trim();
+
+  const normalized = node?.trim().toUpperCase();
   const nodes: Record<string, string> = {
+    ACCEPTED: "已接单",
+    PARSING: "解析任务",
     PLATFORM_ACCEPTANCE: "平台验收",
     PLATFORM_REVIEWING: "平台审核中",
-    platform_reviewing: "平台审核中",
-    platform_rejected: "平台审核不通过",
-    reward_recording: "报酬记录中",
+    PLATFORM_REJECTED: "平台审核不通过",
+    MANUAL_RESUBMITTED: "人工补交待审核",
+    REWARD_RECORDING: "报酬记录中",
     SETTLEMENT: "报酬入账",
+    SETTLING: "报酬入账",
     GENERATING: "生成结果",
     GENERATING_RESULT: "生成结果",
-    QUALITY_CHECK: "质量检查"
+    RUNTIME_PROBE: "执行探测",
+    ANALYZING_TASK: "任务理解",
+    RUNNING: "执行中",
+    QUALITY_CHECK: "质量检查",
+    QUALITY_CHECKING: "质量检查"
   };
-  return node ? nodes[node] ?? node : "执行中";
+  return normalized ? nodes[normalized] ?? node : "执行中";
+}
+
+function mapTerminationReason(reason?: string) {
+  const trimmedReason = reason?.trim();
+  if (!trimmedReason) return "-";
+
+  const normalized = trimmedReason.replace(/-/g, "_").toUpperCase();
+  const reasons: Record<string, string> = {
+    AGENT_SWITCHED_DURING_EXECUTION: "执行中切换 Agent，任务已终止",
+    AGENT_DISCONNECTED_DURING_EXECUTION: "执行中 Agent 连接断开，任务已终止",
+    LOCAL_PROCESS_FAILED: "本地 Agent 执行失败",
+    LOCAL_ACCEPTANCE_FAILED: "本地 Agent 验收失败",
+    USER_CANCELLED: "用户主动终止任务",
+    CANCELLED_BY_USER: "用户主动终止任务"
+  };
+  return reasons[normalized] ?? trimmedReason;
 }
 
 function mapFlowType(type?: string) {
@@ -692,25 +1027,106 @@ function mapFlowType(type?: string) {
 }
 
 function mapAcceptanceStatus(status?: string) {
-  if (status === "passed") return "Agent 评分通过";
-  if (status === "failed") return "Agent 评分不通过";
+  const normalized = status?.trim().toLowerCase();
+  if (["passed", "pass", "success", "accepted", "approved"].includes(normalized ?? "")) return "本次任务评分通过";
+  if (["failed", "fail", "rejected"].includes(normalized ?? "")) return "本次任务评分不通过";
   return "待平台审核";
 }
 
-function mapAcceptanceIssues(value?: string) {
-  if (!value) return "-";
+function mapAcceptanceScore(row: RemoteAcceptanceReviewRow | RemoteAdminExecutionRow) {
+  const payload = parseAcceptancePayload(row.acceptancePayload ?? row.acceptance?.acceptancePayload);
+  const score = row.acceptanceScore ?? row.score ?? row.acceptance?.score ?? numberFromUnknown(payload?.score);
+  return score == null ? "--/100" : `${score}/100`;
+}
+
+function mapAcceptanceSummary(row: RemoteAcceptanceReviewRow | RemoteAdminExecutionRow) {
+  const payload = parseAcceptancePayload(row.acceptancePayload ?? row.acceptance?.acceptancePayload);
+  return (
+    textFromUnknown(row.acceptanceSummary) ||
+    textFromUnknown(row.summary) ||
+    textFromUnknown(row.acceptance?.summary) ||
+    textFromUnknown(payload?.summary) ||
+    "-"
+  );
+}
+
+function mapAcceptanceIssues(row: RemoteAcceptanceReviewRow | RemoteAdminExecutionRow) {
+  const payload = parseAcceptancePayload(row.acceptancePayload ?? row.acceptance?.acceptancePayload);
+  const issues = parseTextList(
+    row.acceptanceIssues ??
+      row.issues ??
+      row.acceptance?.issues ??
+      payload?.issues
+  );
+  if (issues.length > 0) return uniqueTextItems(issues).join("；");
+
+  const failureReasons = mapAcceptanceFailureReasons(row);
+  return failureReasons.length > 0 ? failureReasons.join("；") : "-";
+}
+
+function mapAcceptanceFailureReasons(row: RemoteAcceptanceReviewRow | RemoteAdminExecutionRow) {
+  const payload = parseAcceptancePayload(row.acceptancePayload ?? row.acceptance?.acceptancePayload);
+  return uniqueTextItems(parseTextList(
+    row.failureReasons ??
+      row.acceptance?.failureReasons ??
+      payload?.failureReasons
+  ));
+}
+
+function mapAcceptanceImprovementSuggestions(row: RemoteAcceptanceReviewRow | RemoteAdminExecutionRow) {
+  const payload = parseAcceptancePayload(row.acceptancePayload ?? row.acceptance?.acceptancePayload);
+  return uniqueTextItems(parseTextList(
+    row.improvementSuggestions ??
+      row.acceptance?.improvementSuggestions ??
+      payload?.improvementSuggestions
+  ));
+}
+
+function parseAcceptancePayload(payload?: string) {
+  if (!payload?.trim()) return undefined;
   try {
-    const parsed: unknown = JSON.parse(value);
-    if (Array.isArray(parsed)) {
-      return parsed
-        .map((item) => (typeof item === "string" ? item : JSON.stringify(item)))
-        .filter(Boolean)
-        .join("；") || "无";
-    }
+    const parsed: unknown = JSON.parse(payload);
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : undefined;
   } catch {
-    return value;
+    return undefined;
   }
-  return value;
+}
+
+function parseTextList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(textFromUnknown).filter(Boolean);
+  if (value && typeof value === "object") {
+    return Object.entries(value).map(([key, item]) => `${key}：${textFromUnknown(item) || "-"}`);
+  }
+
+  const text = textFromUnknown(value);
+  const parsedText = parseJsonText(text);
+  if (parsedText !== undefined) return parseTextList(parsedText);
+  return text ? [text] : [];
+}
+
+function parseJsonText(text: string): unknown {
+  if (!text || !["[", "{"].includes(text.charAt(0))) return undefined;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
+function textFromUnknown(value: unknown) {
+  return typeof value === "string" ? value.trim() : value == null ? "" : String(value).trim();
+}
+
+function numberFromUnknown(value: unknown) {
+  if (typeof value === "number" && !Number.isNaN(value)) return value;
+  if (typeof value !== "string" || !value.trim()) return undefined;
+
+  const numericValue = Number(value);
+  return Number.isNaN(numericValue) ? undefined : numericValue;
+}
+
+function uniqueTextItems(items: string[]) {
+  return [...new Set(items.map((item) => item.trim()).filter(Boolean))];
 }
 
 function readString(source: unknown, key: string) {

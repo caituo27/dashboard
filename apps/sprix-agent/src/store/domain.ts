@@ -10,20 +10,32 @@ export function createInitialSprixState(): SprixState {
     account: {
       isLoggedIn: hasInitialAuthToken(),
       nickname: "",
-      email: "",
+      avatarUrl: "",
       maskedPhone: "",
       phone: "",
       phoneVerified: false,
       qualificationStatus: "未开通",
       realPersonVerified: false,
       freelancerAgreementSigned: false,
+      freelancerAgreementSignedAt: "",
       alipayBound: false,
       alipayAccountMasked: "",
+      alipayVerifiedName: "",
       alipayRealNameMatched: false,
       withdrawAccountStatus: "未绑定",
       withdrawableAmount: 0
     },
+    remoteSnapshotReady: false,
+    platformOverview: {
+      agentCount: null,
+      taskCount: null
+    },
     agents: [],
+    localAgent: undefined,
+    currentAgentId: null,
+    currentAgent: undefined,
+    evaluationFlow: undefined,
+    smartAcceptEnabled: false,
     tasks: [],
     myTasks: [],
     adminExecutionRecords: {},
@@ -45,6 +57,11 @@ export function logOut(state: SprixState): SprixState {
       ...empty.account,
       isLoggedIn: false
     },
+    localAgent: undefined,
+    currentAgentId: null,
+    currentAgent: undefined,
+    smartAcceptEnabled: state.smartAcceptEnabled,
+    agents: [],
     tasks: state.tasks
   };
 }

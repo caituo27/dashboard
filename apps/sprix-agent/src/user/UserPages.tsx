@@ -1,253 +1,271 @@
-import {consumerMockEnabled,isMockTask,readConsumerTaskPage,readConsumerTask} from "../services/consumerMock";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pagination, Modal, Progress, Segmented, Steps, message } from "antd";
-import { useQuery, keepPreviousData, useQueryClient } from "@tanstack/react-query";
+import {consumerMockEnabled,isMockExecution,isMockTask,readConsumerTaskPage,readConsumerTask} from "../services/consumerMock";
+import { type KeyboardEvent, type MouseEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Pagination, Form, Input, Modal, Steps, Tabs, message } from "antd";
+import { InfoCircleOutlined, PieChartOutlined, TagsOutlined, ThunderboltOutlined, UserOutlined, WifiOutlined } from "@ant-design/icons";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { Bot, BrainCircuit, Download, PlugZap, UsersRound } from "lucide-react";
+import {
+  Bot,
+  CheckCircle2,
+  CircleDollarSign,
+  CircleDot,
+  ChevronLeft,
+  Download,
+  Eye,
+  FileText,
+  ListChecks,
+  Paperclip,
+  PlugZap,
+  UsersRound
+} from "lucide-react";
 import type { FaceVerificationSession } from "../apis/sprix";
 import type { Account, Agent, AgentEvaluation, MyTask, Task } from "../types";
 import { useSprixStore } from "../store/sprixStore";
 import {
   acceptRemoteTask,
+  cancelRemoteTask,
   completeRemoteFaceVerification,
-  DEFAULT_AGENT_EVALUATION_QUESTIONS,
+  downloadRemoteTaskAttachment,
+  type FaceVerificationIdentity,
+  type TaskAttachment,
   initializeRemoteFaceVerification,
+  readCurrentRemoteAgent,
   readLatestRemoteAgentEvaluation,
   markRemoteCurrentAgent,
   readRemoteAgents,
   readRemoteAgentEvaluation,
-  rerunRemoteTask,
+  readRemoteTaskAttachmentBlob,
+  readRemoteTaskAttachments,
+  readRemoteWithdrawalAccountState,
+  requestRemoteAgentLogin,
   signRemoteFreelancerAgreement,
-  smartAcceptRemoteTask,
-  startRemoteAgentEvaluation
+  startRemoteAgentEvaluation,
+  waitForRemoteAgentAuthentication
 } from "../services/sprixApi";
 import { ActionButton, EmptyState, MetricCard, PageHeader, SecondaryButton, SoftTag, StatusTag, Surface } from "../components/Primitives";
+import { AgentEvaluationProgressModal, clearAgentEvaluationProgressCache } from "../components/AgentEvaluationProgressModal";
+import { AgentBindingInvalidModal } from "../components/AgentBindingInvalidModal";
+import { AgreementContent } from "../components/AgreementContent";
 import { compactText, currency, scoreText } from "../utils/format";
-import { isGlobalAuthError } from "../utils/http";
-import { getConnectedAgent, getCurrentExecutionAgent, getUserAdmissionState } from "./admission";
+import { isApiRequestError, isGlobalAuthError, isLocalAgentBindingInvalidError } from "../utils/http";
+import { freelancerAgreementDocument } from "../content/agreementDocuments";
+import { getLocalAgentEmptyMessage } from "../home/localAgentInventory";
 import { QrPayloadBox } from "../components/QrSession";
-import { getAgentAbilityResult, getAgentAdmissionSummary, getAgentTagLabels, hasPendingAgentEvaluation } from "./agentResult";
-import { getPayoutAccountText, getPayoutPageSubtitle, getPayoutRecordState } from "./earningsView";
-import { getExecutionArtifactsState, getExecutionBackendPendingSections, getExecutionRequirementText, getExecutionReviewState } from "./executionDetailView";
+import {
+  AgentAbilityProfile,
+  EvaluationRadar,
+  useAbilityDimensionInteraction
+} from "./AgentAbilityProfile";
+import { canSetAgentCurrent, getAgentAdmissionSummary, getAgentEvaluationStatusLabel, getAgentTagLabels } from "./agentResult";
+import { isEvaluationModalDismissed, setEvaluationModalDismissed } from "./evaluationModalState";
+import {
+  getPayoutAccountActionLabel,
+  getPayoutAccountText,
+  getPayoutAccountWarning,
+  getPayoutPageSubtitle,
+  getPayoutRecordState
+} from "./earningsView";
+import { hasBoundPayoutAccount } from "./accountView";
 import { getQualificationRecordRows } from "./qualificationView";
-import { getRecommendationPanelState, getSmartAcceptMessage } from "./recommendationView";
+import { parseExecutionProgress, useExecutionDisplayProgress } from "./useExecutionDisplayProgress";
 import { getEstimatedTokenField } from "./tokenEstimateView";
-import { checkLocalAgentHealth } from "./localAgentConnect";
 import {
   getAgreementSignButtonText,
   getMyTaskActions,
   getMyTaskMetaItems,
   getQualificationSuccessAction,
-  getTaskAcceptGate
+  getTaskAcceptGate,
+  shouldShowAppealStatus
 } from "./userFlowRules";
-
-const CLIENT_DOWNLOAD_URL = "https://cnb.cool/yztx_qxun/LocalCLIAgentRelease/-/git/raw/main/LocalCLIAgent.pkg";
-
-const evaluationDimensionLabels: Record<string, string> = {
-  clarity: "表达清晰",
-  completeness: "覆盖完整",
-  safety: "安全边界",
-  maintainability: "改动边界",
-  specificity: "项目理解",
-  efficiency: "执行效率"
-};
+import { useRerunTask } from "./useRerunTask";
+export { MyTaskDetailPage } from "./MyTaskDetailPage";
 
 type UserPageProps = {
   openLogin: () => void;
+  openAccount: () => void;
   openBindAlipay: (afterBind?: () => void) => void;
   openQualificationPrompt: (taskId?: string) => void;
   openAppeal: (executionId: string) => void;
 };
+
+function currentAgentDisplayName(name?: string) {
+  return name?.replace(/\s+Agent$/i, "") || "-";
+}
+
+function getAgentIconSrc(name: string) {
+  const normalizedName = name.toLowerCase();
+  if (normalizedName.includes("claude")) return "/agent-icons/claude.png";
+  if (normalizedName.includes("hermes")) return "/agent-icons/hermes.png";
+  if (normalizedName.includes("opencode")) return "/agent-icons/opencode.png";
+  if (normalizedName.includes("codex")) return "/agent-icons/gpt.png";
+  return undefined;
+}
+
+type FaceVerificationFormValues = FaceVerificationIdentity;
+
+const FACE_VERIFICATION_POLL_INTERVAL_MS = 2_000;
+const TASK_MARKET_SCROLL_TOP_KEY = "sprix-task-market-scroll-top";
+const TASK_MARKET_VISIBLE_COUNT_KEY = "sprix-task-market-visible-count";
+const TASK_MARKET_PAGE_KEY = "sprix-task-market-page";
+const TASK_MARKET_BATCH_SIZE = 24;
+const MY_TASKS_SCROLL_TOP_KEY = "sprix-my-tasks-scroll-top";
+const MY_TASKS_TAB_KEY = "sprix-my-tasks-tab";
+const MY_TASKS_TABS = ["全部", "执行中", "已终止", "已完成"];
+const SMART_ACCEPT_VISIBLE = true;
+const AGENT_EVALUATION_POLL_INTERVAL_MS = 1_500;
+
+const BUTTON_ICON_PATHS = {
+  alipay: "/button-icons/alipay.png",
+  currentAgent: "/button-icons/agent-current.png",
+  switchAgent: "/button-icons/agent-switch.png",
+  evaluation: "/button-icons/evaluation.png",
+  evaluationProgress: "/button-icons/evaluation-progress.svg",
+  login: "/button-icons/login.svg"
+} as const;
+
+function ButtonIcon({ src }: { src: string }) {
+  return <img className="sprix-button-icon" src={src} alt="" aria-hidden="true" />;
+}
+
+function LoginButtonIcon() {
+  return <ButtonIcon src={BUTTON_ICON_PATHS.login} />;
+}
+
+function EvaluationProgressButtonIcon() {
+  return <ButtonIcon src={BUTTON_ICON_PATHS.evaluationProgress} />;
+}
+
+function EvaluationButtonIcon() {
+  return <ButtonIcon src={BUTTON_ICON_PATHS.evaluation} />;
+}
+
+function formatTaskAttachmentSize(sizeBytes: number) {
+  if (sizeBytes < 1024) return `${sizeBytes} B`;
+  if (sizeBytes < 1024 * 1024) return `${(sizeBytes / 1024).toFixed(1)} KiB`;
+  return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MiB`;
+}
 
 function showRequestError(error: unknown, fallback: string, prefix = "") {
   if (isGlobalAuthError(error)) return;
   message.error(error instanceof Error ? `${prefix}${error.message}` : fallback);
 }
 
-const agentEvaluationStatusLabels: Record<AgentEvaluation["status"], string> = {
-  running: "能力画像生成中",
-  judging: "能力画像评分中",
-  completed: "能力画像已生成",
-  failed: "测评失败"
-};
+function getScrollContainer(selector = ".sprix-main") {
+  const container = document.querySelector<HTMLElement>(selector);
+  if (!container) return null;
+
+  const overflowY = window.getComputedStyle(container).overflowY;
+  const canScroll = container.scrollHeight > container.clientHeight;
+  return canScroll && overflowY !== "visible" && overflowY !== "clip" ? container : null;
+}
+
+function getPageScrollContainer() {
+  return getScrollContainer();
+}
+
+function scrollPageTo(scrollTop: number, selector?: string) {
+  const scrollContainer = selector ? getScrollContainer(selector) ?? getPageScrollContainer() : getPageScrollContainer();
+  if (scrollContainer) {
+    scrollContainer.scrollTo({ top: scrollTop, behavior: "auto" });
+    return;
+  }
+
+  window.scrollTo({ top: scrollTop, behavior: "auto" });
+}
+
+function readSavedScrollTop(storageKey: string) {
+  const savedValue = sessionStorage.getItem(storageKey);
+  if (savedValue === null) return null;
+
+  const value = Number(savedValue);
+  return Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+function saveCurrentPageScrollTop(storageKey: string, selector?: string) {
+  const scrollContainer = selector ? getScrollContainer(selector) ?? getPageScrollContainer() : getPageScrollContainer();
+  const scrollTop = scrollContainer?.scrollTop ?? window.scrollY;
+  sessionStorage.setItem(storageKey, String(Math.max(0, Math.round(scrollTop))));
+}
+
+function restoreSavedPageScrollTop(storageKey: string, onRestored: () => void, selector?: string) {
+  const scrollTop = readSavedScrollTop(storageKey);
+  if (scrollTop === null) return undefined;
+
+  let timeout = 0;
+  const frame = window.requestAnimationFrame(() => {
+    scrollPageTo(scrollTop, selector);
+    timeout = window.setTimeout(() => {
+      scrollPageTo(scrollTop, selector);
+      onRestored();
+    }, 80);
+  });
+
+  return () => {
+    window.cancelAnimationFrame(frame);
+    window.clearTimeout(timeout);
+  };
+}
+
+function scrollTaskMarketTo(scrollTop: number) {
+  scrollPageTo(scrollTop);
+}
+
+function saveTaskMarketScrollTop() {
+  saveCurrentPageScrollTop(TASK_MARKET_SCROLL_TOP_KEY);
+}
+
+function saveTaskMarketReturnState(visibleCount: number) {
+  saveTaskMarketScrollTop();
+  sessionStorage.setItem(TASK_MARKET_VISIBLE_COUNT_KEY, String(Math.max(TASK_MARKET_BATCH_SIZE, visibleCount)));
+}
+
+function readSavedTaskMarketScrollTop() {
+  return readSavedScrollTop(TASK_MARKET_SCROLL_TOP_KEY);
+}
+
+function readSavedTaskMarketVisibleCount() {
+  if (readSavedTaskMarketScrollTop() === null) return TASK_MARKET_BATCH_SIZE;
+
+  const savedCount = Number(sessionStorage.getItem(TASK_MARKET_VISIBLE_COUNT_KEY));
+  if (Number.isInteger(savedCount) && savedCount >= TASK_MARKET_BATCH_SIZE) return savedCount;
+
+  const value = Number(sessionStorage.getItem(TASK_MARKET_PAGE_KEY));
+  return Number.isInteger(value) && value > 0 ? value * TASK_MARKET_BATCH_SIZE : TASK_MARKET_BATCH_SIZE;
+}
+
+function clearTaskMarketReturnState() {
+  sessionStorage.removeItem(TASK_MARKET_SCROLL_TOP_KEY);
+  sessionStorage.removeItem(TASK_MARKET_VISIBLE_COUNT_KEY);
+  sessionStorage.removeItem(TASK_MARKET_PAGE_KEY);
+}
+
+function saveMyTasksReturnState(tab: string) {
+  saveCurrentPageScrollTop(MY_TASKS_SCROLL_TOP_KEY, ".sprix-my-tasks-list");
+  sessionStorage.setItem(MY_TASKS_TAB_KEY, tab);
+}
+
+function readSavedMyTasksTab() {
+  const savedTab = sessionStorage.getItem(MY_TASKS_TAB_KEY);
+  return savedTab && MY_TASKS_TABS.includes(savedTab) ? savedTab : "全部";
+}
+
+function clearMyTasksReturnState() {
+  sessionStorage.removeItem(MY_TASKS_SCROLL_TOP_KEY);
+  sessionStorage.removeItem(MY_TASKS_TAB_KEY);
+}
 
 const agentEvaluationActionLabels: Record<AgentEvaluation["status"], string> = {
+  not_started: "开始评测",
   running: "查看进度",
   judging: "查看进度",
-  completed: "查看结果",
+  completed: "评测完成",
   failed: "重新评测"
 };
 
-function getAgentEvaluationStatusLabel(evaluation?: AgentEvaluation) {
-  return evaluation ? agentEvaluationStatusLabels[evaluation.status] : "未测评";
-}
-
 function getAgentEvaluationActionLabel(agent: Agent) {
-  return agent.evaluation ? agentEvaluationActionLabels[agent.evaluation.status] : "开始评测";
-}
-
-function useRerunTask() {
-  const queryClient = useQueryClient();
-
-  return useCallback(
-    (executionId: string) => {
-      Modal.confirm({
-        title: "确认重新执行",
-        content: "重新执行会基于当前执行 Agent 创建新的执行记录，原执行记录会保留。",
-        okText: "确认重新执行",
-        cancelText: "取消",
-        onOk: async () => {
-          try {
-            await rerunRemoteTask(executionId);
-            await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
-            message.success("已重新生成执行记录");
-          } catch (error) {
-            showRequestError(error, "重新执行失败", "重新执行失败：");
-          }
-        }
-      });
-    },
-    [queryClient]
-  );
-}
-
-export function LandingPage({ openLogin }: UserPageProps) {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const queryClient = useQueryClient();
-  const account = useSprixStore((state) => state.account);
-  const agents = useSprixStore((state) => state.agents);
-  const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
-  const admission = getUserAdmissionState(account, agents);
-  const hasConnectedAgent = Boolean(getConnectedAgent(agents));
-  const admissionState = location.state as { admissionReason?: string; openLogin?: boolean } | null;
-  const admissionReason = admissionState?.admissionReason;
-  const shouldOpenLogin = Boolean(admissionState?.openLogin);
-  const handledAdmissionReasonKey = useRef<string>();
-  const handledAdmissionLoginKey = useRef<string>();
-  const autoEnteredAgentCenterRef = useRef(false);
-  const [checkingLocalAgent, setCheckingLocalAgent] = useState(false);
-
-  useEffect(() => {
-    if (!admissionReason) return;
-    if (shouldOpenLogin && admissionReason === "请先登录") return;
-    const reasonKey = `${location.key}:${admissionReason}`;
-    if (handledAdmissionReasonKey.current === reasonKey) return;
-    handledAdmissionReasonKey.current = reasonKey;
-    message.warning(admissionReason);
-  }, [admissionReason, location.key, shouldOpenLogin]);
-
-  useEffect(() => {
-    if (!shouldOpenLogin || account.isLoggedIn || handledAdmissionLoginKey.current === location.key) return;
-    handledAdmissionLoginKey.current = location.key;
-    openLogin();
-  }, [account.isLoggedIn, location.key, openLogin, shouldOpenLogin]);
-
-  useEffect(() => {
-    if (!admission.allowed || autoEnteredAgentCenterRef.current) return;
-    autoEnteredAgentCenterRef.current = true;
-    navigate("/agent/center");
-  }, [admission.allowed, navigate]);
-
-  useEffect(() => {
-    if (!account.isLoggedIn || hasConnectedAgent) return;
-    let cancelled = false;
-
-    const refreshAgents = async () => {
-      try {
-        const refreshedAgents = await readRemoteAgents();
-        if (!cancelled) {
-          mergeRemoteState({ agents: refreshedAgents });
-        }
-      } catch {
-        // Keep the landing page quiet while waiting for Local Agent enrollment to complete.
-      }
-    };
-
-    void refreshAgents();
-    const poll = window.setInterval(refreshAgents, 3_000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(poll);
-    };
-  }, [account.isLoggedIn, hasConnectedAgent, mergeRemoteState]);
-
-  const startConnect = async () => {
-    if (!account.isLoggedIn) {
-      openLogin();
-      return;
-    }
-
-    setCheckingLocalAgent(true);
-    const result = await checkLocalAgentHealth();
-
-    if (result.kind === "running") {
-      await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
-      setCheckingLocalAgent(false);
-      message.success(`已检测到本机 LocalCLIAgent${result.version ? ` ${result.version}` : ""} 正在运行，正在进入 Agent 中心。`);
-      navigate("/agent/center");
-      return;
-    }
-
-    setCheckingLocalAgent(false);
-    Modal.warning({
-      title: "未检测到本机 LocalCLIAgent",
-      content: "请确认客户端已安装并正在运行。如果还没有安装，请点击“下载客户端”。",
-      okText: "知道了"
-    });
-  };
-
-  return (
-    <main className="sprix-landing">
-      <section className="sprix-landing-inner">
-        <div className="sprix-page-hero">
-          <div className="sprix-hero-kicker">Sprix AI</div>
-          <h1 className="sprix-title sprix-hero-title">让你的 Agent 自动帮你赚钱</h1>
-          <p className="sprix-hero-subtitle">
-            连接当前设备上的 LocalCLIAgent；连接成功后即可进入任务市场接单执行。
-          </p>
-          <div className="sprix-hero-actions">
-            {admission.allowed ? (
-              <ActionButton icon={<PlugZap size={16} />} onClick={() => navigate("/agent/center")}>
-                进入 Agent 中心
-              </ActionButton>
-            ) : account.isLoggedIn ? (
-              <>
-                <ActionButton icon={<PlugZap size={16} />} loading={checkingLocalAgent} onClick={startConnect}>
-                  连接本地 Agent
-                </ActionButton>
-                <SecondaryButton href={CLIENT_DOWNLOAD_URL} target="_blank" rel="noreferrer" icon={<Download size={16} />}>
-                  下载客户端
-                </SecondaryButton>
-              </>
-            ) : (
-              <>
-                <ActionButton icon={<PlugZap size={16} />} loading={checkingLocalAgent} onClick={startConnect}>
-                  登录后连接 Agent
-                </ActionButton>
-                <SecondaryButton href={CLIENT_DOWNLOAD_URL} target="_blank" rel="noreferrer" icon={<Download size={16} />}>
-                  下载客户端
-                </SecondaryButton>
-              </>
-            )}
-          </div>
-        </div>
-        <div className="sprix-platform-metrics">
-          <PlatformMetricCard label="平台 Agent 数量" value="-" />
-          <PlatformMetricCard label="平台任务总量" value="-" />
-        </div>
-      </section>
-    </main>
-  );
-}
-
-function PlatformMetricCard({ label, value }: { label: string; value: string }) {
-  return (
-    <Surface className="sprix-platform-metric-card">
-      <strong>{value}</strong>
-      <span>{label}</span>
-    </Surface>
-  );
+  const resultStatus = agent.evaluation?.result?.status;
+  const status = resultStatus === "completed" || resultStatus === "failed" ? resultStatus : agent.evaluation?.status;
+  return status ? agentEvaluationActionLabels[status] : "开始评测";
 }
 
 export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<UserPageProps> = {}) {
@@ -256,27 +274,63 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
   const tasks = useSprixStore((state) => state.tasks);
   const myTasks = useSprixStore((state) => state.myTasks);
   const account = useSprixStore((state) => state.account);
-  const agents = useSprixStore((state) => state.agents);
-  const [smartAccepting, setSmartAccepting] = useState(false);
-  const [smartAcceptMessage, setSmartAcceptMessage] = useState<string>();
-  const currentAgent = getCurrentExecutionAgent(agents);
+  const currentAgent = useSprixStore((state) => state.currentAgent);
+  const evaluationFlow = useSprixStore((state) => state.evaluationFlow);
+  const smartAcceptEnabled = useSprixStore((state) => state.smartAcceptEnabled);
+  const setSmartAcceptEnabled = useSprixStore((state) => state.setSmartAcceptEnabled);
+  const [smartAcceptModalOpen, setSmartAcceptModalOpen] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(readSavedTaskMarketVisibleCount);
+  const loadMoreRef = useRef<HTMLButtonElement | null>(null);
   const availableTasks = useMemo(() => tasks.filter((task) => task.taskStatus === "已发布" && task.remainingSlots > 0), [tasks]);
   const [marketPage,setMarketPage]=useState(1);
   const marketQuery=useQuery({queryKey:['sprix-agent','consumer-market',marketPage,availableTasks],queryFn:()=>readConsumerTaskPage(availableTasks,marketPage),enabled:consumerMockEnabled,placeholderData:keepPreviousData,refetchInterval:10000,refetchIntervalInBackground:false});
-  const visibleTasks=consumerMockEnabled ? marketQuery.data?.rows ?? [] : availableTasks;
-  const recommendationState = useMemo(
-    () =>
-      getRecommendationPanelState({
-        tasks: availableTasks,
-        currentAgent,
-        isLoggedIn: account.isLoggedIn,
-        smartAcceptMessage
-      }),
-    [account.isLoggedIn, availableTasks, currentAgent, smartAcceptMessage]
-  );
+  const mockVisibleTasks=consumerMockEnabled ? marketQuery.data?.rows ?? [] : availableTasks;
+  const effectiveVisibleCount = Math.min(visibleCount, availableTasks.length || TASK_MARKET_BATCH_SIZE);
+  const realVisibleTasks = useMemo(() => availableTasks.slice(0, effectiveVisibleCount), [availableTasks, effectiveVisibleCount]);
+  const visibleTasks = consumerMockEnabled ? mockVisibleTasks : realVisibleTasks;
+  const hasMoreTasks = !consumerMockEnabled && effectiveVisibleCount < availableTasks.length;
+
+  useEffect(() => {
+    if (availableTasks.length === 0) return;
+    setVisibleCount((count) => Math.min(count, Math.max(availableTasks.length, TASK_MARKET_BATCH_SIZE)));
+  }, [availableTasks.length]);
+
+  useEffect(() => {
+    if (visibleTasks.length === 0) return;
+    return restoreSavedPageScrollTop(TASK_MARKET_SCROLL_TOP_KEY, clearTaskMarketReturnState);
+  }, [visibleTasks.length]);
+
+  const loadMoreTasks = useCallback(() => {
+    setVisibleCount((count) => Math.min(count + TASK_MARKET_BATCH_SIZE, availableTasks.length));
+  }, [availableTasks.length]);
+
+  const saveTaskMarketReturnPosition = useCallback(() => {
+    saveTaskMarketReturnState(effectiveVisibleCount);
+  }, [effectiveVisibleCount]);
+
+  useEffect(() => {
+    if (!hasMoreTasks) return;
+    const marker = loadMoreRef.current;
+    if (!marker) return;
+    if (typeof IntersectionObserver === "undefined") return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          loadMoreTasks();
+        }
+      },
+      {
+        root: getPageScrollContainer(),
+        rootMargin: "360px 0px"
+      }
+    );
+    observer.observe(marker);
+    return () => observer.disconnect();
+  }, [hasMoreTasks, loadMoreTasks]);
 
   const handleAccept = (task: Task) => {
-    const gate = getTaskAcceptGate(account, currentAgent, task);
+    const gate = getTaskAcceptGate(account, currentAgent, task, evaluationFlow);
     if (gate.kind === "login") {
       openLogin?.();
       return;
@@ -293,6 +347,14 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
     if (gate.kind === "current-agent") {
       message.warning(gate.message);
       navigate(gate.path);
+      return;
+    }
+    if (gate.kind === "evaluation-active") {
+      message.warning(gate.message);
+      return;
+    }
+    if (gate.kind === "evaluation-failed") {
+      message.warning(gate.message);
       return;
     }
     if (gate.kind === "task-unavailable") {
@@ -319,121 +381,212 @@ export function TaskMarketPage({ openLogin, openQualificationPrompt }: Partial<U
     });
   };
 
-  const handleSmartAccept = async () => {
-    const bestTask = recommendationState.bestTask ?? availableTasks[0];
-    if (!bestTask) {
-      message.info("暂无可推荐任务");
-      return;
-    }
-    const gate = getTaskAcceptGate(account, currentAgent, bestTask);
-    if (gate.kind === "login") {
+  const openSmartAcceptModal = () => {
+    if (!account.isLoggedIn) {
       openLogin?.();
       return;
     }
-    if (gate.kind === "qualification") {
-      message.warning(gate.message);
-      openQualificationPrompt?.(bestTask.id);
-      return;
-    }
-    if (gate.kind === "current-agent") {
-      message.warning(gate.message);
-      navigate(gate.path);
-      return;
-    }
-    if (gate.kind === "task-unavailable") {
-      message.warning(gate.message);
+    if (!currentAgent) {
+      message.warning("请先设置当前执行 Agent");
+      navigate("/agent/center");
       return;
     }
 
-    setSmartAccepting(true);
-    try {
-      const response = await smartAcceptRemoteTask();
-      const statusMessage = getSmartAcceptMessage(response.accepted, response.message);
-      setSmartAcceptMessage(response.accepted ? "已接单" : "未自动接单");
-      if (response.accepted) {
-        await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
-        message.success(statusMessage);
-        navigate("/agent/my-tasks");
-        return;
-      }
-      message.info(statusMessage);
-    } catch (error) {
-      showRequestError(error, "智能接单失败", "智能接单失败：");
-    } finally {
-      setSmartAccepting(false);
-    }
+    setSmartAcceptModalOpen(true);
+  };
+
+  const enableSmartAccept = () => {
+    setSmartAcceptEnabled(true);
+    setSmartAcceptModalOpen(false);
+    message.success("智能接单已开启");
+  };
+
+  const disableSmartAccept = () => {
+    setSmartAcceptEnabled(false);
+    setSmartAcceptModalOpen(false);
+    message.success("智能接单已关闭");
   };
 
   return (
     <>
       <PageHeader
-        eyebrow="任务市场"
         title="可接取任务"
-        subtitle="浏览当前可接取的任务，选择适合你的 Agent 执行的工作，并持续跟踪执行进度与收益。"
       />
-      <div className="mb-5 grid gap-4 md:grid-cols-3">
-        <MetricCard title="已发布任务" value={(consumerMockEnabled ? marketQuery.data?.total : availableTasks.length) || "-"} />
-        <MetricCard title="当前执行 Agent" value={currentAgent?.name ?? "-"} icon={<Bot size={19} />} />
-        <MetricCard title="我的任务" value={myTasks.length || "-"} icon={<UsersRound size={19} />} />
-      </div>
-      <Surface className="mb-5 p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-ink">{recommendationState.title}</h2>
-            <p className="mt-2 text-sm leading-7 text-ink-soft">{recommendationState.description}</p>
-            {recommendationState.bestReason && <p className="mt-2 text-sm leading-7 text-ink-soft">{recommendationState.bestReason}</p>}
-          </div>
-          <div className="flex flex-col gap-3 lg:items-end">
-            <div className="grid min-w-[280px] gap-2 sm:grid-cols-3">
-              {recommendationState.metrics.map((item) => (
-                <div key={item.label} className="rounded-2xl bg-[#fafafa] px-4 py-3 text-sm">
-                  <span className="block text-ink-soft">{item.label}</span>
-                  <b className="text-ink">{item.value}</b>
-                </div>
-              ))}
-            </div>
-            <ActionButton loading={smartAccepting} icon={<PlugZap size={16} />} onClick={handleSmartAccept}>
-              智能接单
+      <div className="sprix-task-market-stats">
+        {SMART_ACCEPT_VISIBLE && (
+          <div className="sprix-task-market-smart-accept-row">
+            <ActionButton icon={<PlugZap size={16} />} onClick={openSmartAcceptModal}>
+              {smartAcceptEnabled ? "智能接单已开启" : "智能接单"}
             </ActionButton>
           </div>
+        )}
+        <div className="mb-5 grid gap-4 md:grid-cols-3">
+          <MetricCard title="已发布任务" value="3W+" icon={<img className="size-[92px] object-contain" src="/task-metric-published.svg" alt="" aria-hidden="true" />} />
+          <MetricCard title="当前执行 Agent" value={currentAgentDisplayName(currentAgent?.name)} icon={<img className="size-[92px] object-contain" src="/task-metric-agent.svg" alt="" aria-hidden="true" />} />
+          <MetricCard
+            title="我的任务"
+            value={myTasks.length || "-"}
+            icon={<img className="size-[92px] object-contain" src="/task-metric-tasks.svg" alt="" aria-hidden="true" />}
+          />
         </div>
-      </Surface>
+      </div>
       <div className="sprix-grid-auto">
         {visibleTasks.map((task) => (
-          <TaskCard key={task.id} task={task} onAccept={() => handleAccept(task)} />
+          <TaskCard key={task.id} task={task} onAccept={() => handleAccept(task)} onOpenDetail={saveTaskMarketReturnPosition} />
         ))}
       </div>
       {consumerMockEnabled && marketQuery.isError && <Alert type="error" message="任务列表读取失败" action={<SecondaryButton onClick={()=>marketQuery.refetch()}>重试</SecondaryButton>}/>}
       {consumerMockEnabled && marketQuery.isPending && <p>任务列表加载中…</p>}
       {consumerMockEnabled && <Pagination className="mt-6" current={marketPage} pageSize={20} total={marketQuery.data?.total ?? 0} showSizeChanger={false} showTotal={total=>`共 ${total.toLocaleString()} 条`} onChange={setMarketPage}/>}
-      {(!consumerMockEnabled || !marketQuery.isPending) && visibleTasks.length === 0 && !marketQuery.isError && <EmptyState title="暂无可接取任务" description="当前暂时没有新的任务，稍后再来查看适合 Agent 执行的工作。" />}
+      {hasMoreTasks && (
+        <button ref={loadMoreRef} type="button" className="sprix-task-market-load-more" onClick={loadMoreTasks}>
+          继续下滑加载更多
+        </button>
+      )}
+      {!consumerMockEnabled && availableTasks.length === 0 && <EmptyState title="暂无可接取任务" description="当前暂时没有新的任务，稍后再来查看适合 Agent 执行的工作。" />}
+      <SmartAcceptModal
+        agent={currentAgent}
+        enabled={smartAcceptEnabled}
+        open={smartAcceptModalOpen}
+        onCancel={() => setSmartAcceptModalOpen(false)}
+        onDisable={disableSmartAccept}
+        onEnable={enableSmartAccept}
+      />
     </>
   );
 }
 
-function TaskCard({ task, onAccept }: { task: Task; onAccept: () => void }) {
-  const estimatedToken = getEstimatedTokenField();
+function SmartAcceptModal({
+  agent,
+  enabled,
+  open,
+  onCancel,
+  onDisable,
+  onEnable
+}: {
+  agent?: Agent;
+  enabled: boolean;
+  open: boolean;
+  onCancel: () => void;
+  onDisable: () => void;
+  onEnable: () => void;
+}) {
+  const agentName = agent?.name ?? "当前 Agent";
+  const agentScore = agent?.score ?? 94;
+
   return (
-    <Surface className="flex min-h-[332px] flex-col p-5">
+    <Modal
+      title={enabled ? "智能接单已开启" : "开启智能接单"}
+      open={open}
+      onCancel={onCancel}
+      width={540}
+      className="sprix-smart-accept-modal"
+      footer={
+        enabled ? (
+          <div className="sprix-modal-actions">
+            <SecondaryButton onClick={onDisable}>关闭智能接单</SecondaryButton>
+            <ActionButton onClick={onCancel}>我知道了</ActionButton>
+          </div>
+        ) : (
+          <div className="sprix-modal-actions">
+            <SecondaryButton onClick={onCancel}>取消</SecondaryButton>
+            <ActionButton onClick={onEnable}>开启智能接单</ActionButton>
+          </div>
+        )
+      }
+    >
+      <div className="sprix-smart-accept-agent">
+        <div className="sprix-smart-accept-agent-icon">
+          {getAgentIconSrc(agentName) ? (
+            <img src={getAgentIconSrc(agentName)} alt="" aria-hidden="true" />
+          ) : (
+            <Bot size={24} />
+          )}
+        </div>
+        <div className="sprix-smart-accept-agent-copy">
+          <div className="sprix-smart-accept-agent-title">
+            <strong>{agentName}</strong>
+            <span>{enabled ? "智能接单中" : "已连接"}</span>
+          </div>
+        </div>
+      </div>
+      <div className="sprix-smart-accept-metrics">
+        <div>
+          <span>Agent 综合评分</span>
+          <strong>{agentScore}</strong>
+        </div>
+        <div>
+          <span>自动接单阈值</span>
+          <strong>92%</strong>
+        </div>
+        <div>
+          <span>当前状态</span>
+          <strong>{enabled ? "已开启" : "待开启"}</strong>
+        </div>
+      </div>
+      <p className="sprix-smart-accept-hint">
+        <InfoCircleOutlined aria-hidden="true" />
+        <span>
+          {enabled
+            ? "系统将持续根据任务与当前执行 Agent 的匹配度判断是否接单。"
+            : "开启后，当平台任务与当前执行 Agent 的匹配度达到 92% 及以上时，系统将自动为你接取该任务。"}
+        </span>
+      </p>
+    </Modal>
+  );
+}
+
+function TaskCard({ task, onAccept, onOpenDetail }: { task: Task; onAccept: () => void; onOpenDetail: () => void }) {
+  const navigate = useNavigate();
+  const estimatedToken = getEstimatedTokenField(task.estimatedTokens);
+  const openTaskDetail = (event: MouseEvent<HTMLElement>) => {
+    if (event.target instanceof Element && event.target.closest("button")) return;
+    onOpenDetail();
+    navigate(`/agent/task/${task.id}`);
+  };
+  const handleTaskCardKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.target instanceof Element && event.target.closest("button")) return;
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    onOpenDetail();
+    navigate(`/agent/task/${task.id}`);
+  };
+  return (
+    <Surface
+      className="sprix-task-market-card flex min-h-[280px] flex-col p-5"
+      onClick={openTaskDetail}
+      onKeyDown={handleTaskCardKeyDown}
+      role="link"
+      tabIndex={0}
+    >
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <StatusTag status={task.taskStatus} />
-        <SoftTag tone="neutral">{task.category}</SoftTag>
-        {task.agentMatchScore > 0 && <SoftTag>匹配 {task.agentMatchScore}%</SoftTag>}
+        <SoftTag tone="neutral" bordered={false} className="sprix-task-market-category-tag m-0 px-2.5 py-0.5">
+          {task.category}
+        </SoftTag>
+        {task.agentMatchScore > 0 && (
+          <SoftTag className="sprix-task-market-match-tag m-0 rounded-full px-2.5 py-0.5">
+            匹配 {task.agentMatchScore}%
+          </SoftTag>
+        )}
       </div>
-      <Link to={`/agent/task/${task.id}`} className="text-xl font-semibold leading-7 text-ink no-underline hover:text-accent">
+      <div className="sprix-task-market-title text-xl font-semibold leading-7 text-ink" title={task.title}>
         {task.title}
-      </Link>
-      <p className="mt-3 flex-1 text-sm leading-7 text-ink-soft">{compactText(task.cardSummary, 104)}</p>
-      {task.recommendedReason && <p className="mt-3 rounded-2xl bg-[#fafafa] p-3 text-sm leading-6 text-ink-soft">{task.recommendedReason}</p>}
-      <div className="mt-4 grid gap-2 text-sm text-ink-soft">
-        <span>奖励：<b className="text-ink">{currency(task.reward)}</b></span>
-        <span>剩余名额：{task.remainingSlots}/{task.totalSlots}</span>
-        <span>{estimatedToken.label}：{estimatedToken.value}</span>
-        <span>来源：{task.sourceName}</span>
       </div>
-      <div className="mt-5 flex gap-2">
-        <ActionButton onClick={onAccept}>接单</ActionButton>
-        <SecondaryButton href={`/agent/task/${task.id}`}>查看详情</SecondaryButton>
+      <p
+        className="sprix-task-market-summary mt-3 flex-1 text-sm leading-7 text-ink-soft"
+        title={task.recommendedReason ? `${task.cardSummary}\n\n推荐理由：${task.recommendedReason}` : task.cardSummary}
+      >
+        {compactText(task.cardSummary, 104)}
+      </p>
+      <div className="sprix-task-market-card-footer">
+        <div className="grid gap-2 text-sm text-ink-soft">
+          <span>奖励：<b className="text-ink">{currency(task.reward)}</b></span>
+          <span>剩余名额：{task.remainingSlots}/{task.totalSlots}</span>
+          <span>{estimatedToken.label}：{estimatedToken.value}</span>
+        </div>
+        <div className="sprix-task-market-card-actions">
+          <ActionButton onClick={(event) => { event.stopPropagation(); onAccept(); }}>接单</ActionButton>
+        </div>
       </div>
     </Surface>
   );
@@ -442,22 +595,48 @@ function TaskCard({ task, onAccept }: { task: Task; onAccept: () => void }) {
 export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageProps) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const storedTask = useSprixStore((state) => state.tasks.find((item) => item.id === id));
   const detailQuery=useQuery({queryKey:['sprix-agent','consumer-task',id],queryFn:()=>readConsumerTask(id!),enabled:consumerMockEnabled && !!id && isMockTask(id),refetchInterval:10000,refetchIntervalInBackground:false});
   const task=consumerMockEnabled && id && isMockTask(id) ? detailQuery.data : storedTask;
   const account = useSprixStore((state) => state.account);
-  const agents = useSprixStore((state) => state.agents);
-  const currentAgent = getCurrentExecutionAgent(agents);
-  const executionAgentName = currentAgent?.name;
-  const estimatedToken = getEstimatedTokenField();
+  const currentAgent = useSprixStore((state) => state.currentAgent);
+  const evaluationFlow = useSprixStore((state) => state.evaluationFlow);
+  const estimatedToken = getEstimatedTokenField(task?.estimatedTokens);
+  const taskAttachmentsQuery = useQuery({
+    queryKey: ["sprix-agent", "task-attachments", id],
+    queryFn: () => readRemoteTaskAttachments(id as string),
+    enabled: Boolean(id),
+    retry: 1
+  });
+
+  const returnToTaskMarket = () => {
+    navigate("/agent/market");
+  };
+
+  useEffect(() => {
+    const frameId = window.requestAnimationFrame(() => {
+      scrollTaskMarketTo(0);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [id]);
 
   if(consumerMockEnabled && id && isMockTask(id) && detailQuery.isPending) return <p>任务详情加载中…</p>;
   if(consumerMockEnabled && id && isMockTask(id) && detailQuery.isError) return <Alert type="error" message="任务详情读取失败" action={<SecondaryButton onClick={()=>detailQuery.refetch()}>重试</SecondaryButton>}/>;
-  if (!task) return <EmptyState title="任务不存在" description="当前任务已不可访问" action={<SecondaryButton href="/agent/market">返回任务市场</SecondaryButton>} />;
+  if (!task) {
+    return (
+      <EmptyState
+        title="任务不存在"
+        description="当前任务已不可访问"
+        action={<SecondaryButton onClick={returnToTaskMarket}>返回任务市场</SecondaryButton>}
+      />
+    );
+  }
 
   const handleAccept = () => {
-    const gate = getTaskAcceptGate(account, currentAgent, task);
+    const gate = getTaskAcceptGate(account, currentAgent, task, evaluationFlow);
     if (gate.kind === "login") {
       openLogin();
       return;
@@ -470,6 +649,14 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
     if (gate.kind === "current-agent") {
       message.warning(gate.message);
       navigate(gate.path);
+      return;
+    }
+    if (gate.kind === "evaluation-active") {
+      message.warning(gate.message);
+      return;
+    }
+    if (gate.kind === "evaluation-failed") {
+      message.warning(gate.message);
       return;
     }
     if (gate.kind === "task-unavailable") {
@@ -495,64 +682,165 @@ export function TaskDetailPage({ openLogin, openQualificationPrompt }: UserPageP
     });
   };
 
+  const handleBackToTaskList = () => {
+    if (location.key === "default") {
+      navigate("/agent/market");
+      return;
+    }
+    navigate(-1);
+  };
+
+  const requireAttachmentLogin = () => {
+    if (account.isLoggedIn) return true;
+    message.info("登录后可查看或下载任务附件原文件");
+    openLogin();
+    return false;
+  };
+
+  const downloadAttachment = async (attachment: TaskAttachment) => {
+    if (!requireAttachmentLogin()) return;
+    try {
+      await downloadRemoteTaskAttachment(attachment);
+    } catch (error) {
+      showRequestError(error, "任务附件下载失败");
+    }
+  };
+
+  const previewAttachment = async (attachment: TaskAttachment) => {
+    if (!requireAttachmentLogin()) return;
+    try {
+      const blob = await readRemoteTaskAttachmentBlob(attachment);
+      const url = URL.createObjectURL(blob);
+      Modal.info({
+        title: attachment.filename,
+        width: 920,
+        icon: null,
+        okText: "关闭",
+        content: <img className="mt-4 max-h-[70vh] w-full object-contain" src={url} alt={attachment.filename} />,
+        afterClose: () => URL.revokeObjectURL(url)
+      });
+    } catch (error) {
+      showRequestError(error, "任务附件预览失败");
+    }
+  };
+
   return (
-    <>
-      <PageHeader title={task.title} subtitle={`${task.category} · ${task.sourceName} · 奖励 ${currency(task.reward)}`} />
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-5">
-          <Surface className="p-6">
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusTag status={task.taskStatus} />
-              <SoftTag>剩余名额 {task.remainingSlots}/{task.totalSlots}</SoftTag>
-              <SoftTag tone="neutral">{estimatedToken.label}：{estimatedToken.value}</SoftTag>
-            </div>
-            <p className="mt-5 text-[15px] leading-8 text-ink-soft">{task.description}</p>
-            <p className="mt-3 rounded-2xl bg-[#fafafa] p-4 text-sm leading-7 text-ink-soft">{estimatedToken.description}</p>
-          </Surface>
-          <InfoBlock title="详细任务描述" body={task.description} />
-          <InfoBlock title="交付标准" body={task.deliverables} />
-          <InfoBlock title="验收标准" body={task.acceptanceCriteria} />
+    <div className="sprix-task-detail-page">
+      <div className="sprix-task-detail-shell">
+        <div className="sprix-detail-back-row">
+          <button type="button" className="sprix-detail-back-button" onClick={handleBackToTaskList}>
+            <ChevronLeft size={18} />
+            返回任务列表
+          </button>
         </div>
-        <aside className="space-y-5">
-          {task.agentMatchScore > 0 && (
-            <Surface className="p-5">
-              <h3 className="text-lg font-semibold">匹配推荐</h3>
-              <div className="mt-4 space-y-3 text-sm text-ink-soft">
-                <p className="flex items-center justify-between gap-3">匹配度：<b className="text-ink">{task.agentMatchScore}%</b></p>
-                <p>推荐团队：<b className="text-ink">{task.suggestedTeam || "当前执行 Agent"}</b></p>
-                <p>{task.recommendedReason}</p>
-                {task.matchAnalysis && <p>{task.matchAnalysis}</p>}
+
+        <div className="sprix-task-detail-content">
+          <header className="sprix-task-detail-hero">
+            <h1 className="sprix-task-detail-title">{task.title}</h1>
+            <div className="sprix-task-detail-meta">
+              <Metric icon={<CircleDollarSign size={24} />} label="奖励" value={currency(task.reward)} />
+              <Metric icon={<UsersRound size={24} />} label="剩余名额" value={`${task.remainingSlots}/${task.totalSlots}`} />
+              <Metric icon={<ThunderboltOutlined />} label={estimatedToken.label} value={estimatedToken.value} />
+              <Metric icon={<TagsOutlined />} label="任务类别" value={task.category} />
+            </div>
+            <img className="sprix-task-detail-hero-illustration" src="/task.svg" alt="" aria-hidden="true" />
+        </header>
+
+        <div className="sprix-task-detail-layout">
+          <main className="sprix-task-detail-main">
+            <InfoBlock icon={<FileText size={16} />} title="任务说明" body={task.description} />
+            <InfoBlock icon={<ListChecks size={16} />} title="交付标准" body={task.deliverables} />
+            <InfoBlock icon={<CheckCircle2 size={16} />} title="验收标准" body={task.acceptanceCriteria} />
+            <div className="sprix-task-info-card sprix-task-attachments">
+              <h3>
+                <span><Paperclip size={16} /></span>
+                任务附件
+              </h3>
+              {taskAttachmentsQuery.isLoading ? (
+                <p className="sprix-detail-prose">附件加载中</p>
+              ) : taskAttachmentsQuery.isError ? (
+                <p className="sprix-detail-prose text-red-600">任务附件加载失败</p>
+              ) : taskAttachmentsQuery.data?.length ? (
+                <div className="mt-3 grid gap-2">
+                  {taskAttachmentsQuery.data.map((attachment) => {
+                    const previewable = attachment.mimeType.startsWith("image/");
+                    return (
+                      <div key={attachment.attachmentId} className="sprix-task-attachment-row">
+                        <div className="min-w-0">
+                          <div className="sprix-task-attachment-name truncate" title={attachment.filename}>{attachment.filename}</div>
+                          <div className="sprix-task-attachment-meta">{formatTaskAttachmentSize(attachment.sizeBytes)}</div>
+                        </div>
+                        <div className="sprix-task-attachment-actions">
+                          {previewable && <SecondaryButton icon={<Eye size={15} />} onClick={() => void previewAttachment(attachment)}>预览</SecondaryButton>}
+                          <SecondaryButton icon={<Download size={15} />} onClick={() => void downloadAttachment(attachment)}>下载</SecondaryButton>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="sprix-detail-prose">暂无任务附件</p>
+              )}
+            </div>
+          </main>
+
+          <aside className="sprix-task-detail-aside">
+            <Surface className="sprix-task-side-card sprix-task-side-panel">
+              <div className="sprix-task-side-score sprix-task-side-item">
+                <PieChartOutlined />
+                <span>系统评估匹配度</span>
+                <b>{task.agentMatchScore > 0 ? `${task.agentMatchScore}%` : "-"}</b>
+              </div>
+              <div className="sprix-task-side-divider" />
+              <div className="sprix-task-side-section">
+              <div className="sprix-task-agent-row is-current-agent sprix-task-side-item">
+                <UserOutlined />
+                <span>当前 Agent</span>
+                <b>{currentAgent?.name ?? "未设置"}</b>
+              </div>
+              <div className="sprix-task-agent-row sprix-task-side-item">
+                <WifiOutlined />
+                <span>连接状态</span>
+                <b className={currentAgent ? "is-online" : "is-offline"}>
+                  <span />
+                  {currentAgent ? "后端已连接" : "未连接"}
+                </b>
+              </div>
+              <ActionButton className="sprix-task-accept-button" onClick={handleAccept}>
+                确认接单
+              </ActionButton>
+              <p className="sprix-task-accept-note">接单后将立即进入执行队列</p>
               </div>
             </Surface>
-          )}
-          <Surface className="p-5">
-            <h3 className="text-lg font-semibold">任务来源信息</h3>
-            <p className="mt-3 text-sm leading-7 text-ink-soft">{task.sourceName}</p>
-            <p className="text-sm text-ink-soft">来源类型：{task.sourceType}</p>
-          </Surface>
-          <Surface className="p-5">
-            <h3 className="text-lg font-semibold">接单确认</h3>
-            <div className="mt-4 space-y-3 text-sm text-ink-soft">
-              <p>当前执行 Agent：<b className="text-ink">{executionAgentName ?? "未设置"}</b></p>
-              <p>当前连接状态：{currentAgent ? "后端已连接" : "未连接"}</p>
-              <p>接单后将立即进入执行中。</p>
-            </div>
-            <ActionButton className="mt-5 w-full" onClick={handleAccept}>
-              接单
-            </ActionButton>
-          </Surface>
-        </aside>
+          </aside>
+        </div>
+        </div>
       </div>
-    </>
+    </div>
   );
 }
 
-function InfoBlock({ title, body }: { title: string; body: string }) {
+function InfoBlock({ icon, title, body }: { icon: ReactNode; title: string; body: string }) {
   return (
-    <Surface className="p-6">
-      <h3 className="text-lg font-semibold text-ink">{title}</h3>
-      <p className="mt-3 text-[15px] leading-8 text-ink-soft">{body}</p>
-    </Surface>
+    <section className="sprix-task-info-card">
+      <h3>
+        <span>{icon}</span>
+        {title}
+      </h3>
+      <p className="sprix-detail-prose">{body}</p>
+    </section>
+  );
+}
+
+function Metric({ icon, label, value, accent = false }: { icon: ReactNode; label: string; value: string; accent?: boolean }) {
+  return (
+    <span className={`sprix-task-detail-metric${accent ? " is-accent" : ""}`}>
+      {icon}
+      <span>
+        <small>{label}</small>
+        <b>{value}</b>
+      </span>
+    </span>
   );
 }
 
@@ -571,35 +859,110 @@ function getInitialQualificationStep(account: Account) {
 export function AgentCenterPage({ openLogin }: UserPageProps) {
   const account = useSprixStore((state) => state.account);
   const agents = useSprixStore((state) => state.agents);
+  const localAgent = useSprixStore((state) => state.localAgent);
+  const currentAgent = useSprixStore((state) => state.currentAgent);
+  const evaluationFlow = useSprixStore((state) => state.evaluationFlow);
   const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
-  const current = getCurrentExecutionAgent(agents);
+  const setEvaluationFlow = useSprixStore((state) => state.setEvaluationFlow);
+  const clearEvaluationFlow = useSprixStore((state) => state.clearEvaluationFlow);
+  const current = currentAgent;
+  const autoSetCurrentAgentIdRef = useRef<string>();
+  const evaluationSessionsRef = useRef(new Map<string, AgentEvaluation>());
+  const evaluationRequestIdRef = useRef(0);
+  const evaluationPollInFlightRef = useRef(false);
+  const evaluationRestoreInFlightRef = useRef(false);
+  const evaluationAccountScopeRef = useRef<string>();
   const [evaluationAgent, setEvaluationAgent] = useState<Agent | null>(null);
   const [evaluation, setEvaluation] = useState<AgentEvaluation | undefined>();
   const [evaluationModalOpen, setEvaluationModalOpen] = useState(false);
   const [currentEvaluation, setCurrentEvaluation] = useState<AgentEvaluation | undefined>();
   const [evaluationLoading, setEvaluationLoading] = useState(false);
   const [evaluationError, setEvaluationError] = useState<string>();
-  const currentWithEvaluation = currentEvaluation && current ? { ...current, evaluation: currentEvaluation, score: currentEvaluation.result.overallScore ?? current.score } : current;
+  const [bindingInvalidModalOpen, setBindingInvalidModalOpen] = useState(false);
+  const [settingCurrentAgentId, setSettingCurrentAgentId] = useState<string>();
+  const evaluationAccountScope = account.isLoggedIn ? account.phone || account.maskedPhone || account.nickname || "logged-in" : "logged-out";
+  const reevaluatingCurrentAgentId = evaluationFlow?.wasCurrentAgent && evaluationFlow.status !== "failed" ? evaluationFlow.agentId : undefined;
+  const currentEvaluationFailed = currentEvaluation?.status === "failed" || currentEvaluation?.result?.status === "failed";
+  const currentAgentFailed = evaluationFlow?.status === "failed" && evaluationFlow.agentId === current?.id;
+  const preservedCurrentAgent = currentEvaluationFailed
+    ? undefined
+    : currentAgentFailed
+      ? undefined
+    : current ?? (reevaluatingCurrentAgentId ? agents.find((agent) => agent.id === reevaluatingCurrentAgentId) : undefined);
+  const currentWithEvaluation = currentEvaluation && preservedCurrentAgent
+    ? { ...preservedCurrentAgent, evaluation: currentEvaluation, score: currentEvaluation.result.overallScore ?? null }
+    : preservedCurrentAgent;
+  const agentsWithCurrentEvaluation =
+    currentEvaluation && (current?.id ?? reevaluatingCurrentAgentId)
+      ? agents.map((agent) =>
+          agent.id === (current?.id ?? reevaluatingCurrentAgentId)
+            ? { ...agent, evaluation: currentEvaluation, score: currentEvaluation.result.overallScore ?? null }
+            : agent
+        )
+      : agents;
 
-  const refreshAgents = useCallback(async () => {
-    const refreshedAgents = await readRemoteAgents();
-    mergeRemoteState({ agents: refreshedAgents });
+  const refreshAgents = useCallback(async (_preferredCurrentAgent?: Agent) => {
+    const [remoteAgents, refreshedCurrentAgent] = await Promise.all([
+      readRemoteAgents(),
+      readCurrentRemoteAgent().catch(() => undefined)
+    ]);
+    const currentAgentFromList = remoteAgents.currentAgentId ? remoteAgents.agents.find((agent) => agent.id === remoteAgents.currentAgentId) : undefined;
+    mergeRemoteState({
+      agents: remoteAgents.agents,
+      localAgent: remoteAgents.localAgent,
+      currentAgentId: remoteAgents.currentAgentId,
+      currentAgent: refreshedCurrentAgent ?? currentAgentFromList
+    });
   }, [mergeRemoteState]);
+
+  const promptClaudeLogin = useCallback((agent: Agent, onAuthenticated: (authenticatedAgent: Agent) => Promise<void>) => {
+    Modal.confirm({
+      title: "登录 Claude Code",
+      content: "已检测到 Claude Code 尚未登录。点击“立即登录”后，本机会打开终端和 Claude 授权页面；完成后将自动继续当前操作。",
+      okText: "立即登录",
+      cancelText: "取消",
+      onOk: async () => {
+        try {
+          await requestRemoteAgentLogin(agent.id);
+          message.info("请在本机终端和浏览器中完成 Claude Code 登录");
+          const authenticatedAgent = await waitForRemoteAgentAuthentication(agent.id);
+          await refreshAgents(authenticatedAgent);
+          message.success("Claude Code 登录成功");
+          await onAuthenticated(authenticatedAgent);
+        } catch (error) {
+          showRequestError(error, "Claude Code 登录失败", "Claude Code 登录失败：");
+          throw error;
+        }
+      }
+    });
+  }, [refreshAgents]);
 
   const setCurrent = async (agent: Agent) => {
     if (!account.isLoggedIn) {
       openLogin();
       return;
     }
+    if (agent.authStatus === "login_required") {
+      promptClaudeLogin(agent, setCurrent);
+      return;
+    }
+    if (settingCurrentAgentId) return;
+
+    setSettingCurrentAgentId(agent.id);
     try {
       const latestEvaluation = await readLatestRemoteAgentEvaluation(agent.id);
       if (!isCompletedAgentEvaluation(latestEvaluation)) {
         message.warning("请先完成该 Agent 测评后再设为当前执行 Agent");
         return;
       }
-      await markRemoteCurrentAgent(agent.id);
+      const updatedCurrentAgent = await markRemoteCurrentAgent(agent.id);
+      const preferredCurrentAgent = updatedCurrentAgent ?? { ...agent, role: "当前执行 Agent" as const };
       setCurrentEvaluation(undefined);
-      await refreshAgents();
+      mergeRemoteState({ currentAgent: preferredCurrentAgent });
+      await refreshAgents(preferredCurrentAgent);
+      if (evaluationFlow && (evaluationFlow.agentId !== agent.id || evaluationFlow.status === "failed")) {
+        clearEvaluationFlow();
+      }
       message.success("已设置当前执行 Agent");
     } catch (error) {
       if (error instanceof Error && error.message === "Agent evaluation not found") {
@@ -607,77 +970,245 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         return;
       }
       showRequestError(error, "设置失败", "设置失败：");
+    } finally {
+      setSettingCurrentAgentId(undefined);
     }
   };
 
-  const openAgentEvaluation = async (agent: Agent) => {
+  const markCurrentAfterCompletedEvaluation = async (agent: Agent, nextEvaluation: AgentEvaluation) => {
+    if (!isCompletedAgentEvaluation(nextEvaluation)) return true;
+    if (autoSetCurrentAgentIdRef.current !== agent.id) return true;
+    try {
+      const updatedCurrentAgent = await markRemoteCurrentAgent(agent.id);
+      const preferredCurrentAgent = updatedCurrentAgent ?? { ...agent, role: "当前执行 Agent" as const };
+      mergeRemoteState({ currentAgent: preferredCurrentAgent });
+      autoSetCurrentAgentIdRef.current = undefined;
+      await refreshAgents(preferredCurrentAgent);
+      message.success("测评完成，已设置当前执行 Agent");
+      return true;
+    } catch (error) {
+      if (autoSetCurrentAgentIdRef.current === agent.id) {
+        autoSetCurrentAgentIdRef.current = undefined;
+      }
+      showRequestError(error, "设置当前执行 Agent 失败", "设置当前执行 Agent 失败：");
+      return false;
+    }
+  };
+
+  const openBindingInvalidModal = useCallback(() => {
+    autoSetCurrentAgentIdRef.current = undefined;
+    clearEvaluationFlow();
+    setEvaluationModalOpen(false);
+    setEvaluationLoading(false);
+    setEvaluationAgent(null);
+    setEvaluation(undefined);
+    setCurrentEvaluation(undefined);
+    setEvaluationError(undefined);
+    setBindingInvalidModalOpen(true);
+  }, [clearEvaluationFlow]);
+
+  const openAgentEvaluation = async (
+    agent: Agent,
+    { setCurrentAfterCompletion = false, forceStart = false }: { setCurrentAfterCompletion?: boolean; forceStart?: boolean } = {}
+  ) => {
     if (!account.isLoggedIn) {
       openLogin();
       return;
     }
+    if (agent.authStatus === "login_required") {
+      promptClaudeLogin(agent, (authenticatedAgent) => openAgentEvaluation(authenticatedAgent, { setCurrentAfterCompletion, forceStart }));
+      return;
+    }
+    const wasCurrentAgent =
+      current?.id === agent.id ||
+      agent.role === "当前执行 Agent" ||
+      (evaluationFlow?.agentId === agent.id && evaluationFlow.wasCurrentAgent === true);
+    if (wasCurrentAgent) {
+      autoSetCurrentAgentIdRef.current = agent.id;
+    }
+    if (setCurrentAfterCompletion) {
+      autoSetCurrentAgentIdRef.current = agent.id;
+    }
+    const shouldRestoreEvaluation =
+      evaluationAgent?.id === agent.id && (evaluationLoading || Boolean(evaluation && isEvaluationActive(evaluation.status)));
+    if (shouldRestoreEvaluation) {
+      if (evaluation?.evaluationId) {
+        setEvaluationModalDismissed(evaluationAccountScope, evaluation.evaluationId, false);
+      }
+      setEvaluationModalOpen(true);
+      setEvaluationError(undefined);
+      return;
+    }
+    const requestId = ++evaluationRequestIdRef.current;
+    const isCurrentRequest = () => evaluationRequestIdRef.current === requestId;
     setEvaluationAgent(agent);
     setEvaluation(undefined);
-    setEvaluationModalOpen(true);
+    setEvaluationModalOpen(false);
     setEvaluationError(undefined);
     setEvaluationLoading(true);
     try {
-      let nextEvaluation: AgentEvaluation;
-      if (agent.evaluation && agent.evaluation.status !== "failed") {
+      let shouldStartEvaluation = false;
+      let nextEvaluation: AgentEvaluation | undefined;
+
+      const rememberedEvaluation = !forceStart ? evaluationSessionsRef.current.get(agent.id) : undefined;
+      const listedRunningEvaluation = !forceStart && agent.evaluation && isEvaluationActive(agent.evaluation.status) ? agent.evaluation : undefined;
+      const runningEvaluation = rememberedEvaluation ?? listedRunningEvaluation;
+
+      if (runningEvaluation && isEvaluationActive(runningEvaluation.status)) {
         try {
-          nextEvaluation = await readLatestRemoteAgentEvaluation(agent.id);
-        } catch (error) {
-          if (!(error instanceof Error && error.message === "Agent evaluation not found")) {
-            throw error;
+          const latestEvaluation = runningEvaluation.evaluationId
+            ? await readRemoteAgentEvaluation(agent.id, runningEvaluation.evaluationId)
+            : runningEvaluation;
+          if (!isCurrentRequest()) return;
+          if (isEvaluationActive(latestEvaluation.status) || isEvaluationTerminal(latestEvaluation.status)) {
+            nextEvaluation = latestEvaluation;
           }
-          nextEvaluation = await startRemoteAgentEvaluation(agent.id);
+        } catch (error) {
+          if (isGlobalAuthError(error) || isLocalAgentBindingInvalidError(error)) throw error;
+          // Keep the last known session. The polling effect will retry instead of starting a new evaluation.
+          nextEvaluation = runningEvaluation;
         }
-      } else {
+      }
+
+      if (!nextEvaluation) {
+        shouldStartEvaluation = true;
         nextEvaluation = await startRemoteAgentEvaluation(agent.id);
       }
+      if (!isCurrentRequest()) return;
+      if (isEvaluationActive(nextEvaluation.status)) {
+        evaluationSessionsRef.current.set(agent.id, nextEvaluation);
+        setEvaluationModalDismissed(evaluationAccountScope, nextEvaluation.evaluationId, false);
+        setEvaluationFlow({
+          agentId: agent.id,
+          evaluationId: nextEvaluation.evaluationId,
+          status: nextEvaluation.status,
+          wasCurrentAgent
+        });
+      } else {
+        evaluationSessionsRef.current.delete(agent.id);
+        if (nextEvaluation.status === "failed") {
+          if (autoSetCurrentAgentIdRef.current === agent.id) {
+            autoSetCurrentAgentIdRef.current = undefined;
+          }
+          setEvaluationFlow({
+            agentId: agent.id,
+            evaluationId: nextEvaluation.evaluationId,
+            status: "failed",
+            wasCurrentAgent
+          });
+        }
+      }
       setEvaluation(nextEvaluation);
+      setEvaluationModalOpen(true);
       if (current?.id === agent.id) {
         setCurrentEvaluation(nextEvaluation);
       }
       await refreshAgents();
-      if (!agent.evaluation || agent.evaluation.status === "failed" || nextEvaluation.status === "running") {
+      if (!isCurrentRequest()) return;
+      const currentAgentRestored = await markCurrentAfterCompletedEvaluation(agent, nextEvaluation);
+      if (nextEvaluation.status === "completed" && currentAgentRestored) {
+        clearEvaluationFlow();
+      }
+      if (shouldStartEvaluation && isEvaluationActive(nextEvaluation.status)) {
         message.success("评测已开始");
       }
     } catch (error) {
+      if (!isCurrentRequest()) return;
+      if (isLocalAgentBindingInvalidError(error)) {
+        openBindingInvalidModal();
+        return;
+      }
+      if (autoSetCurrentAgentIdRef.current === agent.id) {
+        autoSetCurrentAgentIdRef.current = undefined;
+      }
       setEvaluationError(error instanceof Error ? error.message : "评测操作失败");
+      setEvaluationModalOpen(true);
       showRequestError(error, "评测操作失败", "评测操作失败：");
     } finally {
-      setEvaluationLoading(false);
+      if (isCurrentRequest()) setEvaluationLoading(false);
     }
   };
 
   useEffect(() => {
-    if (!evaluationAgent || !evaluation || isEvaluationTerminal(evaluation.status)) return;
+    if (!evaluationAgent || !evaluation || !evaluation.evaluationId || isEvaluationTerminal(evaluation.status)) return;
 
     let cancelled = false;
     const poll = window.setInterval(async () => {
+      if (evaluationPollInFlightRef.current) return;
+      evaluationPollInFlightRef.current = true;
       try {
         const next = await readRemoteAgentEvaluation(evaluationAgent.id, evaluation.evaluationId);
         if (cancelled) return;
+        if (isEvaluationTerminal(next.status)) {
+          evaluationSessionsRef.current.delete(evaluationAgent.id);
+        } else {
+          evaluationSessionsRef.current.set(evaluationAgent.id, next);
+        }
         setEvaluation(next);
         if (current?.id === evaluationAgent.id) {
           setCurrentEvaluation(next);
         }
         if (isEvaluationTerminal(next.status)) {
           window.clearInterval(poll);
+          if (next.status === "failed") {
+            autoSetCurrentAgentIdRef.current = undefined;
+            const wasCurrentEvaluation = evaluationFlow?.agentId === evaluationAgent.id
+              ? evaluationFlow.wasCurrentAgent === true
+              : current?.id === evaluationAgent.id || evaluationAgent.role === "当前执行 Agent";
+            setEvaluationFlow({
+              agentId: evaluationAgent.id,
+              evaluationId: next.evaluationId,
+              status: "failed",
+              wasCurrentAgent: wasCurrentEvaluation
+            });
+          }
+          setEvaluationModalOpen(true);
+          if (next.status === "completed") {
+            const currentAgentRestored = await markCurrentAfterCompletedEvaluation(evaluationAgent, next);
+            if (currentAgentRestored) {
+              clearEvaluationFlow();
+            }
+          }
           void refreshAgents();
         }
       } catch (error) {
         if (cancelled) return;
-        setEvaluationError(error instanceof Error ? error.message : "评测状态获取失败");
+        if (isLocalAgentBindingInvalidError(error)) {
+          window.clearInterval(poll);
+          openBindingInvalidModal();
+          return;
+        }
         window.clearInterval(poll);
+      } finally {
+        evaluationPollInFlightRef.current = false;
       }
-    }, 1_500);
+    }, AGENT_EVALUATION_POLL_INTERVAL_MS);
 
     return () => {
       cancelled = true;
       window.clearInterval(poll);
     };
-  }, [current?.id, evaluation, evaluationAgent, refreshAgents]);
+  }, [clearEvaluationFlow, current?.id, evaluation, evaluationAgent, evaluationFlow, openBindingInvalidModal, refreshAgents, setEvaluationFlow]);
+
+  useEffect(() => {
+    const previousAccountScope = evaluationAccountScopeRef.current;
+    if (previousAccountScope === evaluationAccountScope) return;
+
+    evaluationAccountScopeRef.current = evaluationAccountScope;
+    evaluationRequestIdRef.current += 1;
+    evaluationSessionsRef.current.clear();
+    clearAgentEvaluationProgressCache();
+    autoSetCurrentAgentIdRef.current = undefined;
+    if (previousAccountScope) {
+      clearEvaluationFlow();
+    }
+    setEvaluationModalOpen(false);
+    setEvaluationAgent(null);
+    setEvaluation(undefined);
+    setCurrentEvaluation(undefined);
+    setEvaluationLoading(false);
+    setEvaluationError(undefined);
+  }, [clearEvaluationFlow, evaluationAccountScope]);
 
   useEffect(() => {
     if (!account.isLoggedIn || !current?.id || current.evaluation?.result?.status === "completed") {
@@ -686,9 +1217,10 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
     }
 
     let cancelled = false;
+    const requestId = evaluationRequestIdRef.current;
     readLatestRemoteAgentEvaluation(current.id)
       .then((latest) => {
-        if (cancelled) return;
+        if (cancelled || requestId !== evaluationRequestIdRef.current) return;
         setCurrentEvaluation(latest);
         if (!isEvaluationTerminal(latest.status)) {
           setEvaluationAgent(current);
@@ -696,52 +1228,230 @@ export function AgentCenterPage({ openLogin }: UserPageProps) {
         }
       })
       .catch(() => {
-        if (!cancelled) setCurrentEvaluation(undefined);
+        if (!cancelled && requestId === evaluationRequestIdRef.current) setCurrentEvaluation(undefined);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [account.isLoggedIn, current?.id, current?.lastEvaluatedAt, current?.evaluation?.result?.status]);
+  }, [account.isLoggedIn, current?.id, current?.evaluation?.lastEvaluatedAt, current?.evaluation?.result?.status, evaluationAccountScope]);
+
+  useEffect(() => {
+    if (!account.isLoggedIn || !evaluationFlow?.agentId || !evaluationFlow.evaluationId) return;
+    if (
+      evaluationAgent?.id === evaluationFlow.agentId &&
+      evaluation?.evaluationId === evaluationFlow.evaluationId &&
+      evaluation &&
+      (isEvaluationActive(evaluation.status) || evaluation.status === "failed")
+    ) return;
+    // The user is actively watching a different evaluation; never hijack or close that modal.
+    if (
+      evaluationAgent &&
+      (evaluationAgent.id !== evaluationFlow.agentId || evaluation?.evaluationId !== evaluationFlow.evaluationId) &&
+      (evaluationModalOpen || evaluationLoading || Boolean(evaluation && isEvaluationActive(evaluation.status)))
+    ) return;
+    if (evaluationFlow.status !== "failed" && current?.id === evaluationFlow.agentId && current.evaluation?.evaluationId === evaluationFlow.evaluationId) {
+      clearEvaluationFlow();
+      return;
+    }
+
+    const flowAgent = agents.find((agent) => agent.id === evaluationFlow.agentId);
+    if (!flowAgent) return;
+    if (evaluationRestoreInFlightRef.current) return;
+    evaluationRestoreInFlightRef.current = true;
+
+    let cancelled = false;
+    let retryTimer: number | undefined;
+    const restore = async () => {
+      try {
+        const latestEvaluation = await readRemoteAgentEvaluation(evaluationFlow.agentId, evaluationFlow.evaluationId);
+        if (cancelled) return;
+        const modalDismissed = isEvaluationModalDismissed(evaluationAccountScope, latestEvaluation.evaluationId);
+        if (isEvaluationActive(latestEvaluation.status)) {
+          if (evaluationFlow.wasCurrentAgent === true) {
+            autoSetCurrentAgentIdRef.current = evaluationFlow.agentId;
+          }
+          setEvaluationAgent(flowAgent);
+          setEvaluation(latestEvaluation);
+          setEvaluationError(undefined);
+          setEvaluationLoading(false);
+          setEvaluationModalOpen(!modalDismissed);
+          return;
+        }
+
+        if (latestEvaluation.status === "failed") {
+          autoSetCurrentAgentIdRef.current = undefined;
+          setEvaluationAgent(flowAgent);
+          setEvaluation(latestEvaluation);
+          setCurrentEvaluation(latestEvaluation);
+          setEvaluationLoading(false);
+          setEvaluationModalOpen(false);
+          return;
+        }
+
+        if (latestEvaluation.status === "completed" && evaluationFlow.wasCurrentAgent === true) {
+          await markRemoteCurrentAgent(evaluationFlow.agentId).catch(() => undefined);
+        }
+        clearEvaluationFlow();
+        autoSetCurrentAgentIdRef.current = undefined;
+        setEvaluationAgent(null);
+        setEvaluation(latestEvaluation);
+        setEvaluationLoading(false);
+        setEvaluationModalOpen(false);
+        void refreshAgents();
+      } catch (error) {
+        if (cancelled) return;
+        if (isLocalAgentBindingInvalidError(error)) {
+          openBindingInvalidModal();
+          return;
+        }
+        if (isAgentEvaluationNotFound(error)) {
+          clearEvaluationFlow();
+          return;
+        }
+        retryTimer = window.setTimeout(restore, AGENT_EVALUATION_POLL_INTERVAL_MS);
+      } finally {
+        evaluationRestoreInFlightRef.current = false;
+      }
+    };
+    void restore();
+
+    return () => {
+      cancelled = true;
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+    };
+  }, [account.isLoggedIn, agents, clearEvaluationFlow, evaluation, evaluationAgent, evaluationAccountScope, evaluationFlow, evaluationLoading, evaluationModalOpen, openBindingInvalidModal, refreshAgents]);
 
   const closeEvaluation = () => {
+    evaluationRequestIdRef.current += 1;
     setEvaluationModalOpen(false);
-    if (!evaluation || isEvaluationTerminal(evaluation.status)) {
+    const shouldKeepEvaluationContext = evaluationLoading || Boolean(evaluation && isEvaluationActive(evaluation.status));
+    if (shouldKeepEvaluationContext) {
+      const activeEvaluationId = evaluation?.evaluationId ?? evaluationFlow?.evaluationId;
+      if (activeEvaluationId) {
+        setEvaluationModalDismissed(evaluationAccountScope, activeEvaluationId, true);
+      }
+    }
+    setEvaluationLoading(false);
+    if (!shouldKeepEvaluationContext) {
       setEvaluationAgent(null);
       setEvaluation(undefined);
     }
     setEvaluationError(undefined);
-    setEvaluationLoading(false);
   };
 
   return (
-    <>
+    <div className="sprix-agent-center-page">
       <PageHeader
         title="Agent 中心"
       />
       <div className="mb-5">
-        <CurrentAgentCard agent={currentWithEvaluation} />
+        <CurrentAgentCard
+          agent={currentWithEvaluation}
+          evaluationActive={Boolean(evaluationFlow?.wasCurrentAgent && isEvaluationActive(evaluationFlow.status))}
+        />
       </div>
       <AgentList
         title="Agent 列表"
-        agents={agents}
-        empty="暂无 Agent"
-        renderActions={(agent) =>
-          agent.role === "当前执行 Agent" ? (
+        agents={agentsWithCurrentEvaluation}
+        empty={getLocalAgentEmptyMessage(localAgent)}
+        renderActions={(agent) => {
+          const canRestartEvaluation =
+            agent.evaluation && (isCompletedAgentEvaluation(agent.evaluation) || agent.evaluation.status === "failed" || agent.evaluation.result?.status === "failed");
+          const showEvaluationAction = !canRestartEvaluation;
+          const canSetCurrent = canSetAgentCurrent(agent);
+          const hasFailedEvaluation = agent.evaluation?.status === "failed" || agent.evaluation?.result?.status === "failed";
+          const isSettingCurrent = settingCurrentAgentId === agent.id;
+          const evaluationActionLabel = getAgentEvaluationActionLabel(agent);
+          const evaluationActionIcon =
+            evaluationActionLabel === "查看进度" ? (
+              <EvaluationProgressButtonIcon />
+            ) : evaluationActionLabel === "开始评测" ? (
+              <EvaluationButtonIcon />
+            ) : undefined;
+          const isReevaluatingCurrent =
+            reevaluatingCurrentAgentId === agent.id &&
+            evaluationFlow?.agentId === agent.id &&
+            evaluationFlow.wasCurrentAgent === true &&
+            isEvaluationActive(evaluationFlow.status);
+          return (agent.role === "当前执行 Agent" && !hasFailedEvaluation) || isReevaluatingCurrent ? (
             <>
-              <SecondaryButton disabled>当前执行 Agent</SecondaryButton>
-              <ActionButton onClick={() => openAgentEvaluation(agent)}>{getAgentEvaluationActionLabel(agent)}</ActionButton>
+              {agent.authStatus === "login_required" && (
+                <SecondaryButton
+                  icon={<LoginButtonIcon />}
+                  onClick={() => promptClaudeLogin(agent, async () => undefined)}
+                >
+                  登录
+                </SecondaryButton>
+              )}
+              <SecondaryButton
+                className="sprix-agent-current-action-button"
+                disabled
+                icon={<ButtonIcon src={BUTTON_ICON_PATHS.currentAgent} />}
+              >
+                当前执行 Agent
+              </SecondaryButton>
+              {showEvaluationAction && (
+                <SecondaryButton
+                  icon={evaluationActionIcon}
+                  onClick={() => openAgentEvaluation(agent)}
+                >
+                  {evaluationActionLabel}
+                </SecondaryButton>
+              )}
+              {canRestartEvaluation && (
+                <SecondaryButton
+                  icon={<EvaluationButtonIcon />}
+                  onClick={() => openAgentEvaluation(agent, { forceStart: true })}
+                >
+                  重新评测
+                </SecondaryButton>
+              )}
             </>
           ) : (
             <>
-              <ActionButton onClick={() => setCurrent(agent)}>设为当前执行 Agent</ActionButton>
-              <SecondaryButton onClick={() => openAgentEvaluation(agent)}>{getAgentEvaluationActionLabel(agent)}</SecondaryButton>
+              {agent.authStatus === "login_required" && (
+                <SecondaryButton
+                  icon={<LoginButtonIcon />}
+                  onClick={() => promptClaudeLogin(agent, async () => undefined)}
+                >
+                  登录
+                </SecondaryButton>
+              )}
+              {canSetCurrent && (
+                <ActionButton
+                  className="sprix-agent-current-action-button"
+                  disabled={Boolean(settingCurrentAgentId)}
+                  icon={<ButtonIcon src={BUTTON_ICON_PATHS.switchAgent} />}
+                  loading={isSettingCurrent}
+                  onClick={() => setCurrent(agent)}
+                >
+                  {isSettingCurrent ? "设置中" : "设为当前执行 Agent"}
+                </ActionButton>
+              )}
+              {showEvaluationAction && (
+                <SecondaryButton
+                  icon={evaluationActionIcon}
+                  onClick={() => openAgentEvaluation(agent)}
+                >
+                  {evaluationActionLabel}
+                </SecondaryButton>
+              )}
+              {canRestartEvaluation && (
+                <SecondaryButton
+                  icon={<EvaluationButtonIcon />}
+                  onClick={() => openAgentEvaluation(agent, { forceStart: true })}
+                >
+                  重新评测
+                </SecondaryButton>
+              )}
             </>
-          )
-        }
+          );
+        }}
       />
-      <AgentEvaluationModal open={evaluationModalOpen} agent={evaluationAgent} evaluation={evaluation} loading={evaluationLoading} error={evaluationError} onClose={closeEvaluation} />
-    </>
+      <AgentEvaluationProgressModal open={evaluationModalOpen} agent={evaluationAgent} evaluation={evaluation} loading={evaluationLoading} error={evaluationError} onClose={closeEvaluation} />
+      <AgentBindingInvalidModal open={bindingInvalidModalOpen} onClose={() => setBindingInvalidModalOpen(false)} />
+    </div>
   );
 }
 
@@ -749,189 +1459,75 @@ function isEvaluationTerminal(status: AgentEvaluation["status"]) {
   return status === "completed" || status === "failed";
 }
 
+function isEvaluationActive(status: AgentEvaluation["status"]) {
+  return status === "running" || status === "judging";
+}
+
 function isCompletedAgentEvaluation(evaluation: AgentEvaluation) {
   return evaluation.status === "completed" || evaluation.result?.status === "completed";
 }
 
-function evaluationDimensions(result: AgentEvaluation["result"]) {
-  return Object.entries(evaluationDimensionLabels).map(([key, label]) => ({
-    key,
-    label,
-    score: Number(result.dimensions[key]?.score) || 0,
-    comment: result.dimensions[key]?.comment
-  }));
+function isAgentEvaluationNotFound(error: unknown) {
+  if (isApiRequestError(error) && error.code === "NOT_FOUND") return true;
+  return error instanceof Error && ["Agent evaluation not found", "Agent 测评记录不存在"].includes(error.message);
 }
 
-function EvaluationRadar({ result }: { result: AgentEvaluation["result"] }) {
-  const dimensions = evaluationDimensions(result);
-  const size = 220;
-  const center = size / 2;
-  const radius = 76;
-  const rings = [20, 40, 60, 80, 100];
-  const pointFor = (index: number, value: number) => {
-    const angle = -Math.PI / 2 + (Math.PI * 2 * index) / dimensions.length;
-    const nextRadius = radius * (value / 100);
-    return `${center + Math.cos(angle) * nextRadius},${center + Math.sin(angle) * nextRadius}`;
-  };
-  const polygon = dimensions.map((item, index) => pointFor(index, item.score)).join(" ");
-
-  return (
-    <svg className="sprix-evaluation-radar" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="六维能力雷达图">
-      {rings.map((ring) => (
-        <polygon
-          key={ring}
-          points={dimensions.map((_, index) => pointFor(index, ring)).join(" ")}
-          className="sprix-evaluation-radar-ring"
-        />
-      ))}
-      {dimensions.map((item, index) => {
-        const axisEnd = pointFor(index, 100);
-        const [x, y] = axisEnd.split(",").map(Number);
-        const labelX = center + (x - center) * 1.18;
-        const labelY = center + (y - center) * 1.18;
-        return (
-          <g key={item.key}>
-            <line x1={center} y1={center} x2={x} y2={y} className="sprix-evaluation-radar-axis" />
-            <text x={labelX} y={labelY} textAnchor="middle" dominantBaseline="middle" className="sprix-evaluation-radar-label">
-              {item.label}
-            </text>
-          </g>
-        );
-      })}
-      <polygon points={polygon} className="sprix-evaluation-radar-area" />
-      <polyline points={`${polygon} ${polygon.split(" ")[0]}`} className="sprix-evaluation-radar-line" />
-      {dimensions.map((item, index) => {
-        const [x, y] = pointFor(index, item.score).split(",").map(Number);
-        return <circle key={item.key} cx={x} cy={y} r="3.8" className="sprix-evaluation-radar-dot" />;
-      })}
-    </svg>
-  );
-}
-
-function AgentEvaluationModal({
-  open,
-  agent,
-  evaluation,
-  loading,
-  error,
-  onClose
-}: {
-  open: boolean;
-  agent: Agent | null;
-  evaluation?: AgentEvaluation;
-  loading: boolean;
-  error?: string;
-  onClose: () => void;
-}) {
-  const questions = evaluation?.questions.length ? evaluation.questions : DEFAULT_AGENT_EVALUATION_QUESTIONS;
-  const answeredCount = evaluation?.transcript.filter((item) => item.answer).length ?? 0;
-  const status = evaluation?.status ?? "running";
-  const result = evaluation?.result;
-  const activeQuestionIndex = status === "judging" || isEvaluationTerminal(status) ? -1 : Math.min(answeredCount, questions.length - 1);
-
-  return (
-    <Modal
-      title={
-        <div className="sprix-evaluation-title">
-          <span>面试 {agent?.name ?? "Agent"}</span>
-          {status === "running" && <span>{answeredCount}/{questions.length}</span>}
-        </div>
-      }
-      open={open && Boolean(agent)}
-      onCancel={onClose}
-      width={720}
-      className="sprix-evaluation-modal"
-      footer={
-        <div className="sprix-evaluation-footer">
-          <span className={status === "running" || status === "judging" ? "is-active" : ""}>
-            {status === "judging"
-              ? "正在生成测评结果，关闭弹框不会取消后端任务"
-              : status === "running"
-                ? `逐题向 ${agent?.name ?? "Agent"} 提问中，关闭弹框不会取消后端任务`
-                : status === "failed"
-                  ? "测评失败"
-                  : "测评完成"}
-          </span>
-          <ActionButton onClick={onClose}>关闭</ActionButton>
-        </div>
-      }
-    >
-      <div className="sprix-evaluation-shell">
-        {error && <p className="sprix-evaluation-error">{error}</p>}
-
-        <div className="sprix-evaluation-scroll">
-          {questions.map((question, index) => {
-            const transcript = evaluation?.transcript[index];
-            const answer = transcript?.answer;
-            const isActive = !answer && index === activeQuestionIndex;
-            const isQuestionLoading = isActive || (loading && index === 0);
-            return (
-              <div
-                key={`${question}-${index}`}
-                className={`sprix-evaluation-question ${answer ? "is-done" : ""} ${isQuestionLoading ? "is-active" : ""}`}
-                style={{ animationDelay: `${index * 38}ms` }}
-              >
-                <p className="sprix-evaluation-question-text">
-                  <span className={`sprix-evaluation-status-dot ${answer ? "is-done" : ""} ${isQuestionLoading ? "is-active" : ""}`} />
-                  <span className="sprix-evaluation-question-index">Q{index + 1}.</span>
-                  <span>{question}</span>
-                </p>
-                {!answer && <p className="sprix-evaluation-pending">{isQuestionLoading ? "提问中..." : "待提问..."}</p>}
-                {answer && <p className="sprix-evaluation-answer">{answer}</p>}
-              </div>
-            );
-          })}
-
-          {result?.status === "completed" && (
-            <div className="sprix-evaluation-result">
-              <strong>测评完成</strong>
-              <span>能力画像已更新，可在当前执行 Agent 的能力画像中查看六维结果。</span>
-            </div>
-          )}
-
-          {result?.status === "failed" && <p className="sprix-evaluation-error">{result.error ?? "评测失败"}</p>}
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-function CurrentAgentCard({ agent }: { agent?: Agent }) {
+function CurrentAgentCard({ agent, evaluationActive = false }: { agent?: Agent; evaluationActive?: boolean }) {
   const summary = agent ? getAgentAdmissionSummary(agent) : undefined;
   const tagLabels = summary ? getAgentTagLabels(summary.tags) : [];
   const evaluationResult = agent?.evaluation?.result?.status === "completed" ? agent.evaluation.result : undefined;
+  const dimensionInteraction = useAbilityDimensionInteraction(Boolean(evaluationResult));
   return (
-    <Surface className="sprix-current-agent-card sprix-agent-profile-card p-6">
-      {summary ? (
-        <>
-          <div className="sprix-agent-identity-panel">
-            <div className="sprix-current-agent-body">
-              <div className="min-w-0 flex-1">
-                <span className="sprix-agent-current-label">当前执行 Agent</span>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h4 className="text-2xl font-semibold">{summary.title}</h4>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {tagLabels.map((tag) => (
-                    <SoftTag key={tag}>{tag}</SoftTag>
-                  ))}
-                </div>
-                {evaluationResult && (
-                  <div className="sprix-agent-score-panel">
-                    <strong>{evaluationResult.overallScore ?? "-"}</strong>
-                    <span>综合评分</span>
-                    <EvaluationRadar result={evaluationResult} />
+    <Surface
+      className={`sprix-current-agent-card sprix-agent-profile-card p-6 ${evaluationResult ? "is-figma-result" : ""}`}
+    >
+      {evaluationActive ? (
+        <div className="sprix-current-agent-empty rounded-2xl border border-dashed border-line p-7 text-center">
+          <Bot className="mx-auto text-ink-soft" />
+          <h4 className="mt-3 text-lg font-semibold">当前执行 Agent 正在测评</h4>
+          <p className="mt-2 text-sm text-ink-soft">测评完成后将更新执行状态，完成前暂不能接单。</p>
+        </div>
+      ) : summary ? (
+        evaluationResult ? (
+          <AgentAbilityProfile
+            agent={agent}
+            embedded
+            resultPresentation
+            agentCenterPresentation
+          />
+        ) : (
+          <>
+            <div className="sprix-agent-identity-panel">
+              <div className="sprix-current-agent-body">
+                <div className="min-w-0 flex-1">
+                  <span className="sprix-agent-current-label">当前执行 Agent</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="text-2xl font-semibold">{summary.title}</h4>
                   </div>
-                )}
+                  <div className="sprix-agent-current-tags flex flex-wrap gap-2">
+                    {tagLabels.map((tag) => (
+                      <span key={tag} className="sprix-agent-ability-result-tag">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="sprix-agent-ability-section">
-            <AbilityProfile agent={agent} embedded showScore={false} />
-          </div>
-        </>
+            <div className="sprix-agent-ability-section">
+              <AgentAbilityProfile
+                agent={agent}
+                embedded
+                showScore={false}
+                resultPresentation
+                compactDetails
+                dimensionInteraction={dimensionInteraction}
+              />
+            </div>
+          </>
+        )
       ) : (
-        <div className="sprix-current-agent-empty rounded-[22px] border border-dashed border-line p-7 text-center">
+        <div className="sprix-current-agent-empty rounded-2xl border border-dashed border-line p-7 text-center">
           <Bot className="mx-auto text-ink-soft" />
           <h4 className="mt-3 text-lg font-semibold">未设置当前执行 Agent</h4>
           <p className="mt-2 text-sm text-ink-soft">在 Agent 列表中选择一个 Agent 设为当前执行 Agent 后，即可执行平台任务。</p>
@@ -939,97 +1535,6 @@ function CurrentAgentCard({ agent }: { agent?: Agent }) {
       )}
     </Surface>
   );
-}
-
-function AbilityProfile({ agent, embedded = false, showScore = true }: { agent?: Agent; embedded?: boolean; showScore?: boolean }) {
-  const ability = getAgentAbilityResult(agent);
-  const summary = agent ? getAgentAdmissionSummary(agent) : undefined;
-  const evaluationResult = agent?.evaluation?.result?.status === "completed" ? agent.evaluation.result : undefined;
-  const dimensions = evaluationResult ? evaluationDimensions(evaluationResult) : [];
-  const isAbilityPending = !evaluationResult && hasPendingAgentEvaluation(agent);
-  const content = (
-    <>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-lg font-semibold">能力画像</h3>
-        {agent?.evaluation && <StatusTag status={getAgentEvaluationStatusLabel(agent.evaluation)} />}
-      </div>
-      <p className="mt-3 text-sm leading-6 text-ink-soft">最近评测：{summary?.lastEvaluatedAt ?? "-"}</p>
-      {evaluationResult ? (
-        <div className={`sprix-ability-profile mt-5 ${showScore ? "" : "is-bars-only"}`}>
-          {showScore && (
-            <div className="sprix-ability-score">
-              <strong>{evaluationResult.overallScore ?? "-"}</strong>
-              <span>综合评分</span>
-              <EvaluationRadar result={evaluationResult} />
-            </div>
-          )}
-          <div className="sprix-ability-detail">
-            <div className="sprix-ability-bars">
-              {dimensions.map((dimension, index) => (
-                <div key={dimension.key} className="sprix-ability-dimension">
-                  <div className="sprix-ability-dimension-row">
-                    <span>{dimension.label}</span>
-                    <div>
-                      <span style={{ width: `${dimension.score}%`, transitionDelay: `${index * 60}ms` }} />
-                    </div>
-                    <strong>{dimension.score}</strong>
-                  </div>
-                  {dimension.comment && <p>{dimension.comment}</p>}
-                </div>
-              ))}
-            </div>
-            {evaluationResult.summary && <p className="sprix-ability-summary">{evaluationResult.summary}</p>}
-            {evaluationResult.improvements.length > 0 && (
-              <div className="sprix-ability-improvements">
-                {evaluationResult.improvements.map((item) => (
-                  <SoftTag key={item} tone="amber">
-                    {item}
-                  </SoftTag>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      ) : isAbilityPending ? (
-        <div className="sprix-ability-pending mt-5">
-          <div className="sprix-ability-pending-head">
-            <span>能力画像生成中</span>
-          </div>
-          <div className="sprix-ability-pending-bars">
-            {Object.values(evaluationDimensionLabels).map((label, index) => (
-              <div key={label} className="sprix-ability-pending-row">
-                <span>{label}</span>
-                <div>
-                  <i style={{ animationDelay: `${index * 90}ms` }} />
-                </div>
-                <em>待生成</em>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : ability.kind === "profile" ? (
-        <div className="mt-5 space-y-4">
-          {ability.rows.map((row) => (
-            <div key={row.label}>
-              <div className="mb-1 flex justify-between text-sm">
-                <span className="text-ink-soft">{row.label}</span>
-                <span className="font-semibold text-ink">{row.value}</span>
-              </div>
-              <Progress percent={row.value} showInfo={false} strokeColor="#0f766e" />
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="mt-8 rounded-[22px] border border-dashed border-line p-7 text-center">
-          <BrainCircuit className="mx-auto text-ink-soft" />
-          <h4 className="mt-3 text-lg font-semibold">{ability.title}</h4>
-          <p className="mt-2 text-sm text-ink-soft">{ability.description}</p>
-        </div>
-      )}
-    </>
-  );
-
-  return embedded ? <div className="sprix-embedded-ability-profile">{content}</div> : <Surface className="p-6">{content}</Surface>;
 }
 
 function AgentList({
@@ -1047,33 +1552,44 @@ function AgentList({
     <Surface className="mb-5 p-6">
       <h3 className="mb-4 text-lg font-semibold">{title}</h3>
       {agents.length === 0 ? (
-        <p className="rounded-2xl bg-[#fafafa] p-4 text-sm text-ink-soft">{empty}</p>
+        <p className="rounded-lg bg-[#fafafa] p-4 text-sm text-ink-soft">{empty}</p>
       ) : (
         <div className="space-y-3">
           {agents.map((agent) => {
             const completedEvaluation = agent.evaluation?.result?.status === "completed" ? agent.evaluation.result : undefined;
+            const lastEvaluatedAt = agent.evaluation?.lastEvaluatedAt;
             return (
-              <div key={agent.id} className="flex flex-col gap-4 rounded-[18px] border border-line bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
+              <div key={agent.id} className="flex flex-col gap-4 rounded-xl border border-line bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex gap-4">
                   <div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="sprix-agent-list-title-row">
                       <h4 className="text-lg font-semibold">{agent.name}</h4>
-                      <StatusTag status={agent.status} />
-                      {agent.evaluation && <StatusTag status={getAgentEvaluationStatusLabel(agent.evaluation)} />}
+                      {agent.authStatus === "login_required" && <SoftTag>Claude Code 未登录</SoftTag>}
+                      {agent.evaluation && (
+                        completedEvaluation ? (
+                          <SoftTag tone="neutral" bordered={false}>
+                            {getAgentEvaluationStatusLabel(agent.evaluation)}
+                          </SoftTag>
+                        ) : (
+                          <StatusTag status={getAgentEvaluationStatusLabel(agent.evaluation)} />
+                        )
+                      )}
                     </div>
                     <p className="mt-1 text-sm text-ink-soft">
-                      {completedEvaluation ? `综合评分：${scoreText(completedEvaluation.overallScore)} · ` : ""}当前角色：{agent.role} · 最近评测时间：{agent.lastEvaluatedAt}
+                      {completedEvaluation ? `综合评分：${scoreText(completedEvaluation.overallScore)} · ` : ""}最近评测时间：{lastEvaluatedAt || "-"}
                     </p>
                     {agent.tags.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-2">
+                      <div className="sprix-agent-list-tags mt-3 flex flex-wrap gap-2">
                         {agent.tags.map((tag) => (
-                          <SoftTag key={tag}>{tag}</SoftTag>
+                          <SoftTag key={tag} tone="neutral" bordered={false}>
+                            {tag}
+                          </SoftTag>
                         ))}
                       </div>
                     )}
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2">{renderActions(agent)}</div>
+                <div className="sprix-agent-list-actions flex flex-nowrap gap-2">{renderActions(agent)}</div>
               </div>
             );
           })}
@@ -1086,175 +1602,175 @@ function AgentList({
 export function MyTasksPage({ openLogin, openAppeal }: UserPageProps) {
   const account = useSprixStore((state) => state.account);
   const myTasks = useSprixStore((state) => state.myTasks);
-  const [tab, setTab] = useState("全部");
+  const queryClient = useQueryClient();
+  const [tab, setTab] = useState(readSavedMyTasksTab);
+  const [cancelingTaskId, setCancelingTaskId] = useState<string>();
   const rerunTask = useRerunTask();
+
+  useEffect(() => {
+    if (!account.isLoggedIn) return;
+    void queryClient.invalidateQueries({ queryKey: ["sprix-agent", "snapshot"] });
+  }, [account.isLoggedIn, queryClient]);
+
+  const cancelTask = (executionId: string) => {
+    Modal.confirm({
+      title: "确认终止任务",
+      content: "终止后本次执行会进入已终止状态，后续可在任务记录中重新执行。",
+      okText: "确认终止",
+      okButtonProps: { danger: true },
+      cancelText: "取消",
+      onOk: async () => {
+        setCancelingTaskId(executionId);
+        try {
+          await cancelRemoteTask(executionId);
+          await queryClient.invalidateQueries({ queryKey: ["sprix-agent"] });
+          message.success("任务已终止");
+        } catch (error) {
+          showRequestError(error, "任务终止失败", "任务终止失败：");
+        } finally {
+          setCancelingTaskId(undefined);
+        }
+      }
+    });
+  };
   const visible = myTasks.filter((task) => {
     if (tab === "全部") return true;
     if (tab === "已完成") return ["验收未通过", "结算中", "已结算"].includes(task.status);
     return task.status === tab;
   });
 
+  useEffect(() => {
+    if (visible.length === 0) return;
+    return restoreSavedPageScrollTop(MY_TASKS_SCROLL_TOP_KEY, clearMyTasksReturnState, ".sprix-my-tasks-list");
+  }, [visible.length]);
+
+  const saveMyTasksReturnPosition = useCallback(() => {
+    saveMyTasksReturnState(tab);
+  }, [tab]);
+
   if (!account.isLoggedIn) {
     return <EmptyState title="登录后查看我的任务" description="登录后可查看执行记录、验收结果、申诉状态和重新执行入口。" action={<ActionButton onClick={openLogin}>登录 / 注册</ActionButton>} />;
   }
 
   return (
-    <>
-      <PageHeader title="我的任务" subtitle="查看任务执行、验收、申诉和结算状态。" />
-      <Surface className="p-5">
-        <Segmented options={["全部", "执行中", "已终止", "已完成"]} value={tab} onChange={(value) => setTab(String(value))} />
-        <div className="mt-5 space-y-3">
-          {visible.map((task) => (
-            <MyTaskRow key={task.id} task={task} onAppeal={openAppeal} onRerun={rerunTask} />
-          ))}
+    <div className="sprix-my-tasks-page">
+      <PageHeader title="我的任务" />
+      <div className="sprix-my-tasks-shell">
+        <div className="sprix-my-tasks-tabs-row">
+          <Tabs
+            className="sprix-my-tasks-tabs"
+            activeKey={tab}
+            onChange={setTab}
+            items={MY_TASKS_TABS.map((label) => ({ key: label, label }))}
+          />
+          <img className="sprix-my-tasks-illustration" src="/mytask.svg" alt="" aria-hidden="true" />
         </div>
-      </Surface>
-    </>
+        {visible.length > 0 ? (
+          <div className="sprix-my-tasks-list">
+            {visible.map((task) => (
+              <MyTaskRow
+                key={task.id}
+                task={task}
+                canceling={cancelingTaskId === task.id}
+                onAppeal={openAppeal}
+                onCancel={cancelTask}
+                onOpenDetail={saveMyTasksReturnPosition}
+                onRerun={rerunTask}
+              />
+            ))}
+          </div>
+        ) : (
+          <MyTasksEmptyState tab={tab} hasAnyTask={myTasks.length > 0} />
+        )}
+      </div>
+    </div>
   );
 }
 
-function MyTaskRow({ task, onAppeal, onRerun }: { task: MyTask; onAppeal: (executionId: string) => void; onRerun: (executionId: string) => void }) {
+function MyTasksEmptyState({ tab, hasAnyTask }: { tab: string; hasAnyTask: boolean }) {
+  const isFilteredEmpty = hasAnyTask && tab !== "全部";
+  return (
+    <div className="mt-5 flex min-h-[360px] flex-col items-center justify-center rounded-[24px] border border-dashed border-line bg-[linear-gradient(180deg,#ffffff_0%,#f7fbff_100%)] px-6 py-12 text-center">
+      <div className="flex size-[92px] items-center justify-center">
+        <img className="size-full object-contain" src="/task-metric-tasks-filled.svg" alt="" aria-hidden="true" />
+      </div>
+      <h3 className="mt-5 text-xl font-semibold text-ink">{isFilteredEmpty ? "当前筛选暂无任务" : "暂无任务记录"}</h3>
+      <p className="mt-2 max-w-[420px] text-sm leading-7 text-ink-soft">
+        {isFilteredEmpty ? "该状态下暂时没有任务记录，可切换到全部查看其它执行进度。" : "接取任务后，执行进度、验收结果、申诉和结算状态会在这里集中展示。"}
+      </p>
+      {!isFilteredEmpty && (
+        <div className="mt-6">
+          <SecondaryButton href="/agent/market">去任务市场</SecondaryButton>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MyTaskRow({
+  task,
+  canceling,
+  onAppeal,
+  onCancel,
+  onOpenDetail,
+  onRerun
+}: {
+  task: MyTask;
+  canceling: boolean;
+  onAppeal: (executionId: string) => void;
+  onCancel: (executionId: string) => void;
+  onOpenDetail: () => void;
+  onRerun: (executionId: string) => void;
+}) {
+  const navigate = useNavigate();
   const actions = getMyTaskActions(task);
   const metaItems = getMyTaskMetaItems(task);
+  const showPrimaryStatus = !(task.status === "验收未通过" && shouldShowAppealStatus(task.appealStatus));
+  const detailPath = `/agent/my-tasks/${task.id}`;
+  const openDetail = () => {
+    onOpenDetail();
+    navigate(detailPath);
+  };
+  useExecutionDisplayProgress({
+    executionId: task.id,
+    actualProgress: parseExecutionProgress(task.progress),
+    isRunning: task.status === "执行中" || task.status === "待平台审核"
+  });
   return (
-    <div className="flex flex-col gap-4 rounded-[18px] border border-line bg-white p-4 xl:flex-row xl:items-center xl:justify-between">
-      <div>
-        <div className="flex flex-wrap items-center gap-2">
-          <StatusTag status={task.status} />
-          {task.appealStatus && <StatusTag status={task.appealStatus} />}
+    <Surface className="sprix-my-task-row">
+      <div className="sprix-my-task-row-copy">
+        <div className="sprix-my-task-row-status">
+          {showPrimaryStatus && <StatusTag status={task.status} />}
+          {shouldShowAppealStatus(task.appealStatus) && <StatusTag status={task.appealStatus} />}
         </div>
-        <Link to={`/agent/my-tasks/${task.id}`} className="mt-2 block text-lg font-semibold text-ink no-underline hover:text-accent">
+        <Link to={detailPath} className="sprix-my-task-row-title" onClick={onOpenDetail}>
           {task.title}
         </Link>
-        <p className="mt-1 text-sm text-ink-soft">
+        <p className="sprix-my-task-row-meta">
           {metaItems.join(" · ")}
         </p>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="sprix-my-task-row-actions">
         {actions.appealLabel && (
-          <ActionButton disabled={!actions.appealEnabled} onClick={() => actions.appealEnabled && onAppeal(task.id)}>
+          <SecondaryButton disabled={!actions.appealEnabled} onClick={() => actions.appealEnabled && onAppeal(task.id)}>
             {actions.appealLabel}
-          </ActionButton>
+          </SecondaryButton>
         )}
-        {actions.terminateLabel && <SecondaryButton disabled={!actions.terminateEnabled}>{actions.terminateLabel}</SecondaryButton>}
+        {!isMockExecution(task.id) && actions.terminateLabel && (
+          <SecondaryButton danger disabled={!actions.terminateEnabled || canceling} loading={canceling} onClick={() => actions.terminateEnabled && onCancel(task.id)}>
+            {actions.terminateLabel}
+          </SecondaryButton>
+        )}
         {actions.rerun && <SecondaryButton onClick={() => onRerun(task.id)}>重新执行</SecondaryButton>}
-        <SecondaryButton href={`/agent/my-tasks/${task.id}`}>{actions.viewLabel}</SecondaryButton>
+        <SecondaryButton onClick={openDetail}>{actions.viewLabel}</SecondaryButton>
       </div>
-    </div>
-  );
-}
-
-export function MyTaskDetailPage({ openAppeal }: Pick<UserPageProps, "openAppeal">) {
-  const { id } = useParams();
-  const task = useSprixStore((state) => state.myTasks.find((item) => item.id === id));
-  const storedBase = useSprixStore((state) => state.tasks.find((item) => item.id === task?.taskId));
-  const baseQuery=useQuery({queryKey:['sprix-agent','consumer-task',task?.taskId],queryFn:()=>readConsumerTask(task!.taskId),enabled:consumerMockEnabled && !!task && isMockTask(task.taskId),refetchInterval:10000,refetchIntervalInBackground:false});
-  const base=task && isMockTask(task.taskId) ? baseQuery.data : storedBase;
-  const rerunTask = useRerunTask();
-  if(consumerMockEnabled && task && isMockTask(task.taskId) && baseQuery.isPending) return <p>执行详情加载中…</p>;
-  if(consumerMockEnabled && task && isMockTask(task.taskId) && baseQuery.isError) return <Alert type="error" message="执行详情读取失败" action={<SecondaryButton onClick={()=>baseQuery.refetch()}>重试</SecondaryButton>}/>;
-  if (!task || !base) return <EmptyState title="执行记录不存在" description="该任务记录暂不可访问" action={<SecondaryButton href="/agent/my-tasks">返回我的任务</SecondaryButton>} />;
-  const requirementText = getExecutionRequirementText(base);
-  const review = getExecutionReviewState(task, base);
-  const artifacts = getExecutionArtifactsState(base);
-  const pendingSections = getExecutionBackendPendingSections();
-  const actions = getMyTaskActions(task);
-  const taskActions = (
-    <div className="flex flex-wrap gap-2">
-      {actions.appealLabel && (
-        <ActionButton disabled={!actions.appealEnabled} onClick={() => actions.appealEnabled && openAppeal(task.id)}>
-          {actions.appealLabel}
-        </ActionButton>
-      )}
-      {actions.rerun && <SecondaryButton onClick={() => rerunTask(task.id)}>重新执行</SecondaryButton>}
-    </div>
-  );
-  return (
-    <div className="sprix-task-detail-page">
-      <div className="sprix-detail-toolbar">
-        <SecondaryButton href="/agent/my-tasks">返回我的任务</SecondaryButton>
-      </div>
-      <Surface className="sprix-execution-hero p-6">
-        <div className="min-w-0">
-          <div className="mb-3 flex flex-wrap gap-2">
-            <StatusTag status={task.status} />
-            {task.appealStatus && <StatusTag status={task.appealStatus} />}
-            <SoftTag>{task.currentNode}</SoftTag>
-          </div>
-          <h1 className="text-3xl font-semibold leading-tight text-ink">{task.title}</h1>
-          <p className="mt-3 text-sm leading-7 text-ink-soft">
-            {task.category} · {task.agentName} · {task.startedAt} · {currency(task.reward)}
-          </p>
-        </div>
-        <div className="sprix-execution-hero-progress">
-          <span>执行进度</span>
-          <strong>{task.progress || "-"}</strong>
-        </div>
-      </Surface>
-      <Surface className="sprix-execution-progress-card p-5">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-ink">执行流转</h2>
-            <p className="mt-1 text-sm text-ink-soft">平台按节点推进执行、质检、验收和入账。</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <SoftTag>{task.currentNode}</SoftTag>
-            <SoftTag tone="neutral">{task.progress}</SoftTag>
-            {(actions.appealLabel || actions.rerun) && taskActions}
-          </div>
-        </div>
-        <Steps
-          className="sprix-execution-steps mt-5"
-          current={task.status === "执行中" ? 2 : 5}
-          items={["已接单", "解析任务", "生成结果", "质量检查", "平台验收", "报酬入账"].map((title) => ({ title }))}
-        />
-      </Surface>
-      <div className="sprix-execution-content-grid">
-        <Surface className="p-6">
-          <h3 className="text-lg font-semibold text-ink">交付与验收</h3>
-          {review.kind === "content" ? (
-            <p className="mt-3 whitespace-pre-line text-[15px] leading-8 text-ink-soft">{review.body}</p>
-          ) : (
-            <InlineEmpty title={review.title} description={review.description} />
-          )}
-        </Surface>
-        <Surface className="p-6">
-          <h3 className="text-lg font-semibold text-ink">任务要求</h3>
-          {requirementText ? (
-            <p className="mt-3 whitespace-pre-line text-[15px] leading-8 text-ink-soft">{requirementText}</p>
-          ) : (
-            <InlineEmpty title="任务要求待后端返回" description="后端尚未返回任务描述、交付标准或验收标准。" />
-          )}
-        </Surface>
-        <Surface className="p-6">
-          <h3 className="text-lg font-semibold text-ink">执行文件</h3>
-          {artifacts.kind === "records" ? (
-            <div className="mt-4 space-y-2">
-              {artifacts.files.map((file) => (
-                <div key={file} className="rounded-2xl border border-line bg-white px-4 py-3 text-sm text-ink-soft">
-                  {file}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <InlineEmpty title={artifacts.title} description={artifacts.description} />
-          )}
-        </Surface>
-      </div>
-      <div className="mt-5 grid gap-5 xl:grid-cols-3">
-        {pendingSections.map((section) => (
-          <Surface key={section.title} className="p-6">
-            <InlineEmpty title={section.title} description={section.description} />
-          </Surface>
-        ))}
-      </div>
-    </div>
+    </Surface>
   );
 }
 
 function InlineEmpty({ title, description }: { title: string; description: string }) {
   return (
-    <div className="mt-4 rounded-2xl bg-[#fafafa] p-4 text-sm leading-7 text-ink-soft">
+    <div className="mt-4 rounded-lg bg-[#fafafa] p-4 text-sm leading-7 text-ink-soft">
       <b className="block text-ink">{title}</b>
       <span>{description}</span>
     </div>
@@ -1263,35 +1779,86 @@ function InlineEmpty({ title, description }: { title: string; description: strin
 
 export function EarningsPage({ openLogin, openBindAlipay }: UserPageProps) {
   const account = useSprixStore((state) => state.account);
+  const mergeRemoteState = useSprixStore((state) => state.mergeRemoteState);
   const payouts = useSprixStore((state) => state.payouts);
+
+  useEffect(() => {
+    if (!account.isLoggedIn) return;
+    let cancelled = false;
+
+    readRemoteWithdrawalAccountState()
+      .then((accountPatch) => {
+        if (!cancelled) mergeRemoteState({ account: accountPatch });
+      })
+      .catch(() => {
+        // The earnings page can still show payout records when the payout account endpoint is unavailable.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [account.isLoggedIn, mergeRemoteState]);
+
   if (!account.isLoggedIn) {
-    return <EmptyState title="登录后查看提现记录" description="登录后可查看提现记录、到账状态和预计到账时间。" action={<ActionButton onClick={openLogin}>登录 / 注册</ActionButton>} />;
+    return (
+      <EmptyState
+        title="登录后查看打款记录"
+        description="登录后可查看打款记录、到账状态和预计到账时间。"
+        action={<ActionButton onClick={openLogin}>登录 / 注册</ActionButton>}
+      />
+    );
   }
   const payoutState = getPayoutRecordState(payouts);
+  const accountWarning = getPayoutAccountWarning(account);
   return (
     <>
-      <PageHeader title="提现记录" subtitle={getPayoutPageSubtitle()} />
+      <PageHeader title="打款记录" />
       <Surface className="mb-5 p-6">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <SoftTag>自动打款</SoftTag>
-            <h3 className="mt-3 text-xl font-semibold text-ink">提现记录</h3>
-            <p className="mt-2 text-sm text-ink-soft">{getPayoutAccountText(account)}</p>
+        <div className="sprix-payout-summary">
+          <div className="sprix-payout-summary-copy">
+            <SoftTag tone="neutral" bordered={false}>自动打款</SoftTag>
+            <p>{getPayoutAccountText(account)}</p>
+            {accountWarning && (
+              <p className="sprix-payout-warning">{accountWarning}</p>
+            )}
           </div>
-          <SecondaryButton onClick={() => openBindAlipay()}>绑定支付宝</SecondaryButton>
+          <SecondaryButton
+            icon={<ButtonIcon src={BUTTON_ICON_PATHS.alipay} />}
+            onClick={() => openBindAlipay()}
+          >
+            {getPayoutAccountActionLabel(account)}
+          </SecondaryButton>
         </div>
         {payoutState.kind === "records" ? (
-          <div className="space-y-3">
-            {payouts.slice(0, 8).map((item) => (
-              <div key={item.withdrawalNo} className="grid gap-2 rounded-[18px] border border-line bg-white p-4 text-sm lg:grid-cols-6">
-                <b>{item.withdrawalNo}</b>
-                <span>{currency(item.payoutAmount)}</span>
-                <span>{item.alipayAccount}</span>
-                <StatusTag status={item.withdrawStatus} />
-                <span>{item.approvedAt}</span>
-                <span>预计 {item.estimatedArrivalTime}</span>
-              </div>
-            ))}
+          <div className="sprix-payout-table-wrap">
+            <table className="sprix-payout-table">
+              <thead>
+                <tr>
+                  <th>打款单号</th>
+                  <th>打款金额</th>
+                  <th>支付宝账户</th>
+                  <th>打款状态</th>
+                  <th>处理时间</th>
+                  <th>预计到账</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payouts.map((item) => (
+                  <tr key={item.withdrawalNo}>
+                    <td>
+                      <span className="sprix-payout-table-no" title={item.withdrawalNo}>{item.withdrawalNo}</span>
+                    </td>
+                    <td className="sprix-payout-table-amount">{currency(item.payoutAmount)}</td>
+                    <td>
+                      <span className="sprix-payout-table-text" title={item.alipayAccount}>{item.alipayAccount}</span>
+                    </td>
+                    <td><StatusTag status={item.withdrawStatus} /></td>
+                    <td>{item.approvedAt || "-"}</td>
+                    <td>{item.estimatedArrivalTime}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : (
           <InlineEmpty title={payoutState.title} description={payoutState.description} />
@@ -1312,14 +1879,34 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
   const [faceVerificationOpen, setFaceVerificationOpen] = useState(false);
   const [agreementOpen, setAgreementOpen] = useState(false);
   const [agreementSecondsRemaining, setAgreementSecondsRemaining] = useState(10);
+  const faceVerificationConfirmingRef = useRef(false);
+  const faceVerificationCompletedRef = useRef(false);
   const successAction = getQualificationSuccessAction(location.search);
   const qualificationRows = getQualificationRecordRows(account);
+  const payoutAccountActionLabel = hasBoundPayoutAccount(account) ? "查看绑定信息" : "绑定收款支付宝";
 
   useEffect(() => {
     if (step === 1 && !account.freelancerAgreementSigned) {
       setAgreementOpen(true);
     }
   }, [account.freelancerAgreementSigned, step]);
+
+  useEffect(() => {
+    if (step !== 2) return;
+    let cancelled = false;
+
+    readRemoteWithdrawalAccountState()
+      .then((accountPatch) => {
+        if (!cancelled) mergeRemoteState({ account: accountPatch });
+      })
+      .catch(() => {
+        // The qualification page can still be used when the payout account endpoint is unavailable.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mergeRemoteState, step]);
 
   useEffect(() => {
     if (!agreementOpen) return;
@@ -1332,10 +1919,73 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
     return () => window.clearInterval(intervalId);
   }, [agreementOpen]);
 
-  const openFaceVerification = async () => {
+  const applyCompletedFaceVerification = useCallback(
+    (accountPatch: Partial<Account>) => {
+      if (!accountPatch.realPersonVerified || faceVerificationCompletedRef.current) return false;
+
+      faceVerificationCompletedRef.current = true;
+      mergeRemoteState({ account: accountPatch });
+      setFaceVerificationOpen(false);
+      setStep(1);
+      message.success("支付宝人脸核验已完成");
+      return true;
+    },
+    [mergeRemoteState]
+  );
+
+  useEffect(() => {
+    const certifyId = faceVerificationSession?.certifyId;
+    if (!faceVerificationOpen || !faceVerificationSession?.webUrl || !certifyId) return;
+
+    let cancelled = false;
+    let timeoutId: number | undefined;
+
+    const pollFaceVerification = async () => {
+      if (faceVerificationConfirmingRef.current) {
+        if (!cancelled) {
+          timeoutId = window.setTimeout(pollFaceVerification, FACE_VERIFICATION_POLL_INTERVAL_MS);
+        }
+        return;
+      }
+
+      faceVerificationConfirmingRef.current = true;
+      try {
+        const accountPatch = await completeRemoteFaceVerification(certifyId);
+        if (!cancelled && applyCompletedFaceVerification(accountPatch)) return;
+      } catch (error) {
+        if (isGlobalAuthError(error)) return;
+      } finally {
+        faceVerificationConfirmingRef.current = false;
+      }
+
+      if (!cancelled && !faceVerificationCompletedRef.current) {
+        timeoutId = window.setTimeout(pollFaceVerification, FACE_VERIFICATION_POLL_INTERVAL_MS);
+      }
+    };
+
+    timeoutId = window.setTimeout(pollFaceVerification, FACE_VERIFICATION_POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [
+    applyCompletedFaceVerification,
+    faceVerificationOpen,
+    faceVerificationSession?.certifyId,
+    faceVerificationSession?.webUrl
+  ]);
+
+  const openFaceVerification = async (values: FaceVerificationFormValues) => {
     setSubmitting(true);
     try {
-      const verificationSession = await initializeRemoteFaceVerification();
+      const verificationSession = await initializeRemoteFaceVerification({
+        realName: values.realName.trim(),
+        idCardNo: values.idCardNo.trim()
+      });
+      faceVerificationCompletedRef.current = false;
       setFaceVerificationSession(verificationSession);
       setFaceVerificationOpen(true);
     } catch (error) {
@@ -1350,13 +2000,20 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
   };
 
   const completeFaceVerification = async () => {
+    if (faceVerificationConfirmingRef.current) return;
+    const certifyId = faceVerificationSession?.certifyId;
+    if (!certifyId) {
+      message.info("支付宝认证结果还未同步，请完成扫码后稍等");
+      return;
+    }
+
     setSubmitting(true);
+    faceVerificationConfirmingRef.current = true;
     try {
-      const accountPatch = await completeRemoteFaceVerification();
-      mergeRemoteState({ account: accountPatch });
-      setFaceVerificationOpen(false);
-      setStep(1);
-      message.success("支付宝人脸核验已完成");
+      const accountPatch = await completeRemoteFaceVerification(certifyId);
+      if (!applyCompletedFaceVerification(accountPatch)) {
+        message.info("支付宝认证结果还未同步，请完成扫码后稍等");
+      }
     } catch (error) {
       if (!(error instanceof Error) && !isGlobalAuthError(error)) {
         showRequestError(error, "支付宝人脸核验确认失败", "支付宝人脸核验确认失败：");
@@ -1364,6 +2021,7 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
       }
       showRequestError(error, "支付宝人脸核验确认失败", "支付宝人脸核验确认失败：");
     } finally {
+      faceVerificationConfirmingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -1391,25 +2049,35 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
     <>
       <PageHeader
         title="开通接单资格"
-        subtitle="首次接单前需完成支付宝人脸核验，并同意《自由职业者服务框架协议》。"
       />
       <Surface className="mb-5 p-6">
-        <Steps current={step} items={["支付宝人脸核验", "同意服务协议", "开通成功"].map((title) => ({ title }))} />
-        <div className="mt-8 rounded-[22px] bg-[#fafafa] p-5">
+        <Steps className="sprix-qualification-steps" current={step} items={["支付宝人脸核验", "同意服务协议", "开通成功"].map((title) => ({ title }))} />
+        <div className="mt-8 rounded-2xl bg-[#fafafa] p-5">
           {step === 0 && (
             <>
               <h3 className="text-lg font-semibold">支付宝人脸核验</h3>
               <p className="mt-2 text-sm leading-7 text-ink-soft">
                 用于确认接单服务主体，保障任务执行、收益归属和争议处理准确性。请使用支付宝扫码完成核验，完成后返回本页确认结果。
               </p>
-              <ActionButton
-                className="mt-4"
-                disabled={submitting}
-                loading={submitting}
-                onClick={openFaceVerification}
+              <Form
+                layout="vertical"
+                className="mt-5 max-w-xl"
+                onFinish={openFaceVerification}
               >
-                开始支付宝人脸核验
-              </ActionButton>
+                <Form.Item label="真实姓名" name="realName" rules={[{ required: true, whitespace: true, message: "请输入真实姓名" }]}>
+                  <Input autoComplete="name" placeholder="请输入身份证姓名" />
+                </Form.Item>
+                <Form.Item label="身份证号" name="idCardNo" rules={[{ required: true, whitespace: true, message: "请输入身份证号" }]}>
+                  <Input autoComplete="off" placeholder="请输入本人身份证号" />
+                </Form.Item>
+                <ActionButton
+                  htmlType="submit"
+                  disabled={submitting}
+                  loading={submitting}
+                >
+                  开始支付宝人脸核验
+                </ActionButton>
+              </Form>
             </>
           )}
           {step === 1 && (
@@ -1432,7 +2100,7 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
               <div className="mt-5 flex flex-wrap gap-2">
                 <ActionButton onClick={() => navigate(successAction.path)}>{successAction.label}</ActionButton>
                 {successAction.path !== "/agent/market" && <SecondaryButton href="/agent/market">去任务市场</SecondaryButton>}
-                <SecondaryButton onClick={() => openBindAlipay()}>绑定收款支付宝</SecondaryButton>
+                <SecondaryButton onClick={() => openBindAlipay()}>{payoutAccountActionLabel}</SecondaryButton>
               </div>
             </>
           )}
@@ -1454,12 +2122,11 @@ export function QualificationPage({ openBindAlipay }: UserPageProps) {
       />
       <Surface className="p-6">
         <h3 className="text-lg font-semibold text-ink">接单资格记录</h3>
-        <p className="mt-2 text-sm leading-7 text-ink-soft">当前只展示账户接口已返回的资格状态。认证主体、认证时间、协议版本和签署时间等待后端记录接口。</p>
         <div className="mt-5 grid gap-3 md:grid-cols-2">
           {qualificationRows.map((row) => (
-            <div key={row.label} className="flex items-center justify-between rounded-2xl bg-[#fafafa] px-4 py-3 text-sm">
+            <div key={row.label} className="flex items-center justify-between rounded-xl bg-[#fafafa] px-4 py-3 text-sm">
               <span className="text-ink-soft">{row.label}</span>
-              {row.value === "待后端返回" ? <span className="text-ink-soft">{row.value}</span> : <StatusTag status={row.value} />}
+              {row.variant === "text" || row.value === "待后端返回" ? <span className="text-ink-soft">{row.value}</span> : <StatusTag status={row.value} />}
             </div>
           ))}
         </div>
@@ -1502,29 +2169,6 @@ function FaceVerificationModal({
   );
 }
 
-const placeholderAgreementSections = [
-  {
-    title: "一、服务身份",
-    body: "用户以自由职业者身份在 Sprix 平台接取任务，并确认任务执行、交付、验收和结算行为均由本人授权的 Agent 或本人操作完成。"
-  },
-  {
-    title: "二、任务交付与验收",
-    body: "用户应根据任务说明、交付标准和验收标准完成交付。平台可依据任务要求进行自动或人工验收，并展示验收结果。"
-  },
-  {
-    title: "三、收益结算",
-    body: "任务验收通过后，平台按页面展示的任务奖励进入结算流程。提现、打款、实名一致性校验和异常处理以后续平台规则及真实接口结果为准。"
-  },
-  {
-    title: "四、争议与申诉",
-    body: "如用户对验收结果、结算状态或任务处理存在异议，可按平台提供的申诉入口提交说明，平台将根据任务记录和交付证据处理。"
-  },
-  {
-    title: "五、占位说明",
-    body: "当前展示的是协议占位摘要；签署动作已接后端接口，正式协议全文、版本号、签署记录和配置来源将在后端或法务文本完成后替换。"
-  }
-];
-
 function FreelancerAgreementModal({
   open,
   secondsRemaining,
@@ -1542,24 +2186,10 @@ function FreelancerAgreementModal({
 
   return (
     <Modal
-      title="自由职业者服务框架协议"
+      title="Sprix AI 自由职业者服务框架协议"
       open={open}
       onCancel={onClose}
-      footer={null}
-      width={640}
-      styles={{ body: { maxHeight: "calc(100vh - 160px)", overflowY: "auto" } }}
-    >
-      <div className="space-y-4 text-sm leading-7 text-ink-soft">
-        <section className="rounded-2xl bg-[#fff7e8] px-4 py-3">
-          <h3 className="font-semibold text-ink">正式协议全文待接入</h3>
-          <p>以下为占位协议内容。请阅读满 10 秒后签署；签署动作会提交后端，后续将替换为正式协议全文。</p>
-        </section>
-        {placeholderAgreementSections.map((section) => (
-          <section key={section.title} className="rounded-2xl bg-[#fafafa] px-4 py-3">
-            <h3 className="font-semibold text-ink">{section.title}</h3>
-            <p className="mt-1">{section.body}</p>
-          </section>
-        ))}
+      footer={
         <ActionButton
           block
           disabled={!canSign || submitting}
@@ -1568,6 +2198,12 @@ function FreelancerAgreementModal({
         >
           {getAgreementSignButtonText(secondsRemaining)}
         </ActionButton>
+      }
+      width={640}
+      className="sprix-agreement-modal sprix-freelancer-agreement-modal"
+    >
+      <div className="sprix-freelancer-agreement-scroll">
+        <AgreementContent compact hideFirstHeading markdown={freelancerAgreementDocument.markdown} />
       </div>
     </Modal>
   );

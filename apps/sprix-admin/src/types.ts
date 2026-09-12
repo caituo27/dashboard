@@ -13,7 +13,7 @@ export type AppealStatus =
   | "申诉通过"
   | "申诉不通过"
   | "高风险";
-export type SettlementStatus = "未入账" | "结算中" | "已入账" | "结算异常";
+export type SettlementStatus = "未入账" | "结算中" | "已结算" | "已打款" | "结算异常";
 export type WithdrawStatus =
   | "提现审核中"
   | "待打款"
@@ -25,7 +25,7 @@ export type WithdrawStatus =
 export type Account = {
   isLoggedIn: boolean;
   nickname: string;
-  email: string;
+  avatarUrl: string;
   maskedPhone: string;
   phone: string;
   phoneVerified: boolean;
@@ -69,6 +69,13 @@ export type Task = {
   deliverables: string;
   acceptanceCriteria: string;
   reward: number;
+  estimatedTokens: number;
+  tokenBillingUnit: number;
+  tokenUnitPrice: number;
+  totalAmount: number;
+  pricingModel: string;
+  pricingQuoteId: string;
+  pricingEstimatedAt: string;
   totalSlots: number;
   remainingSlots: number;
   publishedAt: string;
@@ -135,6 +142,7 @@ export type TerminatedExecution = {
 
 export type ReviewingExecution = {
   executionId: string;
+  executionIndex?: number;
   taskId?: string;
   taskTitle?: string;
   taskCategory?: string;
@@ -146,6 +154,11 @@ export type ReviewingExecution = {
   acceptanceScore: string;
   acceptanceSummary: string;
   acceptanceIssues: string;
+  acceptanceFailureReasons?: string[];
+  acceptanceImprovementSuggestions?: string[];
+  reviewSource?: "AGENT" | "USER_MANUAL";
+  manualSubmissionNo?: number;
+  manualSubmissionDescription?: string;
   currentNode: string;
   progress: string;
   submittedAt: string;
@@ -158,7 +171,12 @@ export type CompletedExecution = {
   phone: string;
   agentName: string;
   acceptanceStatus: string;
+  acceptanceScore: string;
+  acceptanceSummary: string;
+  acceptanceIssues: string;
   score: string;
+  currentNode: string;
+  progress: string;
   appealStatus: string;
   settlementStatus: string;
   completedAt: string;
@@ -177,6 +195,7 @@ export type AdminExecutionRecords = Record<
 export type AdminOperationLog = {
   id: string;
   action: string;
+  operator: string;
   beforeStatus: string;
   afterStatus: string;
   reason: string;
@@ -196,6 +215,7 @@ export type AdminAppeal = {
   appealStatus: AppealStatus;
   priority: "普通" | "加急" | "高风险";
   submittedAt: string;
+  handledAt?: string;
   handler: string;
   expectedProcessTime?: string;
   originalScore?: string;
@@ -233,7 +253,7 @@ export type Withdrawal = {
   userPhone: string;
   verifiedName: string;
   alipayAccount: string;
-  realNameMatchStatus: "已通过" | "未通过";
+  realNameMatchStatus: "可用" | "待授权";
   withdrawableBalance: number;
   applyAmount: number;
   estimatedArrivalTime: string;

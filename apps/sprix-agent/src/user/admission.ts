@@ -10,19 +10,19 @@ export type UserAdmissionState =
       reason: string;
     };
 
-export function getCurrentExecutionAgent(agents: Agent[]) {
-  return agents.find((agent) => agent.role === "当前执行 Agent");
+export function canBrowseAgentRoutes(pathname: string) {
+  const normalizedPathname = pathname.replace(/\/+$/, "") || "/";
+  return normalizedPathname === "/agent" || normalizedPathname.startsWith("/agent/");
 }
 
-export function getConnectedAgent(agents: Agent[]) {
-  return agents.find((agent) => agent.status === "已连接" || agent.status === "可用");
+export function isCurrentAgentExecutionAvailable(agent?: Pick<Agent, "status" | "role" | "evaluation">) {
+  if (!agent || agent.status === "离线" || agent.role !== "当前执行 Agent") return false;
+
+  const evaluationStatus = agent.evaluation?.status ?? agent.evaluation?.result?.status;
+  return evaluationStatus === "completed";
 }
 
-export function canVisitAgentCenterBeforeAdmission(pathname: string) {
-  return pathname.replace(/\/+$/, "") === "/agent/center";
-}
-
-export function getUserAdmissionState(account: Pick<Account, "isLoggedIn">, agents: Agent[]): UserAdmissionState {
+export function getUserAdmissionState(account: Pick<Account, "isLoggedIn">, currentAgent?: Agent): UserAdmissionState {
   if (!account.isLoggedIn) {
     return {
       allowed: false,
@@ -30,17 +30,22 @@ export function getUserAdmissionState(account: Pick<Account, "isLoggedIn">, agen
     };
   }
 
-  const connectedCurrentAgent = agents.find((agent) => agent.role === "当前执行 Agent" && (agent.status === "已连接" || agent.status === "可用"));
-  const connectedAgent = connectedCurrentAgent ?? getConnectedAgent(agents);
-  if (!connectedAgent) {
+  if (!currentAgent) {
     return {
       allowed: false,
-      reason: "请先安装并启动本地 Agent"
+      reason: "请先设置当前执行 Agent"
+    };
+  }
+
+  if (!isCurrentAgentExecutionAvailable(currentAgent)) {
+    return {
+      allowed: false,
+      reason: "当前执行 Agent 测评未完成，请完成测评后再继续"
     };
   }
 
   return {
     allowed: true,
-    currentAgent: connectedAgent
+    currentAgent
   };
 }

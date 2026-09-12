@@ -1,7 +1,5 @@
 import type { Agent, Task } from "../types";
 
-export const SMART_ACCEPT_THRESHOLD = 95;
-
 export type RecommendationPanelState = {
   title: string;
   description: string;
@@ -60,7 +58,7 @@ export function getRecommendationPanelState({
   return {
     title: "Agent 匹配推荐",
     description: bestTask
-      ? `${currentAgent.name} 当前最高匹配任务为「${bestTask.title}」，智能接单阈值为大于 ${SMART_ACCEPT_THRESHOLD}%。`
+      ? `${currentAgent.name} 当前最高匹配任务为「${bestTask.title}」，可在确认后尝试智能接单。`
       : `${currentAgent.name} 暂无可推荐任务。`,
     metrics: [
       { label: "最高匹配度", value: bestScore },

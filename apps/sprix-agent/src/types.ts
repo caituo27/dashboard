@@ -2,7 +2,16 @@ export type TaskStatus = "已发布" | "已下线" | "已删除";
 export type OfflineReason = string;
 export type AgentStatus = "可用" | "已连接" | "离线";
 export type AgentRole = "当前执行 Agent" | "可用 Agent" | "离线 Agent";
-export type AgentEvaluationStatus = "running" | "judging" | "completed" | "failed";
+export type AgentAuthStatus = "authenticated" | "login_required" | "unknown";
+export type LocalAgentInventoryStatus =
+  | "UNKNOWN"
+  | "NOT_BOUND"
+  | "DEVICE_OFFLINE"
+  | "WAITING_INVENTORY"
+  | "INVENTORY_STALE"
+  | "NO_AVAILABLE_AGENT"
+  | "READY";
+export type AgentEvaluationStatus = "not_started" | "running" | "judging" | "completed" | "failed";
 export type MyTaskStatus = "执行中" | "待平台审核" | "已终止" | "验收未通过" | "结算中" | "已结算";
 export type AppealStatus =
   | "无申诉"
@@ -26,15 +35,17 @@ export type WithdrawStatus =
 export type Account = {
   isLoggedIn: boolean;
   nickname: string;
-  email: string;
+  avatarUrl: string;
   maskedPhone: string;
   phone: string;
   phoneVerified: boolean;
   qualificationStatus: "未开通" | "已开通" | "已冻结";
   realPersonVerified: boolean;
   freelancerAgreementSigned: boolean;
+  freelancerAgreementSignedAt: string;
   alipayBound: boolean;
   alipayAccountMasked: string;
+  alipayVerifiedName: string;
   alipayRealNameMatched: boolean;
   withdrawAccountStatus: "未绑定" | "可用" | "需更换";
   withdrawableAmount: number;
@@ -50,6 +61,13 @@ export type AgentProfile = {
 export type AgentEvaluationDimension = {
   score: number | null;
   comment: string;
+};
+
+export type AgentCareerProfile = {
+  roleCode: string;
+  roleName: string;
+  confidence: number | null;
+  reason: string;
 };
 
 export type AgentEvaluationStep = {
@@ -74,6 +92,8 @@ export type AgentEvaluationResult = {
   mode: string;
   overallScore: number | null;
   dimensions: Record<string, AgentEvaluationDimension>;
+  careerProfile: AgentCareerProfile | null;
+  abilityTags: string[];
   summary: string;
   improvements: string[];
   steps: AgentEvaluationStep[];
@@ -92,8 +112,16 @@ export type AgentEvaluation = {
   result: AgentEvaluationResult;
   startedAt: string;
   completedAt: string | null;
+  lastEvaluatedAt: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type EvaluationFlowState = {
+  agentId: string;
+  evaluationId: string;
+  status: Extract<AgentEvaluationStatus, "running" | "judging" | "failed">;
+  wasCurrentAgent?: boolean;
 };
 
 export type Agent = {
@@ -105,8 +133,25 @@ export type Agent = {
   lastEvaluatedAt: string;
   summary: string;
   tags: string[];
+  authStatus?: AgentAuthStatus;
   profile?: AgentProfile;
   evaluation?: AgentEvaluation;
+};
+
+export type LocalAgentDiagnostic = {
+  bound: boolean;
+  deviceId: string;
+  connectionStatus: string;
+  inventoryStatus: LocalAgentInventoryStatus;
+  reportedInventoryStatus: string;
+  inventoryUpdatedAt: string | null;
+  lastSeenAt: string | null;
+  lastWsConnectedAt: string | null;
+  lastWsDisconnectedAt: string | null;
+  totalAgentCount: number | null;
+  availableAgentCount: number | null;
+  reportedAgentIds: string[];
+  message: string;
 };
 
 export type Task = {
@@ -120,6 +165,7 @@ export type Task = {
   deliverables: string;
   acceptanceCriteria: string;
   reward: number;
+  estimatedTokens: number | null;
   totalSlots: number;
   remainingSlots: number;
   publishedAt: string;
@@ -142,6 +188,7 @@ export type MyTask = {
   title: string;
   category: string;
   reward: number;
+  estimatedTokens: number | null;
   status: MyTaskStatus;
   agentId: string;
   agentName: string;
@@ -240,7 +287,7 @@ export type Withdrawal = {
   userPhone: string;
   verifiedName: string;
   alipayAccount: string;
-  realNameMatchStatus: "已通过" | "未通过";
+  realNameMatchStatus: "可用" | "待授权";
   withdrawableBalance: number;
   applyAmount: number;
   estimatedArrivalTime: string;
@@ -287,9 +334,21 @@ export type FundFlow = {
   remark: string;
 };
 
+export type PlatformOverview = {
+  agentCount: number | null;
+  taskCount: number | null;
+};
+
 export type SprixState = {
   account: Account;
+  remoteSnapshotReady: boolean;
+  platformOverview: PlatformOverview;
   agents: Agent[];
+  localAgent?: LocalAgentDiagnostic;
+  currentAgentId?: string | null;
+  currentAgent?: Agent;
+  evaluationFlow?: EvaluationFlowState;
+  smartAcceptEnabled: boolean;
   tasks: Task[];
   myTasks: MyTask[];
   adminExecutionRecords: AdminExecutionRecords;

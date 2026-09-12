@@ -1,15 +1,41 @@
 # Sprix Swagger 更新记录
 
-最后更新：2026-06-29
+最后更新：2026-07-02
 
 ## 拉取范围
 
 - Swagger UI: http://42.194.150.73:8084/swagger-ui/index.html
 - Swagger JSON: http://42.194.150.73:8084/v3/api-docs
 - 生成范围: `apps/sprix-agent/src/apis/sprix`, `apps/sprix-admin/src/apis/sprix`
-- 是否有生成 diff: 有，本次新增支付宝登录/绑定、后台登录、Agent 评测、验收审核、支付宝打款/查询、我的任务详情等接口与 DTO。
+- 是否有生成 diff: 2026-07-02 已从远端 `http://42.194.150.73:8084/v3/api-docs` 重新生成 agent/admin 客户端；远端已返回任务智能定价接口与 `TaskEntity.estimatedTokens` 等字段。2026-07-01 有 Swagger JSON 和生成客户端 diff，新增头像接口、协议签署时间字段和后台执行行验收字段。2026-06-29 有 `api.ts` 注释空白格式 diff，但 Swagger JSON 无 diff，接口合同无变化。2026-06-27 曾新增支付宝登录/绑定、后台登录、Agent 评测、验收审核、支付宝打款/查询、我的任务详情等接口与 DTO。
 
 ## 接口变化
+
+- 2026-07-02:
+  - Added:
+    - 管理端任务智能定价接口：`POST /api/v1/admin/tasks/pricing-estimates`。
+    - `TaskPricingEstimateRequest` / `TaskPricingEstimateResponse`。
+    - `TaskEntity` / `TaskSnapshot` 新增 `estimatedTokens`、`tokenBillingUnit`、`tokenUnitPrice`、`totalAmount`、`pricingModel`、`pricingQuoteId`、`pricingEstimatedAt`。
+    - 用户端任务列表和任务详情可直接读取 `TaskEntity.estimatedTokens` 展示预计 Token。
+  - Removed:
+    - `UpsertTaskRequest.reward` 不再作为管理端发布/编辑任务的价格来源。
+  - Changed:
+    - `UpsertTaskRequest` 新增 `pricingQuoteId`，新建任务必须使用有效报价；编辑任务在内容或总名额变化时必须重新报价。
+
+- 2026-07-01:
+  - Added:
+    - 账户头像上传接口：`POST /api/v1/account/profile/avatar`。
+    - 用户头像读取接口：`GET /api/v1/account/users/{userId}/avatar`。
+    - `UserAccount.freelancerAgreementSignedAt` 协议签署时间字段。
+    - `AdminExecutionRow` 新增验收字段：`acceptanceStatus`、`acceptanceScore`、`acceptanceSummary`、`acceptanceIssues`、`acceptancePayload`、`submittedAt`。
+  - Removed: 无。
+  - Changed: 无破坏性变更。
+
+- 2026-06-29:
+  - Added:
+    - 用户端平台统计接口：`GET /api/v1/platform/overview`，返回 `agentCount`、`taskCount`，用于首页“平台 Agent 数量 / 平台任务总量”。
+  - Removed: 无。
+  - Changed: 无破坏性变更。
 
 - Added:
   - 用户端：微信扫码登录会话创建、状态轮询、扫码确认接口：
@@ -55,6 +81,7 @@
 ## 需要更新的前端交互
 
 - Agent 端任务市场、任务详情、我的任务、Agent 中心、账户资质、提现和申诉需要优先读取真实接口。
+- Agent 端首页统计卡片需要读取 `GET /api/v1/platform/overview`，不再前端硬编码横杠或自行兜底计算。
 - Agent 端登录弹窗的“微信扫码登录”需要生成后端扫码会话、展示 `qrPayload` 二维码，并轮询状态；后端返回 token 后写入现有登录态并刷新 `sprix-agent` 远端快照。
 - Agent 端登录弹窗的“支付宝扫码登录”需要生成后端支付宝登录会话、展示 `qrPayload` 二维码，并轮询状态；后端返回 token 后写入现有登录态并刷新 `sprix-agent` 远端快照。
 - Agent 端支付宝收款账户绑定需要生成后端支付宝授权会话，后端回调完成后写入提现账户和支付宝身份绑定。
@@ -63,6 +90,9 @@
 - Admin 端待打款记录需要调用后端单笔支付宝打款和打款结果查询接口，并展示后端返回的打款审计字段。
 - 写操作必须先走真实接口，再通过 TanStack Query 刷新远端快照；Swagger 未提供的操作只提示不可用，不再写本地模拟状态。
 - Agent 端接单资格页需要按真实接口完成支付宝人脸核验初始化、实人核验完成确认和协议签署，前端不再用 mock 写账户资格状态。
+- Agent 端账户资料页可后续接入头像上传接口，并展示后端返回的协议签署时间。
+- Admin 端执行记录和验收详情可后续直接读取 `AdminExecutionRow` 新增验收字段，减少详情二次拼接。
+- Admin 端发布/编辑任务表单已接入智能定价，报价成功后才允许发布新任务；定价相关字段变化会清空旧报价。
 
 ## 已完成适配
 
@@ -71,6 +101,7 @@
   - `apps/sprix-admin/src/services/sprixApi.ts`
   - 本次已将支付宝登录/绑定、收款账户查询、Agent 评测、后台登录、任务管理写操作、验收审核、支付宝打款/查询从手写 HTTP 切换为生成客户端调用。
   - 2026-06-29：`apps/sprix-agent/src/services/sprixApi.ts` 将 `initializeRemoteFaceVerification`、`completeRemoteFaceVerification`、`signRemoteFreelancerAgreement` 接到 `AccountController` 真实接口。
+  - 2026-06-29：`apps/sprix-agent/src/services/sprixApi.ts` 接入 `PlatformControllerApi.overview`，首页统计改读后端平台统计接口。
 - Login:
   - `apps/sprix-agent/src/components/GlobalModals.tsx` 接入真实微信扫码登录：创建扫码会话、展示二维码、轮询状态、token 落入 `sprix-auth-token`。
   - `apps/sprix-agent/src/components/LoginRegisterModal.tsx` 接入支付宝扫码登录，并保留微信扫码和手机号验证码登录。
@@ -98,6 +129,18 @@
 
 ## 验证
 
+- 2026-07-01 `pnpm exec qxun-api-generator` in `apps/sprix-agent/src/apis`: 通过。
+- 2026-07-01 `pnpm exec qxun-api-generator` in `apps/sprix-admin/src/apis`: 通过。
+- 2026-07-01 `git diff -- apps/sprix-agent/src/apis/_swaggers/sprix.json apps/sprix-admin/src/apis/_swaggers/sprix.json`: 确认新增头像接口、协议签署时间字段和后台执行行验收字段。
+- 2026-07-01 `git diff -w --stat -- apps/sprix-agent/src/apis/sprix/api.ts apps/sprix-admin/src/apis/sprix/api.ts`: 确认生成客户端同步新增接口和字段。
+- 2026-07-01 `pnpm --filter @sprix-ai/agent typecheck`: 通过。
+- 2026-07-01 `pnpm --filter @sprix-ai/admin typecheck`: 通过。
+- 2026-07-02 `pnpm --filter @sprix-ai/admin typecheck`: 通过。
+- 2026-07-02 `pnpm --filter @sprix-ai/agent typecheck`: 通过。
+- 2026-07-02 未运行 `pnpm exec qxun-api-generator`：当前 `api.json` 数据源指向远端 Swagger，新接口尚未部署到远端；已手动同步本地生成类型的任务定价 DTO 字段。
+- 2026-06-29 `npx qxun-api-generator` in `apps/sprix-agent/src/apis`: 通过。
+- 2026-06-29 `npx qxun-api-generator` in `apps/sprix-admin/src/apis`: 通过。
+- 2026-06-29 `git diff -w --stat -- apps/sprix-agent/src/apis/sprix/api.ts apps/sprix-admin/src/apis/sprix/api.ts apps/sprix-agent/src/apis/_swaggers/sprix.json apps/sprix-admin/src/apis/_swaggers/sprix.json`: 无输出，确认无接口合同变化。
 - `npx qxun-api-generator` in `apps/sprix-agent/src/apis`: 通过。
 - `npx qxun-api-generator` in `apps/sprix-admin/src/apis`: 通过。
 - `curl -X POST http://42.194.150.73:8084/api/v1/auth/wechat/scan-sessions`: 通过，返回 `qrPayload` 和 `pollIntervalSeconds`。

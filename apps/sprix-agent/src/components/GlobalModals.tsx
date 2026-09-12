@@ -1,20 +1,22 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Form, Input, Modal, message } from "antd";
-import { useSprixStore } from "../store/sprixStore";
-import { ActionButton, SecondaryButton, StatusTag } from "./Primitives";
+import { Form, Input, Modal, Tabs, message } from "antd";
+import { ActionButton } from "./Primitives";
 import { submitRemoteAppeal } from "../services/sprixApi";
-import { getAccountEditActions, getAccountProfileRows } from "../user/accountView";
 import { showRequestError } from "./requestErrors";
+import { AgreementContent } from "./AgreementContent";
+import { agreementDocuments } from "../content/agreementDocuments";
 
 export { BindAlipayModal } from "./BindAlipayModal";
-export { LoginRegisterModal } from "./LoginRegisterModal";
+export { AuthModal } from "../auth/AuthModal";
+export { AccountModal } from "./AccountModal";
 
 type ModalState = {
   login: boolean;
   account: boolean;
   agreements: boolean;
   contact: boolean;
+  about: boolean;
   bindAlipay: boolean;
 };
 
@@ -24,35 +26,37 @@ export function useGlobalModalState() {
     account: false,
     agreements: false,
     contact: false,
+    about: false,
     bindAlipay: false
   });
   const open = (key: keyof ModalState) => setModal((prev) => ({ ...prev, [key]: true }));
   const close = (key: keyof ModalState) => setModal((prev) => ({ ...prev, [key]: false }));
-  const closeAll = () => setModal({ login: false, account: false, agreements: false, contact: false, bindAlipay: false });
+  const closeAll = () => setModal({ login: false, account: false, agreements: false, contact: false, about: false, bindAlipay: false });
   return { modal, open, close, closeAll };
 }
 
 export function AgreementModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
-    <Modal title="相关协议" open={open} onCancel={onClose} footer={<ActionButton onClick={onClose}>我知道了</ActionButton>}>
-      <div className="space-y-4 text-sm leading-7 text-ink-soft">
-        <section className="rounded-2xl bg-[#fff7e8] px-4 py-3">
-          <h3 className="font-semibold text-ink">正式协议全文待接入</h3>
-          <p>当前仅展示产品流程摘要，正式用户协议、隐私协议和自由职业者服务框架协议全文待法务/后端配置后接入。</p>
-        </section>
-        <section>
-          <h3 className="font-semibold text-ink">《用户协议》</h3>
-          <p>用户应遵守平台任务规则，按页面提示完成接单、交付、申诉和账户管理。</p>
-        </section>
-        <section>
-          <h3 className="font-semibold text-ink">《隐私协议》</h3>
-          <p>平台仅在业务流程中处理必要账户、认证、任务和资金状态信息。</p>
-        </section>
-        <section>
-          <h3 className="font-semibold text-ink">《自由职业者服务框架协议》</h3>
-          <p>用户以自由职业者身份接取任务，确认交付、验收、结算、申诉和自动打款规则。</p>
-        </section>
-      </div>
+    <Modal
+      title="相关协议"
+      open={open}
+      onCancel={onClose}
+      footer={<ActionButton onClick={onClose}>我知道了</ActionButton>}
+      width={640}
+      className="sprix-agreement-modal"
+    >
+      <Tabs
+        className="sprix-agreement-tabs"
+        items={agreementDocuments.map((document) => ({
+          key: document.key,
+          label: document.tabLabel,
+          children: (
+            <div className="sprix-agreement-scroll">
+              <AgreementContent compact markdown={document.markdown} />
+            </div>
+          )
+        }))}
+      />
     </Modal>
   );
 }
@@ -62,8 +66,8 @@ export function ContactModal({ open, onClose }: { open: boolean; onClose: () => 
     <Modal title="联系我们" open={open} onCancel={onClose} footer={<ActionButton onClick={onClose}>我知道了</ActionButton>}>
       <div className="space-y-3 text-sm text-ink-soft">
         <section className="rounded-2xl bg-[#fafafa] px-4 py-3">
-          <h3 className="font-semibold text-ink">客服联系信息待配置</h3>
-          <p className="mt-1">客服渠道、服务时间和问题分类待运营配置或后端接口返回后展示。</p>
+          <h3 className="font-semibold text-ink">客服热线：18126292642</h3>
+          <p className="mt-1">工作时间：工作日 10:00-18:00</p>
         </section>
         <p>如遇接单资格、任务执行、申诉或收款相关问题，可联系客服协助处理。</p>
       </div>
@@ -71,62 +75,38 @@ export function ContactModal({ open, onClose }: { open: boolean; onClose: () => 
   );
 }
 
-export function AccountModal({
-  open,
-  onClose,
-  onBindAlipay
-}: {
-  open: boolean;
-  onClose: () => void;
-  onBindAlipay: () => void;
-}) {
-  const account = useSprixStore((state) => state.account);
-  const profileRows = getAccountProfileRows(account);
-  const editActions = getAccountEditActions();
+export function AboutModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
-    <Modal title="账户信息" open={open} onCancel={onClose} footer={<ActionButton onClick={onClose}>关闭</ActionButton>} width={620}>
-      <div className="grid gap-3 text-sm">
-        {profileRows.map((row) => (
-          <InfoRow key={row.label} label={row.label} value={row.label === "接单资格" ? <StatusTag status={row.value} /> : row.value} />
-        ))}
-        <InfoRow
-          label="收款支付宝"
-          value={
-            account.alipayBound ? (
-              <span>{account.alipayAccountMasked || "已绑定"}</span>
-            ) : (
-              <SecondaryButton size="small" onClick={onBindAlipay}>
-                绑定支付宝
-              </SecondaryButton>
-            )
-          }
-        />
-        <div className="mt-2 grid gap-2 rounded-2xl bg-[#fafafa] p-3">
-          {editActions.map((action) => (
-            <div key={action.label} className="flex flex-col gap-2 rounded-2xl border border-line bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="font-medium text-ink">{action.label}</div>
-                <div className="mt-1 text-xs text-ink-soft">{action.reason}</div>
-              </div>
-              <SecondaryButton size="small" disabled={action.disabled}>
-                待接口接入
-              </SecondaryButton>
-            </div>
-          ))}
-        </div>
+    <Modal
+      title="关于我们"
+      open={open}
+      onCancel={onClose}
+      footer={<ActionButton onClick={onClose}>我知道了</ActionButton>}
+    >
+      <div className="space-y-4  text-sm leading-7 text-ink-soft">
+        <section>
+          <h3 className="font-semibold text-ink">深圳市屿智同行科技有限公司</h3>
+          <div className="mt-2 space-y-3">
+            <p className="indent-[2em]">
+              深圳市屿智同行科技有限公司系清华 i-Space 与清华 x-lab
+              重点孵化企业，依托清华人工智能实验室，专注多模态大模型研发及公共就业服务、人才评估等产业场景规模化应用，以技术提升人才供需匹配效率。
+            </p>
+            <p className="indent-[2em]">
+              核心团队源自清华、北大、麻省理工等知名高校，在自然语言处理等领域技术积累深厚，构建 “技术研发 — 产品落地 — 生态合作” 完整体系，推出 “AI
+              面试官” 等标杆产品。
+            </p>
+            <p className="indent-[2em]">
+              公司曾获清华校友三创大赛 “一带一路赛区” 五强，与 1000 余家政府及企业建立合作，正成长为 AI
+              赋能公共就业与产业升级的重要创新力量。
+            </p>
+          </div>
+        </section>
+        <section className="rounded-2xl bg-[#fafafa] px-4 py-3">
+          <h3 className="font-semibold text-ink">办公地址</h3>
+          <p className="mt-1">深圳市南山区粤海街道高新区社区高新南九道39号深圳清华大学研究院新大楼B2101/B2104</p>
+        </section>
       </div>
     </Modal>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="grid grid-cols-[88px_minmax(0,1fr)] items-center gap-3 rounded-2xl bg-[#fafafa] px-4 py-3 sm:grid-cols-[112px_minmax(0,1fr)]">
-      <span className="text-ink-soft">{label}</span>
-      <div className="min-w-0 justify-self-end break-words text-right font-medium text-ink [overflow-wrap:anywhere]">
-        {value}
-      </div>
-    </div>
   );
 }
 

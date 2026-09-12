@@ -3,13 +3,13 @@ import { TaskEntityStatusEnum, type TaskRecommendationResponse } from "../apis/s
 import { mapTaskRecommendation } from "./sprixApi";
 
 describe("sprixApi task recommendation mapping", () => {
-  it("maps recommendation score, reason, and analysis onto task cards", () => {
+  it("maps recommendation score and ignores backend analysis text", () => {
     const recommendation: TaskRecommendationResponse = {
-      matchScore: 95,
-      recommendedReason: "匹配度 95%，能力标签覆盖：直接命中 automation。",
-      matchAnalysis: "Agent 能力标签：automation；任务分类：data operations。",
+      matchScore: 92,
+      recommendedReason: "按当前执行 Agent 匹配度推荐。",
+      matchAnalysis: "Agent 能力标签：automation；任务分类：data operations；命中依据：分类分 0。",
       suggestedTeam: "Local Agent 优先",
-      autoAcceptEligible: false,
+      autoAcceptEligible: true,
       task: {
         id: "task-1",
         title: "整理线索表",
@@ -29,10 +29,10 @@ describe("sprixApi task recommendation mapping", () => {
 
     const task = mapTaskRecommendation(recommendation);
 
-    expect(task.agentMatchScore).toBe(95);
-    expect(task.recommendedReason).toContain("匹配度 95%");
-    expect(task.matchAnalysis).toContain("automation");
+    expect(task.agentMatchScore).toBe(92);
+    expect(task.recommendedReason).toBe("");
+    expect(task.matchAnalysis).toBe("");
     expect(task.suggestedTeam).toBe("Local Agent 优先");
-    expect(task.riskPrompt).toContain("不自动接单");
+    expect(task.riskPrompt).toContain("可触发智能接单");
   });
 });

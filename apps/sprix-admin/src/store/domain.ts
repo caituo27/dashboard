@@ -5,7 +5,7 @@ export function createInitialSprixState(): SprixState {
     account: {
       isLoggedIn: false,
       nickname: "",
-      email: "",
+      avatarUrl: "",
       maskedPhone: "",
       phone: "",
       phoneVerified: false,

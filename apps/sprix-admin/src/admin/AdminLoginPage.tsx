@@ -46,12 +46,12 @@ export function AdminLoginPage() {
   };
 
   return (
-    <main className="min-h-screen bg-bg px-5 py-8">
-      <div className="mx-auto flex min-h-[calc(100vh-64px)] max-w-[440px] flex-col justify-center">
-        <section className="sprix-card p-8">
+    <main className="min-h-[100dvh] bg-[#f7f7f5] px-5 py-8">
+      <div className="mx-auto flex min-h-[calc(100dvh-64px)] max-w-[440px] flex-col justify-center">
+        <section className="rounded-[28px] border border-line bg-white p-8 shadow-soft">
           <div className="mb-8">
-            <div className="sprix-title text-2xl text-ink">Sprix Admin</div>
-            <p className="mt-2 text-sm text-ink-soft">登录后进入平台运营后台</p>
+            <div className="sprix-title text-3xl text-ink">Sprix 管理后台</div>
+            <p className="mt-2 text-sm text-ink-soft">登录后进入 Sprix 管理后台</p>
           </div>
           <Form<LoginValues>
             layout="vertical"
