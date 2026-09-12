@@ -6,7 +6,7 @@ import { queryEvents, queryUserProfile } from "./analytics-events.mjs";
 import { createServer } from "node:http";
 import { pathToFileURL } from "node:url";
 import { readDemoState, applyDemoAction } from "./demo-state.mjs";
-import { createAnalyticsSnapshot } from "./analytics-data.mjs";
+import { createAnalyticsSnapshot, dashboardCutoffAt } from "./analytics-data.mjs";
 
 function sendJson(response, status, data) {
   response.writeHead(status, {
@@ -38,19 +38,19 @@ export function dashboardMockMiddleware(request, response, next) {
     }).catch(error=>sendJson(response,400,{message:error.message}));return;
   }
   if (url.pathname === "/mock-api/dashboard/user-profile" && request.method === "GET") {
-    const profile = queryUserProfile(url.searchParams.get("user_id"));
+    const profile = queryUserProfile(url.searchParams.get("user_id"), dashboardCutoffAt());
     sendJson(response, profile ? 200 : 404, profile ?? {message:"未找到用户画像"});
     return;
   }
   if (url.pathname === "/mock-api/dashboard/events" && request.method === "GET") {
-    try { sendJson(response, 200, queryEvents(url.searchParams)); }
+    try { sendJson(response, 200, queryEvents(url.searchParams, dashboardCutoffAt())); }
     catch (error) { sendJson(response, 400, { message: error.message }); }
     return;
   }
   if (url.pathname === '/mock-api/admin/artifact' && request.method === 'GET') {
     getView().then(view=>{
       const submission=executionSubmission(view.ledger,url.searchParams.get('id'));
-      const file=submission?.files.find(file=>file.artifactId===url.searchParams.get('file'));
+      const file=submission?.files.find(file=>file.fileId===url.searchParams.get('file'));
       if(!file) return sendJson(response,404,{message:'文件不存在'});
       response.writeHead(200,{'Content-Type':file.mimeType+'; charset=utf-8','Content-Length':file.bytes.length,
         'Content-Disposition':`attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`,
@@ -106,7 +106,7 @@ export function dashboardMockMiddleware(request, response, next) {
     sendJson(response, 400, { message: "days 必须为 7 或 30" });
     return;
   }
-  sendJson(response, 200, createAnalyticsSnapshot(Number(days)));
+  sendJson(response, 200, createAnalyticsSnapshot(Number(days), dashboardCutoffAt()));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

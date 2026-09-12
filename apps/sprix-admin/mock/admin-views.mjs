@@ -1,7 +1,7 @@
 import {taskForOrder,indexAt} from "./business-scenario.mjs";
 import {createHash} from 'node:crypto';
 import {readDemoState} from './demo-state.mjs';
-import {createAnalyticsSnapshot} from './analytics-data.mjs';
+import {createAnalyticsSnapshot,dashboardCutoffAt,DASHBOARD_CUMULATIVE_TOTALS} from './analytics-data.mjs';
 import {buildDemoLedger} from './demo-ledger.mjs';
 import {aggregateDashboard} from './dashboard-aggregation.mjs';
 import {compareRecords,filterRecords} from './record-order.mjs';
@@ -14,9 +14,15 @@ export async function getView(version) {
  if(!snapshots.has(key)) {
    const seed=createAnalyticsSnapshot(7,at);
    const ledger=buildDemoLedger(seed,state);
-   const center={tasks:ledger.tasks,acceptanceReviews:ledger.acceptanceReviews,appealCount:ledger.appeals.length};
    let dashboard;
-   snapshots.set(key,{version:key,ledger,get dashboard(){return dashboard ??= aggregateDashboard(seed,center,ledger.funds);},lists:new Map()});
+   snapshots.set(key,{version:key,ledger,get dashboard(){
+     if(dashboard) return dashboard;
+     const dashboardSeed=createAnalyticsSnapshot(7,dashboardCutoffAt(at));
+     const dashboardLedger=buildDemoLedger(dashboardSeed,state);
+     const center={tasks:dashboardLedger.tasks,acceptanceReviews:dashboardLedger.acceptanceReviews,appealCount:dashboardLedger.appeals.length};
+     const aggregated=aggregateDashboard(dashboardSeed,center,dashboardLedger.funds);
+     return dashboard={...aggregated,overview:{...aggregated.overview,...DASHBOARD_CUMULATIVE_TOTALS}};
+   },lists:new Map()});
    while(snapshots.size>3) snapshots.delete(snapshots.keys().next().value);
  }
  return snapshots.get(key);
@@ -38,7 +44,7 @@ export function viewPage(view,kind,options={}) {
    return {version:view.version,total:indexes.length,rows:indexes.slice(offset,offset+limit).map(ledger.withdrawalRecord)};
  }
  if(kind==='orders' || kind==='settlements') return executionPage(view,kind,options,offset,limit);
- const filter={status:options.status,search:options.search,date:options.date,done:options.done,availableOnly:options.availableOnly};
+ const filter={status:options.status,search:options.search,date:options.date,category:options.category,done:options.done,availableOnly:options.availableOnly};
  const key=JSON.stringify([kind,filter]);
  if(!view.lists.has(key)) {
    const all=kind==='tasks'?ledger.tasks:kind==='acceptance'?ledger.acceptanceReviews:kind==='appeals'?ledger.appeals:ledger.funds[kind];
@@ -79,25 +85,26 @@ function settledIndexes(view) {
  settlementIndex={key,at:now,indexes:result,future};return result;
 }
 function executionPage(view,kind,options,offset,limit) {
+ const ledger=view.ledger;
  const status=kind==='settlements'?'completed':options.status ?? 'all';
  if(!['all','running','reviewing','completed','terminated'].includes(status)) throw new Error('INVALID_STATUS');
  const key=JSON.stringify([kind,status,options.search ?? '',options.date ?? '',options.status ?? '']);
- const record=kind==='settlements'?view.ledger.settlementRecord:view.ledger.orderRecord;
+ const record=kind==='settlements'?ledger.settlementRecord:ledger.orderRecord;
  if(kind==='settlements' && !options.search && !options.date && (!options.status || ['全部','已入账'].includes(options.status))) {
    const indexes=settledIndexes(view);
    return {version:view.version,total:indexes.length,rows:indexes.slice(offset,offset+limit).map(record)};
  }
  if(!view.lists.has(key)) {
-   let indexes=view.ledger.executionIndexes(status==='all'?undefined:status);
+   let indexes=ledger.executionIndexes(status==='all'?undefined:status);
    if(kind==='orders' && options.search) {
      const search=String(options.search).toLowerCase();
-     const matching=new Set(view.ledger.tasks.filter(task=>`${task.id} ${task.title}`.toLowerCase().includes(search)).map(task=>Number(task.id.split(':')[2])));
-     indexes=indexes.filter(index=>matching.has((view.ledger.consumerRows.get(index)?Number(view.ledger.consumerRows.get(index).taskId.split(":")[2]):taskForOrder(index))));
+     const matching=new Set(ledger.tasks.filter(task=>`${task.id} ${task.title}`.toLowerCase().includes(search)).map(task=>Number(task.id.split(':')[2])));
+     indexes=indexes.filter(index=>matching.has((ledger.consumerRows.get(index)?Number(ledger.consumerRows.get(index).taskId.split(":")[2]):taskForOrder(index))));
    }
-   const times=new Float64Array((view.ledger.orders ?? view.dashboard.overview.orders)+1),extraTimes=new Map();
+   const times=new Float64Array((ledger.orders ?? 0)+1),extraTimes=new Map();
    const timeFor=index=>index<times.length?times[index]:extraTimes.get(index);
    for(const index of indexes) {
-     if(index<times.length) times[index]=view.ledger.recordTime(index,kind);else extraTimes.set(index,view.ledger.recordTime(index,kind));
+     if(index<times.length) times[index]=ledger.recordTime(index,kind);else extraTimes.set(index,ledger.recordTime(index,kind));
    }
    if((kind!=='orders' && options.search) || options.date || (kind==='settlements' && options.status && options.status!=='全部'))
      indexes=indexes.filter(index=>filterRecords(kind,[record(index)],options).length);

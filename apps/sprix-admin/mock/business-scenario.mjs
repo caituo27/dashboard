@@ -42,6 +42,7 @@ export function publishedTaskCount(at) {
 // Simulation assumptions, not measurements of real Agent throughput.
 export const MAX_LIFECYCLE_MS = 8 * 3600000;
 export function executionDuration(index, category) {
+  category = ({'数据标注':'数据处理','AI 内容创作':'内容运营','翻译 / 本地化':'内容运营','办公文档':'商务办公','市场调研':'市场研究','企业经营 / 投融资咨询':'金融资讯','工具类':'软件开发','Agent 自动化 / Python 开发':'软件开发','UI 设计':'设计创意'})[category] ?? category;
   const ranges = {'数据处理':[5,25], '内容运营':[15,60], '商务办公':[10,45], '人力资源':[20,60],
     '市场研究':[45,180], '金融资讯':[30,120], '软件开发':[30,180], '设计创意':[30,120]};
   const [min,max] = Object.hasOwn(ranges,category) ? ranges[category] : [15,90];
@@ -69,7 +70,7 @@ export function timeline(index) {
   if(!chunk) {chunk=new Float64Array(4096*3);timelineChunks.set(chunkId,chunk);}
   if(!chunk[offset]) {
     const accepted=clock(index);
-    const submitted=accepted+executionDuration(index,taskScenario(taskForOrder(index)).category);
+    const submitted=accepted+executionDuration(index,taskScenario(taskForOrder(index)).durationCategory);
     chunk[offset]=accepted;chunk[offset+1]=submitted;chunk[offset+2]=submitted+(5+hash(index,34)%116)*60000;
   }
   return {accepted:chunk[offset],submitted:chunk[offset+1],completed:chunk[offset+2],paid:chunk[offset+2]};
@@ -114,7 +115,14 @@ const families=[
  }],
  ['金融资讯',pick=>{
    const business=pick(businesses,3),focus=pick(['首次付费转化','服务履约效率','客户复购','渠道获客成本'],4);
-   const rows=[['有效线索','去除重复及无法联系的咨询记录；用于统一转化分母。'],['首次付费转化率','首次付费客户数 / 同期有效线索数；分母为零时不计算。'],['履约完成率','已完成服务订单数 / 应在统计期完成的订单数。'],['复购率','期内再次付费的老客户数 / 期内可观察的老客户数；观察窗口需固定。'],['获客成本','对应渠道获客支出 / 该渠道新增付费客户数；不混入服务履约成本。'],['讨论重点',`${focus}需与其他指标一起看，收入、客户数及支出未提供，不能得出盈利结论。`]];
+   const rows=[
+     ['有效线索',`${business}咨询按客户标识去重，剔除测试、垃圾及无法联系的记录；同一客户重复咨询计 1 条。保留首次咨询时间和来源渠道，跨渠道归属规则由运营确认。`],
+     ['首次付费转化率','统计期内首次进入的有效线索中，在约定转化窗口内首次付费的客户数 / 该批有效线索数 × 100%。分子必须来自同一批分母客户；窗口尚未结束的批次单列。分母为零记 N/A，不记 0%。退款订单是否剔除需统一。'],
+     ['履约完成率',`应在统计期完成的${business}订单中，实际完成的订单数 / 应在统计期完成的订单数 × 100%。分母按约定完成时间选取，不能混入其他周期订单；取消及改期订单单列，剔除规则待确认。分母为零记 N/A。另列按时完成数与逾期完成数，避免完成率掩盖延误。`],
+     ['复购率','同一首购批次中，在首购后 30 天内再次付费的客户数 / 已满 30 天观察期的该批首购客户数 × 100%。30 天为本方案建议窗口，需业务确认；未满观察期客户单列，不提前判为未复购。分母为零记 N/A。'],
+     ['获客成本','按统一渠道归属规则汇总的获客支出 / 对应获客批次的新增付费客户数，单位为元/人。费用期间与转化窗口需对齐，不混入履约成本；新增付费客户为零时记 N/A，并保留支出金额，不能写成零成本。'],
+     ['讨论重点',`本次围绕${focus}统一口径，未计算实际指标值。上线统计前需确认客户去重键、转化窗口、退款处理、取消改期规则和渠道归属。需补充咨询、支付、约定履约、实际完成及渠道费用明细；当前没有经营报表，不能判断${business}盈利、增长或投资价值。`]
+   ];
    return [`${business}业务的${focus}指标口径`,`经营团队准备讨论${business}的${focus}，需要先统一统计定义。已知流程为咨询、首次付费、服务完成、再次购买，尚无真实经营报表。请整理指标名称、计算口径、分母为零的处理方式和讨论边界。`,`Markdown 口径说明及 CSV 指标表，至少包含 5 个指标和讨论重点。`,`定义能对应咨询到复购流程；转换率分子分母一致；不填造收入、成本、客户数或投资判断。`,rows];
  }],
  ['软件开发',pick=>{
@@ -124,8 +132,8 @@ const families=[
  }],
  ['设计创意',pick=>{
    const business=pick(businesses,3),entry=pick(['预约确认页','服务选择页','进度查询页','个人订单页'],4);
-   const rows=[['页面目标',`让用户在${business}${entry}找到当前状态与下一步操作。`],['信息顺序','先显示服务名称与状态，再显示所选服务、规则说明和操作入口。'],['主要入口',entry==='进度查询页'?'主操作“查看处理进度”，次操作“联系服务人员”。':'主操作“查看订单详情”，次操作“联系服务人员”。'],['状态规则','加载时显示进度提示；无订单时显示服务入口；失败时保留输入并提供重试。'],['素材要求','服务示意图使用可替换资源；没有门店、价格和服务时间时不添加虚构信息。']];
-   return [`${business}${entry}的信息层级与状态说明`,`用户需要在${business}的${entry}确认服务情况。已知页面需要展示服务名称、订单状态、规则说明和联系入口，未提供具体门店、价格及开放时间。请按目标、层级、操作、状态和素材要求设计页面结构。`,`Markdown 页面方案、CSV 区块说明和 SVG 结构草图，覆盖 5 个部分。`,`页面目标与${entry}一致；至少说明加载、空数据、失败 3 种状态；每个入口有用途，草图能对照区块说明。`,rows];
+   const rows=[['页面目标',`让用户在${business}${entry}找到当前状态与下一步操作。`],['信息顺序','先显示服务名称与状态，再显示所选服务、规则说明和操作入口。'],['主要入口',({'进度查询页':'主操作“查看处理进度”，次操作“联系服务人员”。','预约确认页':'主操作“确认预约”，提交后显示预约结果；次操作“返回修改”。','服务选择页':'主操作“选择服务”，完成后进入预约确认；次操作“查看服务说明”。','个人订单页':'主操作“查看订单详情”，次操作“联系服务人员”。'})[entry]],['状态规则','加载时显示进度提示；无订单时显示服务入口；失败时保留输入并提供重试。'],['素材要求','服务示意图使用可替换资源；没有门店、价格和服务时间时不添加虚构信息。']];
+   return [`${business}${entry}的信息层级与状态说明`,`我们正在完善${business}的线上服务流程，需要设计${entry}供前端开发使用。面向已进入服务流程的用户，页面应展示服务名称、当前状态、规则说明及下一步入口。请提交桌面端信息层级方案，并说明手机端的排列顺序；补齐加载、无记录和请求失败时的提示及操作。此次只做页面结构设计，不制作品牌视觉或接入实际订单，价格和门店资料由业务配置提供。`,`Markdown 页面方案、CSV 区块说明和 SVG 结构草图，覆盖 5 个部分。`,`页面目标与${entry}一致；至少说明加载、空数据、失败 3 种状态；每个入口有用途，草图能对照区块说明。`,rows];
  }],
  ['数据处理',pick=>{
    const business=pick(businesses,3),channel=pick(['在线客服','服务评价','咨询留言','订单回访'],4);
@@ -165,13 +173,19 @@ export function taskScenario(index) {
  return value;
 }
 function createTaskScenario(index) {
- const family=families[hash(index,2)%families.length];
+ const familyIndex=hash(index,2)%families.length;
+ const family=families[familyIndex];
  const pick=(values,salt)=>values[hash(index,salt)%values.length];
  const [title,description,deliverables,acceptanceCriteria,submissionRows]=family[1](pick);
  // Most tasks are small, with a smaller share of higher-value analytical work.
  const tier=hash(index,5)%100;
  const reward=tier<65 ? (100+hash(index,6)%501)/100 : tier<93 ? (500+hash(index,7)%501)/100 : (1000+hash(index,8)%1801)/100;
- return {title,category:family[0],description,cardSummary:title,deliverables,reward,acceptanceCriteria,submissionRows:Object.freeze(submissionRows.map(row=>Object.freeze(row)))};
+ const categories=['市场调研','数据标注','AI 内容创作','企业经营 / 投融资咨询','工具类','UI 设计','数据标注','市场调研','翻译 / 本地化','办公文档','工具类','数据标注'];
+ const tokenRanges=[[9000,18000],[2500,6500],[5000,10000],[11000,21000],[10000,22000],[9000,18000],[2500,6000],[8000,15000],[3000,7000],[7000,13000],[3500,8000],[2500,6500]];
+ const [minTokens,maxTokens]=tokenRanges[familyIndex];
+ const estimatedTokens=Math.round((minTokens+hash(index,74)%(maxTokens-minTokens+1))/100)*100;
+ const attachmentNames=[['调研提纲.md','调研维度.csv'],['清洗说明.md','编号清洗结果.csv'],['上新文案.md','文案条目.csv'],['指标口径.md','经营指标.csv'],['测试用例说明.md','分页权限用例.csv'],['页面方案.md','页面区块说明.csv'],['标注说明.md','反馈标注.csv'],['调研准备.md','门店核验清单.csv'],['双语提示.md','翻译对照.csv'],['面试提纲.md','面试观察点.csv'],['会议摘要.md','行动项.csv'],['报价核对说明.md','报价明细.csv']][familyIndex];
+ return {title,category:categories[familyIndex],durationCategory:family[0],estimatedTokens,attachmentNames,description,cardSummary:title,deliverables,reward,acceptanceCriteria,submissionRows:Object.freeze(submissionRows.map(row=>Object.freeze(row)))};
 }
 
 const sizes=[9,27,14,32,18,20];

@@ -1,3 +1,5 @@
+import {taskAtSubmission} from './submission-task.mjs';
+import {localAcceptance} from './local-acceptance.mjs';
 import { createHash } from 'node:crypto';
 import { hash } from './business-scenario.mjs';
 
@@ -21,29 +23,36 @@ export function executionSubmission(ledger, id) {
   const detail = ledger.detail(candidate.taskId);
   const record = detail && Object.values(detail.records).flat().find(row => row.executionId === id);
   if (!record) return null;
-  const result = {executionId:id, taskId:record.taskId, executionStatus:record.acceptanceStatus, reviewSource:'AGENT', artifacts:[]};
+  const result = {executionId:id, taskId:record.taskId, executionStatus:record.taskExecutionStatus??record.acceptanceStatus, reviewSource:'AGENT', artifacts:[]};
   if (!record.submittedAt) return {result, files:[]};
-  const task = detail.task;
+  const task = taskAtSubmission(detail.task,ledger.submissionPatch?.(record.taskId),record.submittedAt);
   const receivedAt = record.submittedAt;
-  const rows = task.submissionRows ?? sections[task.category] ?? sections['商务办公'];
+  const rows = task.submissionRows===null
+    ? [['交付状态','任务要求调整后，当前执行未提供与最新版本对应的交付内容。'],['处理建议','请按最新任务要求重新执行并提交产物。']]
+    : task.submissionRows ?? sections[task.category] ?? sections['商务办公'];
   const number = `EX-${String(index).padStart(8,'0')}`;
-  const report = `# ${task.title}\n\n执行编号：${number}\n提交时间：${receivedAt}\n执行 Agent：${record.agentName}\n\n## 任务要求\n${task.description}\n\n## 交付范围\n${task.deliverables}\n\n## 交付内容\n${rows.map(([title,body])=>`### ${title}\n${body}`).join('\n\n')}\n\n## 验收依据\n${task.acceptanceCriteria}\n\n## 复核备注\n${record.acceptanceIssues || '按任务验收标准逐项复核。'}\n`;
+  const report = `# ${task.title}\n\n执行编号：${number}\n提交时间：${receivedAt}\n执行 Agent：${record.agentName}\n\n## 任务要求\n${task.description}\n\n## 交付范围\n${task.deliverables}\n\n## 交付内容\n${rows.map(([title,body])=>`### ${title}\n${body}`).join('\n\n')}\n\n## 验收依据\n${task.acceptanceCriteria}\n`;
   const csv = '\ufeff条目,内容\r\n'+rows.map(row=>row.map(value=>`"${value.replaceAll('"','""')}"`).join(',')).join('\r\n');
-  const files = [{name:'交付内容.md',mimeType:'text/markdown',content:report},{name:'交付明细.csv',mimeType:'text/csv',content:csv}].map((file,i)=>{
+  const files = [{name:task.attachmentNames?.[0] ?? '交付内容.md',mimeType:'text/markdown',content:report},{name:task.attachmentNames?.[1] ?? '交付明细.csv',mimeType:'text/csv',content:csv}].map((file,i)=>{
     const bytes=Buffer.from(file.content);
-    return {...file,bytes,artifactId:`artifact-${index}-${i+1}`};
+    return {...file,bytes,fileId:`file-${index}-${i+1}`,artifactId:`artifact-${index}-${i+1}`};
   });
-  if (task.category === '设计创意') {
+  if (['设计创意','UI 设计'].includes(task.category)) {
     const escape = value => String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
-    const content = `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="880" viewBox="0 0 960 880"><rect width="960" height="880" fill="#f5f7f7"/><g font-family="sans-serif" fill="#183c36"><text x="48" y="52" font-size="22">${escape(task.title)}</text>${rows.map(([title,body],i)=>`<rect x="48" y="${82+i*150}" width="864" height="126" rx="12" fill="white" stroke="#c7d9d4"/><text x="72" y="${118+i*150}" font-size="20">${i+1}. ${escape(title)}</text>${[body.slice(0,34),body.slice(34)].map((line,j)=>`<text x="72" y="${152+i*150+j*24}" font-size="17">${escape(line)}</text>`).join('')}`).join('')}</g></svg>`;
-    files.push({name:'页面信息结构.svg',mimeType:'image/svg+xml',content,bytes:Buffer.from(content),artifactId:`artifact-${index}-3`});
+    const content = `<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="950" viewBox="0 0 1120 950"><rect width="1120" height="950" fill="#f5f7f7"/><g font-family="sans-serif" fill="#183c36"><text x="30" y="40" font-size="22">${escape(task.title)}</text><text x="30" y="76" font-size="16">桌面端：服务信息与操作并列</text><rect x="30" y="95" width="690" height="560" rx="12" fill="white" stroke="#bacfc9"/><text x="50" y="130" font-size="20">服务中心 / 当前服务</text><rect x="50" y="155" width="420" height="160" fill="#eef5f3"/><text x="65" y="190" font-size="18">服务名称、当前状态</text><text x="65" y="230" font-size="16">所选服务 / 订单摘要</text><rect x="490" y="155" width="210" height="270" fill="#e2efeb"/><text x="510" y="190" font-size="18">下一步操作</text><text x="510" y="230" font-size="15">${escape((rows[2]?.[1] ?? '').slice(0,13))}</text><text x="510" y="265" font-size="15">${escape((rows[2]?.[1] ?? '').slice(13,26))}</text><text x="510" y="300" font-size="15">${escape((rows[2]?.[1] ?? '').slice(26))}</text><rect x="50" y="335" width="420" height="150" fill="#f5f7f7"/><text x="65" y="370" font-size="18">服务规则及信息说明</text><text x="65" y="410" font-size="16">价格与门店信息由业务配置提供</text><text x="50" y="540" font-size="16">操作后：展示结果，保留查看详情入口</text><text x="760" y="76" font-size="16">手机端：信息在前、操作在后</text><rect x="760" y="95" width="320" height="560" rx="18" fill="white" stroke="#bacfc9"/>${['服务名称与状态','所选服务 / 订单摘要','服务规则说明','主要操作 / 返回入口'].map((label,i)=>`<rect x="780" y="${130+i*115}" width="280" height="95" rx="6" fill="#eef5f3"/><text x="800" y="${170+i*115}" font-size="17">${label}</text>`).join('')}<text x="30" y="700" font-size="20">异常状态与恢复入口</text>${[['加载中','正在读取服务信息，暂不重复提交'],['无记录','暂无相关记录，提供返回服务列表入口'],['请求失败','保留已填信息，提供重试和返回入口']].map(([label,body],i)=>`<rect x="${30+i*355}" y="725" width="335" height="145" rx="8" fill="white" stroke="#bacfc9"/><text x="${45+i*355}" y="760" font-size="19">${label}</text><text x="${45+i*355}" y="800" font-size="15">${body}</text>`).join('')}</g></svg>`;
+    const svg={name:'页面信息结构.svg',mimeType:'image/svg+xml',content,bytes:Buffer.from(content),fileId:`file-${index}-2`,artifactId:`artifact-${index}-2`};
+    files.splice(1,1,svg);
   }
-  result.output = {exitCode:0,inputTokens:1800+hash(index,71)%14500,outputTokens:650+hash(index,72)%4200,receivedAt,
+  const estimate=task.estimatedTokens ?? 10000;
+  const used=Math.round(estimate*(0.8+(hash(index,71)%51)/100));
+  const outputTokens=Math.round(used*(0.2+(hash(index,72)%21)/100));
+  result.output = {exitCode:0,inputTokens:used-outputTokens,outputTokens,receivedAt,
     finalMessage:`已整理“${task.title}”的交付文档与明细表。内容包括：${rows.map(row=>row[0]).join('、')}。请结合任务要求复核附件。`};
-  result.artifacts = files.map(file=>({artifactId:file.artifactId,fileId:file.artifactId,role:'DELIVERABLE',name:file.name,mimeType:file.mimeType,sizeBytes:file.bytes.length,
+  result.artifacts = files.map(file=>({artifactId:file.artifactId,fileId:file.fileId,role:'DELIVERABLE',name:file.name,mimeType:file.mimeType,sizeBytes:file.bytes.length,
     sha256:createHash('sha256').update(file.bytes).digest('hex'),localRelativePath:file.name,receivedAt,
-    downloadUrl:`/mock-api/admin/artifact?id=${encodeURIComponent(id)}&file=${file.artifactId}`}));
-  result.acceptance = {acceptanceId:id,status:record.acceptanceStatus,score:record.acceptanceScore,summary:record.acceptanceSummary,issues:record.acceptanceIssues,
-    failureReasons:record.acceptanceFailureReasons,improvementSuggestions:record.acceptanceImprovementSuggestions};
+    downloadUrl:`/mock-api/admin/artifact?id=${encodeURIComponent(id)}&file=${file.fileId}`}));
+  const localReview=record.localAcceptance??localAcceptance(index,task,record.status??'reviewing',record.acceptanceScore??record.score??85,record.terminationReason);
+  result.acceptance = localReview?{acceptanceId:`acceptance-${index}`,status:localReview.status,score:localReview.score,summary:localReview.summary,issues:localReview.issues,
+    failureReasons:localReview.failureReasons,improvementSuggestions:localReview.improvementSuggestions,details:{status:localReview.status,acceptanceStatus:localReview.acceptanceStatus,score:localReview.score,scores:localReview.scores,summary:localReview.summary,issues:localReview.issues,failureReasons:localReview.failureReasons,improvementSuggestions:localReview.improvementSuggestions},mappedBusinessStatus:record.mappedBusinessStatus??'platform_review_pending',receivedAt}:null;
   return {result,files};
 }

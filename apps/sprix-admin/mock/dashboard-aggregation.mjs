@@ -14,12 +14,17 @@ export function aggregateDashboard(analytics, center, funds) {
   const settled = funds.settlements.filter((row) => row.settlementStatus === "已入账");
   const completedAmount = amount(settled, (row) => row.taskIncome);
   const platformFee = amount(settled, (row) => row.platformFee);
-  const settlementNet = amount(settled, (row) => row.netIncome);
-  const paidAmount = funds.paidAmount ?? amount(funds.withdrawals.filter((row) => row.withdrawStatus === "已提现"), (row) => row.applyAmount);
+  const settlementNet = Math.round((completedAmount - platformFee) * 100) / 100;
+  const recordedPaidAmount = funds.paidAmount ?? amount(funds.withdrawals.filter((row) => row.withdrawStatus === "已提现"), (row) => row.applyAmount);
+  // A partial settlement snapshot can be older than withdrawal history. Keep the
+  // dashboard ledger balanced instead of presenting paid money above net income.
+  const paidAmount = Math.min(settlementNet, recordedPaidAmount);
   const publications = new Map();
+  const publishedCategories = new Map();
   for (const task of activeTasks) {
     const date = task.publishedAt.slice(0, 10);
     publications.set(date, (publications.get(date) ?? 0) + 1);
+    if (task.taskStatus === "已发布") publishedCategories.set(task.category, (publishedCategories.get(task.category) ?? 0) + 1);
   }
   return {
     ...analytics,
@@ -40,6 +45,7 @@ export function aggregateDashboard(analytics, center, funds) {
       pendingWithdrawals: funds.withdrawals.filter((row) => row.withdrawStatus === "提现审核中").length,
       pendingPayouts: funds.payouts.filter((row) => row.withdrawStatus === "待打款").length,
       appeals: center.appealCount,
+      publishedTaskCategories: [...publishedCategories].map(([category, count]) => ({ category, count })).sort((a, b) => b.count - a.count || a.category.localeCompare(b.category, "zh-CN")),
       taskPublications: analytics.operations.taskPublications.map((day) => ({ ...day, count: publications.get(day.date) ?? 0 }))
     }
   };

@@ -1,7 +1,8 @@
 import { isDemoId } from "../../mock/demo-ledger.mjs";
 import { downloadRemoteAdminFile, estimateRemoteTaskPricing, type TaskPricingEstimate, type TaskPricingEstimateRequest, type AdminExecutionResult, type TaskAttachment } from "../services/sprixApi";
-import { displayText, maskPhone } from "../utils/displayText";
+import { displayText } from "../utils/displayText";
 import { AdminTable as Table, EllipsisCell, EllipsisText } from "../components/AdminTable";
+import { PhoneNumber } from "../components/PhoneNumber";
 import {readTaskPage,readAcceptancePage,readAcceptanceDetail,readAppealPage,readFundPage} from "../services/pagedAdminData";
 import type { TablePaginationConfig } from "antd";
 import { useEffect, useRef, useState } from "react";
@@ -141,6 +142,7 @@ function AdminTableViewport({ children }: { children: () => ReactNode }) {
 const taskCategoryOptions = [
   "企业经营 / 投融资咨询",
   "数据标注",
+  "工具类",
   "AI 内容创作",
   "办公文档",
   "市场调研",
@@ -313,15 +315,17 @@ export function getPublishTaskConfirmOptions(onConfirm: () => void | Promise<voi
 export function AdminTaskCenter() {
   const [taskSearch,setTaskSearch] = useSearchParams();
   const publishedDate = /^\d{4}-\d{2}-\d{2}$/.test(taskSearch.get("publishedDate") ?? "") ? taskSearch.get("publishedDate") : null;
+  const category = taskSearch.get("category")?.trim() || null;
+  const initialStatus = ["已发布", "已下线"].includes(taskSearch.get("status") ?? "") ? taskSearch.get("status")! : "全部";
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [tab,setTab] = useState("全部");
+  const [tab,setTab] = useState(initialStatus);
   const [keyword,setKeyword] = useState("");
   const [taskPage,setTaskPage] = useState(1);
   const taskCenterQuery = useQuery({
-    queryKey: ["sprix-admin", "task-center",tab,keyword,publishedDate,taskPage,20],
+    queryKey: ["sprix-admin", "task-center",tab,keyword,publishedDate,category,taskPage,20],
     placeholderData:keepPreviousData,
-    queryFn: ()=>readTaskPage({page:taskPage,pageSize:20,status:tab,search:keyword,date:publishedDate ?? undefined}),
+    queryFn: ()=>readTaskPage({page:taskPage,pageSize:20,status:tab,search:keyword,date:publishedDate ?? undefined,category:category ?? undefined}),
     retry: 1
   });
 
@@ -339,6 +343,17 @@ export function AdminTaskCenter() {
     setTab(nextTab);
     setTaskPage(1);
     setKeyword("");
+    const nextSearch = new URLSearchParams(taskSearch);
+    if (nextTab === "全部") nextSearch.delete("status");
+    else nextSearch.set("status", nextTab);
+    setTaskSearch(nextSearch);
+  };
+  const selectTaskCategory = (nextCategory?: string) => {
+    const nextSearch = new URLSearchParams(taskSearch);
+    if (nextCategory) nextSearch.set("category", nextCategory);
+    else nextSearch.delete("category");
+    setTaskPage(1);
+    setTaskSearch(nextSearch);
   };
   const refreshTasks = () => queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
   const editTaskFromListAction = getAdminTaskWriteAction("edit");
@@ -473,7 +488,10 @@ export function AdminTaskCenter() {
           <div className="sprix-toolbar-row flex-col items-start lg:flex-row lg:items-center">
             <h3 className="sprix-section-title">任务列表</h3>
             {publishedDate && <span>{publishedDate} 发布 · {taskCenterQuery.data?.total} 条 <Button type="link" onClick={()=>{setTaskPage(1);setTaskSearch({});}}>清除日期筛选</Button></span>}
-            <Input.Search className="max-w-[360px]" value={keyword} onChange={(event) => {setKeyword(event.target.value);setTaskPage(1);}} placeholder="搜索任务名称或分类" />
+            <div className="flex w-full flex-col gap-2 sm:flex-row lg:ml-auto lg:w-auto">
+              <Select className="w-full sm:w-[220px]" value={category ?? undefined} allowClear showSearch optionFilterProp="label" placeholder="全部任务分类" options={taskCategoryOptions} onChange={selectTaskCategory} />
+              <Input.Search className="w-full sm:w-[360px]" value={keyword} onChange={(event) => {setKeyword(event.target.value);setTaskPage(1);}} placeholder="搜索任务名称" />
+            </div>
           </div>
           <Segmented options={["全部", "已发布", "已下线"]} value={tab} onChange={(value) => selectTaskTab(String(value))} />
         </div>
@@ -649,7 +667,7 @@ export function AdminTaskExecutionResultDetail() {
     acceptanceIssues: record?.acceptanceIssues ?? "-",
     currentNode: record?.currentNode ?? "-",
     progress: record?.progress ?? "-",
-    submittedAt: record?.completedAt ?? "-"
+    submittedAt: record?.submittedAt ?? "-"
   };
 
   return <AcceptanceResultDetail record={resultRecord} onBack={backToTaskDetail} />;
@@ -761,7 +779,7 @@ function AcceptanceResultDetail({
                 </div>
               ))}
             </dl>
-            <LongTextBlock title="最终提交说明" body={executionResult?.output?.finalMessage || "-"} />
+            <LongTextBlock title="最终提交说明" body={executionResult?.output?.finalMessage || "-"} plain />
             <div className="mt-5 border-t border-line pt-5">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-sm font-semibold text-ink">提交产物</div>
@@ -800,7 +818,7 @@ function AcceptanceResultDetail({
               ["关联任务", record.taskTitle || "-"],
               ["任务分类", record.taskCategory || "-"],
               ["执行用户", record.userName],
-              ["手机号", maskPhone(record.phone)],
+              ["手机号", <PhoneNumber value={record.phone} />],
               ["执行 Agent", record.agentName],
               ["提交时间", record.submittedAt],
               ["当前进度", record.progress]
@@ -872,15 +890,15 @@ function useAcceptanceReviewActions(afterAction: () => Promise<unknown>) {
   return { approveAcceptanceReview, rejectAcceptanceReview };
 }
 
-function InfoGrid({ rows }: { rows: Array<[string, string]> }) {
+function InfoGrid({ rows }: { rows: Array<[string, ReactNode]> }) {
   return (
     <dl className="mt-4 grid gap-3 text-sm">
       {rows.map(([label, value]) => {
-        const text = value == null || value === "" ? "-" : String(value);
+        const content = typeof value === "string" ? displayText(value || "-") : value ?? "-";
         return (
           <div key={label} className="grid gap-1 sm:grid-cols-[120px_1fr]">
             <dt className="text-ink-soft">{label}</dt>
-            <dd className="min-w-0 break-all leading-6 text-ink">{displayText(text)}</dd>
+            <dd className="min-w-0 break-all leading-6 text-ink">{content}</dd>
           </div>
         );
       })}
@@ -888,11 +906,11 @@ function InfoGrid({ rows }: { rows: Array<[string, string]> }) {
   );
 }
 
-function LongTextBlock({ title, body }: { title: string; body: string }) {
+function LongTextBlock({ title, body, plain = false }: { title: string; body: string; plain?: boolean }) {
   return (
     <div className="mt-4 first:mt-3">
       <div className="text-sm font-semibold text-ink">{title}</div>
-      <p className="sprix-detail-prose mt-2 rounded-lg border border-line bg-[#fafafa] p-3">{body || "-"}</p>
+      <p className={`sprix-detail-prose mt-2 ${plain ? "" : "rounded-lg border border-line bg-[#fafafa] p-3"}`}>{body || "-"}</p>
     </div>
   );
 }
@@ -1007,20 +1025,20 @@ function AcceptanceReviewTable({
   const columns: ColumnsType<ReviewingExecution> = [
     ...(showTask
       ? [
-          { title: "关联任务", dataIndex: "taskTitle", width: 260, render: (value) => <EllipsisCell value={value} /> },
-          { title: "任务分类", dataIndex: "taskCategory", width: 130, render: (value) => <EllipsisCell value={value} /> }
+          { title: "关联任务", dataIndex: "taskTitle", width: 300, render: (value) => <EllipsisCell value={value} /> },
+          { title: "任务分类", dataIndex: "taskCategory", width: 180, render: (value) => <EllipsisCell value={value} /> }
         ] satisfies ColumnsType<ReviewingExecution>
       : []),
-    { title: "执行用户", dataIndex: "userName", width: 130, render: (value) => <EllipsisCell value={value} /> },
-    { title: "手机号", dataIndex: "phone", width: 140, render: (value) => <EllipsisCell value={maskPhone(value)} /> },
-    { title: "执行 Agent", dataIndex: "agentName", width: 160, render: (value) => <EllipsisCell value={value} /> },
-    { title: "审核来源", dataIndex: "reviewSource", width: 130, render: (value) => <SoftTag tone={value === "USER_MANUAL" ? "amber" : "neutral"}>{value === "USER_MANUAL" ? "用户人工补交" : "Agent 自动交付"}</SoftTag> },
-    { title: "验收状态", dataIndex: "acceptanceStatus", width: 140, render: (value) => <StatusTag status={value} /> },
-    { title: "任务验收分", dataIndex: "acceptanceScore", width: 110 },
-    { title: "验收摘要", dataIndex: "acceptanceSummary", width: 260, render: (value) => <EllipsisCell value={value} /> },
-    { title: "问题记录", dataIndex: "acceptanceIssues", width: 280, render: (value) => <EllipsisCell value={value} /> },
-    { title: "当前节点", dataIndex: "currentNode", width: 130, render: (value) => <EllipsisCell value={value} /> },
-    { title: "提交时间", dataIndex: "submittedAt", width: 160 },
+    { title: "执行用户", dataIndex: "userName", width: 150, render: (value) => <EllipsisCell value={value} /> },
+    { title: "手机号", dataIndex: "phone", width: 150, render: (value) => <PhoneNumber value={value} /> },
+    { title: "执行 Agent", dataIndex: "agentName", width: 180, render: (value) => <EllipsisCell value={value} /> },
+    { title: "审核来源", dataIndex: "reviewSource", width: 165, render: (value) => <SoftTag tone={value === "USER_MANUAL" ? "amber" : "neutral"}>{value === "USER_MANUAL" ? "用户人工补交" : "Agent 自动交付"}</SoftTag> },
+    { title: "验收状态", dataIndex: "acceptanceStatus", width: 155, render: (value) => <StatusTag status={value} /> },
+    { title: "任务验收分", dataIndex: "acceptanceScore", width: 120 },
+    { title: "验收摘要", dataIndex: "acceptanceSummary", width: 320, render: (value) => <EllipsisCell value={value} /> },
+    { title: "问题记录", dataIndex: "acceptanceIssues", width: 320, render: (value) => <EllipsisCell value={value} /> },
+    { title: "当前节点", dataIndex: "currentNode", width: 150, render: (value) => <EllipsisCell value={value} /> },
+    { title: "提交时间", dataIndex: "submittedAt", width: 175 },
     {
       title: "操作",
       fixed: "right",
@@ -1112,7 +1130,7 @@ export function AdminTaskForm() {
     const payload = {
       ...normalizeTaskPayload(values, pricingEstimate),
       ...(editTaskId && isDemoId(editTaskId)
-        ? { reward: pricingEstimate?.perParticipantAmount ?? editTask?.reward }
+        ? { reward: pricingEstimate?.perParticipantAmount ?? editTask?.reward, estimatedTokens: pricingEstimate?.estimatedTokens ?? editTask?.estimatedTokens }
         : {})
     };
     const files = newAttachmentFiles.flatMap((file) => file.originFileObj ? [file.originFileObj as File] : []);
@@ -1332,6 +1350,8 @@ export function AdminTaskDetail() {
     queryKey: ["sprix-admin", "task-detail", id],
     queryFn: () => readRemoteTaskDetail(id as string),
     enabled: Boolean(id),
+    refetchInterval: (query) => query.state.data?.records.running.length ? 5000 : false,
+    refetchIntervalInBackground: false,
     retry: 1
   });
   if (!id) return <Surface className="p-8">任务详情参数缺失</Surface>;
@@ -1552,14 +1572,14 @@ function AdminExecutionRecords({
   ];
   const allColumns: ColumnsType<(typeof allRecords)[number]> = [
     { title: "执行用户", dataIndex: "userName", width: 160, render: (value) => <EllipsisCell value={value} /> },
-    { title: "手机号", dataIndex: "phone", render: maskPhone },
+    { title: "手机号", dataIndex: "phone", render: (value) => <PhoneNumber value={value} /> },
     { title: "执行 Agent", dataIndex: "agentName" },
     { title: "执行状态", dataIndex: "status", render: (value) => <StatusTag status={value} /> },
     { title: "时间", dataIndex: "time" }
   ];
   const runningColumns: ColumnsType<RunningExecution> = [
     { title: "执行用户", dataIndex: "userName", width: 160, render: (value) => <EllipsisCell value={value} /> },
-    { title: "手机号", dataIndex: "phone", render: maskPhone },
+    { title: "手机号", dataIndex: "phone", render: (value) => <PhoneNumber value={value} /> },
     { title: "执行 Agent", dataIndex: "agentName" },
     { title: "Agent 评分", dataIndex: "agentScore" },
     { title: "当前节点", dataIndex: "currentNode", width: 120, render: (value) => <span className="whitespace-nowrap">{value}</span> },
@@ -1568,7 +1588,7 @@ function AdminExecutionRecords({
   ];
   const terminatedColumns: ColumnsType<TerminatedExecution> = [
     { title: "执行用户", dataIndex: "userName", width: 160, render: (value) => <EllipsisCell value={value} /> },
-    { title: "手机号", dataIndex: "phone", render: maskPhone },
+    { title: "手机号", dataIndex: "phone", render: (value) => <PhoneNumber value={value} /> },
     { title: "执行 Agent", dataIndex: "agentName" },
     { title: "终止原因", dataIndex: "terminationReason" },
     { title: "终止节点", dataIndex: "terminatedNode", width: 120, render: (value) => <span className="whitespace-nowrap">{value}</span> },
@@ -1576,7 +1596,7 @@ function AdminExecutionRecords({
   ];
   const completedColumns: ColumnsType<CompletedExecution> = [
     { title: "执行用户", dataIndex: "userName", width: 160, render: (value) => <EllipsisCell value={value} /> },
-    { title: "手机号", dataIndex: "phone", render: maskPhone },
+    { title: "手机号", dataIndex: "phone", render: (value) => <PhoneNumber value={value} /> },
     { title: "执行 Agent", dataIndex: "agentName" },
     { title: "验收状态", dataIndex: "acceptanceStatus", render: (value) => <StatusTag status={value} /> },
     { title: "综合评分", dataIndex: "score" },
@@ -1674,7 +1694,7 @@ function showRunningExecutionDetail(record: RunningExecution) {
     ["执行状态", "执行中"],
     ["执行记录ID", record.executionId ?? "-"],
     ["执行用户", record.userName],
-    ["手机号", maskPhone(record.phone)],
+    ["手机号", <PhoneNumber value={record.phone} />],
     ["执行 Agent", record.agentName],
     ["Agent 评分", record.agentScore],
     ["当前节点", record.currentNode],
@@ -1688,7 +1708,7 @@ function showTerminatedExecutionDetail(record: TerminatedExecution) {
     ["执行状态", "已终止"],
     ["执行记录ID", record.executionId ?? "-"],
     ["执行用户", record.userName],
-    ["手机号", maskPhone(record.phone)],
+    ["手机号", <PhoneNumber value={record.phone} />],
     ["执行 Agent", record.agentName],
     ["终止原因", record.terminationReason],
     ["终止节点", record.terminatedNode],
@@ -1699,7 +1719,7 @@ function showTerminatedExecutionDetail(record: TerminatedExecution) {
 function showExecutionUserInfo(record: ExecutionUserRecord) {
   showAdminRecordDetail("用户信息", [
     ["用户昵称", record.userName],
-    ["手机号", maskPhone(record.phone)],
+    ["手机号", <PhoneNumber value={record.phone} />],
     ["关联执行记录ID", record.executionId ?? "-"]
   ]);
 }
@@ -1802,7 +1822,7 @@ export function AdminAppealCenter() {
                       },
                       { title: "关联任务", dataIndex: "taskTitle", width: 190, render: (value) => <EllipsisCell value={value} /> },
                       { title: "提交用户", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
-                      { title: "用户手机号", dataIndex: "userPhone", width: 130, render: (value) => <EllipsisCell value={maskPhone(value)} /> },
+                      { title: "用户手机号", dataIndex: "userPhone", width: 150, render: (value) => <PhoneNumber value={value} /> },
                       { title: "执行 Agent", dataIndex: "agentName", width: 140, render: (value) => <EllipsisCell value={value} /> },
                       { title: "申诉原因", dataIndex: "issueSummary", width: 220, render: (value) => <EllipsisCell value={value} /> },
                       { title: "当前状态", dataIndex: "appealStatus", width: 120, render: (value) => <StatusTag status={value} /> },
@@ -1857,7 +1877,7 @@ export function AdminAppealDetail() {
     { label: "当前状态", value: appeal.appealStatus },
     { label: "提交时间", value: appeal.submittedAt },
     { label: "提交用户", value: appeal.userName },
-    { label: "手机号", value: maskPhone(appeal.userPhone) },
+    { label: "手机号", value: <PhoneNumber value={appeal.userPhone} /> },
     { label: "处理人", value: appeal.handler }
   ];
   const taskInfoFields = [
@@ -1956,10 +1976,7 @@ export function AdminFundCenter() {
   if (fundsQuery.isLoading) return <Surface className="p-8">资金数据加载中</Surface>;
   if (fundsQuery.isError) return <Surface className="p-8">资金数据加载失败：{fundsQuery.error.message}</Surface>;
   return <>
-    <PageHeader title="资金管理中心" subtitle="管理结算记录" actions={
-      <div className="text-right"><p className="text-xs text-ink-soft">已打款金额</p>
-        <strong className="text-2xl tabular-nums">{currency(fundsQuery.data?.stats.paid ?? 0)}</strong></div>
-    } />
+    <PageHeader title="资金管理中心" subtitle="管理结算记录" />
     <Surface className="sprix-table-card p-4">
       <Table<Settlement> rowKey="settlementNo" dataSource={fundsQuery.data?.settlements ?? []}
         loading={fundsQuery.isPlaceholderData}
@@ -1968,7 +1985,7 @@ export function AdminFundCenter() {
           {title:"结算单号",dataIndex:"settlementNo",width:180},
           {title:"关联任务",dataIndex:"taskTitle",width:260},
           {title:"用户昵称",dataIndex:"userName",width:160},
-          {title:"手机号",dataIndex:"userPhone",width:150,render:maskPhone},
+          {title:"手机号",dataIndex:"userPhone",width:160,render:(value)=><PhoneNumber value={value}/>},
           {title:"执行 Agent",dataIndex:"agentName",width:180},
           {title:"任务收入",dataIndex:"taskIncome",width:120,render:currency},
           {title:"平台服务费",dataIndex:"platformFee",width:120,render:currency},

@@ -688,6 +688,7 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
         progress: row.progress ?? "-",
         appealStatus: ["", "NOT_APPEALED", "NONE"].includes(row.appealStatus?.trim().toUpperCase() ?? "") ? "无申诉" : mapAppealStatus(row.appealStatus),
         settlementStatus: mapSettlementStatus(row.settlementStatus),
+        submittedAt: formatDateTime(row.submittedAt),
         completedAt: formatDateTime(row.completedAt ?? row.updatedAt)
       });
     }

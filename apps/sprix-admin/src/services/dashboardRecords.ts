@@ -17,7 +17,7 @@ export async function readRealOrders(options:{status:ExecutionFilter;search:stri
  await Promise.all(Array.from({length:Math.min(6,tasks.length)},async()=>{
   while(cursor<tasks.length){
    const task=tasks[cursor++],detail=await source.detail(task);
-   for(const status of states) if(options.status==='all'||status===options.status) detail.records[status].forEach((row,index)=>rows.push({id:`${task.id}:${row.executionId ?? `${status}:${index}`}`,taskId:task.id,taskTitle:task.title,executionId:row.executionId ?? '—',status,userName:row.userName,agentName:row.agentName,time:status==='running' && 'startedAt' in row?row.startedAt:status==='reviewing'&&'submittedAt' in row?row.submittedAt:status==='completed'&&'completedAt' in row?row.completedAt:'terminatedAt' in row?row.terminatedAt:'—',reward:task.reward}));
+   for(const status of states) if(options.status==='all'||status===options.status) detail.records[status].forEach((row,index)=>rows.push({id:`${task.id}:${row.executionId ?? `${status}:${index}`}`,taskId:task.id,taskTitle:task.title,executionId:row.executionId ?? '—',status,userName:row.userName,agentName:row.agentName,time:status==='running' && 'startedAt' in row?row.startedAt:status==='reviewing'&&'submittedAt' in row?(row.submittedAt ?? '—'):status==='completed'&&'completedAt' in row?row.completedAt:'terminatedAt' in row?row.terminatedAt:'—',reward:task.reward}));
   }
  }));
  return rows;

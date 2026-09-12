@@ -13,10 +13,11 @@ export function compareRecords(kind,a,b) {
  return recordId(a).localeCompare(recordId(b));
 }
 export function filterRecords(kind,rows,options) {
- const status=options.status,search=(options.search ?? '').trim().toLowerCase(),date=options.date;
+ const status=options.status,search=(options.search ?? '').trim().toLowerCase(),date=options.date,category=options.category;
  return rows.filter(row=>{
    if(kind==='tasks' && row.taskStatus==='已删除') return false;
    if(kind==='tasks' && options.availableOnly && (row.taskStatus!=='已发布' || !(row.remainingSlots>0))) return false;
+   if(kind==='tasks' && category && row.category!==category) return false;
    const value=kind==='tasks'?row.taskStatus:kind==='orders'?row.status:kind==='appeals'?row.appealStatus:kind==='settlements'?row.settlementStatus:row.withdrawStatus;
    if(kind==='withdrawals' && status==='未提现') {
      if(!['提现审核中','待打款','打款失败','需更换账户'].includes(value)) return false;

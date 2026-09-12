@@ -10,11 +10,11 @@ type Profile = {
 const pageNames: Record<string,string> = {task_market:'任务市场',task_detail:'任务详情',execution_detail:'执行详情'};
 const date = (value:string) => new Date(value).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false});
 export function AnalyticsUserProfile({userId,onClose}:{userId:string|null;onClose:()=>void}) {
-  const query = useQuery({queryKey:['sprix-admin','analytics-profile',userId],enabled:!!userId,queryFn:async ({signal})=>(await axios.get<Profile>('/mock-api/dashboard/user-profile',{params:{user_id:userId},signal,timeout:15000})).data,refetchInterval:userId ? 10000 : false,refetchIntervalInBackground:false});
+  const query = useQuery({queryKey:['sprix-admin','analytics-profile',userId],enabled:!!userId,queryFn:async ({signal})=>(await axios.get<Profile>('/mock-api/dashboard/user-profile',{params:{user_id:userId},signal,timeout:15000})).data,staleTime:Infinity,refetchOnWindowFocus:false,refetchOnReconnect:false});
   const profile = query.data;
   return <Modal title="用户画像" open={!!userId} onCancel={onClose} footer={null} width={820}>
     {query.isError ? <Alert type="error" message="画像读取失败" action={<Button onClick={()=>query.refetch()}>重试</Button>}/> : query.isPending ? <Spin/> : profile && <>
-      <p className="dashboard-note">近 {profile.window_days} 天访问与任务行为 · 时间为北京时间</p>
+      <p className="dashboard-note">近 {profile.window_days} 个完整自然日访问与任务行为 · 时间为北京时间</p>
       <Descriptions bordered size="small" column={2} items={[
         {key:'name',label:'用户昵称',children:profile.user_name ?? '—'},
         {key:'type',label:'回访情况',children:profile.visitor_type},

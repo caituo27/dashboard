@@ -23,12 +23,14 @@ export type DashboardAnalyticsSnapshot = {
     pendingWithdrawals: number;
     pendingPayouts: number;
     appeals: number;
+    publishedTaskCategories: { category: string; count: number }[];
     taskPublications: { date: string; count: number }[];
   };
   generatedAt: string;
   overview: {
     orders: number;
     agents: number;
+    users: number;
     amount: number;
     operatingDays: number;
     startedAt: string;

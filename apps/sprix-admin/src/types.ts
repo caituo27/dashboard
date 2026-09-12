@@ -165,6 +165,7 @@ export type ReviewingExecution = {
 };
 
 export type CompletedExecution = {
+  submittedAt?: string;
   executionId?: string;
   executionIndex?: number;
   userName: string;

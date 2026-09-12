@@ -6,17 +6,21 @@ import type { AnalyticsDay, DashboardAnalyticsSnapshot } from "../services/dashb
 export type AnalyticsSelection = { kind: "pv" | "uv" | "clicks" | "funnel" | "button"; date?: string; button?: string; stage?: number };
 const stageLabels = ["访问任务市场", "查看任务详情", "发起接单", "成功接取任务", "Agent 提交交付"];
 const number = (value: number) => value.toLocaleString("zh-CN");
+const dateTime = (value: string) => new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(new Date(value));
 
 export function AnalyticsDetails({ data, selection, onChange, onClose }: { data: DashboardAnalyticsSnapshot; selection: AnalyticsSelection | null; onChange: (value: AnalyticsSelection) => void; onClose: () => void }) {
   const titles = { pv: "页面访问明细", uv: "独立访客明细", clicks: "按钮点击明细", funnel: "任务转化明细", button: `${selection?.button ?? "按钮"} · 点击明细` };
   const selectedDate = data.daily.some((day) => day.date === selection?.date) ? selection?.date : undefined;
   const rows = data.daily.filter((day) => !selectedDate || day.date === selectedDate).slice().reverse();
+  const firstDay = selectedDate ?? data.daily[0]?.date;
+  const lastDay = data.daily[data.daily.length - 1]?.date;
+  const periodEnd = selectedDate && selectedDate !== lastDay ? `${selectedDate} 23:59:59` : dateTime(data.generatedAt);
+  const periodRange = firstDay ? `${firstDay} 00:00:00 至 ${periodEnd}` : "—";
   const stage = selection?.stage ?? 4;
   const buttonRows = rows.map((day) => ({ ...day, selectedButton: day.buttons.find((button) => button.name === selection?.button) }));
   return <Drawer title={selection ? titles[selection.kind] : "分析明细"} open={selection !== null} onClose={onClose} width={1100}>
     {selection && <>
-      <div className="dashboard-details-toolbar"><span>近 {data.period} 天 · 按日统计</span><Select aria-label="明细日期" value={selectedDate ?? "all"} style={{ minWidth: 160 }} onChange={(date) => onChange({ ...selection, date: date === "all" ? undefined : date })} options={[{ value: "all", label: "全部日期" }, ...data.daily.map((day) => ({ value: day.date, label: day.date }))]} /></div>
-      <p className="dashboard-note">更新于 {new Date(data.generatedAt).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false })} · 今天统计至更新时间</p>
+      <div className="dashboard-details-toolbar"><span>来源表：analyticsEvents · 统计周期（北京时间）：{periodRange}</span><Select aria-label="明细日期" value={selectedDate ?? "all"} style={{ minWidth: 160 }} onChange={(date) => onChange({ ...selection, date: date === "all" ? undefined : date })} options={[{ value: "all", label: "全部日期" }, ...data.daily.map((day) => ({ value: day.date, label: day.date }))]} /></div>
       <Tabs destroyOnHidden items={[{key:"summary",label:"每日汇总",children:<>
       {selection.kind === "funnel" ? <Table<AnalyticsDay> rowKey="date" size="small" dataSource={rows} pagination={{ pageSize: 10, hideOnSinglePage: true }} scroll={{ x: 980 }} columns={[
         { title: "日期", dataIndex: "date", width: 115 },

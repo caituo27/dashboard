@@ -20,7 +20,7 @@ import { AdminDashboard } from "./admin/AdminDashboard";
 
 const queryClient = adminQueryClient;
 for (const key of ["task-center", "task-detail", "acceptance-reviews", "appeals", "appeal-detail", "funds"]) {
-  queryClient.setQueryDefaults(["sprix-admin", key], { staleTime: 4000, refetchInterval: 5000, refetchIntervalInBackground: false, refetchOnWindowFocus: true });
+  queryClient.setQueryDefaults(["sprix-admin", key], { staleTime: 0, refetchInterval: false, refetchOnWindowFocus: false, refetchOnReconnect: false });
 }
 
 export default function App() {

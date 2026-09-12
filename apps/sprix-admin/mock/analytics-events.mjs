@@ -27,7 +27,11 @@ export function eventStream(at = Date.now()) {
     }
     const dayStartIndex = events.length;
     const first=indexAt(day), last=indexAt(day+DAY);
-    for (let executionIndex=(Math.floor(first/64)+1)*64; executionIndex<=last; executionIndex+=64) {
+    const dayNumber=Math.floor((day+28800000)/DAY);
+    const weekday=new Date(day+28800000).getUTCDay();
+    const baseStride=[78,64,58,67,61,56,82][weekday];
+    const sampleStride=baseStride+(hash(dayNumber,103)%7)-3;
+    for (let executionIndex=(Math.floor(first/sampleStride)+1)*sampleStride; executionIndex<=last; executionIndex+=sampleStride) {
       const dates=timeline(executionIndex);
       const time=dates.accepted-180000-hash(executionIndex,93)%240000;
       const uid = userForExecution(executionIndex)-1;

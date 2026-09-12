@@ -1,3 +1,6 @@
+import {taskAtSubmission} from './submission-task.mjs';
+import {executionReview} from './execution-review.mjs';
+import {localAcceptance} from './local-acceptance.mjs';
 import {settlementAmounts} from "./settlement-amounts.mjs";
 import {createFinanceLedger} from './finance-ledger.mjs';
 import {timestamp} from "./record-order.mjs";
@@ -124,6 +127,7 @@ export function buildDemoLedger(snapshot, state = {}) {
       executionRewardTotal:money(executionRewardCents), executionTotal: last - first + 1, runningExecutionCount: statuses.running, reviewingExecutionCount: statuses.reviewing, completedExecutionCount: statuses.completed, terminatedExecutionCount: statuses.terminated,
       ...taskScenario(index), ...patches[id]
     };
+    task.totalAmount=money(pennies(task.reward)*task.totalSlots);
     task.remainingSlots=Math.max(0,task.totalSlots-task.executionTotal);
     if(!reservedByTask.has(id) && last===orderRange(index)[1] && timeline(last).completed+3*86400000<now) {
       // Finalize before sharing immutable history between retained snapshots.
@@ -148,7 +152,9 @@ export function buildDemoLedger(snapshot, state = {}) {
   function execution(index) {
     if(consumerRows.has(index)) {
       const row=consumerRows.get(index),task=taskById.get(row.taskId);
-      return {...consumerExecution(row,task,patches[`demo:execution:${index}`],now),executionIndex:sequence(index),reward:rewardAt(index)};
+      const draft=consumerExecution(row,task,patches[`demo:execution:${index}`],now);
+      const submittedTask=draft.submittedAt?taskAtSubmission(task,patches[row.taskId],draft.submittedAt):task;
+      return {...consumerExecution(row,submittedTask,patches[`demo:execution:${index}`],now),executionIndex:sequence(index),reward:rewardAt(index)};
     }
     const taskId = `demo:task:${taskForExecution(index)}`;
     const task = taskById.get(taskId);
@@ -156,10 +162,17 @@ export function buildDemoLedger(snapshot, state = {}) {
     const profile = businessProfile(userForExecution(index));
     const dates = timeline(index);
     const score = String(82+hash(index,24)%18);
+    const submittedTask=taskAtSubmission(task,patches[taskId],time(dates.submitted));
+    const localReview=localAcceptance(index,submittedTask,status,score,patches[`demo:execution:${index}`]?.reason);
+    const review=executionReview(submittedTask,status,patches[`demo:execution:${index}`]?.reason);
     return { userId: `demo:user:${userForExecution(index)}`, agentId: `demo:agent:${userForExecution(index)}`, executionId: `demo:execution:${index}`, executionIndex: sequence(index), reward:rewardAt(index), taskId, taskTitle: task.title, taskCategory: task.category,
-      userName: profile.userName, phone: profile.phone, agentName: profile.agentName, agentScore: score, currentNode: status === "running" ? "执行中" : "交付检查", progress: status === "running" ? `已完成 ${Math.min(99,Math.max(0,Math.floor((now-dates.accepted)/(dates.submitted-dates.accepted)*100)))}%` : "已完成交付", startedAt: time(dates.accepted),
+      userName: profile.userName, phone: profile.phone, agentName: profile.agentName, agentScore: score, startedAt: time(dates.accepted),
       submittedAt: status === 'running' ? undefined : time(dates.submitted), completedAt: status === 'completed' ? time(completionTime(index)) : undefined, terminatedAt: status === 'terminated' || appealFacts.has(index) ? time(terminationTime(index)) : undefined,
-      acceptanceStatus: status === "reviewing" ? "待平台验收" : status === "terminated" ? "验收未通过" : status === "running" ? "执行中" : "验收通过", acceptanceScore: score, score, acceptanceSummary: [`已提交${task.deliverables}，待复核关键字段`, `已完成${task.category}内容检查，来源信息已附后`, "结构校验通过，待确认内容准确性", "交付文件已上传，需抽查引用及异常项"][hash(index,25)%4], acceptanceIssues: hash(index,26)%7===0 ? "部分引用链接需人工复核" : "未发现格式问题", terminationReason: patches[`demo:execution:${index}`]?.reason ?? "执行终止", terminatedNode: "任务执行", appealStatus: appealFacts.get(index)?.status ?? "无申诉", settlementStatus: status === "completed" ? "已入账" : "未入账" };
+      taskExecutionStatus:({running:'RUNNING',reviewing:'PLATFORM_REVIEWING',completed:'SETTLED',terminated:'TERMINATED'})[status], settlementStatusCode:status==='completed'?'POSTED':'NOT_POSTED', currentNodeCode:status==='reviewing'?'platform_reviewing':status, mappedBusinessStatus:status==='terminated'?'terminated':'platform_review_pending',
+      acceptanceStatus: status === "reviewing" ? "待平台验收" : status === "terminated" ? "验收未通过" : status === "running" ? "执行中" : "验收通过", acceptanceScore:String(localReview?.score??score), score:String(localReview?.score??score), localAcceptance:localReview,
+      ...review, currentNode:status==='reviewing'?'平台验收':review.currentNode, progress:status==='running'?`已完成 ${Math.min(99,Math.max(0,Math.floor((now-dates.accepted)/(dates.submitted-dates.accepted)*100)))}%`:status==='terminated'?'执行已终止':'100%',
+      acceptanceSummary:localReview?.summary??review.acceptanceSummary, acceptanceIssues:localReview?.issues.join('；')??review.acceptanceIssues, acceptanceFailureReasons:localReview?.failureReasons??[], acceptanceImprovementSuggestions:localReview?.improvementSuggestions??[],
+      terminationReason: patches[`demo:execution:${index}`]?.reason ?? "执行终止", terminatedNode: "任务执行", appealStatus: appealFacts.get(index)?.status ?? "无申诉", settlementStatus: status === "completed" ? "已入账" : "未入账" };
   }
   const acceptanceReviews = [];
   for (const task of tasks) if (task.reviewingExecutionCount) {
@@ -255,5 +268,5 @@ export function buildDemoLedger(snapshot, state = {}) {
     for(const row of consumerRows.values()) if(!status || executionStatus(row.index)===status) result.push(row.index);
     return result;
   }
-  return { consumerRows, orders, stateKey, tasks, acceptanceReviews, appeals, get funds(){return readFunds();}, detail, execution, orderRecord, settlementRecord, withdrawalRecord, executionIndexes, settledAt:completionTime, recordTime, generatedAt: snapshot.generatedAt };
+  return { submissionPatch:id=>patches[id], consumerRows, orders, stateKey, tasks, acceptanceReviews, appeals, get funds(){return readFunds();}, detail, execution, orderRecord, settlementRecord, withdrawalRecord, executionIndexes, settledAt:completionTime, recordTime, generatedAt: snapshot.generatedAt };
 }

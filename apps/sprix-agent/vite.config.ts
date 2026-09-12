@@ -13,6 +13,18 @@ const apiProxyTarget = process.env.VITE_API_PROXY_TARGET ?? "http://42.194.150.7
 const imageExtensions = new Set([".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".avif"]);
 const videoExtensions = new Set([".mp4", ".webm", ".mov", ".m4v"]);
 
+function splitVendorChunk(id: string) {
+  const moduleId = id.replace(/\\/g, "/");
+  if (
+    moduleId.includes("/node_modules/antd/") ||
+    moduleId.includes("/node_modules/@ant-design/") ||
+    moduleId.includes("/node_modules/@rc-component/") ||
+    /\/node_modules\/rc-[^/]+\//.test(moduleId)
+  ) return "vendor-ui";
+  if (moduleId.includes("/node_modules/framer-motion/")) return "vendor-motion";
+  if (/\/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler|@tanstack\/react-query)\//.test(moduleId)) return "vendor-react";
+}
+
 function listPublicAssets(directory, relativeDirectory = "") {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const sourcePath = path.join(directory, entry.name);
@@ -78,7 +90,13 @@ export default defineConfig(({ mode }) => ({
     }
   },
   build: {
-    outDir: "dist"
+    outDir: "dist",
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks: splitVendorChunk
+      }
+    }
   },
   test: {
     environment: "jsdom",

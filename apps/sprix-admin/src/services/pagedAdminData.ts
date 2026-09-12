@@ -6,13 +6,13 @@ import * as real from './sprixApi';
 import {compareRecords,filterRecords} from '../../mock/record-order.mjs';
 import type {Task,ReviewingExecution,AdminAppeal} from '../types';
 import type {DashboardAnalyticsSnapshot} from './dashboardAnalyticsMock';
-export type PageOptions={page:number;pageSize:number;status?:string;search?:string;date?:string;done?:string};
+export type PageOptions={page:number;pageSize:number;status?:string;search?:string;date?:string;category?:string;done?:string};
 export type PageResult<T>={rows:T[];total:number;page:number};
 export async function demoView<T>(params:Record<string,unknown>):Promise<T>{return (await axios.get<T>('/mock-api/admin/view',{params,timeout:15000})).data;}
 // Locate the merged page with a binary partition. Only O(log realCount) tiny
 // boundary requests and one page are read from the mock service, even on last page.
 export async function mergePage<T>(kind:string,realRows:T[] | Promise<T[]>,options:PageOptions,fetch=demoView):Promise<PageResult<T>> {
- const filters={status:options.status,search:options.search ? internalSearch(options.search) : undefined,date:options.date,done:options.done};
+ const filters={status:options.status,search:options.search ? internalSearch(options.search) : undefined,date:options.date,category:options.category,done:options.done};
  type Slice={rows:T[];total:number;version:string};
  const [first,source]=await Promise.all([fetch<Slice>({kind,...filters,offset:0,limit:options.pageSize}),realRows]);
  const sorted=filterRecords(kind,source,filters).sort((a,b)=>compareRecords(kind,a as object,b as object));

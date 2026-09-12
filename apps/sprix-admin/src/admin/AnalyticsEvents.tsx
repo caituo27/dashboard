@@ -51,7 +51,7 @@ export function AnalyticsEvents({period, selection}: {period: number; selection:
   const [detail,setDetail] = useState<EventRow | null>(null);
   const change = (key:string,value:string) => {setFilters(old=>({...old,[key]:value}));setPage(1);};
   const params = {days:period,date:selection.date,button_name:selection.kind === 'button' ? selection.button : undefined,...filters,page};
-  const query = useQuery({queryKey:['sprix-admin','analytics-events',params],queryFn:async ({signal})=>(await axios.get<{rows:EventRow[];total:number;generatedAt:string}>('/mock-api/dashboard/events',{params,signal,timeout:15000})).data,placeholderData:keepPreviousData,refetchInterval:10000,refetchIntervalInBackground:false});
+  const query = useQuery({queryKey:['sprix-admin','analytics-events',params],queryFn:async ({signal})=>(await axios.get<{rows:EventRow[];total:number;generatedAt:string}>('/mock-api/dashboard/events',{params,signal,timeout:15000})).data,placeholderData:keepPreviousData,staleTime:Infinity,refetchOnWindowFocus:false,refetchOnReconnect:false});
   return <>
     <p className="dashboard-note">逐条事件 · 北京时间 · 每页 20 条。下方筛选仅作用于事件列表。</p>
     <Space wrap style={{marginBottom:16}}>

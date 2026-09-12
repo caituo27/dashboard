@@ -9,6 +9,9 @@ test('task briefs provide stable, varied inputs and matching delivery content',(
     const task=taskScenario(i);
     categories.add(task.category);titles.add(task.title);
     assert.ok(task.description.length>70);
+    assert.ok(task.title.length<=30);
+    assert.ok(task.estimatedTokens>0 && Number.isInteger(task.estimatedTokens));
+    assert.ok(["企业经营 / 投融资咨询","数据标注","工具类","AI 内容创作","办公文档","市场调研","网站开发","UI 设计","AI 营销","Agent 自动化 / Python 开发","翻译 / 本地化"].includes(task.category));
     assert.ok(task.acceptanceCriteria.length>30);
     assert.ok(task.submissionRows.length>=4);
     assert.ok(task.submissionRows.every(row=>row.length===2 && row.every(Boolean)));
@@ -19,9 +22,9 @@ test('task briefs provide stable, varied inputs and matching delivery content',(
     const submission=executionSubmission(ledger,row.executionId);
     const report=submission.files.find(file=>file.name.endsWith('.md')).content;
     for(const [label,content] of task.submissionRows) {assert.ok(report.includes(label));assert.ok(report.includes(content));}
-    assert.equal(submission.files.length,task.category==='设计创意'?3:2);
+    assert.equal(submission.files.length,2);
   }
-  assert.equal(categories.size,8);
+  assert.equal(categories.size,7);
   assert.ok(titles.size>300);
 });
 

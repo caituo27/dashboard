@@ -2,6 +2,7 @@ import { displayText } from "../utils/displayText";
 import { Children, cloneElement, isValidElement, useState, type ReactNode } from "react";
 import { Table, Tooltip, type TableProps } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { PhoneNumber } from "./PhoneNumber";
 
 function displayChildren(children: ReactNode): ReactNode {
   return Children.map(children, child => {
@@ -43,7 +44,7 @@ function compactColumns<T extends object>(columns: ColumnsType<T>): ColumnsType<
       ellipsis: { showTitle: false },
       render: (value, record, index) => {
         const content = render ? render(value, record, index) : value;
-        if (isValidElement(content) && (content.type === EllipsisCell || content.type === EllipsisText)) return content;
+        if (isValidElement(content) && (content.type === EllipsisCell || content.type === EllipsisText || content.type === PhoneNumber)) return content;
         // Preserve Ant Design's legacy rendered-cell contract if a caller uses it.
         if (content != null && typeof content === "object" && !isValidElement(content) && !Array.isArray(content)) return content;
         return <EllipsisText>{content as ReactNode}</EllipsisText>;

@@ -1,3 +1,4 @@
+import {taskContent,editedTaskContent} from './submission-task.mjs';
 import {CONSUMER_EXECUTION_BASE} from "./consumer-records.mjs";
 import { mkdir, readFile, writeFile, rename } from "node:fs/promises";
 import { dirname } from "node:path";
@@ -32,9 +33,9 @@ export function applyDemoAction({ id, action, payload = {} }) {
         const existing=state.consumerExecutions.find(r=>r.owner===payload.owner&&r.taskId===id&&ledger.execution(r.index).status!=='terminated');
         if(existing) return {id:`demo:execution:${existing.index}`,taskId:id};
         const index=CONSUMER_EXECUTION_BASE+state.consumerExecutions.length+1;
-        const tail=String(payload.phone ?? '').slice(-4);
-        if(!/^\d{4}$/.test(tail)) throw new Error("用户手机号不完整");
-        state.consumerExecutions.push({index,owner:payload.owner,taskId:id,userName:`用户${tail}`,phone:`${String(payload.phone).slice(0,3)}****${tail}`,agentId:String(payload.agentId ?? ''),agentName:String(payload.agentName),reward:current.reward,category:current.category,startedAt:actionAt});
+        const phone=String(payload.phone ?? '').replace(/\D/g,'').slice(-11),tail=phone.slice(-4);
+        if(!/^1\d{10}$/.test(phone)) throw new Error("用户手机号不完整");
+        state.consumerExecutions.push({index,owner:payload.owner,taskId:id,userName:`用户${tail}`,phone,agentId:String(payload.agentId ?? ''),agentName:String(payload.agentName),reward:current.reward,category:current.category,startedAt:actionAt});
         accepted={id:`demo:execution:${index}`,taskId:id}; patch=current.remainingSlots===1?{taskStatus:"已下线",offlineReason:"SLOT_FULL"}:{};
       } else if (action === "edit") {
         patch = {};
@@ -43,6 +44,10 @@ export function applyDemoAction({ id, action, payload = {} }) {
           patch[key] = payload[key];
         }
         if (!Number.isFinite(payload.reward) || payload.reward < 0 || !Number.isInteger(payload.totalSlots) || payload.totalSlots < current.executionTotal) throw new Error("任务金额或名额不合法");
+        if(payload.estimatedTokens!==undefined && (!Number.isInteger(payload.estimatedTokens)||payload.estimatedTokens<=0)) throw new Error('Token 预估不合法');
+        const after=editedTaskContent(current,payload);
+        Object.assign(patch,after);
+        patch.contentHistory=[...(state.patches?.[id]?.contentHistory ?? []),{at:actionAt,before:taskContent(current),after}];
         patch.rewardHistory=[...(state.patches?.[id]?.rewardHistory ?? [])];
         if(!patch.rewardHistory.length) {
           const previousEdit=(state.events ?? []).find(event=>event.id===id&&event.action==='edit');

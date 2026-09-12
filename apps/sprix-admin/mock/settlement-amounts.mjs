@@ -1,8 +1,8 @@
-// FundsService computes fee and net independently before numeric(12,2) storage.
-// Positive half-cent ties round up, as PostgreSQL numeric and Alipay HALF_UP do.
+// Round the platform fee once, then derive net income from the stored gross and fee.
+// This keeps every settlement row balanced to the cent: gross = fee + net.
 export function settlementAmounts(reward) {
  const gross=Math.round(reward*100);
  if(!Number.isSafeInteger(gross)||gross<0) throw new Error('无效结算金额');
- const fee=Math.floor((gross+5)/10),net=Math.floor((gross*9+5)/10);
+ const fee=Math.floor((gross+5)/10),net=gross-fee;
  return {gross,fee,net};
 }

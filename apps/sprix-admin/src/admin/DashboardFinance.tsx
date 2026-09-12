@@ -11,7 +11,7 @@ export function DashboardFinance({metric,amount,onClose}:{metric:FinanceMetric;a
  const [page,setPage]=useState(1);
  const withdrawal=metric==='paidAmount'||metric==='remainingNet';
  const status=metric==='remainingNet'?'未提现':withdrawal?'已提现':'已入账';
- const query=useQuery({queryKey:['sprix-admin','finance-detail',metric,page],queryFn:()=>readFundPage(withdrawal?'withdrawals':'settlements',{page,pageSize:20,status}),placeholderData:keepPreviousData,refetchInterval:5000,refetchIntervalInBackground:false});
+ const query=useQuery({queryKey:['sprix-admin','finance-detail',metric,page],queryFn:()=>readFundPage(withdrawal?'withdrawals':'settlements',{page,pageSize:20,status}),placeholderData:keepPreviousData,staleTime:Infinity,refetchOnWindowFocus:false,refetchOnReconnect:false});
  const valueField=metric==='completedAmount'?'taskIncome':metric==='platformFee'?'platformFee':metric==='settlementNet'?'netIncome':'applyAmount';
  return <Modal title={financeLabels[metric]} open onCancel={onClose} footer={null} width={1100}>
    <p className="mb-4">{financeLabels[metric]}：{currency(amount)}</p>
