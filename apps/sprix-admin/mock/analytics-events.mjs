@@ -42,7 +42,7 @@ export function eventStream(at = Date.now()) {
       const depth=context.device_type==='手机' ? (roll<60?0:1) : roll<22?0:roll<43?1:roll<61?2:roll<78?3:4;
       let sequence = 0;
       const add = (name, page, button, result = 'success') => {
-        const milestone=result==='failure'?dates.accepted+50:name===stages[3]?dates.accepted:name===stages[4]?dates.submitted:name===stages[2]?dates.accepted-2000:button===3?dates.accepted+15000:button===1||button===2?dates.accepted-5000:time+sequence*(3000+hash(executionIndex,95)%9000);
+        const milestone=result==='failure'?dates.accepted+50:name==='acceptance_completed'?dates.submitted+60_000:name===stages[3]?dates.accepted:name===stages[4]?dates.submitted:name===stages[2]?dates.accepted-2000:button===3?dates.accepted+15000:button===1||button===2?dates.accepted-5000:time+sequence*(3000+hash(executionIndex,95)%9000);
         const timestamp = milestone;
         const id = `evt:${journey}:${sequence++}`;
         if (timestamp < Date.parse("2026-07-29T04:00:00Z")) return;
@@ -58,6 +58,7 @@ export function eventStream(at = Date.now()) {
           add(stages[3],'task_detail');
           add('button_click','my_tasks',3);
           add(stages[4],'execution_detail');
+          if(hash(executionIndex,104)%100<92) add('acceptance_completed','execution_detail');
         } else add('task_action_failed','task_detail',1,'failure');
       }
       // Actual C-end entry points. Agent setup belongs to its own page, not task evaluation.
@@ -103,26 +104,38 @@ export function analyticsFromEvents(period, at) {
   const now = Math.floor(at / 10000) * 10000;
   const midnight = Math.floor((now + 28800000) / DAY) * DAY - 28800000;
   const start = midnight - (period - 1) * DAY;
+  return analyticsFromEventsRange(start, period, now);
+}
+export function analyticsFromEventsRange(start, period, at) {
+  const now = Math.floor(at / 10000) * 10000;
   const stream = eventStream(now);
-  if (summaries.has(period)) return summaries.get(period);
-  const events = stream.filter(e => Date.parse(e.event_time) >= start);
+  const cacheKey = `${start}:${period}`;
+  if (summaries.has(cacheKey)) return summaries.get(cacheKey);
+  const end = start + period * DAY;
+  const events = stream.filter(e => Date.parse(e.event_time) >= start && Date.parse(e.event_time) < end);
   const buckets = Array.from({length: period}, () => []);
   for (const event of events) buckets[Math.floor((Date.parse(event.event_time) - start) / DAY)]?.push(event);
   const daily = buckets.map((rows,i) => ({
     date: new Date(start + i * DAY + 28800000).toISOString().slice(0,10), ...aggregateEvents(rows)
   }));
   const summary = {...aggregateEvents(events), daily, visits: daily.map(d => d.pv)};
-  summaries.set(period, summary);
+  summaries.set(cacheKey, summary);
   return summary;
 }
 export function queryEvents(params, at = Date.now()) {
   const period = Number(params.get('days') ?? 7);
-  if (![7,30].includes(period)) throw new Error('days 必须为 7 或 30');
+  if (!Number.isSafeInteger(period) || period < 1 || period > 30) throw new Error('days 必须为 1 至 30');
   const page = Number(params.get('page') ?? 1);
   if (!Number.isSafeInteger(page) || page < 1) throw new Error('无效页码');
   const now = Math.floor(at / 10000) * 10000;
-  const endDay = Math.floor((now + 28800000) / DAY) * DAY - 28800000;
-  let rows = eventStream(now).filter(e => Date.parse(e.event_time) >= endDay - (period - 1) * DAY);
+  const cutoffDay = Math.floor((now + 28800000) / DAY) * DAY - 28800000;
+  const startDate = params.get('startDate');
+  const endDate = params.get('endDate');
+  const parseDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value ?? '') ? Date.parse(`${value}T00:00:00+08:00`) : NaN;
+  const start = startDate ? parseDate(startDate) : cutoffDay - (period - 1) * DAY;
+  const end = endDate ? parseDate(endDate) + DAY : cutoffDay + DAY;
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end || end > cutoffDay + DAY || start < cutoffDay - 29 * DAY) throw new Error('统计日期范围无效');
+  let rows = eventStream(now).filter(e => Date.parse(e.event_time) >= start && Date.parse(e.event_time) < end);
   for (const field of ['event_name','result','channel','event_source','page_id','button_name']) {
     const value = params.get(field);
     if (value) rows = rows.filter(e => e[field] === value);

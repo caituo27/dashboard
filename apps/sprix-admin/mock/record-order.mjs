@@ -13,7 +13,7 @@ export function compareRecords(kind,a,b) {
  return recordId(a).localeCompare(recordId(b));
 }
 export function filterRecords(kind,rows,options) {
- const status=options.status,search=(options.search ?? '').trim().toLowerCase(),date=options.date,category=options.category;
+ const status=options.status,search=(options.search ?? '').trim().toLowerCase(),date=options.date,startDate=options.startDate,endDate=options.endDate,category=options.category;
  return rows.filter(row=>{
    if(kind==='tasks' && row.taskStatus==='已删除') return false;
    if(kind==='tasks' && options.availableOnly && (row.taskStatus!=='已发布' || !(row.remainingSlots>0))) return false;
@@ -22,7 +22,10 @@ export function filterRecords(kind,rows,options) {
    if(kind==='withdrawals' && status==='未提现') {
      if(!['提现审核中','待打款','打款失败','需更换账户'].includes(value)) return false;
    } else if(status && !['all','全部'].includes(status) && value!==status) return false;
-   if(date && String(row[fields[kind]]).slice(0,10)!==date) return false;
+   const recordDate=String(row[fields[kind]] ?? '').slice(0,10);
+   if(date && recordDate!==date) return false;
+   if(startDate && recordDate<startDate) return false;
+   if(endDate && recordDate>endDate) return false;
    if(options.done==='true' && !['申诉通过','申诉不通过'].includes(row.appealStatus)) return false;
    return !search || [row.id,row.title,row.category,row.sourceType,row.taskTitle,row.taskId,row.executionId,row.userName,row.userPhone,row.agentName,row.appealNo].some(v=>String(v ?? '').toLowerCase().includes(search));
  });

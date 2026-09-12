@@ -7,12 +7,12 @@ import {Link} from 'react-router-dom';
 import {executionLabels,readOrderPage,type ExecutionFilter,type OrderRow} from '../services/dashboardRecords';
 import {StatusTag} from '../components/Primitives';
 import {currency} from '../utils/format';
-export function DashboardOrders({initialStatus,onClose}:{initialStatus:ExecutionFilter;onClose:()=>void}) {
+export function DashboardOrders({initialStatus,startDate,endDate,onClose}:{initialStatus:ExecutionFilter;startDate:string;endDate:string;onClose:()=>void}) {
  const client=useQueryClient();
  const [status,setStatus]=useState(initialStatus),[page,setPage]=useState(1),[search,setSearch]=useState('');
- const query=useQuery({queryKey:['sprix-admin','dashboard-orders',status,page,search],queryFn:()=>readOrderPage({status,page,search},{center:readRemoteTaskCenterSnapshot,detail:task=>client.fetchQuery({queryKey:['sprix-admin','order-task-detail',task.id,task.executionTotal,task.runningExecutionCount,task.reviewingExecutionCount,task.completedExecutionCount,task.terminatedExecutionCount],queryFn:()=>readRemoteTaskDetail(task.id),staleTime:30000,gcTime:60000})}),placeholderData:keepPreviousData,refetchInterval:status==='running'?5000:false,refetchIntervalInBackground:false,refetchOnWindowFocus:false,refetchOnReconnect:false,retry:1});
+ const query=useQuery({queryKey:['sprix-admin','dashboard-orders',status,page,search,startDate,endDate],queryFn:()=>readOrderPage({status,page,search,startDate,endDate},{center:readRemoteTaskCenterSnapshot,detail:task=>client.fetchQuery({queryKey:['sprix-admin','order-task-detail',task.id,task.executionTotal,task.runningExecutionCount,task.reviewingExecutionCount,task.completedExecutionCount,task.terminatedExecutionCount],queryFn:()=>readRemoteTaskDetail(task.id),staleTime:30000,gcTime:60000})}),placeholderData:keepPreviousData,refetchInterval:status==='running'?5000:false,refetchIntervalInBackground:false,refetchOnWindowFocus:false,refetchOnReconnect:false,retry:1});
  return <Drawer title="订单记录" width={1180} open onClose={onClose}>
-   <p className="dashboard-note">点击任务查看执行详情并处理待验收记录。订单数按执行记录统计，按对应状态时间倒序展示。</p>
+   <p className="dashboard-note">统计周期：{startDate} 00:00:00 至 {endDate} 23:59:59 · 来源表：taskExecutions。订单按对应状态时间筛选并倒序展示。</p>
    <Space wrap style={{marginBottom:16}}>
     <Select aria-label="订单状态" value={status} style={{width:150}} options={Object.entries(executionLabels).map(([value,label])=>({value,label}))} onChange={v=>{setStatus(v);setPage(1);}}/>
     <Input.Search placeholder="搜索任务名称或任务 ID" aria-label="搜索订单关联任务" allowClear style={{width:300}} onSearch={v=>{setSearch(v);setPage(1);}}/>

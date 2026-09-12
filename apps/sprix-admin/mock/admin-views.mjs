@@ -1,7 +1,7 @@
 import {taskForOrder,indexAt} from "./business-scenario.mjs";
 import {createHash} from 'node:crypto';
 import {readDemoState} from './demo-state.mjs';
-import {createAnalyticsSnapshot,dashboardCutoffAt,DASHBOARD_CUMULATIVE_TOTALS} from './analytics-data.mjs';
+import {createAnalyticsSnapshot,dashboardCutoffAt} from './analytics-data.mjs';
 import {buildDemoLedger} from './demo-ledger.mjs';
 import {aggregateDashboard} from './dashboard-aggregation.mjs';
 import {compareRecords,filterRecords} from './record-order.mjs';
@@ -17,11 +17,11 @@ export async function getView(version) {
    let dashboard;
    snapshots.set(key,{version:key,ledger,get dashboard(){
      if(dashboard) return dashboard;
-     const dashboardSeed=createAnalyticsSnapshot(7,dashboardCutoffAt(at));
+     const dashboardSeed=createAnalyticsSnapshot(30,dashboardCutoffAt(at));
      const dashboardLedger=buildDemoLedger(dashboardSeed,state);
      const center={tasks:dashboardLedger.tasks,acceptanceReviews:dashboardLedger.acceptanceReviews,appealCount:dashboardLedger.appeals.length};
      const aggregated=aggregateDashboard(dashboardSeed,center,dashboardLedger.funds);
-     return dashboard={...aggregated,overview:{...aggregated.overview,...DASHBOARD_CUMULATIVE_TOTALS}};
+     return dashboard={...aggregated,overview:dashboardSeed.overview};
    },lists:new Map()});
    while(snapshots.size>3) snapshots.delete(snapshots.keys().next().value);
  }
@@ -44,7 +44,7 @@ export function viewPage(view,kind,options={}) {
    return {version:view.version,total:indexes.length,rows:indexes.slice(offset,offset+limit).map(ledger.withdrawalRecord)};
  }
  if(kind==='orders' || kind==='settlements') return executionPage(view,kind,options,offset,limit);
- const filter={status:options.status,search:options.search,date:options.date,category:options.category,done:options.done,availableOnly:options.availableOnly};
+ const filter={status:options.status,search:options.search,date:options.date,startDate:options.startDate,endDate:options.endDate,category:options.category,done:options.done,availableOnly:options.availableOnly};
  const key=JSON.stringify([kind,filter]);
  if(!view.lists.has(key)) {
    const all=kind==='tasks'?ledger.tasks:kind==='acceptance'?ledger.acceptanceReviews:kind==='appeals'?ledger.appeals:ledger.funds[kind];
@@ -88,7 +88,7 @@ function executionPage(view,kind,options,offset,limit) {
  const ledger=view.ledger;
  const status=kind==='settlements'?'completed':options.status ?? 'all';
  if(!['all','running','reviewing','completed','terminated'].includes(status)) throw new Error('INVALID_STATUS');
- const key=JSON.stringify([kind,status,options.search ?? '',options.date ?? '',options.status ?? '']);
+ const key=JSON.stringify([kind,status,options.search ?? '',options.date ?? '',options.startDate ?? '',options.endDate ?? '',options.status ?? '']);
  const record=kind==='settlements'?ledger.settlementRecord:ledger.orderRecord;
  if(kind==='settlements' && !options.search && !options.date && (!options.status || ['全部','已入账'].includes(options.status))) {
    const indexes=settledIndexes(view);
@@ -105,6 +105,11 @@ function executionPage(view,kind,options,offset,limit) {
    const timeFor=index=>index<times.length?times[index]:extraTimes.get(index);
    for(const index of indexes) {
      if(index<times.length) times[index]=ledger.recordTime(index,kind);else extraTimes.set(index,ledger.recordTime(index,kind));
+   }
+   if(options.startDate || options.endDate) {
+     const start=options.startDate?Date.parse(`${options.startDate}T00:00:00+08:00`):-Infinity;
+     const end=options.endDate?Date.parse(`${options.endDate}T00:00:00+08:00`)+86400000:Infinity;
+     indexes=indexes.filter(index=>{const time=timeFor(index);return time>=start&&time<end;});
    }
    if((kind!=='orders' && options.search) || options.date || (kind==='settlements' && options.status && options.status!=='全部'))
      indexes=indexes.filter(index=>filterRecords(kind,[record(index)],options).length);

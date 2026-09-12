@@ -7,7 +7,7 @@ import {readTaskPage,readAcceptancePage,readAcceptanceDetail,readAppealPage,read
 import type { TablePaginationConfig } from "antd";
 import { useEffect, useRef, useState } from "react";
 import type { Key, ReactNode } from "react";
-import { Button, Form, Input, InputNumber, Modal, Select, Segmented, Tabs, Tooltip, Upload, message } from "antd";
+import { Button, DatePicker, Form, Input, InputNumber, Modal, Select, Segmented, Tabs, Tooltip, Upload, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { UploadFile } from "antd/es/upload/interface";
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
@@ -30,7 +30,8 @@ import {
   Route,
   Send,
   ShieldCheck,
-  UsersRound
+  UsersRound,
+  X
 } from "lucide-react";
 import type { AdminAppeal, AdminOperationLog, CompletedExecution, Payout, ReviewingExecution, RunningExecution, Settlement, Task, TerminatedExecution, Withdrawal } from "../types";
 import {
@@ -314,7 +315,13 @@ export function getPublishTaskConfirmOptions(onConfirm: () => void | Promise<voi
 
 export function AdminTaskCenter() {
   const [taskSearch,setTaskSearch] = useSearchParams();
-  const publishedDate = /^\d{4}-\d{2}-\d{2}$/.test(taskSearch.get("publishedDate") ?? "") ? taskSearch.get("publishedDate") : null;
+  const isDate = (value: string | null): value is string => /^\d{4}-\d{2}-\d{2}$/.test(value ?? "");
+  const publishedDate = isDate(taskSearch.get("publishedDate")) ? taskSearch.get("publishedDate") : null;
+  const requestedStartDate = taskSearch.get("startDate");
+  const requestedEndDate = taskSearch.get("endDate");
+  const hasDateRange = isDate(requestedStartDate) && isDate(requestedEndDate) && requestedStartDate <= requestedEndDate;
+  const startDate = hasDateRange ? requestedStartDate : null;
+  const endDate = hasDateRange ? requestedEndDate : null;
   const category = taskSearch.get("category")?.trim() || null;
   const initialStatus = ["已发布", "已下线"].includes(taskSearch.get("status") ?? "") ? taskSearch.get("status")! : "全部";
   const navigate = useNavigate();
@@ -323,9 +330,9 @@ export function AdminTaskCenter() {
   const [keyword,setKeyword] = useState("");
   const [taskPage,setTaskPage] = useState(1);
   const taskCenterQuery = useQuery({
-    queryKey: ["sprix-admin", "task-center",tab,keyword,publishedDate,category,taskPage,20],
+    queryKey: ["sprix-admin", "task-center",tab,keyword,publishedDate,startDate,endDate,category,taskPage,20],
     placeholderData:keepPreviousData,
-    queryFn: ()=>readTaskPage({page:taskPage,pageSize:20,status:tab,search:keyword,date:publishedDate ?? undefined,category:category ?? undefined}),
+    queryFn: ()=>readTaskPage({page:taskPage,pageSize:20,status:tab,search:keyword,date:publishedDate ?? undefined,startDate:startDate ?? undefined,endDate:endDate ?? undefined,category:category ?? undefined}),
     retry: 1
   });
 
@@ -352,6 +359,29 @@ export function AdminTaskCenter() {
     const nextSearch = new URLSearchParams(taskSearch);
     if (nextCategory) nextSearch.set("category", nextCategory);
     else nextSearch.delete("category");
+    setTaskPage(1);
+    setTaskSearch(nextSearch);
+  };
+  const clearTaskDateFilter = () => {
+    const nextSearch = new URLSearchParams(taskSearch);
+    nextSearch.delete("publishedDate");
+    nextSearch.delete("startDate");
+    nextSearch.delete("endDate");
+    nextSearch.delete("trendMetric");
+    setTaskPage(1);
+    setTaskSearch(nextSearch);
+  };
+  const selectTaskDateRange = (values: [string, string]) => {
+    const [nextStartDate,nextEndDate] = values;
+    if (!nextStartDate || !nextEndDate) {
+      clearTaskDateFilter();
+      return;
+    }
+    const nextSearch = new URLSearchParams(taskSearch);
+    nextSearch.delete("publishedDate");
+    nextSearch.delete("trendMetric");
+    nextSearch.set("startDate",nextStartDate);
+    nextSearch.set("endDate",nextEndDate);
     setTaskPage(1);
     setTaskSearch(nextSearch);
   };
@@ -487,9 +517,31 @@ export function AdminTaskCenter() {
         <div className="sprix-toolbar">
           <div className="sprix-toolbar-row flex-col items-start lg:flex-row lg:items-center">
             <h3 className="sprix-section-title">任务列表</h3>
-            {publishedDate && <span>{publishedDate} 发布 · {taskCenterQuery.data?.total} 条 <Button type="link" onClick={()=>{setTaskPage(1);setTaskSearch({});}}>清除日期筛选</Button></span>}
-            <div className="flex w-full flex-col gap-2 sm:flex-row lg:ml-auto lg:w-auto">
-              <Select className="w-full sm:w-[220px]" value={category ?? undefined} allowClear showSearch optionFilterProp="label" placeholder="全部任务分类" options={taskCategoryOptions} onChange={selectTaskCategory} />
+            <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap lg:ml-auto lg:w-auto lg:flex-nowrap">
+              <div className="relative w-full sm:w-[330px]">
+                <DatePicker.RangePicker
+                  className="w-full"
+                  aria-label="任务发布时间范围"
+                  allowClear={false}
+                  value={null}
+                  placeholder={[publishedDate ?? startDate ?? "开始日期",publishedDate ?? endDate ?? "结束日期"]}
+                  format="YYYY-MM-DD"
+                  onChange={(_,values)=>selectTaskDateRange(values)}
+                />
+                {(publishedDate || startDate) && <Button type="text" className="!absolute right-8 top-1/2 z-10 !h-6 !w-6 -translate-y-1/2 !p-0" aria-label="清除任务时间筛选" icon={<X size={14}/>} onClick={clearTaskDateFilter}/>}
+              </div>
+              <Select
+                className="sprix-admin-category-filter w-full sm:w-[220px]"
+                popupClassName="sprix-admin-task-category-popup"
+                popupMatchSelectWidth={280}
+                value={category ?? undefined}
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                placeholder="全部任务分类"
+                options={taskCategoryOptions}
+                onChange={selectTaskCategory}
+              />
               <Input.Search className="w-full sm:w-[360px]" value={keyword} onChange={(event) => {setKeyword(event.target.value);setTaskPage(1);}} placeholder="搜索任务名称" />
             </div>
           </div>

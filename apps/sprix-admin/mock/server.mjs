@@ -101,9 +101,21 @@ export function dashboardMockMiddleware(request, response, next) {
     sendJson(response, 405, { message: "Only GET is supported" });
     return;
   }
+  const starts = url.searchParams.getAll("startDate");
+  const ends = url.searchParams.getAll("endDate");
+  const customRange = starts.length || ends.length;
+  if (customRange) {
+    if (starts.length !== 1 || ends.length !== 1 || url.searchParams.has("days")) {
+      sendJson(response, 400, { message: "自定义周期必须同时提供唯一的 startDate 和 endDate" });
+      return;
+    }
+    try { sendJson(response, 200, createAnalyticsSnapshot(7, dashboardCutoffAt(), {startDate:starts[0],endDate:ends[0]})); }
+    catch (error) { sendJson(response, 400, { message: error.message }); }
+    return;
+  }
   const days = url.searchParams.get("days") ?? "7";
-  if ((days !== "7" && days !== "30") || url.searchParams.getAll("days").length > 1) {
-    sendJson(response, 400, { message: "days 必须为 7 或 30" });
+  if ((days !== "7" && days !== "28" && days !== "30") || url.searchParams.getAll("days").length > 1) {
+    sendJson(response, 400, { message: "days 必须为 7、28 或 30" });
     return;
   }
   sendJson(response, 200, createAnalyticsSnapshot(Number(days), dashboardCutoffAt()));

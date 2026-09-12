@@ -17,10 +17,10 @@ type EventRow = {
   trace_id: string; action_id: string; referrer: string; journey_id: string;
   country?: string; province?: string; city?: string; device_type?: string; device_brand?: string; device_model?: string; os_name?: string; browser_name?: string;
 };
-const events = ['task_market_view','task_detail_view','button_click','task_accept_requested','task_accept_succeeded','delivery_submitted','task_action_failed'];
+const events = ['task_market_view','task_detail_view','button_click','task_accept_requested','task_accept_succeeded','delivery_submitted','acceptance_completed','task_action_failed'];
 const eventNames: Record<string,string> = {
   task_market_view:'浏览任务市场',task_detail_view:'查看任务详情',button_click:'点击按钮',
-  task_accept_requested:'发起接取',task_accept_succeeded:'接取成功',delivery_submitted:'提交交付',task_action_failed:'操作失败'
+  task_accept_requested:'发起接取',task_accept_succeeded:'接取成功',delivery_submitted:'提交成果',acceptance_completed:'验收任务',task_action_failed:'操作失败'
 };
 const pageNames: Record<string,string> = {task_market:'任务市场',task_detail:'任务详情',execution_detail:'执行详情'};
 function eventDetailItems(row: EventRow) {
@@ -44,13 +44,13 @@ function eventDetailItems(row: EventRow) {
     key:label,label,children:displayText(String(value))
   }));
 }
-export function AnalyticsEvents({period, selection}: {period: number; selection: AnalyticsSelection}) {
+export function AnalyticsEvents({period, startDate, endDate, selection}: {period: number; startDate: string; endDate: string; selection: AnalyticsSelection}) {
   const [filters,setFilters] = useState<Record<string,string>>({});
   const [page,setPage] = useState(1);
   const [profileUser,setProfileUser] = useState<string | null>(null);
   const [detail,setDetail] = useState<EventRow | null>(null);
   const change = (key:string,value:string) => {setFilters(old=>({...old,[key]:value}));setPage(1);};
-  const params = {days:period,date:selection.date,button_name:selection.kind === 'button' ? selection.button : undefined,...filters,page};
+  const params = {days:period,startDate,endDate,date:selection.date,event_name:selection.kind === 'behavior' ? selection.eventName : undefined,...filters,page};
   const query = useQuery({queryKey:['sprix-admin','analytics-events',params],queryFn:async ({signal})=>(await axios.get<{rows:EventRow[];total:number;generatedAt:string}>('/mock-api/dashboard/events',{params,signal,timeout:15000})).data,placeholderData:keepPreviousData,staleTime:Infinity,refetchOnWindowFocus:false,refetchOnReconnect:false});
   return <>
     <p className="dashboard-note">逐条事件 · 北京时间 · 每页 20 条。下方筛选仅作用于事件列表。</p>
