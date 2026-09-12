@@ -5,7 +5,7 @@ import {AdminTable} from '../components/AdminTable';
 import {readFundPage} from '../services/pagedAdminData';
 import {currency} from '../utils/format';
 
-export const financeLabels={completedAmount:'已完成订单金额',platformFee:'平台服务费',settlementNet:'已结算净额',paidAmount:'累计已提现',remainingNet:'未提现净额'};
+export const financeLabels={completedAmount:'已完成订单金额',platformFee:'平台服务费',settlementNet:'实际入账',paidAmount:'累计已提现',remainingNet:'未提现金额'};
 export type FinanceMetric=keyof typeof financeLabels;
 export function DashboardFinance({metric,amount,onClose}:{metric:FinanceMetric;amount:number;onClose:()=>void}) {
  const [page,setPage]=useState(1);
@@ -15,7 +15,7 @@ export function DashboardFinance({metric,amount,onClose}:{metric:FinanceMetric;a
  const valueField=metric==='completedAmount'?'taskIncome':metric==='platformFee'?'platformFee':metric==='settlementNet'?'netIncome':'applyAmount';
  return <Modal title={financeLabels[metric]} open onCancel={onClose} footer={null} width={1100}>
    <p className="mb-4">{financeLabels[metric]}：{currency(amount)}</p>
-   {metric==='remainingNet'&&<p className="dashboard-note">未提现净额为已结算净额减去累计已提现金额。下表展示尚未完成的提现记录，未申请提现的余额不在表内。</p>}
+   {metric==='remainingNet'&&<p className="dashboard-note">未提现金额为实际入账减去累计已提现金额。下表展示尚未完成的提现记录，未申请提现的余额不在表内。</p>}
    {query.isError?<Alert type="error" message="资金记录读取失败" action={<Button onClick={()=>query.refetch()}>重试</Button>}/>:<AdminTable<Record<string,unknown>>
      rowKey={withdrawal?'withdrawalNo':'settlementNo'} loading={query.isPending||query.isPlaceholderData}
      dataSource={(query.data?.rows??[]) as Record<string,unknown>[]}

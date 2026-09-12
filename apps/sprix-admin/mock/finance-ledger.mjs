@@ -1,3 +1,4 @@
+import {settlementAmounts} from "./settlement-amounts.mjs";
 const money = cents => cents / 100;
 const time = at => new Date(at).toISOString();
 // Completed executions settle and automatically pay out at the same instant.
@@ -7,7 +8,7 @@ export function createFinanceLedger() {
   let paidCents=0;
   return {
     add(task,index,user,reward,completedAt) {
-      const gross=Math.round(reward*100),fee=Math.floor(gross*.10),net=gross-fee;
+      const {gross,fee,net}=settlementAmounts(reward);
       let total=settlements.get(task.id);
       if(!total) {
         total={backendId:`demo:settlement:${task.id.split(':')[2]}`,settlementNo:`demo:settlement:${task.id.split(':')[2]}`,taskTitle:task.title,taskIncome:0,platformFee:0,netIncome:0,settlementStatus:'已入账',createdAt:completedAt};

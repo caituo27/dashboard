@@ -25,7 +25,8 @@ export function applyDemoAction({ id, action, payload = {} }) {
       current = ledger.tasks.find((row) => row.id === id);
       if (!current) throw new Error("任务不存在");
       if (action === "accept") {
-        if(current.taskStatus!=="已发布" || current.remainingSlots<1) throw new Error("任务已不可接取");
+        if(current.taskStatus!=="已发布") throw new Error("任务未发布或已下线，无法执行");
+        if(current.remainingSlots<1) throw new Error("任务名额已满，无法执行");
         if(!/^[a-zA-Z0-9-]{16,64}$/.test(payload.owner ?? '') || !/codex|claude|opencode|hermes/i.test(payload.agentName ?? '')) throw new Error("请选择已连接的执行 Agent");
         state.consumerExecutions ??= [];
         const existing=state.consumerExecutions.find(r=>r.owner===payload.owner&&r.taskId===id&&ledger.execution(r.index).status!=='terminated');
@@ -34,7 +35,7 @@ export function applyDemoAction({ id, action, payload = {} }) {
         const tail=String(payload.phone ?? '').slice(-4);
         if(!/^\d{4}$/.test(tail)) throw new Error("用户手机号不完整");
         state.consumerExecutions.push({index,owner:payload.owner,taskId:id,userName:`用户${tail}`,phone:`${String(payload.phone).slice(0,3)}****${tail}`,agentId:String(payload.agentId ?? ''),agentName:String(payload.agentName),reward:current.reward,category:current.category,startedAt:actionAt});
-        accepted={id:`demo:execution:${index}`,taskId:id}; patch={};
+        accepted={id:`demo:execution:${index}`,taskId:id}; patch=current.remainingSlots===1?{taskStatus:"已下线",offlineReason:"SLOT_FULL"}:{};
       } else if (action === "edit") {
         patch = {};
         for (const key of ["title", "category", "sourceType", "description", "deliverables", "acceptanceCriteria"]) {
@@ -49,8 +50,16 @@ export function applyDemoAction({ id, action, payload = {} }) {
         }
         patch.rewardHistory.push({at:actionAt,reward:payload.reward});
         patch.reward = payload.reward; patch.totalSlots = payload.totalSlots; patch.remainingSlots = payload.totalSlots - current.executionTotal;
-      } else if (action === "offline") patch = { taskStatus: "已下线", offlineReason: String(payload.reason ?? "管理员下线") };
-      else if (action === "republish") patch = { taskStatus: "已发布", offlineReason: "" };
+      } else if (action === "offline") {
+        if(current.taskStatus!=="已发布") throw new Error("只有已发布任务可以下线");
+        const reason=String(payload.reason ?? '').trim();
+        if(!reason) throw new Error("请填写操作原因");
+        patch={taskStatus:"已下线",offlineReason:reason==='SLOT_FULL'?'SLOT_FULL':'OFFLINE'};
+      } else if (action === "republish") {
+        if(current.taskStatus!=="已下线") throw new Error("只有已下线任务可以重新发布");
+        if(current.offlineReason==='SLOT_FULL'||current.remainingSlots<=0) throw new Error("名额已满的任务不能重新发布");
+        patch={taskStatus:"已发布",offlineReason:"",publishedAt:new Date(Date.parse(actionAt)+8*3600000).toISOString().slice(0,19).replace("T"," ")};
+      }
       else if (action === "delete") patch = { taskStatus: "已删除" };
     } else if (kind === "execution") {
       current = ledger.acceptanceReviews.find((row) => row.executionId === id);

@@ -1,4 +1,4 @@
-import { displayText } from "../utils/displayText";
+import { displayText, maskPhone } from "../utils/displayText";
 import { AdminTable as Table, EllipsisCell, EllipsisText } from "../components/AdminTable";
 import {readTaskPage,readAcceptancePage,readAcceptanceDetail,readAppealPage,readFundPage} from "../services/pagedAdminData";
 import type { TablePaginationConfig } from "antd";
@@ -335,7 +335,7 @@ export function AdminAcceptanceDetail() {
               ["关联任务", record.taskTitle || "-"],
               ["任务分类", record.taskCategory || "-"],
               ["执行用户", record.userName],
-              ["手机号", record.phone],
+              ["手机号", maskPhone(record.phone)],
               ["执行 Agent", record.agentName],
               ["提交时间", record.submittedAt],
               ["当前进度", record.progress]
@@ -453,7 +453,7 @@ function AcceptanceReviewTable({
         ] satisfies ColumnsType<ReviewingExecution>
       : []),
     { title: "执行用户", dataIndex: "userName", width: 130, render: (value) => <EllipsisCell value={value} /> },
-    { title: "手机号", dataIndex: "phone", width: 140, render: (value) => <EllipsisCell value={value} /> },
+    { title: "手机号", dataIndex: "phone", width: 140, render: (value) => <EllipsisCell value={maskPhone(value)} /> },
     { title: "执行 Agent", dataIndex: "agentName", width: 160, render: (value) => <EllipsisCell value={value} /> },
     { title: "Agent 综合评分", dataIndex: "agentScore", width: 130 },
     { title: "验收状态", dataIndex: "acceptanceStatus", width: 140, render: (value) => <StatusTag status={value} /> },
@@ -784,7 +784,7 @@ function AdminExecutionRecords({
     { title: "第几次执行", dataIndex: "executionIndex", render: (value) => (value ? `第 ${value} 次` : "-") },
     { title: "executionId", dataIndex: "executionId", render: (value) => value ?? "-" },
     { title: "执行用户", dataIndex: "userName" },
-    { title: "手机号", dataIndex: "phone" },
+    { title: "手机号", dataIndex: "phone", render: maskPhone },
     { title: "执行 Agent", dataIndex: "agentName" },
     { title: "执行状态", dataIndex: "status", render: (value) => <StatusTag status={value} /> },
     { title: "时间", dataIndex: "time" }
@@ -793,7 +793,7 @@ function AdminExecutionRecords({
     { title: "第几次执行", dataIndex: "executionIndex", render: (value) => (value ? `第 ${value} 次` : "-") },
     { title: "executionId", dataIndex: "executionId", render: (value) => value ?? "-" },
     { title: "执行用户", dataIndex: "userName" },
-    { title: "手机号", dataIndex: "phone" },
+    { title: "手机号", dataIndex: "phone", render: maskPhone },
     { title: "执行 Agent", dataIndex: "agentName" },
     { title: "Agent 综合评分", dataIndex: "agentScore" },
     { title: "当前节点", dataIndex: "currentNode" },
@@ -804,7 +804,7 @@ function AdminExecutionRecords({
     { title: "第几次执行", dataIndex: "executionIndex", render: (value) => (value ? `第 ${value} 次` : "-") },
     { title: "executionId", dataIndex: "executionId", render: (value) => value ?? "-" },
     { title: "执行用户", dataIndex: "userName" },
-    { title: "手机号", dataIndex: "phone" },
+    { title: "手机号", dataIndex: "phone", render: maskPhone },
     { title: "执行 Agent", dataIndex: "agentName" },
     { title: "终止原因", dataIndex: "terminationReason" },
     { title: "终止节点", dataIndex: "terminatedNode" },
@@ -814,7 +814,7 @@ function AdminExecutionRecords({
     { title: "第几次执行", dataIndex: "executionIndex", render: (value) => (value ? `第 ${value} 次` : "-") },
     { title: "executionId", dataIndex: "executionId", render: (value) => value ?? "-" },
     { title: "执行用户", dataIndex: "userName" },
-    { title: "手机号", dataIndex: "phone" },
+    { title: "手机号", dataIndex: "phone", render: maskPhone },
     { title: "执行 Agent", dataIndex: "agentName" },
     { title: "验收状态", dataIndex: "acceptanceStatus", render: (value) => <StatusTag status={value} /> },
     { title: "综合评分", dataIndex: "score" },
@@ -917,7 +917,7 @@ export function AdminAppealCenter() {
             { title: "申诉编号", dataIndex: "appealNo", width: 130, render: (value) => <EllipsisCell value={value} /> },
             { title: "关联任务", dataIndex: "taskTitle", width: 190, render: (value) => <EllipsisCell value={value} /> },
             { title: "提交用户", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
-            { title: "用户手机号", dataIndex: "userPhone", width: 130, render: (value) => <EllipsisCell value={value} /> },
+            { title: "用户手机号", dataIndex: "userPhone", width: 130, render: (value) => <EllipsisCell value={maskPhone(value)} /> },
             { title: "执行 Agent", dataIndex: "agentName", width: 140, render: (value) => <EllipsisCell value={value} /> },
             { title: "问题摘要", dataIndex: "issueSummary", width: 220, render: (value) => <EllipsisCell value={value} /> },
             { title: "当前状态", dataIndex: "appealStatus", width: 120, render: (value) => <StatusTag status={value} /> },
@@ -981,7 +981,7 @@ export function AdminAppealDetail() {
     `当前状态：${appeal.appealStatus}`,
     `提交时间：${appeal.submittedAt}`,
     `提交用户：${appeal.userName}`,
-    `手机号：${appeal.userPhone}`,
+    `手机号：${maskPhone(appeal.userPhone)}`,
     appeal.handler ? `处理人：${appeal.handler}` : ""
   ].filter(Boolean).join("。");
   const taskInfo = [
@@ -1082,7 +1082,7 @@ export function AdminFundCenter() {
           {title:"结算单号",dataIndex:"settlementNo",width:180},
           {title:"关联任务",dataIndex:"taskTitle",width:260},
           {title:"用户昵称",dataIndex:"userName",width:160},
-          {title:"手机号",dataIndex:"userPhone",width:150},
+          {title:"手机号",dataIndex:"userPhone",width:150,render:maskPhone},
           {title:"执行 Agent",dataIndex:"agentName",width:180},
           {title:"任务收入",dataIndex:"taskIncome",width:120,render:currency},
           {title:"平台服务费",dataIndex:"platformFee",width:120,render:currency},

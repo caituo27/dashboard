@@ -1,3 +1,4 @@
+import {settlementAmounts} from "./settlement-amounts.mjs";
 import {createFinanceLedger} from './finance-ledger.mjs';
 import {timestamp} from "./record-order.mjs";
 import {consumerExecution} from "./consumer-records.mjs";
@@ -85,15 +86,16 @@ export function buildDemoLedger(snapshot, state = {}) {
   };
   const rewardAt = index => {
     const row=consumerRows.get(index),taskIndex=taskForExecution(index),patch=patches[`demo:task:${taskIndex}`];
-    if(row?.reward!=null) return row.reward;
+    const settled=executionStatus(index)==='completed';
+    if(row?.reward!=null && !settled) return row.reward;
     let reward=taskScenario(taskIndex).reward;
     if(patch?.rewardHistory?.length) {
-      const acceptedAt=row?timestamp(row.startedAt):timeline(index).accepted;
+      const acceptedAt=settled?completionTime(index):row?timestamp(row.startedAt):timeline(index).accepted;
       for(const term of patch.rewardHistory) if(timestamp(term.at)<=acceptedAt) reward=term.reward;
     } else if(patch?.reward!=null) {
       // Legacy edit logs have no before-price; use the original price before the first edit.
       const firstEdit=(state.events ?? []).find(e=>e.id===`demo:task:${taskIndex}`&&e.action==='edit');
-      if(firstEdit && (row?timestamp(row.startedAt):timeline(index).accepted)>=timestamp(firstEdit.at)) reward=patch.reward;
+      if(firstEdit && (settled?completionTime(index):row?timestamp(row.startedAt):timeline(index).accepted)>=timestamp(firstEdit.at)) reward=patch.reward;
     }
     return reward;
   };
@@ -133,6 +135,10 @@ export function buildDemoLedger(snapshot, state = {}) {
     const status=executionStatus(row.index);
     task.executionTotal++;task[`${status}ExecutionCount`]++;task.executionRewardTotal=money(pennies(task.executionRewardTotal)+pennies(rewardAt(row.index)));
     task.remainingSlots=Math.max(0,task.remainingSlots-1);
+  }
+  // TaskService.acceptTask takes a full task offline without hiding its records.
+  for(const task of tasks) if(task.taskStatus==='已发布' && task.remainingSlots===0) {
+    task.taskStatus='已下线';task.offlineReason='SLOT_FULL';
   }
   function execution(index) {
     if(consumerRows.has(index)) {
@@ -215,10 +221,10 @@ export function buildDemoLedger(snapshot, state = {}) {
   }
   function settlementRecord(index) {
     if(executionStatus(index)!=='completed') throw new Error('Execution is not settled');
-    const e=execution(index),reward=rewardAt(index),gross=pennies(reward),fee=Math.floor(gross*.10);
+    const e=execution(index),reward=rewardAt(index),{gross,fee,net}=settlementAmounts(reward);
     const id=`demo:settlement:${index}`;
     return {backendId:id,settlementNo:id,executionId:e.executionId,taskId:e.taskId,taskTitle:e.taskTitle,userName:e.userName,userPhone:e.phone,agentName:e.agentName,
-      taskIncome:money(gross),platformFee:money(fee),netIncome:money(gross-fee),settlementStatus:'已入账',createdAt:e.completedAt,
+      taskIncome:money(gross),platformFee:money(fee),netIncome:money(net),settlementStatus:'已入账',createdAt:e.completedAt,
       paidAt:e.completedAt};
   }
   function withdrawalRecord(index) {

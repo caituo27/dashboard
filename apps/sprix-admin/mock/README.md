@@ -51,7 +51,7 @@ also remain synthetic; no real PV/UV collection is implemented.
 
 Order reward total is task reward multiplied by execution count (contract reward,
 not revenue). Settlement and payout metrics are calculated from their records,
-not inferred from that reward total. The demo fee is 5%; real fees remain as
+not inferred from that reward total. The generated fee rate is 10%; real fees remain as
 reported by the real settlement API. Pending acceptance uses the actual merged
 acceptance queue. Deleted tasks retain execution history but leave the active
 publication/list counters.
@@ -151,7 +151,7 @@ numbers, Agent brands, task subjects, task sizes, prices and review scores.
 shared by event generation and the ledger. Settlement HTTP pages contain one row
 per completed execution; task-level batches are internal accounting aggregates
 only. Per-execution platform fees use 10%, matching the supplied reference rows,
-and integer cents reconcile income, fee and net. Completed approvals settle
+with fee and net independently rounded to cents as in backend storage. Half-cent ties can leave a one-cent difference between gross and fee plus net. Completed approvals settle
 automatically in the fixture; no manual payout workflow is exposed.
 Events reference those execution IDs and users, and use their acceptance and
 submission timestamps. Values are synthetic and deterministic, not collected
@@ -200,8 +200,9 @@ admin decisions override this schedule and retain the processing reason and
 action time. Successful appeals settle at resolution, not at the earlier rejection.
 An admin-approved execution does not subsequently generate a scheduled appeal.
 
-Execution ordinals are local to each task. New task price edits take effect only
-for later acceptances; consumer acceptances capture their reward and category.
+Execution ordinals are local to each task. Settlements use task price at settlement
+creation, reconstructed from price history. Later edits do not rewrite completed
+settlements. Unsettled consumer acceptances retain their reward and category.
 Older saved decisions recover timestamps from action logs where available.
 Legacy price edits without reward history cannot reconstruct every prior price;
 the earliest logged edit and saved price are used as the compatibility boundary.

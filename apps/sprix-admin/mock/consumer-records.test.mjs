@@ -63,7 +63,8 @@ test('consumer HTTP page/detail/accept shares persistent admin execution and rev
   mine=await get(`/consumer/view?kind=my-tasks&owner=${owner}`);assert.equal(mine.rows[0].status,'已结算');
   const settled=await get('/admin/view?kind=settlements&limit=20');
   const row=settled.rows.find(row=>row.executionId===accepted.id);assert.ok(row);assert.equal(row.taskIncome,task.reward);
-  assert.equal(Math.round(row.netIncome*100)+Math.round(row.platformFee*100),Math.round(row.taskIncome*100));
+  assert.equal(Math.round(row.netIncome*100),Math.floor((Math.round(row.taskIncome*100)*9+5)/10));
+  assert.equal(Math.round(row.platformFee*100),Math.floor((Math.round(row.taskIncome*100)+5)/10));
   const future=buildDemoLedger(createAnalyticsSnapshot(7,Date.now()+86400000),await readDemoState());
   const futureTask=future.tasks.find(row=>row.id===task.id);
   assert.ok(futureTask.executionTotal<=futureTask.totalSlots);

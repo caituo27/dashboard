@@ -16,7 +16,9 @@ test('business rows vary, reconcile per execution, and follow the shared timelin
   if(execution.settlementStatus!=='已入账') { assert.throws(()=>ledger.settlementRecord(n),/not settled/); continue; }
   const record=ledger.settlementRecord(n);
   assert.equal(record.taskIncome,task.reward);
-  assert.equal(Math.round(record.taskIncome*100),Math.round(record.platformFee*100)+Math.round(record.netIncome*100));
+  const cents=Math.round(record.taskIncome*100);
+  assert.equal(Math.round(record.platformFee*100),Math.floor((cents+5)/10));
+  assert.equal(Math.round(record.netIncome*100),Math.floor((cents*9+5)/10));
   assert.equal(record.userName,execution.userName);
   assert.ok(timestamp(task.publishedAt)<=timestamp(execution.startedAt));
   assert.ok(timestamp(execution.startedAt)<timestamp(execution.submittedAt));

@@ -57,7 +57,10 @@ test('task repricing preserves past orders and payouts; balances reconcile witho
  const changed={patches:{[futureTask.id]:{reward:77,rewardHistory:[{at,reward:77}]}}};
  const future=buildDemoLedger(createAnalyticsSnapshot(7,now+DAY),changed);
  const [first,last]=orderRange(indexOf(futureTask.id));
- for(let i=first;i<=last;i++) assert.equal(future.execution(i).reward,timeline(i).accepted>=now?77:taskScenario(indexOf(futureTask.id)).reward);
+ for(let i=first;i<=last;i++) {
+  const row=future.execution(i),priceAt=row.settlementStatus==='已入账'?timeline(i).completed:timeline(i).accepted;
+  assert.equal(row.reward,priceAt>=now?77:taskScenario(indexOf(futureTask.id)).reward);
+ }
  const later=buildDemoLedger(createAnalyticsSnapshot(7,now+DAY));
  for(const index of before.executionIndexes('completed').slice(-20)) {
    assert.deepEqual(later.withdrawalRecord(index),before.withdrawalRecord(index));

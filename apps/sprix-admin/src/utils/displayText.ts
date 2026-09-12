@@ -17,3 +17,9 @@ export function internalSearch(value: string): string {
     return kind ? `demo:${kind}:${Number(number)}` : id;
   });
 }
+
+// Display only: preserve source values for searches and API requests.
+export function maskPhone(value: string | null | undefined): string {
+  if (!value) return '—';
+  return value.replace(/^(\+?86[ -]?)?(1[3-9]\d)[ -]?\d{4}[ -]?(\d{4})$/, '$1$2****$3');
+}
