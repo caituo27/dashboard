@@ -9,6 +9,10 @@ export const buttonNames = ['查看任务详情','确认接单','智能接单','
 const buttonPages=['任务市场','任务详情','任务市场','我的任务','首页','Agent 中心','Agent 中心','提现记录'];
 let cache;
 let summaries = new Map();
+// A journey is deterministic. Retain its event objects across clock ticks;
+// only the visible time window changes. Keep at most one 30-day window.
+const dayEvents = new Map();
+const eventTimes = new WeakMap();
 export function eventStream(at = Date.now()) {
   const now = Math.floor(at / 10000) * 10000;
   if (cache?.now === now) return cache.events;
@@ -17,7 +21,11 @@ export function eventStream(at = Date.now()) {
   summaries.clear();
   for (let d = 0; d < 30; d++) {
     const day = midnight - d * DAY;
-    const dayId = Math.floor(day / DAY);
+    if (dayEvents.has(day)) {
+      events.push(...dayEvents.get(day));
+      continue;
+    }
+    const dayStartIndex = events.length;
     const first=indexAt(day), last=indexAt(day+DAY);
     for (let executionIndex=(Math.floor(first/64)+1)*64; executionIndex<=last; executionIndex+=64) {
       const dates=timeline(executionIndex);
@@ -33,8 +41,9 @@ export function eventStream(at = Date.now()) {
         const milestone=result==='failure'?dates.accepted+50:name===stages[3]?dates.accepted:name===stages[4]?dates.submitted:name===stages[2]?dates.accepted-2000:button===3?dates.accepted+15000:button===1||button===2?dates.accepted-5000:time+sequence*(3000+hash(executionIndex,95)%9000);
         const timestamp = milestone;
         const id = `evt:${journey}:${sequence++}`;
-        if (timestamp > now || timestamp < Math.max(midnight-29*DAY,Date.parse("2026-07-29T04:00:00Z"))) return;
+        if (timestamp < Date.parse("2026-07-29T04:00:00Z")) return;
         events.push({ event_id: id, event_name: name, schema_version: 2, ...context, event_time: new Date(timestamp).toISOString(), received_at: new Date(timestamp + 35 + hash(executionIndex+sequence,96)%1800).toISOString(), user_id: `visitor:${uid}`, user_name:businessProfile(uid+1).userName, agent_type:businessProfile(uid+1).agentName, anonymous_id: `anon:${uid}`, session_id: `session:${journey}`, page_id: page, button_id: button == null ? null : `button:${button}`, button_name: button == null ? null : buttonNames[button], referrer: 'task_market', channel: ['direct', 'search', 'campaign'][hash(uid,97)%3], task_id: task, execution_id: name === 'task_accept_succeeded' || name === 'delivery_submitted' ? `demo:execution:${executionIndex}` : null, agent_id: `demo:agent:${uid+1}`, agent_role: 'executor', result, error_code: result === 'failure' ? 'TASK_UNAVAILABLE' : null, duration_ms: name.includes('succeeded') || result === 'failure' ? 80+hash(executionIndex+sequence,98)%2400 : null, event_source: name==='delivery_submitted' ? 'agent' : name.includes('succeeded') || result === 'failure' ? 'server' : 'web', app: 'sprix', env: 'demo', release: '1.0.0', trace_id: `trace:${journey}`, action_id: `action:${journey}:${button ?? 'view'}`, journey_id: journey });
+        eventTimes.set(events[events.length - 1], timestamp);
       };
       add(stages[0], 'task_market');
       if(depth>=1) {add('button_click','task_market',0);add(stages[1],'task_detail');}
@@ -55,10 +64,18 @@ export function eventStream(at = Date.now()) {
       }
 
     }
+    dayEvents.set(day, events.slice(dayStartIndex));
   }
-  events.sort((a,b) => a.event_time.localeCompare(b.event_time) || a.event_id.localeCompare(b.event_id));
-  cache = {now, events};
-  return events;
+  for (const day of dayEvents.keys()) {
+    if (day < midnight - 29 * DAY || day > midnight) dayEvents.delete(day);
+  }
+  const visible = events.filter(event => {
+    const timestamp = eventTimes.get(event);
+    return timestamp <= now && timestamp >= midnight - 29 * DAY;
+  });
+  visible.sort((a,b) => a.event_time.localeCompare(b.event_time) || a.event_id.localeCompare(b.event_id));
+  cache = {now, events: visible};
+  return visible;
 }
 const distinct = (rows) => new Set(rows.map(e => e.user_id || e.anonymous_id)).size;
 export function aggregateEvents(events) {

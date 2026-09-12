@@ -1,3 +1,4 @@
+import { executionSubmission } from './execution-result.mjs';
 import {consumerMyTask} from "./consumer-records.mjs";
 import {fundSummary} from "./fund-summary.mjs";
 import {getView,viewPage} from "./admin-views.mjs";
@@ -46,9 +47,22 @@ export function dashboardMockMiddleware(request, response, next) {
     catch (error) { sendJson(response, 400, { message: error.message }); }
     return;
   }
+  if (url.pathname === '/mock-api/admin/artifact' && request.method === 'GET') {
+    getView().then(view=>{
+      const submission=executionSubmission(view.ledger,url.searchParams.get('id'));
+      const file=submission?.files.find(file=>file.artifactId===url.searchParams.get('file'));
+      if(!file) return sendJson(response,404,{message:'文件不存在'});
+      response.writeHead(200,{'Content-Type':file.mimeType+'; charset=utf-8','Content-Length':file.bytes.length,
+        'Content-Disposition':`attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`,
+        'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
+      response.end(file.bytes);
+    }).catch(()=>sendJson(response,500,{message:'文件读取失败'}));
+    return;
+  }
   if (url.pathname === "/mock-api/admin/view" && request.method === "GET") {
     getView(url.searchParams.get('version')).then(view=>{
       const kind=url.searchParams.get('kind');
+      if(kind==='execution-result') {const submission=executionSubmission(view.ledger,url.searchParams.get('id'));return sendJson(response,submission?200:404,submission?.result ?? {message:'执行记录不存在'});}
       if(kind==='acceptance-stats') return sendJson(response,200,{tasks:new Set(view.ledger.acceptanceReviews.map(r=>r.taskId)).size,users:new Set(view.ledger.acceptanceReviews.map(r=>r.userId ?? r.userName)).size});
       if(kind==='appeal-stats') {const rows=view.ledger.appeals,today=new Date(Date.now()+28800000).toISOString().slice(0,10);return sendJson(response,200,{pending:rows.filter(r=>r.appealStatus==='待处理').length,processing:rows.filter(r=>r.appealStatus==='处理中').length,today:rows.filter(r=>r.submittedAt.startsWith(today)).length,done:rows.filter(r=>['申诉通过','申诉不通过'].includes(r.appealStatus)).length});}
       if(kind==='fund-stats') return sendJson(response,200,fundSummary(view.ledger.funds));

@@ -27,3 +27,16 @@ export const rejectRemoteAcceptanceReview: typeof real.rejectRemoteAcceptanceRev
 export const startRemoteAppeal: typeof real.startRemoteAppeal = (id) => isDemoId(id) ? writeDemo(id, "start") : real.startRemoteAppeal(id);
 export const approveRemoteAppeal: typeof real.approveRemoteAppeal = (id, reason) => isDemoId(id) ? writeDemo(id, "approve", {reason}) : real.approveRemoteAppeal(id, reason);
 export const rejectRemoteAppeal: typeof real.rejectRemoteAppeal = (id, reason) => isDemoId(id) ? writeDemo(id, "reject", {reason}) : real.rejectRemoteAppeal(id, reason);
+
+export async function readRemoteAdminExecutionResult(id:string):Promise<real.AdminExecutionResult> {
+  return isDemoId(id)?readDetail<real.AdminExecutionResult>('execution-result',id):real.readRemoteAdminExecutionResult(id);
+}
+export async function downloadAdminExecutionFile(url:string,name:string) {
+  if(!url.startsWith('/mock-api/admin/artifact?')) return real.downloadRemoteAdminFile(url,name);
+  const {data}=await axios.get<Blob>(url,{responseType:'blob',timeout:15000});
+  const objectUrl=URL.createObjectURL(data);
+  const link=document.createElement('a');
+  link.href=objectUrl;link.download=name;
+  document.body.appendChild(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(objectUrl),1000);
+}

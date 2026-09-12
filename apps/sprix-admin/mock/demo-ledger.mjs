@@ -111,7 +111,7 @@ export function buildDemoLedger(snapshot, state = {}) {
     const id = `demo:task:${index}`;
     const [first, last] = executionRange(index);
     const cached=stableTasks.get(index);
-    if(cached && now>=cached.after) return {...cached.task};
+    if(cached && now>=cached.after) return cached.task;
     const statuses = {running:0,reviewing:0,completed:0,terminated:0};
     let executionRewardCents=0;
     for(let n=first;n<=last;n++) {statuses[executionStatus(n)]++;executionRewardCents+=pennies(rewardAt(n));}
@@ -125,8 +125,13 @@ export function buildDemoLedger(snapshot, state = {}) {
       ...taskScenario(index), ...patches[id]
     };
     task.remainingSlots=Math.max(0,task.totalSlots-task.executionTotal);
-    if(!reservedByTask.has(id) && last===orderRange(index)[1] && timeline(last).completed+3*86400000<now)
-      stableTasks.set(index,{after:timeline(last).completed+3*86400000,task:{...task}});
+    if(!reservedByTask.has(id) && last===orderRange(index)[1] && timeline(last).completed+3*86400000<now) {
+      // Finalize before sharing immutable history between retained snapshots.
+      if(task.taskStatus==='已发布' && task.remainingSlots===0) {
+        task.taskStatus='已下线';task.offlineReason='SLOT_FULL';
+      }
+      stableTasks.set(index,{after:timeline(last).completed+3*86400000,task:Object.freeze(task)});
+    }
     return task;
   });
   const taskById = new Map(tasks.map((task) => [task.id, task]));

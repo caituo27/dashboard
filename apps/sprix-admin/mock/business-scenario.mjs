@@ -1,5 +1,7 @@
 export const DAY = 86400000;
 export const START = Date.parse('2026-07-29T04:00:00Z');
+// Fixed across deployments and process restarts: no automatic publication after this point.
+export const TASK_PUBLICATION_STOP_AT = Date.parse('2026-09-12T10:44:05Z');
 export function hash(value, salt=0) { let x=(value ^ Math.imul(salt+1,0x9e3779b9))>>>0; x=Math.imul(x^(x>>>16),0x21f0aaad);x=Math.imul(x^(x>>>15),0x735a2d97);return (x^(x>>>15))>>>0; }
 export const userForExecution = index => hash(index,81)%30000+1;
 // Independent positive-rate waves: daytime load plus 10/30 minute bursts.
@@ -16,7 +18,12 @@ export function clock(index) {
  }
  return START+days*DAY;
 }
-export function indexAt(at) {return Math.floor(1700000*(operatingAge((at-START)/DAY)/45)**1.12);}
+function uncappedIndexAt(at) {return Math.floor(1700000*(operatingAge((at-START)/DAY)/45)**1.12);}
+let finalOrderCapacity;
+export function indexAt(at) {
+ finalOrderCapacity ??= orderRange(publishedTaskCount(TASK_PUBLICATION_STOP_AT))[1];
+ return Math.min(uncappedIndexAt(at),finalOrderCapacity);
+}
 export function agentsAt(at) {
  const d=Math.max(0,(at-START)/DAY), tau=2*Math.PI;
  const age=d+.45*Math.sin(d*tau/3)/(tau/3)+.25*Math.sin(d*tau*24)/(tau*24);
@@ -26,8 +33,9 @@ export function publicationTime(task) {
  return Math.max(START,clock(orderRange(task)[0])-(120+20*Math.sin(task/250))*60000);
 }
 export function publishedTaskCount(at) {
+ at=Math.min(at,TASK_PUBLICATION_STOP_AT);
  if(at<START) return 0;
- let low=0,high=Math.max(1,taskForOrder(Math.max(1,indexAt(at+3*3600000))));
+ let low=0,high=Math.max(1,taskForOrder(Math.max(1,uncappedIndexAt(at+3*3600000))));
  while(low<high) {const mid=Math.ceil((low+high)/2);if(publicationTime(mid)<=at)low=mid;else high=mid-1;}
  return low;
 }
@@ -83,57 +91,71 @@ export function executionCountsAt(now) {
   for(let n=finishedThrough+1;n<=total;n++) counts[statusAt(n,now,finishedThrough)]++;
   return counts;
 }
-// Each family supplies its own compatible subjects and complete delivery scope.
-// Keep family order stable: category also determines the existing execution timeline.
-const products=['露营灯','便携咖啡机','无线键盘','宠物饮水机','桌面收纳盒','运动耳机','旅行背包','空气净化器','智能手环','保温杯','人体工学椅','家用投影仪'];
+// Reference-inspired briefs: original subjects, embedded inputs, and checkable outputs.
+// Family positions and categories stay fixed to preserve reward and timeline rules.
+const products=['折叠阅读灯','桌面理线架','磁吸便签板','通勤午餐袋','可调节书立','便携餐具盒','旅行分装瓶','挂耳收纳袋','防水地图袋','双层笔袋','随身药品盒','移动显示器支架','折叠文件夹','桌边挂钩','便携杯套','键盘防尘罩','证件收纳册','阅读书签尺','相机内胆包','数据线收纳卷','骑行工具袋','旅行洗漱包','绘图笔收纳筒','行李标签套'];
+const businesses=['乐器租用','社区洗护','攀岩体验','会议室预订','行李寄存','旧物寄售','植物养护','手作课程','鞋履修护','球场预约','档案整理','展位预订','共享画室','器材托管','图书寄售','场地保洁','展品运输','设备巡检','展馆导览','排练室预订','露台绿化','社区代收','窗帘清洗','工位租赁','临时仓储','打印装订','展台搭建','自行车保养','灯光器材租赁','会议速记','录音棚预约','照片修复'];
 const families=[
  ['市场研究',pick=>{
-   const product=pick(products,3), count=pick([3,4,5],4);
-   return [`对比 ${count} 款${product}的价格和核心功能`,`从公开产品页面选择 ${count} 款${product}，记录售价、核心功能、适用人群和资料查询日期。`,`Excel 竞品对比表，附产品链接和差异摘要`,`覆盖 ${count} 款产品；价格注明币种和查询日期，结论能对应来源。`];
+   const business=pick(businesses,3),audience=pick(['首次使用的个人用户','门店运营人员','企业行政采购人员','小型团队负责人'],4);
+   const rows=[['目标用户',audience],['需求识别',`记录用户为什么需要${business}，区分临时需求与固定周期需求。`],['方案比较','按计费单位、服务范围、取消条件逐项对照，不把未披露价格记为免费。'],['转化步骤','了解服务 → 确认适用条件 → 提交咨询 → 确认订单；分别记录流失原因。'],['访谈问题','上次选择服务时比较了哪些条件？在哪一步放弃？什么信息会帮助你作决定？']];
+   return [`${business}服务的${audience}调研提纲`,`业务准备开展${business}需求访谈，访谈对象为${audience}。目前只有业务方向，没有访谈记录或公开竞品数据。请输出用户分层、比较维度、转化路径和访谈问题，供下一轮调研使用。`,`Markdown 调研提纲和 CSV 维度表，覆盖 5 个部分。`,`5 个部分齐全；问题围绕${business}与${audience}；不能将研究假设写成已经发生的访谈结论。`,rows];
  }],
  ['数据处理',pick=>{
-   const product=pick(products,3), count=pick([15,20,30,40],4);
-   return [`统一 ${count} 条${product}商品资料的规格字段`,`整理任务资料中 ${count} 条${product}商品记录，统一型号、尺寸、重量和单位，保留原始值并标出缺失字段。`,`Excel 商品规格表和异常清单`,`输出 ${count} 条记录；原始值与标准值可核对，不自行补造缺失信息。`];
+   const product=pick(products,3),prefix=pick(['RD','LM','TX','GP'],4);
+   const input=[`${prefix.toLowerCase()} 101`,`${prefix}_102`,`${prefix}-101`,'未知',` ${prefix}-103 `];
+   const rows=input.map((raw,i)=>[raw,i===3?'无效：缺少可识别编号':i===2?`${prefix}-101；重复，第 1 行已保留`:`${prefix}-${i===0?'101':i===1?'102':'103'}；保留`]);
+   return [`清理${product}资料中的编号与重复项`,`入库前需核对${product}资料。输入编号依次为：${input.map(x=>`「${x}」`).join('、')}。标准格式为 ${prefix}-三位数字；忽略大小写和首尾空格，将空格、下划线统一为短横线。相同标准编号只保留首次出现的记录，无效输入单列。`,`CSV 原始值与处理结果表，以及 Markdown 清洗说明。`,`5 条输入均可追溯；有效去重后为 3 个编号；重复 1 条、无效 1 条，不删除异常记录的处理依据。`,rows];
  }],
  ['内容运营',pick=>{
-   const product=pick(products,3), channel=pick(['商品详情页','小红书笔记','公众号推文','邮件推广'],4);
-   return [`优化${product}的${channel}文案`,`依据任务提供的${product}资料修改${channel}文案，保留产品事实，删去重复表述和无法证实的效果承诺。`,`修改前后对照稿，附 3 个标题备选`,`产品参数与原资料一致，文案符合${channel}的表达场景，修改处有说明。`];
+   const product=pick(products,3),channel=pick(['商品详情首屏','店铺上新公告','社群产品介绍','订阅邮件'],4);
+   const rows=[['标题一',`${product}，让日常收纳更有条理`],['标题二',`给${product}留一个顺手的位置`],['标题三',`从整理好${product}开始轻装出行`],['介绍正文',`这款${product}面向日常通勤与居家整理场景。下单前请核对尺寸、材质和适配条件，选择符合实际使用需求的款式。`],['行动入口','查看规格与使用说明'],['待确认字段','尺寸、材质、价格、库存和发货时间均未提供，发布前需补齐。']];
+   return [`${product}上新的${channel}文案`,`店铺准备在${channel}介绍${product}，受众为通勤及居家整理用户。已知信息只有品类和使用场景，尺寸、材质、价格与活动规则均未提供。请写 3 个标题、1 段介绍、1 个行动入口，并列出发布前待确认字段。`,`Markdown 文案稿和 CSV 文案条目表，共 6 项。`,`3 个标题有差异；正文和入口围绕${product}；不声称未知性能、折扣或销售成绩，待确认字段单列。`,rows];
  }],
  ['金融资讯',pick=>{
-   const industry=pick(['新能源汽车','半导体','光伏设备','消费电子','医疗器械','工业机器人','储能','跨境电商'],3);
-   return [`整理${industry}行业周报中的经营数据`,`阅读任务提供的${industry}行业周报，提取销量、收入、增速及相关统计期间，区分事实数据与作者判断。`,`经营指标表和一页摘要，附原文页码`,`数字、单位和统计期间准确；每项数据可定位到原文，不补写投资建议。`];
+   const business=pick(businesses,3),focus=pick(['首次付费转化','服务履约效率','客户复购','渠道获客成本'],4);
+   const rows=[['有效线索','去除重复及无法联系的咨询记录；用于统一转化分母。'],['首次付费转化率','首次付费客户数 / 同期有效线索数；分母为零时不计算。'],['履约完成率','已完成服务订单数 / 应在统计期完成的订单数。'],['复购率','期内再次付费的老客户数 / 期内可观察的老客户数；观察窗口需固定。'],['获客成本','对应渠道获客支出 / 该渠道新增付费客户数；不混入服务履约成本。'],['讨论重点',`${focus}需与其他指标一起看，收入、客户数及支出未提供，不能得出盈利结论。`]];
+   return [`${business}业务的${focus}指标口径`,`经营团队准备讨论${business}的${focus}，需要先统一统计定义。已知流程为咨询、首次付费、服务完成、再次购买，尚无真实经营报表。请整理指标名称、计算口径、分母为零的处理方式和讨论边界。`,`Markdown 口径说明及 CSV 指标表，至少包含 5 个指标和讨论重点。`,`定义能对应咨询到复购流程；转换率分子分母一致；不填造收入、成本、客户数或投资判断。`,rows];
  }],
  ['软件开发',pick=>{
-   const api=pick(['登录验证码','订单查询','任务接取','文件上传','分页搜索','用户资料更新','消息通知','库存查询'],3);
-   return [`补充${api}接口的异常参数测试用例`,`依据任务提供的${api}接口文档，检查必填项、类型错误、边界值和权限异常，列出请求样例与预期响应。`,`Markdown 测试用例表和 JSON 请求样例`,`用例对应现有接口字段；预期结果注明文档依据，未实际执行的用例不标为通过。`];
+   const business=pick(businesses,3),limit=pick([10,20,50,100],4);
+   const rows=[['默认请求','输入 {}；预期 page=1，pageSize=20。'],['页码下限','输入 {"page":0}；预期参数校验失败。'],['类型错误','输入 {"page":"abc"}；预期拒绝非整数页码。'],['分页上限',`输入 {"pageSize":${limit+1}}；预期参数校验失败。`],['有效边界',`输入 {"page":1,"pageSize":${limit}}；预期参数校验通过。`],['未登录','缺少访问凭证；预期拒绝访问，不返回列表数据。']];
+   return [`${business}订单列表的分页与权限用例`,`为${business}订单列表补充测试设计。约定 page 为大于等于 1 的整数，默认 1；pageSize 默认 20，允许 1 至 ${limit}，若默认值超出上限则按上限处理；未登录不能访问。这里只编写用例，不调用线上接口。`,`Markdown 用例说明和 CSV 请求与预期表，共 6 条。`,`覆盖默认、下限、类型、上限、有效边界和未登录；请求与预期对应约定；不得将未执行的测试写成已通过。`,rows.map(([a,b])=>[a,a==='默认请求'?`输入 {}；预期 page=1，pageSize=${Math.min(20,limit)}。`:b])];
  }],
  ['设计创意',pick=>{
-   const campaign=pick(['咖啡新品试饮','露营装备上新','会员积分兑换','城市徒步报名','摄影课程预约','读书分享会','宠物领养日','周末市集'],3);
-   return [`梳理${campaign}活动页的信息结构`,`根据任务提供的${campaign}活动资料，整理页面区块、报名入口、时间地点和素材需求。`,`页面结构草图、区块文案和素材清单`,`关键活动信息与资料一致；页面层级清晰，每个操作入口注明用途。`];
+   const business=pick(businesses,3),entry=pick(['预约确认页','服务选择页','进度查询页','个人订单页'],4);
+   const rows=[['页面目标',`让用户在${business}${entry}找到当前状态与下一步操作。`],['信息顺序','先显示服务名称与状态，再显示所选服务、规则说明和操作入口。'],['主要入口',entry==='进度查询页'?'主操作“查看处理进度”，次操作“联系服务人员”。':'主操作“查看订单详情”，次操作“联系服务人员”。'],['状态规则','加载时显示进度提示；无订单时显示服务入口；失败时保留输入并提供重试。'],['素材要求','服务示意图使用可替换资源；没有门店、价格和服务时间时不添加虚构信息。']];
+   return [`${business}${entry}的信息层级与状态说明`,`用户需要在${business}的${entry}确认服务情况。已知页面需要展示服务名称、订单状态、规则说明和联系入口，未提供具体门店、价格及开放时间。请按目标、层级、操作、状态和素材要求设计页面结构。`,`Markdown 页面方案、CSV 区块说明和 SVG 结构草图，覆盖 5 个部分。`,`页面目标与${entry}一致；至少说明加载、空数据、失败 3 种状态；每个入口有用途，草图能对照区块说明。`,rows];
  }],
  ['数据处理',pick=>{
-   const subject=pick(['订单售后','课程体验','物流配送','App 登录','会员服务','商品退换货','客服响应','预约流程'],3),count=pick([20,30,40,50],4);
-   return [`将 ${count} 条${subject}反馈按问题分类`,`阅读任务提供的 ${count} 条${subject}反馈，合并重复问题，保留记录编号，统计各主题数量。`,`反馈分类表和高频问题摘要`,`全部 ${count} 条反馈均有分类或待确认标记；主题统计与明细一致。`];
+   const business=pick(businesses,3),channel=pick(['在线客服','服务评价','咨询留言','订单回访'],4);
+   const rows=[['找不到取消预约的位置','使用问题：入口可发现性不足'],['希望能提前一天提醒我','功能建议：新增提醒能力'],['套餐费用没有写清包含几次','价格反馈：计费范围不明确'],['服务人员解释得很清楚','正向评价：认可沟通体验'],['点提交后一直转圈','使用问题：提交状态异常'],['支持按服务地点筛选就更方便了','功能建议：增加地点筛选']];
+   return [`标注${business}${channel}的 6 条反馈`,`以下为${business}${channel}的待标注文本：${rows.map(([text],i)=>`${i+1}. ${text}`).join('；')}。仅允许使用“使用问题、功能建议、价格反馈、正向评价”四种标签，每条选一个主要标签并说明依据。`,`CSV 原文与标签依据表，以及 Markdown 分类数量摘要。`,`完整标注 6 条；使用问题 2 条、功能建议 2 条、价格反馈和正向评价各 1 条；依据能对应原文，不新增标签。`,rows];
  }],
  ['市场研究',pick=>{
-   const city=pick(['杭州','成都','广州','南京','武汉','苏州','长沙','厦门','西安','青岛','宁波','重庆'],3),shop=pick(['咖啡店','书店','健身房','宠物医院','共享办公空间','摄影工作室'],4);
-   return [`核对${city} 5 家${shop}的地址和营业时间`,`根据任务中的门店清单核对${city} 5 家${shop}的地址、营业时间及预约方式，优先采用门店官方信息。`,`门店资料表，附来源链接和核对日期`,`逐家对应输入清单；无法确认的信息明确标注，不凭空补全。`];
+   const business=pick(businesses,3),city=pick(['合肥','泉州','佛山','昆明','济南','南昌','温州','珠海'],4);
+   const rows=[['服务范围',`确认${city}${business}是否覆盖目标区域，记录区域限制。`],['计费方式','核对按次、按时或套餐计费，以及超时费用和押金是否另计。'],['取消规则','分别记录取消截止条件、退费规则和改期限制。'],['营业与预约','核对营业时段、预约提前量及名额是否需要二次确认。'],['证据记录','每项记录来源地址、查询日期和原文摘录；未披露字段注明未披露。']];
+   return [`${city}${business}门店调研的字段与核验清单`,`准备调研${city}的${business}服务，需要先制定统一采集表。当前没有门店名单，不要求提供店名或声称已完成走访。请围绕服务范围、计费、取消规则、预约要求和证据记录给出字段说明。`,`Markdown 调研说明和 CSV 核验清单，包含 5 个维度。`,`每个维度说明核对内容；必须保留来源与查询日期要求；不编造门店、地址、价格或走访结果。`,rows];
  }],
  ['内容运营',pick=>{
-   const product=pick(products,3),language=pick(['英文','日文','德文','法文','西班牙文'],4);
-   return [`校对${product}商品页的${language}文案`,`对照任务提供的中文原稿检查${product}商品页的${language}译文，重点核对参数、单位、术语和使用说明。`,`修订稿和术语对照表`,`数字、型号与原稿一致；语义无遗漏，术语在全文保持一致。`];
+   const business=pick(businesses,3),channel=pick(['帮助中心','预约邮件','订单通知','客服快捷回复'],4);
+   const rows=[['中文原文',`您的${business}申请已收到，请在订单页面查看进度。确认前无需重复提交。`],['英文版本',`We have received your request. Check your order page for updates. There is no need to submit another request while you wait for confirmation.`],['精简版本','Request received. Visit your order page for updates. Please avoid duplicate submissions.'],['术语说明','申请使用 request；收到不等于确认，因此不使用 confirmed。'],['语气说明','使用中性提示，不增加确认时限、退款承诺或其他未提供条件。']];
+   return [`${business}${channel}的英文状态提示`,`请将用于${business}${channel}的中文提示本地化为英文。原文：“您的${business}申请已收到，请在订单页面查看进度。确认前无需重复提交。”输出完整版本、精简版本和术语解释。`,`Markdown 双语稿和 CSV 对照表，共 5 项。`,`保留收到申请、订单页查询、避免重复提交三层含义；不得把收到申请改为确认成功；不得补写处理时限。`,rows];
  }],
  ['人力资源',pick=>{
-   const role=pick(['前端工程师','数据分析师','产品运营','客户成功经理','测试工程师','内容编辑','UI 设计师','电商运营'],3);
-   return [`整理${role}岗位的面试考察要点`,`依据任务提供的${role}职位说明，拆分职责和必备技能，为每项能力编写面试问题及判断依据。`,`岗位能力表和面试问题清单`,`问题覆盖职位说明中的核心职责；必备条件和加分项分开列出。`];
+   const role=pick(['实施顾问','技术支持专员','用户研究助理','项目协调员','知识库编辑','数据质检员','渠道运营专员','售后培训专员'],3),team=pick(['交付团队','客户服务团队','运营团队','产品支持团队'],4);
+   const rows=[['需求理解','请举例说明如何将模糊需求拆成可确认的问题；观察是否复述目标并确认限制。'],['信息记录','请描述如何记录来源、版本与待确认事项；观察交接是否可追溯。'],['异常处理','遇到输入不完整时如何推进；观察是否区分已知事实和假设。'],['协作沟通','不同同事对优先级有分歧时如何确认；观察是否说明影响与决策人。'],['交付检查','提交前如何自查；观察是否有可执行的核对步骤。']];
+   return [`${team}${role}的面试问题与观察要点`,`为${team}招聘${role}编写面试提纲。职责限定为需求确认、资料记录、异常跟进和交付检查，不预设学历、薪资或年限门槛。需要 5 个行为问题，每个问题配观察依据。`,`Markdown 面试提纲和 CSV 问题与观察点表。`,`5 个问题覆盖指定职责；评价依据可观察；不编造公司待遇或将个人特征作为评分依据。`,rows];
  }],
  ['商务办公',pick=>{
-   const meeting=pick(['产品迭代周会','客户需求评审会','项目启动会','上线复盘会','销售周会','设计评审会','供应商沟通会','季度运营复盘会'],3);
-   return [`提取${meeting}记录中的负责人和截止时间`,`整理任务提供的${meeting}记录，区分已决定事项与讨论建议，提取行动项、负责人和截止时间。`,`Excel 行动项清单和会议摘要`,`每项行动可追溯到原文；未明确的负责人或时间标记为待确认。`];
+   const business=pick(businesses,3),meeting=pick(['需求对齐会','试运营复盘会','服务流程评审会','客服问题周会'],4);
+   const rows=[['核对服务清单','产品组负责；下次例会前完成；已确认行动。'],['补充常见问题','客服组负责；截止时间未明确，待确认；已确认行动。'],['调整首页入口','设计组先评估；是否实施待下次讨论，不作为已批准改动。'],['同步未决事项','项目协调人汇总上述截止时间与决策项，在下次例会确认。']];
+   return [`整理${business}${meeting}的行动项`,`会议摘录：“产品组在下次例会前核对服务清单；客服组补充常见问题，暂未确定时间；有人建议调整首页入口，由设计组评估后再讨论。”请提取负责人、时间和决策状态，区分已确认工作与建议。`,`Markdown 会议摘要和 CSV 行动项表，包含 3 条原文事项及 1 条后续确认事项。`,`行动项可追溯到摘录；未明确时间写待确认；首页调整必须保留待评估状态，不捏造会议日期或批准结论。`,rows];
  }],
  ['数据处理',pick=>{
-   const doc=pick(['供应商报价单','采购订单','物流运单','设备规格说明','产品检测报告','会议报名表','展商资料','课程安排表'],3);
-   return [`将${doc} PDF 中的表格整理为 Excel`,`提取任务提供的${doc} PDF 中的表格，保留表头、单位和原文页码，合并跨页表格并标记无法辨认的单元格。`,`Excel 数据表和待确认项清单`,`表格行列与原文对应；数字和单位准确，不以推测内容替代缺失值。`];
+   const business=pick(businesses,3),unit=pick(['次','小时','天','场'],4),price=pick([12,18,24,36],5);
+   const rows=[['A 项',`单价 ${price} 元/${unit}；数量 2；小计 ${price*2} 元`],['B 项',`单价 ${price+6} 元/${unit}；数量 3；小计 ${(price+6)*3} 元`],['C 项',`单价未提供；数量 1；小计不可计算`],['可核对小计',`${price*2+(price+6)*3} 元，仅包含 A、B 项，不能当作完整订单总额。`]];
+   return [`校核${business}报价摘录的单位和小计`,`${business}报价资料摘录：A 项单价 ${price} 元/${unit}，数量 2；B 项单价 ${price+6} 元/${unit}，数量 3；C 项数量 1，单价缺失。请整理各项单价、数量和小计，说明哪些金额可以汇总、哪些需补充。`,`CSV 核对结果表和 Markdown 异常说明，共 4 项。`,`A、B 小计按单价乘数量计算；C 项不得以零代替缺失价格；可计算小计明确排除 C 项。`,rows];
  }]
 ];
 const scenarios=new Map();
@@ -145,11 +167,11 @@ export function taskScenario(index) {
 function createTaskScenario(index) {
  const family=families[hash(index,2)%families.length];
  const pick=(values,salt)=>values[hash(index,salt)%values.length];
- const [title,description,deliverables,acceptanceCriteria]=family[1](pick);
+ const [title,description,deliverables,acceptanceCriteria,submissionRows]=family[1](pick);
  // Most tasks are small, with a smaller share of higher-value analytical work.
  const tier=hash(index,5)%100;
  const reward=tier<65 ? (100+hash(index,6)%501)/100 : tier<93 ? (500+hash(index,7)%501)/100 : (1000+hash(index,8)%1801)/100;
- return {title,category:family[0],description,cardSummary:title,deliverables,reward,acceptanceCriteria};
+ return {title,category:family[0],description,cardSummary:title,deliverables,reward,acceptanceCriteria,submissionRows:Object.freeze(submissionRows.map(row=>Object.freeze(row)))};
 }
 
 const sizes=[9,27,14,32,18,20];

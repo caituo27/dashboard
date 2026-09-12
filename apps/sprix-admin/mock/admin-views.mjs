@@ -8,9 +8,11 @@ import {compareRecords,filterRecords} from './record-order.mjs';
 const snapshots=new Map();
 export async function getView(version) {
  if(version) {if(!snapshots.has(version)) throw new Error('SNAPSHOT_EXPIRED'); return snapshots.get(version);}
- const state=await readDemoState(),seed=createAnalyticsSnapshot(7);
- const key=`${seed.generatedAt}-${createHash('sha256').update(JSON.stringify(state)).digest('hex').slice(0,12)}`;
+ const state=await readDemoState();
+ const at=Math.floor(Date.now()/10000)*10000;
+ const key=`${new Date(at).toISOString()}-${createHash('sha256').update(JSON.stringify(state)).digest('hex').slice(0,12)}`;
  if(!snapshots.has(key)) {
+   const seed=createAnalyticsSnapshot(7,at);
    const ledger=buildDemoLedger(seed,state);
    const center={tasks:ledger.tasks,acceptanceReviews:ledger.acceptanceReviews,appealCount:ledger.appeals.length};
    let dashboard;

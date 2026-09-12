@@ -1,5 +1,5 @@
 import { isDemoId } from "../../mock/demo-ledger.mjs";
-import { downloadRemoteAdminFile, estimateRemoteTaskPricing, readRemoteAdminExecutionResult, type TaskPricingEstimate, type TaskPricingEstimateRequest, type AdminExecutionResult, type TaskAttachment } from "../services/sprixApi";
+import { downloadRemoteAdminFile, estimateRemoteTaskPricing, type TaskPricingEstimate, type TaskPricingEstimateRequest, type AdminExecutionResult, type TaskAttachment } from "../services/sprixApi";
 import { displayText, maskPhone } from "../utils/displayText";
 import { AdminTable as Table, EllipsisCell, EllipsisText } from "../components/AdminTable";
 import {readTaskPage,readAcceptancePage,readAcceptanceDetail,readAppealPage,readFundPage} from "../services/pagedAdminData";
@@ -33,6 +33,8 @@ import {
 } from "lucide-react";
 import type { AdminAppeal, AdminOperationLog, CompletedExecution, Payout, ReviewingExecution, RunningExecution, Settlement, Task, TerminatedExecution, Withdrawal } from "../types";
 import {
+  downloadAdminExecutionFile,
+  readRemoteAdminExecutionResult,
   approveRemoteAcceptanceReview,
   approveRemoteAppeal,
   createRemoteAdminTask,
@@ -90,7 +92,7 @@ function getAdminDetailDisplayTitle(title: string) {
     displayTitle = displayTitle.slice(match[0].length).trim();
     match = displayTitle.match(/^\[([^\]]{1,48})\]/);
   }
-  return displayTitle || title;
+  return displayText(displayTitle || title);
 }
 
 function AdminDetailHeading({
@@ -124,7 +126,7 @@ function showAdminRecordDetail(title: string, rows: Array<[string, ReactNode]>) 
         {rows.map(([label, value]) => (
           <div key={label} className="rounded-lg border border-line bg-[#fafafa] px-3 py-2">
             <p className="text-xs text-ink-soft">{label}</p>
-            <div className="mt-1 break-words text-sm font-medium text-ink">{value || "-"}</div>
+            <div className="mt-1 break-words text-sm font-medium text-ink">{typeof value === "string" ? displayText(value) : value || "-"}</div>
           </div>
         ))}
       </div>
@@ -664,22 +666,7 @@ function AcceptanceResultDetail({
 }) {
   const executionResultQuery = useQuery({
     queryKey: ["sprix-admin", "execution-result", record.executionId],
-    queryFn: (): Promise<AdminExecutionResult> => isDemoId(record.executionId)
-      ? Promise.resolve({
-          executionId: record.executionId,
-          taskId: record.taskId ?? "",
-          executionStatus: record.acceptanceStatus,
-          artifacts: [],
-          acceptance: {
-            acceptanceId: record.executionId,
-            status: record.acceptanceStatus,
-            summary: record.acceptanceSummary,
-            issues: record.acceptanceIssues,
-            failureReasons: record.acceptanceFailureReasons,
-            improvementSuggestions: record.acceptanceImprovementSuggestions
-          }
-        })
-      : readRemoteAdminExecutionResult(record.executionId),
+    queryFn: () => readRemoteAdminExecutionResult(record.executionId),
     enabled: Boolean(record.executionId),
     retry: 1
   });
@@ -702,7 +689,7 @@ function AcceptanceResultDetail({
   const manualSubmissions = executionResult?.manualSubmissions ?? [];
   const downloadArtifact = async (artifact: AdminExecutionResult["artifacts"][number]) => {
     try {
-      await downloadRemoteAdminFile(artifact.downloadUrl, artifact.name);
+      await downloadAdminExecutionFile(artifact.downloadUrl, artifact.name);
     } catch (error) {
       showRequestError(error, "提交产物下载失败");
     }
@@ -893,7 +880,7 @@ function InfoGrid({ rows }: { rows: Array<[string, string]> }) {
         return (
           <div key={label} className="grid gap-1 sm:grid-cols-[120px_1fr]">
             <dt className="text-ink-soft">{label}</dt>
-            <dd className="min-w-0 break-all leading-6 text-ink">{text}</dd>
+            <dd className="min-w-0 break-all leading-6 text-ink">{displayText(text)}</dd>
           </div>
         );
       })}
@@ -1491,7 +1478,7 @@ function DetailFieldBlock({
         {visibleFields.map((field) => (
           <div key={field.label} className="grid gap-1 text-sm leading-6 md:grid-cols-[96px_minmax(0,1fr)]">
             <dt className="text-ink-soft">{field.label}</dt>
-            <dd className="min-w-0 whitespace-pre-wrap break-words text-ink-soft">{field.value}</dd>
+            <dd className="min-w-0 whitespace-pre-wrap break-words text-ink-soft">{typeof field.value === "string" ? displayText(field.value) : field.value}</dd>
           </div>
         ))}
       </dl>
@@ -1806,7 +1793,7 @@ export function AdminAppealCenter() {
                                   className="sprix-table-link-cell"
                                   onClick={() => navigate(`/appeals/${getAppealBackendId(record)}`)}
                                 >
-                                  {text}
+                                  {displayText(text)}
                                 </button>
                               </span>
                             </Tooltip>
