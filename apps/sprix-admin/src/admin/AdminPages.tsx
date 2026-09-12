@@ -1013,13 +1013,13 @@ export function AdminAppealDetail() {
               onClick={() =>
                 Modal.confirm({
                   title: "确认申诉通过",
-                  content: "确认通过后，将更新关联执行结果和结算记录。",
+                  content: "确认申诉通过后，该任务将从验收未通过转为结算中，并生成结算记录。",
                   okText: "申诉通过",
                   onOk: async () => {
                     try {
                       await approveRemoteAppeal(getAppealBackendId(appeal), processReason.trim());
                       await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-                      message.success("申诉已通过");
+                      message.success("申诉已通过，任务已进入结算中");
                       navigate("/appeals");
                     } catch (error) {
                       showRequestError(error, "申诉通过失败", "申诉通过失败：");

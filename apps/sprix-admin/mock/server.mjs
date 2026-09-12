@@ -79,7 +79,7 @@ export function dashboardMockMiddleware(request, response, next) {
     return;
   }
   if (url.pathname !== "/mock-api/dashboard/analytics") {
-    sendJson(response, 404, { message: "Mock endpoint not found" });
+    sendJson(response, 404, { message: "请求的接口不存在" });
     return;
   }
   if (request.method !== "GET") {

@@ -59,16 +59,19 @@ test('task repricing preserves past orders and payouts; balances reconcile witho
  const [first,last]=orderRange(indexOf(futureTask.id));
  for(let i=first;i<=last;i++) assert.equal(future.execution(i).reward,timeline(i).accepted>=now?77:taskScenario(indexOf(futureTask.id)).reward);
  const later=buildDemoLedger(createAnalyticsSnapshot(7,now+DAY));
- const laterWithdrawals=new Map(later.funds.withdrawals.map(r=>[r.backendId,r]));
- for(const row of before.funds.withdrawals) {
-  const next=laterWithdrawals.get(row.backendId);assert.ok(next);
-  assert.equal(next.applyAmount,row.applyAmount);assert.equal(next.appliedAt,row.appliedAt);
-  if(row.withdrawStatus==='已提现') assert.equal(next.paidAt,row.paidAt);
+ for(const index of before.executionIndexes('completed').slice(-20)) {
+   assert.deepEqual(later.withdrawalRecord(index),before.withdrawalRecord(index));
+   const paid=before.withdrawalRecord(index),settled=before.settlementRecord(index);
+   assert.equal(paid.applyAmount,settled.netIncome);
+   assert.equal(paid.paidAt,settled.paidAt);
+   assert.equal(paid.executionId,settled.executionId);
  }
  for(const ledger of [before,edited,later]) {
   const f=fundSummary(ledger.funds);
   assert.equal(cents(f.settledNet),cents(f.paid)+cents(f.paying)+cents(f.available));
-  assert.ok(f.available>0);
+  assert.equal(f.available,0);
+  assert.equal(f.paying,0);
+  assert.equal(f.paid,f.settledNet);
   const dashboard=aggregateDashboard(seed,{tasks:ledger.tasks,acceptanceReviews:ledger.acceptanceReviews,appealCount:ledger.appeals.length},ledger.funds);
   assert.equal(cents(dashboard.finance.settlementNet),cents(dashboard.finance.paidAmount)+cents(dashboard.finance.remainingNet));
  }

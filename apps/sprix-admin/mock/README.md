@@ -176,11 +176,16 @@ Execution state now follows each order's shared acceptance, submission and revie
 milestones. Task counts and review queues aggregate those states; they no longer
 assign states from global count boundaries. Running records have no submission
 or completion timestamp; only completed executions can produce settlement rows.
-Settlement is credited at completion. Withdrawals group each user's credited
-income at a staggered weekly cutoff, then finish 1–6 hours later. Income after
-the cutoff remains available for the next batch. Closed withdrawal amounts and
-application times do not change as more orders complete. This is a simulation
-policy, not a real bank payout model.
+Settlement is credited and automatically paid at completion. Each completed
+execution has one settlement and one payout, with the same net amount and time.
+The Mock layer treats automatic payouts as immediately successful; it never
+initiates real transfers. Task-level aggregates and a paid-total accumulator
+avoid materializing millions of payout objects. `/admin/view?kind=withdrawals`
+constructs only the requested page from the shared completed-execution index.
+Real backend payout states and balances remain unchanged.
+Dashboard finance links open read-only, paginated records for each metric.
+The unpaid view lists pending/failed withdrawals; unapplied balances are part
+of the aggregate difference but do not have withdrawal records.
 
 Execution-duration assumptions (minutes, plus up to 58 seconds): data processing
 5–25; content 15–60; office 10–45; HR 20–60; research 45–180; finance 30–120;
@@ -222,7 +227,7 @@ still 10 seconds and dashboard polling is still 5 seconds.
 ### 列表加载与增量缓存
 
 - 申诉列表请求不会触发资金账本计算；资金与 Dashboard 资金汇总按需计算。
-- 同一状态版本复用已经结束超过三天的任务汇总；新快照只补算近期完成的结算，提现批次按当前时间推进，不重算全部历史交易。
+- 同一状态版本复用已经结束超过三天的任务汇总；新快照只补算近期完成的结算，每笔完成订单同步累计自动打款金额，不重算全部历史交易。
 - 结算排序索引增量合并新完成记录。筛选后的记录顺序、总数、金额与全量重算一致；旧分页快照保持原值。
 - 管理操作改变状态后会重建受状态版本隔离的缓存，服务重启首次访问仍需初始化历史数据。
 - 真实申诉普通列表先读取基础字段，合并分页后仅补取当前页详情。按任务名称、手机号等搜索时，现有后端列表没有这些字段，仍需要加载详情以保证搜索结果完整。

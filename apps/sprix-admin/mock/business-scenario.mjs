@@ -83,20 +83,58 @@ export function executionCountsAt(now) {
   for(let n=finishedThrough+1;n<=total;n++) counts[statusAt(n,now,finishedThrough)]++;
   return counts;
 }
-const projects=['跨境家居','智能穿戴','城市咖啡','新能源汽车','宠物食品','企业软件','户外装备','社区零售','在线教育','健康管理','文旅出行','消费电子','工业制造','本地生活','绿色能源','个人护理'];
-const templates=[
- ['市场研究','竞品价格与卖点对比','对比主要产品的价格、功能和目标客户，标注公开资料来源。','竞品对比表和结论摘要'],
- ['数据处理','商品属性标准化','统一商品属性名称、计量单位和分类，标记缺失项。','标准化数据表和异常清单'],
- ['内容运营','推广文案优化','依据目标人群调整标题和正文，保留事实信息并检查合规表述。','优化后的文案及修改说明'],
- ['金融资讯','行业周报要点提炼','提取行业动态、经营指标和风险事项，并附引用出处。','要点摘要和来源索引'],
- ['软件开发','接口用例与边界检查','检查接口输入输出、异常分支和边界条件，整理可复现步骤。','检查报告和用例清单'],
- ['设计创意','活动页面信息梳理','整理页面层级、关键文案和视觉素材需求，检查信息完整性。','页面结构说明和素材清单'],
- ['数据处理','用户反馈主题归类','按主题归类反馈，提炼高频问题并去除重复项。','分类结果和高频问题摘要'],
- ['市场研究','区域门店资料核验','核对门店地址、营业时间和服务范围，注明无法确认的信息。','核验表和来源链接'],
- ['内容运营','多语言内容校对','核对译文含义、术语和语气，检查数字及专有名词。','校对稿和术语修订表'],
- ['人力资源','岗位能力要求整理','拆解职责、技能和经验要求，合并重复描述。','岗位能力矩阵'],
- ['商务办公','会议行动项整理','提取会议决定、负责人和时间节点，标记待确认事项。','行动项清单和会议摘要'],
- ['数据处理','文档字段提取','提取指定字段并保留原文定位，对不明确的信息单独标记。','结构化字段文件和校验记录']
+// Each family supplies its own compatible subjects and complete delivery scope.
+// Keep family order stable: category also determines the existing execution timeline.
+const products=['露营灯','便携咖啡机','无线键盘','宠物饮水机','桌面收纳盒','运动耳机','旅行背包','空气净化器','智能手环','保温杯','人体工学椅','家用投影仪'];
+const families=[
+ ['市场研究',pick=>{
+   const product=pick(products,3), count=pick([3,4,5],4);
+   return [`对比 ${count} 款${product}的价格和核心功能`,`从公开产品页面选择 ${count} 款${product}，记录售价、核心功能、适用人群和资料查询日期。`,`Excel 竞品对比表，附产品链接和差异摘要`,`覆盖 ${count} 款产品；价格注明币种和查询日期，结论能对应来源。`];
+ }],
+ ['数据处理',pick=>{
+   const product=pick(products,3), count=pick([15,20,30,40],4);
+   return [`统一 ${count} 条${product}商品资料的规格字段`,`整理任务资料中 ${count} 条${product}商品记录，统一型号、尺寸、重量和单位，保留原始值并标出缺失字段。`,`Excel 商品规格表和异常清单`,`输出 ${count} 条记录；原始值与标准值可核对，不自行补造缺失信息。`];
+ }],
+ ['内容运营',pick=>{
+   const product=pick(products,3), channel=pick(['商品详情页','小红书笔记','公众号推文','邮件推广'],4);
+   return [`优化${product}的${channel}文案`,`依据任务提供的${product}资料修改${channel}文案，保留产品事实，删去重复表述和无法证实的效果承诺。`,`修改前后对照稿，附 3 个标题备选`,`产品参数与原资料一致，文案符合${channel}的表达场景，修改处有说明。`];
+ }],
+ ['金融资讯',pick=>{
+   const industry=pick(['新能源汽车','半导体','光伏设备','消费电子','医疗器械','工业机器人','储能','跨境电商'],3);
+   return [`整理${industry}行业周报中的经营数据`,`阅读任务提供的${industry}行业周报，提取销量、收入、增速及相关统计期间，区分事实数据与作者判断。`,`经营指标表和一页摘要，附原文页码`,`数字、单位和统计期间准确；每项数据可定位到原文，不补写投资建议。`];
+ }],
+ ['软件开发',pick=>{
+   const api=pick(['登录验证码','订单查询','任务接取','文件上传','分页搜索','用户资料更新','消息通知','库存查询'],3);
+   return [`补充${api}接口的异常参数测试用例`,`依据任务提供的${api}接口文档，检查必填项、类型错误、边界值和权限异常，列出请求样例与预期响应。`,`Markdown 测试用例表和 JSON 请求样例`,`用例对应现有接口字段；预期结果注明文档依据，未实际执行的用例不标为通过。`];
+ }],
+ ['设计创意',pick=>{
+   const campaign=pick(['咖啡新品试饮','露营装备上新','会员积分兑换','城市徒步报名','摄影课程预约','读书分享会','宠物领养日','周末市集'],3);
+   return [`梳理${campaign}活动页的信息结构`,`根据任务提供的${campaign}活动资料，整理页面区块、报名入口、时间地点和素材需求。`,`页面结构草图、区块文案和素材清单`,`关键活动信息与资料一致；页面层级清晰，每个操作入口注明用途。`];
+ }],
+ ['数据处理',pick=>{
+   const subject=pick(['订单售后','课程体验','物流配送','App 登录','会员服务','商品退换货','客服响应','预约流程'],3),count=pick([20,30,40,50],4);
+   return [`将 ${count} 条${subject}反馈按问题分类`,`阅读任务提供的 ${count} 条${subject}反馈，合并重复问题，保留记录编号，统计各主题数量。`,`反馈分类表和高频问题摘要`,`全部 ${count} 条反馈均有分类或待确认标记；主题统计与明细一致。`];
+ }],
+ ['市场研究',pick=>{
+   const city=pick(['杭州','成都','广州','南京','武汉','苏州','长沙','厦门','西安','青岛','宁波','重庆'],3),shop=pick(['咖啡店','书店','健身房','宠物医院','共享办公空间','摄影工作室'],4);
+   return [`核对${city} 5 家${shop}的地址和营业时间`,`根据任务中的门店清单核对${city} 5 家${shop}的地址、营业时间及预约方式，优先采用门店官方信息。`,`门店资料表，附来源链接和核对日期`,`逐家对应输入清单；无法确认的信息明确标注，不凭空补全。`];
+ }],
+ ['内容运营',pick=>{
+   const product=pick(products,3),language=pick(['英文','日文','德文','法文','西班牙文'],4);
+   return [`校对${product}商品页的${language}文案`,`对照任务提供的中文原稿检查${product}商品页的${language}译文，重点核对参数、单位、术语和使用说明。`,`修订稿和术语对照表`,`数字、型号与原稿一致；语义无遗漏，术语在全文保持一致。`];
+ }],
+ ['人力资源',pick=>{
+   const role=pick(['前端工程师','数据分析师','产品运营','客户成功经理','测试工程师','内容编辑','UI 设计师','电商运营'],3);
+   return [`整理${role}岗位的面试考察要点`,`依据任务提供的${role}职位说明，拆分职责和必备技能，为每项能力编写面试问题及判断依据。`,`岗位能力表和面试问题清单`,`问题覆盖职位说明中的核心职责；必备条件和加分项分开列出。`];
+ }],
+ ['商务办公',pick=>{
+   const meeting=pick(['产品迭代周会','客户需求评审会','项目启动会','上线复盘会','销售周会','设计评审会','供应商沟通会','季度运营复盘会'],3);
+   return [`提取${meeting}记录中的负责人和截止时间`,`整理任务提供的${meeting}记录，区分已决定事项与讨论建议，提取行动项、负责人和截止时间。`,`Excel 行动项清单和会议摘要`,`每项行动可追溯到原文；未明确的负责人或时间标记为待确认。`];
+ }],
+ ['数据处理',pick=>{
+   const doc=pick(['供应商报价单','采购订单','物流运单','设备规格说明','产品检测报告','会议报名表','展商资料','课程安排表'],3);
+   return [`将${doc} PDF 中的表格整理为 Excel`,`提取任务提供的${doc} PDF 中的表格，保留表头、单位和原文页码，合并跨页表格并标记无法辨认的单元格。`,`Excel 数据表和待确认项清单`,`表格行列与原文对应；数字和单位准确，不以推测内容替代缺失值。`];
+ }]
 ];
 const scenarios=new Map();
 export function taskScenario(index) {
@@ -105,14 +143,13 @@ export function taskScenario(index) {
  return value;
 }
 function createTaskScenario(index) {
- const h=hash(index,2), t=templates[h%templates.length];
- const project=projects[hash(index,3)%projects.length];
- const batch=1+hash(index,4)%24;
+ const family=families[hash(index,2)%families.length];
+ const pick=(values,salt)=>values[hash(index,salt)%values.length];
+ const [title,description,deliverables,acceptanceCriteria]=family[1](pick);
  // Most tasks are small, with a smaller share of higher-value analytical work.
  const tier=hash(index,5)%100;
  const reward=tier<65 ? (100+hash(index,6)%501)/100 : tier<93 ? (500+hash(index,7)%501)/100 : (1000+hash(index,8)%1801)/100;
- return {title:`${project}${t[1]}（第${batch}批）`,category:t[0],description:t[2],deliverables:t[3],reward,
-   acceptanceCriteria:'内容覆盖任务范围，来源可追溯，字段完整且格式符合要求。'};
+ return {title,category:family[0],description,cardSummary:title,deliverables,reward,acceptanceCriteria};
 }
 
 const sizes=[9,27,14,32,18,20];

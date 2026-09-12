@@ -25,6 +25,16 @@ export function viewPage(view,kind,options={}) {
  const offset=Number(options.offset ?? 0),limit=Number(options.limit ?? 20);
  if(!Number.isSafeInteger(offset)||offset<0||!Number.isSafeInteger(limit)||limit<1||limit>100) throw new Error('INVALID_PAGE');
  const {ledger}=view;
+ if(kind==='withdrawals') {
+   if(options.status && !['全部','all','已提现'].includes(options.status)) return {version:view.version,total:0,rows:[]};
+   let indexes=settledIndexes(view);
+   if(options.search || options.date) {
+     const key=JSON.stringify(['withdrawals',options.search,options.date]);
+     if(!view.lists.has(key))view.lists.set(key,indexes.filter(index=>filterRecords(kind,[ledger.withdrawalRecord(index)],options).length));
+     indexes=view.lists.get(key);
+   }
+   return {version:view.version,total:indexes.length,rows:indexes.slice(offset,offset+limit).map(ledger.withdrawalRecord)};
+ }
  if(kind==='orders' || kind==='settlements') return executionPage(view,kind,options,offset,limit);
  const filter={status:options.status,search:options.search,date:options.date,done:options.done,availableOnly:options.availableOnly};
  const key=JSON.stringify([kind,filter]);

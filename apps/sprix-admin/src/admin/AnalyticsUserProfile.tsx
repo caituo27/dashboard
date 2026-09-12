@@ -1,16 +1,7 @@
-import { displayText } from "../utils/displayText";
 import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
 import { Alert, Button, Descriptions, Modal, Spin, Typography } from 'antd';
 
-export const contextLabels: Record<string,string> = {
-  device_type:'设备类型',device_brand:'设备品牌',device_model:'设备型号',os_name:'操作系统',os_version:'系统版本',browser_name:'浏览器',browser_version:'浏览器版本',screen_resolution:'屏幕尺寸（CSS 像素）',network_type:'网络类型',carrier:'运营商',country:'国家',province:'省份',city:'城市',location_precision:'地区精度',timezone:'时区',language:'语言',base_station_id:'基站标识',context_source:'上下文来源'
-};
-export function contextValue(key: string, value: unknown) {
-  if (key === 'base_station_id' && value == null) return '不适用';
-  if (key === 'context_source' && value === 'synthetic') return '演示生成';
-  return value == null ? '—' : displayText(String(value));
-}
 type Profile = {
   user_name?:string; user_id:string; anonymous_id:string; window_days:number; first_seen:string;last_seen:string;visitor_type:string;
   session_count:number;page_views:number;event_count:number;click_count:number;accepted_tasks:number;submitted_tasks:number;failure_count:number;average_session_span_seconds:number;

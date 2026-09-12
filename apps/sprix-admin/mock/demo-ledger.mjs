@@ -221,6 +221,12 @@ export function buildDemoLedger(snapshot, state = {}) {
       taskIncome:money(gross),platformFee:money(fee),netIncome:money(gross-fee),settlementStatus:'已入账',createdAt:e.completedAt,
       paidAt:e.completedAt};
   }
+  function withdrawalRecord(index) {
+    const settlement=settlementRecord(index),id=`demo:withdrawal:${index}`;
+    return {backendId:id,withdrawalNo:id,executionId:settlement.executionId,taskId:settlement.taskId,taskTitle:settlement.taskTitle,
+      userName:settlement.userName,userPhone:settlement.userPhone,agentName:settlement.agentName,
+      applyAmount:settlement.netIncome,appliedAt:settlement.createdAt,paidAt:settlement.paidAt,withdrawStatus:'已提现',withdrawableBalance:0};
+  }
   // Numeric indexes only; individual records are constructed for the requested page.
   function recordTime(index,kind) {
     if(consumerRows.has(index)) {const e=execution(index);return timestamp(kind==='settlements'||e.status==='completed'?e.completedAt:e.status==='running'?e.startedAt:e.status==='terminated'?e.terminatedAt:e.submittedAt);}
@@ -238,5 +244,5 @@ export function buildDemoLedger(snapshot, state = {}) {
     for(const row of consumerRows.values()) if(!status || executionStatus(row.index)===status) result.push(row.index);
     return result;
   }
-  return { consumerRows, orders, stateKey, tasks, acceptanceReviews, appeals, get funds(){return readFunds();}, detail, execution, orderRecord, settlementRecord, executionIndexes, settledAt:completionTime, recordTime, generatedAt: snapshot.generatedAt };
+  return { consumerRows, orders, stateKey, tasks, acceptanceReviews, appeals, get funds(){return readFunds();}, detail, execution, orderRecord, settlementRecord, withdrawalRecord, executionIndexes, settledAt:completionTime, recordTime, generatedAt: snapshot.generatedAt };
 }

@@ -1,3 +1,4 @@
+import {DashboardFinance,financeLabels,type FinanceMetric} from "./DashboardFinance";
 import { AdminTable as Table } from "../components/AdminTable";
 import { DashboardOrders } from "./DashboardOrders";
 import type { ExecutionFilter } from "../services/dashboardRecords";
@@ -33,6 +34,7 @@ function PublicationChart({ series, days, onSelect }: { series: { key: string; l
 
 export function AdminDashboard() {
   const navigate = useNavigate();
+  const [financeMetric,setFinanceMetric] = useState<FinanceMetric | null>(null);
   const [orders,setOrders] = useState<ExecutionFilter | null>(null);
   const [period, setPeriod] = useState<AnalyticsPeriod>(7);
   const query = useDashboardAnalytics(period);
@@ -97,10 +99,9 @@ export function AdminDashboard() {
     </div>
     <Surface className="dashboard-panel">
       <div className="dashboard-panel-header"><div><h2>结算与提现</h2></div></div>
-      <div className="dashboard-finance">{[
-        ["已完成订单金额", finance.completedAmount], ["平台服务费", finance.platformFee], ["已结算净额", finance.settlementNet], ["累计已提现", finance.paidAmount], ["未提现净额", finance.remainingNet]
-      ].map(([label, value]) => <Link to="/funds" key={String(label)}><span>{label}</span><strong>{Number(value).toLocaleString("zh-CN", { style: "currency", currency: "CNY" })}</strong><small>查看记录 →</small></Link>)}</div>
+      <div className="dashboard-finance">{(Object.keys(financeLabels) as FinanceMetric[]).map(metric => <button type="button" className="text-left" onClick={()=>setFinanceMetric(metric)} key={metric}><span>{financeLabels[metric]}</span><strong>{currency(finance[metric])}</strong><small>查看记录 →</small></button>)}</div>
     </Surface>
+    {financeMetric && <DashboardFinance key={financeMetric} metric={financeMetric} amount={finance[financeMetric]} onClose={()=>setFinanceMetric(null)}/>}
     <DashboardAnalytics data={data} />
     {orders && <DashboardOrders key={orders} initialStatus={orders} onClose={()=>setOrders(null)}/> }
   </div>;

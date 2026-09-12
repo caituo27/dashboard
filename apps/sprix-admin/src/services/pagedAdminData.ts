@@ -57,7 +57,7 @@ export async function readAppealPage(options:PageOptions){
 }
 
 export async function readFundPage(kind:keyof real.AdminFundsSnapshot,options:PageOptions){
- const fundsPromise=sharedAdminRead(kind==='settlements'?'settlement-funds':'funds',kind==='settlements'?real.readRemoteSettlementFunds:real.readRemoteFunds);
+ const fundsPromise=sharedAdminRead(['settlements','withdrawals'].includes(kind)?'settlement-funds':'funds',['settlements','withdrawals'].includes(kind)?real.readRemoteSettlementFunds:real.readRemoteFunds);
  const [funds,page,demo]=await Promise.all([fundsPromise,mergePage<object>(kind,fundsPromise.then(funds=>funds[kind]),options),demoView<ReturnType<typeof fundSummary>>({kind:'fund-stats'})]);
  const live=fundSummary(funds);
  const stats=Object.fromEntries(Object.entries(live).map(([key,value])=>[key,Math.round((value+demo[key as keyof typeof demo])*100)/100])) as typeof live;

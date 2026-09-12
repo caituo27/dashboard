@@ -15,7 +15,7 @@ export function aggregateDashboard(analytics, center, funds) {
   const completedAmount = amount(settled, (row) => row.taskIncome);
   const platformFee = amount(settled, (row) => row.platformFee);
   const settlementNet = amount(settled, (row) => row.netIncome);
-  const paidAmount = amount(funds.withdrawals.filter((row) => row.withdrawStatus === "已提现"), (row) => row.applyAmount);
+  const paidAmount = funds.paidAmount ?? amount(funds.withdrawals.filter((row) => row.withdrawStatus === "已提现"), (row) => row.applyAmount);
   const publications = new Map();
   for (const task of activeTasks) {
     const date = task.publishedAt.slice(0, 10);
