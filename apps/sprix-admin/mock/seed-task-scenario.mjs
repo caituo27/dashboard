@@ -6,7 +6,6 @@ export const SEED_EXECUTION_PAGE_SIZE = 20;
 export const SEED_EXECUTION_STATUSES = Object.freeze(['running', 'reviewing', 'completed', 'terminated']);
 
 const agents = Object.freeze(['Codex Agent', 'Claude Code', 'OpenCode Agent', 'Hermes Agent']);
-const maskedPhone=(value)=>String(value??'').replace(/^(\d{3})\d{4}(\d{4})$/,'$1****$2');
 
 export function stableSeedHash(value, salt = 0) {
   let result = 2166136261 ^ salt;
@@ -135,7 +134,7 @@ export function seedExecutionRecord(task,id,state={}) {
   const agentName=agents[stableSeedHash(id,59)%agents.length];
   const executionNo=`SX-${String(stableSeedHash(task.id,61)%100000).padStart(5,'0')}-${String(parsed.ordinal).padStart(6,'0')}`;
   const common={executionId:id,executionNo,executionIndex:parsed.ordinal,taskId:task.id,taskTitle:task.title,taskCategory:task.category,
-    userId:`seed-user-${stableSeedHash(id,67)}`,userName:profile.userName,phone:maskedPhone(profile.phone),
+    userId:`seed-user-${stableSeedHash(id,67)}`,userName:profile.userName,phone:profile.phone,virtualPhone:profile.virtualPhone,
     agentId:`seed-agent-${stableSeedHash(agentName,71)%1000}`,agentName,agentScore:String(score)};
   const startedAt=executionTime(task,parsed.ordinal,0),submittedAt=executionTime(task,parsed.ordinal,1);
   if(status==='running') return {...common,currentNode:['数据准备','任务执行','质量校验'][stableSeedHash(id,73)%3],progress:`${32+stableSeedHash(id,79)%61}%`,startedAt};

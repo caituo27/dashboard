@@ -1166,7 +1166,7 @@ function AcceptanceReviewTable({
         ] satisfies ColumnsType<ReviewingExecution>
       : []),
     { title: "执行用户", dataIndex: "userName", width: 150, render: (value) => <EllipsisCell value={value} /> },
-    { title: "手机号", dataIndex: "phone", width: 170, render: (value, record) => <PhoneNumber value={value} virtualValue={record.virtualPhone} copyable /> },
+    { title: "手机号", dataIndex: "phone", width: 190, render: (value, record) => <PhoneNumber value={value} virtualValue={record.virtualPhone} copyable /> },
     { title: "执行 Agent", dataIndex: "agentName", width: 180, render: (value) => <EllipsisCell value={value} /> },
     { title: "Agent 评分", dataIndex: "agentScore", width: 110, align: "right" },
     { title: "审核来源", dataIndex: "reviewSource", width: 165, render: (value) => <SoftTag tone={value === "USER_MANUAL" ? "amber" : "neutral"}>{value === "USER_MANUAL" ? "用户人工补交" : "Agent 自动交付"}</SoftTag> },
@@ -1731,7 +1731,7 @@ function AdminExecutionRecords({
   const allColumns: ColumnsType<(typeof allRecords)[number]> = [
     { title: "执行记录 ID", dataIndex: "executionId", width: 210, render: (_, record) => <EllipsisCell value={displayExecutionId(record)} /> },
     { title: "执行用户", dataIndex: "userName", width: 160, render: (value) => <EllipsisCell value={value} /> },
-    { title: "手机号", dataIndex: "phone", render: (value, record) => <PhoneNumber value={value} virtualValue={record.virtualPhone} /> },
+    { title: "手机号", dataIndex: "phone", width: 190, render: (value, record) => <PhoneNumber value={value} virtualValue={record.virtualPhone} /> },
     { title: "执行 Agent", dataIndex: "agentName" },
     { title: "Agent 评分", dataIndex: "agentScore", width: 110, align: "right" },
     { title: "执行状态", dataIndex: "status", render: (value) => <StatusTag status={value} /> },
@@ -1742,7 +1742,7 @@ function AdminExecutionRecords({
   const runningColumns: ColumnsType<RunningExecution> = [
     { title: "执行记录 ID", dataIndex: "executionId", width: 210, render: (_, record) => <EllipsisCell value={displayExecutionId(record)} /> },
     { title: "执行用户", dataIndex: "userName", width: 160, render: (value) => <EllipsisCell value={value} /> },
-    { title: "手机号", dataIndex: "phone", render: (value, record) => <PhoneNumber value={value} virtualValue={record.virtualPhone} /> },
+    { title: "手机号", dataIndex: "phone", width: 190, render: (value, record) => <PhoneNumber value={value} virtualValue={record.virtualPhone} /> },
     { title: "执行 Agent", dataIndex: "agentName" },
     { title: "Agent 评分", dataIndex: "agentScore", align: "right" },
     { title: "当前节点", dataIndex: "currentNode", width: 120, render: (value) => <span className="whitespace-nowrap">{value}</span> },
@@ -1752,7 +1752,7 @@ function AdminExecutionRecords({
   const terminatedColumns: ColumnsType<TerminatedExecution> = [
     { title: "执行记录 ID", dataIndex: "executionId", width: 210, render: (_, record) => <EllipsisCell value={displayExecutionId(record)} /> },
     { title: "执行用户", dataIndex: "userName", width: 160, render: (value) => <EllipsisCell value={value} /> },
-    { title: "手机号", dataIndex: "phone", render: (value, record) => <PhoneNumber value={value} virtualValue={record.virtualPhone} /> },
+    { title: "手机号", dataIndex: "phone", width: 190, render: (value, record) => <PhoneNumber value={value} virtualValue={record.virtualPhone} /> },
     { title: "执行 Agent", dataIndex: "agentName" },
     { title: "终止原因", dataIndex: "terminationReason" },
     { title: "终止节点", dataIndex: "terminatedNode", width: 120, render: (value) => <span className="whitespace-nowrap">{value}</span> },
@@ -1761,7 +1761,7 @@ function AdminExecutionRecords({
   const completedColumns: ColumnsType<CompletedExecution> = [
     { title: "执行记录 ID", dataIndex: "executionId", width: 210, render: (_, record) => <EllipsisCell value={displayExecutionId(record)} /> },
     { title: "执行用户", dataIndex: "userName", width: 160, render: (value) => <EllipsisCell value={value} /> },
-    { title: "手机号", dataIndex: "phone", render: (value, record) => <PhoneNumber value={value} virtualValue={record.virtualPhone} /> },
+    { title: "手机号", dataIndex: "phone", width: 190, render: (value, record) => <PhoneNumber value={value} virtualValue={record.virtualPhone} /> },
     { title: "执行 Agent", dataIndex: "agentName" },
     { title: "验收状态", dataIndex: "acceptanceStatus", render: (value) => <StatusTag status={value} /> },
     { title: "综合评分", dataIndex: "score", align: "right" },
