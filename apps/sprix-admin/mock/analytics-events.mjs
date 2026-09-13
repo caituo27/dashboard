@@ -5,6 +5,12 @@ import { visitorContext, profileFromEvents } from "./analytics-profiles.mjs";
 // This is sampled web analytics, not the complete stream of automatic Agent executions.
 const DAY = 86400000;
 export const stages = ['task_market_view', 'task_detail_view', 'task_accept_requested', 'task_accept_succeeded', 'delivery_submitted'];
+export const behaviorEvents = [
+  {name:'查看任务详情',eventName:'task_detail_view'},
+  {name:'接单',eventName:'task_accept_succeeded'},
+  {name:'提交成果',eventName:'delivery_submitted'},
+  {name:'验收任务',eventName:'acceptance_completed'}
+];
 export const buttonNames = ['查看任务详情','确认接单','智能接单','查看执行详情','连接本地 Agent','开始测评','设为当前执行 Agent','查看收益'];
 const buttonPages=['任务市场','任务详情','任务市场','我的任务','首页','Agent 中心','Agent 中心','提现记录'];
 let cache;
@@ -98,7 +104,14 @@ export function aggregateEvents(events) {
     else { previous.stage = index; previous.last = Date.parse(event.event_time); }
     cohorts[index].add(event.user_id || event.anonymous_id);
   }
-  return {pv: views.length, uv: distinct(views), clicks: clicks.length, funnel: cohorts.map(set => set.size), buttons: buttonNames.map((name,i) => {const rows = clicks.filter(e => e.button_id === `button:${i}`); return {name, page: buttonPages[i], clicks: rows.length, users: distinct(rows)};})};
+  return {
+    pv:views.length,
+    uv:distinct(views),
+    clicks:clicks.length,
+    funnel:cohorts.map(set=>set.size),
+    buttons:buttonNames.map((name,i)=>{const rows=clicks.filter(e=>e.button_id===`button:${i}`);return {name,page:buttonPages[i],clicks:rows.length,users:distinct(rows)};}),
+    behaviors:behaviorEvents.map(item=>{const rows=events.filter(event=>event.event_name===item.eventName);return {...item,count:rows.length,users:distinct(rows)};})
+  };
 }
 export function analyticsFromEvents(period, at) {
   const now = Math.floor(at / 10000) * 10000;

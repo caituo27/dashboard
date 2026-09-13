@@ -6,6 +6,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import axios from 'axios';
 import { Alert, Button, Descriptions, Input, Modal, Select, Space } from 'antd';
 import type { AnalyticsSelection } from './AnalyticsDetails';
+import {formatCount} from '../utils/format';
 
 type EventRow = {
   event_id: string; event_name: string; event_time: string; received_at: string;
@@ -34,7 +35,7 @@ function eventDetailItems(row: EventRow) {
     ['按钮',row.button_name],
     ['任务编号',row.task_id],
     ['执行编号',row.execution_id],
-    ['耗时',row.duration_ms == null ? null : `${row.duration_ms} ms`],
+    ['耗时',row.duration_ms == null ? null : `${formatCount(row.duration_ms)} ms`],
     ['错误码',row.result==='failure'?row.error_code:null],
     ['地区',join([row.country,row.province,row.city])],
     ['设备',join([row.device_type,row.device_brand,row.device_model])],
@@ -62,9 +63,9 @@ export function AnalyticsEvents({period, startDate, endDate, selection}: {period
       <Input.Search aria-label="搜索事件关联 ID" placeholder="用户 / 任务 / 执行 / 事件 / 链路 ID" allowClear onSearch={v=>change('search',internalSearch(v))} style={{width:330}}/>
     </Space>
     {query.isError ? <Alert type="error" message="事件读取失败" action={<Button onClick={()=>query.refetch()}>重试</Button>}/> : <Table<EventRow> rowKey="event_id" size="small" loading={query.isPending || query.isPlaceholderData} dataSource={query.data?.rows ?? []} scroll={{x:1100}} pagination={{current:page,pageSize:20,total:query.data?.total ?? 0,showSizeChanger:false,onChange:setPage,showTotal:total=>`共 ${total.toLocaleString()} 条事件`}} columns={[
-      {title:'发生时间',dataIndex:'event_time',width:175,render:v=>new Date(v).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false})},
+      {title:'发生时间',dataIndex:'event_time',width:190,className:'whitespace-nowrap tabular-nums',render:v=>new Date(v).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false})},
       {title:'事件',dataIndex:'event_name',width:240},{title:'用户',dataIndex:'user_name',width:130},{title:'页面',dataIndex:'page_id',width:140},
-      {title:'结果',dataIndex:'result',render:v=>v==='success'?'成功':'失败'}, {title:'耗时 ms',dataIndex:'duration_ms',render:v=>v ?? '—'},
+      {title:'结果',dataIndex:'result',render:v=>v==='success'?'成功':'失败'}, {title:'耗时',dataIndex:'duration_ms',align:'right',render:v=>v == null?'—':`${formatCount(v)} ms`},
       {title:'操作',fixed:'right',width:180,render:(_,row)=><Space size={0}><Button type="link" onClick={()=>setDetail(row)}>查看详情</Button><Button type="link" onClick={()=>setProfileUser(row.user_id)}>用户画像</Button></Space>}
     ]}/>}
     <Modal title="事件详情" open={!!detail} onCancel={()=>setDetail(null)} footer={null} width={800} centered className="analytics-event-modal" styles={{body:{maxHeight:'min(560px, calc(100dvh - 160px))',overflowY:'auto'}}}>

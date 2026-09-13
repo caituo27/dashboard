@@ -96,6 +96,7 @@ export type TaskAttachment = {
 
 export type AdminExecutionResult = {
   executionId: string;
+  executionNo?: string;
   taskId: string;
   executionStatus: string;
   reviewSource?: "AGENT" | "USER_MANUAL";
@@ -209,8 +210,10 @@ type RemoteAdminTaskSummary = {
 type RemoteAdminExecutionRow = {
   executionId?: string;
   executionIndex?: number;
+  userId?: string;
   userName?: string;
   userPhone?: string;
+  agentId?: string;
   agentName?: string;
   agentScore?: number | null;
   executionStatus?: string;
@@ -246,8 +249,10 @@ type RemoteAcceptanceReviewRow = {
   taskId?: string;
   taskTitle?: string;
   taskCategory?: string;
+  userId?: string;
   userName?: string;
   userPhone?: string;
+  agentId?: string;
   agentName?: string;
   agentScore?: number | null;
   acceptanceStatus?: string;
@@ -426,6 +431,7 @@ export async function readRemoteAppeals(): Promise<AdminAppeal[]> {
   const response = await adminAppealApi.appeals();
   return listValue<AppealRecord>(response).map(appeal => ({
     backendId: requireText(appeal.id,"appeal.id"), appealNo: appeal.appealNo ?? appeal.id ?? "",
+    taskId: appeal.taskId,userId: appeal.userId,agentId: appeal.agentId,
     taskTitle: compactId(appeal.taskId,"任务"),taskCategory:"",userName:compactId(appeal.userId,"用户"),
     userPhone:"",agentName:compactId(appeal.agentId,"Agent"),issueSummary:(appeal.reason ?? "").slice(0,32),
     appealReason:appeal.reason ?? "",appealStatus:mapAppealStatus(appeal.status),
@@ -577,6 +583,8 @@ function mapTask(task: RemoteTaskEntity): Task {
   const description = task.description ?? "";
   return {
     id: task.id ?? "",
+    createdAt: formatDateTime(task.createdAt),
+    updatedAt: formatDateTime(task.updatedAt),
     title: task.title ?? "",
     category: task.category ?? "",
     sourceName: task.sourceName ?? "",
@@ -628,7 +636,7 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
   const completed: CompletedExecution[] = [];
 
   for (const row of rows) {
-    if (row.executionStatus === "TERMINATED") {
+    if (row.executionStatus === "TERMINATED" || row.executionStatus === "ACCEPTANCE_FAILED") {
       terminated.push({
         executionId: row.executionId,
         executionIndex: row.executionIndex,
@@ -655,8 +663,10 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
       reviewing.push({
         executionId: requireText(row.executionId, "executionId"),
         executionIndex: row.executionIndex,
+        userId: row.userId,
         userName: row.userName ?? "-",
         phone: row.userPhone ?? "-",
+        agentId: row.agentId,
         agentName: row.agentName ?? "-",
         agentScore: row.agentScore == null ? "-" : `${row.agentScore}/100`,
         acceptanceStatus: mapAcceptanceStatus(row.acceptanceStatus ?? row.acceptance?.status),
@@ -670,7 +680,9 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
         manualSubmissionDescription: row.manualSubmissionDescription ?? undefined,
         currentNode: mapCurrentNode(row.currentNode, row.currentNodeLabel),
         progress: row.progress ?? "-",
-        submittedAt: formatDateTime(row.submittedAt ?? row.completedAt ?? row.updatedAt)
+        submittedAt: formatDateTime(row.submittedAt ?? row.completedAt ?? row.updatedAt),
+        startedAt: row.startedAt ? formatDateTime(row.startedAt) : undefined,
+        updatedAt: row.updatedAt ? formatDateTime(row.updatedAt) : undefined
       });
     } else {
       completed.push({
@@ -705,8 +717,10 @@ function mapAcceptanceReview(row: RemoteAcceptanceReviewRow): ReviewingExecution
     taskId: row.taskId,
     taskTitle: row.taskTitle,
     taskCategory: row.taskCategory,
+    userId: row.userId,
     userName: row.userName ?? "-",
     phone: row.userPhone ?? "-",
+    agentId: row.agentId,
     agentName: row.agentName ?? "-",
     agentScore: row.agentScore == null ? "-" : `${row.agentScore}/100`,
     acceptanceStatus: mapAcceptanceStatus(row.acceptanceStatus ?? row.acceptance?.status),
@@ -720,7 +734,9 @@ function mapAcceptanceReview(row: RemoteAcceptanceReviewRow): ReviewingExecution
     manualSubmissionDescription: row.manualSubmissionDescription ?? undefined,
     currentNode: mapCurrentNode(row.currentNode, row.currentNodeLabel),
     progress: row.progress ?? "-",
-    submittedAt: formatDateTime(row.submittedAt ?? row.updatedAt ?? row.startedAt)
+    submittedAt: formatDateTime(row.submittedAt ?? row.updatedAt ?? row.startedAt),
+    startedAt: row.startedAt ? formatDateTime(row.startedAt) : undefined,
+    updatedAt: row.updatedAt ? formatDateTime(row.updatedAt) : undefined
   };
 }
 
@@ -744,11 +760,16 @@ function mapAppealDetail(detail: RemoteAdminAppealDetail): AdminAppeal {
   return {
     backendId: appealId,
     appealNo,
+    taskId: appeal.taskId,
     taskTitle: requireText(detail.taskTitle, "taskTitle"),
     taskCategory: requireText(detail.taskCategory, "taskCategory"),
+    taskReward: detail.taskReward?.trim() || undefined,
+    userId: appeal.userId,
     userName: requireText(detail.userName, "userName"),
-    userPhone: detail.userPhone?.trim() || "-",
+    userPhone: detail.userPhone?.trim() || "未提供",
+    agentId: appeal.agentId,
     agentName: requireText(detail.agentName, "agentName"),
+    agentScore: detail.agentScore == null ? undefined : `${detail.agentScore}/100`,
     issueSummary: reason.slice(0, 32),
     appealReason: reason,
     appealStatus: mapAppealStatus(appeal.status),
@@ -761,6 +782,10 @@ function mapAppealDetail(detail: RemoteAdminAppealDetail): AdminAppeal {
     linkedMyTaskId: requireText(detail.executionId, "executionId"),
     executionId: requireText(detail.executionId, "executionId"),
     executionIndex: requireNumber(detail.executionIndex, "executionIndex"),
+    executionStatus: mapOperationStatus(detail.executionStatus),
+    currentNode: mapCurrentNode(detail.currentNode),
+    progress: detail.progress?.trim() || "-",
+    settlementStatus: mapSettlementStatus(detail.settlementStatus),
     deliverables: requireText(detail.deliverables, "deliverables"),
     acceptanceCriteria: requireText(detail.acceptanceCriteria, "acceptanceCriteria"),
     processLogs: appeal.resultDescription ? [appeal.resultDescription] : []
@@ -777,7 +802,9 @@ function mapSettlement(settlement: RemoteSettlementRecord, taskById: Map<string,
   return {
     backendId: settlement.id,
     settlementNo: settlement.settlementNo ?? settlement.id ?? "",
+    taskId: settlement.taskId,
     taskTitle: task?.title ?? compactId(settlement.taskId, "任务"),
+    taskCategory: task?.category,
     userName: settlement.userName || compactId(settlement.userId, "用户"),
     userPhone: settlement.userPhone || "-",
     agentName: settlement.agentName || compactId(settlement.agentId, "Agent"),

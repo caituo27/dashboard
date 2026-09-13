@@ -1,14 +1,23 @@
 # Unified admin presentation data
 
-The admin preserves live backend reads and adds independent synthetic records.
+The admin preserves live backend reads for management pages and adds independent synthetic records.
+The core Dashboard period is a fixed, deterministic operating dataset sourced
+read-only from `sprixAI数据看板4.0.xlsx` (`Sheet1`, rows 3-43): 2026-07-27
+through 2026-09-06. Its cards, daily Agent split, weekly GMV, task type counts,
+quality rates, settlement formulas, task drilldowns and order drilldowns share
+the snapshot id `sprix-excel-v5.1-2026-09-06`.
 `src/services/pagedAdminData.ts` merges real and synthetic pages in chronological
-order. `adminDataSource.ts` routes details and mutations. Server-side
-`dashboard-aggregation.mjs` and the frontend use the same aggregation rules. Real requests still use the existing authenticated services; a real
-failure remains an error, never a silent fallback to demo-only statistics.
+order. `adminDataSource.ts` routes details and mutations. The Dashboard reads one
+compact, cached Mock summary and does not materialize the virtual order ledger;
+task totals, category distribution and publication trends use the deterministic
+analytics model. Task/detail Mock views remain separately materialized only when
+their rows are requested; list queries keep lightweight numeric indexes and
+instantiate business records only for the returned page.
 
 ## HTTP endpoints
 
-- `GET /mock-api/dashboard/analytics?days=7|30`: dynamic analytics and seed.
+- `GET /mock-api/dashboard/analytics?startDate=2026-07-27&endDate=2026-09-06`: Excel 4.0 core business snapshot.
+- `GET /mock-api/dashboard/analytics?days=7|28|30`: behavior analytics snapshot used by the separate behavior-analysis menu.
 - `GET /mock-api/admin/state`: seed plus persisted demo changes.
 - `POST /mock-api/admin/actions`: `{ id, action, payload }` for demo-only writes.
 
@@ -22,15 +31,19 @@ No production deployment/proxy changes have been made.
 
 The baseline at 2026-09-12 12:00 Asia/Shanghai is approximately 1.7 million
 orders, 30,000 Agents, RMB 10 million of order rewards, 45 days of operation.
-All clients share the same deterministic timeline. The seed is quantized in
-10-second buckets; real data and open admin pages refresh every 5 seconds while
-visible. Task edit forms opt out so background refresh cannot overwrite edits.
+All clients share the same deterministic timeline. Server snapshots use the
+request time. The Dashboard does not poll automatically: the user-triggered
+refresh requests a new snapshot, including data generated since the previous
+refresh. Task edit forms opt out so background refresh cannot overwrite edits.
 
-The pure `demo-ledger.mjs` builds virtual tasks and linked executions, acceptance
-records, per-task settlement batches, withdrawals and appeals from the seed.
-Each task has up to 20 executions; all demo IDs use the reserved `demo:` prefix.
+The pure `demo-ledger.mjs` exposes virtual tasks and linked executions, acceptance
+records, settlements, withdrawals and appeals from the seed.
+Each task has 9 to 32 generated executions; all demo IDs use the reserved `demo:` prefix.
 Only the compact seed and explicit patches cross HTTP, not 1.7 million records.
-The Mock HTTP service materializes and caches its virtual ledger on the server.
+The Mock HTTP service keeps only lightweight state and numeric indexes on the
+server. Task and execution objects are created for the requested page or detail;
+Dashboard requests use the compact summary cache and never trigger ledger
+materialization.
 The browser receives a compact dashboard summary, paginated list rows and requested
 details only. `/mock-api/admin/view` supports list kinds, offset/limit (max 100),
 filters and a snapshot version; previous versions are briefly retained for stable
@@ -43,9 +56,9 @@ the corresponding record time. Unknown timestamps sort last. Binary partition
 finds the merged page without fetching all earlier Mock pages. Filters run before
 pagination. The existing real backend still returns full task/finance lists.
 Real IDs and cached records are never modified.
-Dashboard task counts and status totals come from the same task summaries as the
-management pages. A real claim adds an execution, not a published task. Unknown
-real execution states remain separately counted. Agent count remains synthetic
+Dashboard task totals, category counts and publication trends use the same
+deterministic scenario and timeline model as list rows, without enumerating every
+task or execution object. A claim adds an execution, not a published task. Agent count remains synthetic
 because this admin has no global Agent-count source wired in. Behavior analytics
 also remain synthetic; no real PV/UV collection is implemented.
 
@@ -94,8 +107,8 @@ Event details expose identifiers, timestamps, identity, session, source, channel
 result, error, duration and trace fields. These remain synthetic analytics, not
 real C-end collection or authenticated backend execution evidence. The behavior
 volume is now determined by generated events, not extrapolated from order totals.
-The event stream is generated on the server and cached per 10-second bucket;
-individual metrics change only when a new relevant event exists.
+The event stream is generated deterministically on the server; individual metrics
+change only when a new relevant event exists.
 
 ## Visitor context and profiles
 
@@ -136,7 +149,9 @@ task, acceptance and appeal write routing and confirmation dialogs are preserved
 The Dashboard is the only added module. Task publication/editing, acceptance and
 appeal handling retain their existing business actions. Real acceptance approval
 continues through the original backend API, including its automatic payout flow.
-The funds page only displays settlement records and the paid amount, with paging.
+The former funds-center route and sidebar entry have been removed. Generated
+backend API bindings remain untouched; the two pending-settlement values shown
+on the Dashboard are formula outputs from type amount and quality rate.
 Manual withdrawal review, payout, payout retry/query, settlement posting and
 exception-handling controls are not exposed. Their Mock write handlers are removed;
 requests for withdrawal or settlement mutations are rejected. Unimplemented
@@ -164,8 +179,8 @@ per-execution amounts and event-to-business linkage.
 - Agent 仅使用 Codex Agent、Claude Code、OpenCode Agent、Hermes Agent。
 - 画像设定约 94% 电脑、6% 手机；这是场景假设，不是实际采集比例。手机以浏览为主，接单/执行事件限定电脑场景。
 - 点击按 `apps/sprix-agent/src/user/UserPages.tsx` 的入口生成：任务详情、确认接单、智能接单、执行详情、连接本地 Agent、Agent 测评、设置当前 Agent、收益。漏斗为市场访问→详情→发起接单→接单成功→Agent 交付；不再生成“评估任务”和“人工提交交付”按钮。
-- 服务快照 10 秒更新。订单采用日内及 10/30 分钟负载波动；Agent 增长采用独立曲线；任务提前约 100～140 分钟发布，发布与接单不再同一次刷新固定增加。历史基准仍为 2026-07-29 开始、2026-09-12 中午约 170 万单 / 3 万 Agent。
-- C 端本地开发默认启用共用数据（`VITE_SHARED_MOCK=false` 可关闭）。`/mock-api` 代理到管理端 `http://127.0.0.1:5174`，可用 `SPRIX_MOCK_PROXY_TARGET` 调整，必须启动该管理端服务。只有该服务写入 Mock 状态，避免两个进程同时改状态文件。
+- 服务快照按请求时间生成。Dashboard 不自动轮询，手动刷新会取得刷新时刻的最新日内数据。订单采用日内及 10/30 分钟负载波动；Agent 增长采用独立曲线；任务提前约 100～140 分钟发布，发布与接单不再同一次刷新固定增加。历史基准仍为 2026-07-29 开始、2026-09-12 中午约 170 万单 / 3 万 Agent。
+- C 端本地开发默认启用共用数据（`VITE_SHARED_MOCK=false` 可关闭）。`/mock-api` 代理到管理端 `http://127.0.0.1:5174`，可用 `SPRIX_MOCK_PROXY_TARGET` 调整。管理端服务不可用时，登录态快照中的 C 端 Mock 读取降级为空，真实接口结果仍可使用。只有管理端服务写入 Mock 状态，避免两个进程同时改状态文件。
 - C 端市场只展示已发布且剩余名额大于 0 的任务；Mock 在服务端过滤后统计总数并分页，真实任务同样过滤。真实任务保留在前，补充任务每页按 HTTP 加载 20 条；详情按 ID 请求。名额耗尽后从市场移除，管理端及我的任务保留对应记录。已登录账号的模拟执行以浏览器内的账号范围标识隔离。模拟接单保存到同一个状态文件；2～8 分钟后待验收，管理端审核通过后自动生成模拟结算。没有真实 Agent 运行或真实转账。
 - 真实任务仍调用原后端。模拟 ID 不发送到真实写接口；模拟申诉暂不支持，真实申诉保持原样。生产构建关闭 C 端 Mock 接入，未改远程数据库或部署配置。
 
@@ -223,12 +238,13 @@ by 64 (in particular, distinct users cannot be scaled that way).
 The historical growth curve and total-order baseline remain unchanged. This
 change corrects timing and measurement scope; it does not claim that throughput
 has been calibrated against real active-Agent capacity. Snapshot granularity is
-still 10 seconds and dashboard polling is still 5 seconds.
+10 seconds. The dashboard does not poll automatically; an explicit refresh reads
+the latest snapshot and retained versions keep paged drilldowns stable.
 
 ### 列表加载与增量缓存
 
-- 申诉列表请求不会触发资金账本计算；资金与 Dashboard 资金汇总按需计算。
-- 同一状态版本复用已经结束超过三天的任务汇总；新快照只补算近期完成的结算，每笔完成订单同步累计自动打款金额，不重算全部历史交易。
-- 结算排序索引增量合并新完成记录。筛选后的记录顺序、总数、金额与全量重算一致；旧分页快照保持原值。
-- 管理操作改变状态后会重建受状态版本隔离的缓存，服务重启首次访问仍需初始化历史数据。
+- Dashboard 和资金统计读取紧凑汇总，不会触发任务、订单或资金明细账本生成。
+- 任务列表扫描轻量元数据索引以计算筛选总数，只实例化当前页任务；详情只实例化目标任务及其 9～32 条执行记录。
+- 订单、结算和提现列表缓存数字执行索引，具体订单/资金记录只为当前页构造；申诉与待验收只扫描可能仍在生命周期内的区间。
+- 管理操作改变状态后会创建新的状态版本缓存；旧分页快照在保留期内继续使用原版本，保证翻页稳定。
 - 真实申诉普通列表先读取基础字段，合并分页后仅补取当前页详情。按任务名称、手机号等搜索时，现有后端列表没有这些字段，仍需要加载详情以保证搜索结果完整。

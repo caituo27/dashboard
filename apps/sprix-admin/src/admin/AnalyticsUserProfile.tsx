@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
 import { Alert, Button, Descriptions, Modal, Spin, Typography } from 'antd';
+import {formatCount} from '../utils/format';
 
 type Profile = {
   user_name?:string; user_id:string; anonymous_id:string; window_days:number; first_seen:string;last_seen:string;visitor_type:string;
@@ -20,10 +21,10 @@ export function AnalyticsUserProfile({userId,onClose}:{userId:string|null;onClos
         {key:'type',label:'回访情况',children:profile.visitor_type},
         {key:'first',label:'窗口内首次访问',children:date(profile.first_seen)},{key:'last',label:'最近访问',children:date(profile.last_seen)},
 
-        {key:'pv',label:'页面浏览量',children:profile.page_views},{key:'clicks',label:'按钮点击次数',children:profile.click_count},
-        {key:'accept',label:'成功接取任务',children:profile.accepted_tasks},{key:'submit',label:'提交交付任务',children:profile.submitted_tasks},
-        {key:'sessions',label:'访问次数',children:profile.session_count},
-        {key:'pages',label:'常用页面',children:profile.top_pages.map(row=>`${pageNames[row.page] ?? row.page}（${row.views} 次）`).join('、') || '—'}
+        {key:'pv',label:'页面浏览量',children:formatCount(profile.page_views)},{key:'clicks',label:'按钮点击次数',children:formatCount(profile.click_count)},
+        {key:'accept',label:'成功接取任务',children:formatCount(profile.accepted_tasks)},{key:'submit',label:'提交交付任务',children:formatCount(profile.submitted_tasks)},
+        {key:'sessions',label:'访问次数',children:formatCount(profile.session_count)},
+        {key:'pages',label:'常用页面',children:profile.top_pages.map(row=>`${pageNames[row.page] ?? row.page}（${formatCount(row.views)} 次）`).join('、') || '—'}
       ]}/>
       <Typography.Title level={5}>地区与设备</Typography.Title>
       <Descriptions bordered size="small" column={2} items={[

@@ -1,20 +1,27 @@
 import { sharedAdminRead } from "./adminQueryClient";
 import { internalSearch } from "../utils/displayText";
-import {fundSummary} from "../../mock/fund-summary.mjs";
 import axios from 'axios';
 import * as real from './sprixApi';
 import {compareRecords,filterRecords} from '../../mock/record-order.mjs';
 import type {Task,ReviewingExecution,AdminAppeal} from '../types';
 import type {DashboardAnalyticsSnapshot} from './dashboardAnalyticsMock';
-export type PageOptions={page:number;pageSize:number;status?:string;search?:string;date?:string;startDate?:string;endDate?:string;category?:string;done?:string};
+export type PageOptions={page:number;pageSize:number;status?:string;search?:string;date?:string;startDate?:string;endDate?:string;endAt?:string;category?:string;lifecycleStage?:string;done?:string;demoOnly?:boolean;snapshotVersion?:string};
 export type PageResult<T>={rows:T[];total:number;page:number};
 export async function demoView<T>(params:Record<string,unknown>):Promise<T>{return (await axios.get<T>('/mock-api/admin/view',{params,timeout:15000})).data;}
+export function filterAvailableAppealDetails(rows:Array<AdminAppeal|null>):AdminAppeal[]{return rows.filter((row):row is AdminAppeal=>row!==null);}
+async function readAppealDetailForList(id:string):Promise<AdminAppeal|null>{
+ try{return await real.readCachedAppealDetail(id);}
+ catch(error){
+  if(axios.isAxiosError(error)&&error.response?.status===404)return null;
+  throw error;
+ }
+}
 // Locate the merged page with a binary partition. Only O(log realCount) tiny
 // boundary requests and one page are read from the mock service, even on last page.
 export async function mergePage<T>(kind:string,realRows:T[] | Promise<T[]>,options:PageOptions,fetch=demoView):Promise<PageResult<T>> {
- const filters={status:options.status,search:options.search ? internalSearch(options.search) : undefined,date:options.date,startDate:options.startDate,endDate:options.endDate,category:options.category,done:options.done};
+ const filters={status:options.status,search:options.search ? internalSearch(options.search) : undefined,date:options.date,startDate:options.startDate,endDate:options.endDate,endAt:options.endAt,category:options.category,lifecycleStage:options.lifecycleStage,done:options.done};
  type Slice={rows:T[];total:number;version:string};
- const [first,source]=await Promise.all([fetch<Slice>({kind,...filters,offset:0,limit:options.pageSize}),realRows]);
+ const [first,source]=await Promise.all([fetch<Slice>({kind,...filters,version:options.snapshotVersion,offset:0,limit:options.pageSize}),realRows]);
  const sorted=filterRecords(kind,source,filters).sort((a,b)=>compareRecords(kind,a as object,b as object));
  const total=first.total+sorted.length,page=Math.min(Math.max(1,options.page),Math.max(1,Math.ceil(total/options.pageSize))),skip=(page-1)*options.pageSize;
  if(skip===0) return {total,page,rows:[...sorted.slice(0,options.pageSize),...first.rows].sort((a,b)=>compareRecords(kind,a as object,b as object)).slice(0,options.pageSize)};
@@ -33,14 +40,19 @@ export async function mergePage<T>(kind:string,realRows:T[] | Promise<T[]>,optio
 }
 export const readDemoDashboard=()=>demoView<DashboardAnalyticsSnapshot>({kind:'dashboard'});
 export async function readTaskPage(options:PageOptions){
+ if(options.demoOnly){
+  const [result,demo]=await Promise.all([mergePage<Task>('tasks',[],options),readDemoDashboard()]);
+  return {...result,stats:{total:demo.operations.taskTotal,published:demo.operations.publishedTasks,offline:demo.operations.taskTotal-demo.operations.publishedTasks,executions:demo.overview.orders,reviews:demo.operations.pendingAcceptance ?? 0,appeals:demo.operations.appeals}};
+ }
  const centerPromise=sharedAdminRead('center',real.readRemoteTaskCenterSnapshot);
  const [center,demo,result]=await Promise.all([centerPromise,readDemoDashboard(),mergePage<Task>('tasks',centerPromise.then(center=>center.tasks),options)]);
  return {...result,stats:{total:center.tasks.filter(t=>t.taskStatus!=='已删除').length+demo.operations.taskTotal,published:center.tasks.filter(t=>t.taskStatus==='已发布').length+demo.operations.publishedTasks,offline:center.tasks.filter(t=>t.taskStatus==='已下线').length+demo.operations.taskTotal-demo.operations.publishedTasks,executions:center.tasks.reduce((sum,t)=>sum+(t.executionTotal ?? 0),0)+demo.overview.orders,reviews:center.acceptanceReviews.length+(demo.operations.pendingAcceptance ?? 0),appeals:center.appealCount+demo.operations.appeals}};
 }
 export async function readAcceptancePage(options:PageOptions){
  const sourcePromise=sharedAdminRead('acceptance',real.readRemoteAcceptanceReviews);
- const [source,result,stats]=await Promise.all([sourcePromise,mergePage<ReviewingExecution>('acceptance',sourcePromise,options),demoView<{tasks:number;users:number}>({kind:'acceptance-stats'})]);
- return {...result,taskCount:new Set(source.map(r=>r.taskId ?? r.taskTitle)).size+stats.tasks,userCount:new Set(source.map(r=>r.userName)).size+stats.users};
+ const [source,result,stats]=await Promise.all([sourcePromise,mergePage<ReviewingExecution>('acceptance',sourcePromise,options),demoView<{tasks:number;users:number}>({kind:'acceptance-stats',category:options.category})]);
+ const filteredSource=options.category?source.filter(row=>row.taskCategory===options.category):source;
+ return {...result,taskCount:new Set(filteredSource.map(r=>r.taskId ?? r.taskTitle)).size+stats.tasks,userCount:new Set(filteredSource.map(r=>r.userId ?? r.phone ?? r.userName)).size+stats.users};
 }
 export async function readAcceptanceDetail(id:string){
  if(id.startsWith('demo:')){try{return await demoView<ReviewingExecution>({kind:'acceptance-detail',id});}catch(error){if(axios.isAxiosError(error)&&error.response?.status===404)return null;throw error;}}
@@ -48,18 +60,14 @@ export async function readAcceptanceDetail(id:string){
 }
 export async function readAppealPage(options:PageOptions){
  const rowsPromise=sharedAdminRead('appeals',real.readRemoteAppeals);
- // Full-text search needs hydrated names; ordinary navigation only hydrates the visible page.
- const searchable=options.search ? rowsPromise.then(rows=>Promise.all(rows.map(row=>real.readCachedAppealDetail(row.backendId!)))) : rowsPromise;
- const [rows,page,demoStats]=await Promise.all([rowsPromise,mergePage<AdminAppeal>('appeals',searchable,options),demoView<{pending:number;processing:number;today:number;done:number}>({kind:'appeal-stats'})]);
+ // Full-text search and category filtering need the task fields from appeal details;
+ // ordinary navigation only hydrates the visible page.
+ const searchable=options.search || options.category
+  ? rowsPromise.then(rows=>Promise.all(rows.map(row=>readAppealDetailForList(row.backendId!))).then(filterAvailableAppealDetails))
+  : rowsPromise;
+ const [rows,page,demoStats]=await Promise.all([rowsPromise,mergePage<AdminAppeal>('appeals',searchable,options),demoView<{pending:number;processing:number;today:number;done:number}>({kind:'appeal-stats',category:options.category})]);
  const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai'}).format(new Date());
- const visible=await Promise.all(page.rows.map(row=>row.backendId && !row.backendId.startsWith('demo:') ? real.readCachedAppealDetail(row.backendId) : row));
- return {...page,rows:visible,stats:{pending:demoStats.pending+rows.filter(r=>r.appealStatus==='待处理').length,processing:demoStats.processing+rows.filter(r=>r.appealStatus==='处理中').length,today:demoStats.today+rows.filter(r=>r.submittedAt.startsWith(today)).length,done:demoStats.done+rows.filter(r=>['申诉通过','申诉不通过'].includes(r.appealStatus)).length}};
-}
-
-export async function readFundPage(kind:keyof real.AdminFundsSnapshot,options:PageOptions){
- const fundsPromise=sharedAdminRead(['settlements','withdrawals'].includes(kind)?'settlement-funds':'funds',['settlements','withdrawals'].includes(kind)?real.readRemoteSettlementFunds:real.readRemoteFunds);
- const [funds,page,demo]=await Promise.all([fundsPromise,mergePage<object>(kind,fundsPromise.then(funds=>funds[kind]),options),demoView<ReturnType<typeof fundSummary>>({kind:'fund-stats'})]);
- const live=fundSummary(funds);
- const stats=Object.fromEntries(Object.entries(live).map(([key,value])=>[key,Math.round((value+demo[key as keyof typeof demo])*100)/100])) as typeof live;
- return {...page,stats,settlements:kind==='settlements'?page.rows as real.AdminFundsSnapshot['settlements']:[],withdrawals:kind==='withdrawals'?page.rows as real.AdminFundsSnapshot['withdrawals']:[],payouts:kind==='payouts'?page.rows as real.AdminFundsSnapshot['payouts']:[],fundExceptions:kind==='fundExceptions'?page.rows as real.AdminFundsSnapshot['fundExceptions']:[],fundFlows:kind==='fundFlows'?page.rows as real.AdminFundsSnapshot['fundFlows']:[]};
+ const visible=filterAvailableAppealDetails(await Promise.all(page.rows.map(row=>row.backendId && !row.backendId.startsWith('demo:') ? readAppealDetailForList(row.backendId) : row)));
+ const filteredRows=options.category?rows.filter(row=>row.taskCategory===options.category):rows;
+ return {...page,rows:visible,stats:{pending:demoStats.pending+filteredRows.filter(r=>r.appealStatus==='待处理').length,processing:demoStats.processing+filteredRows.filter(r=>r.appealStatus==='处理中').length,today:demoStats.today+filteredRows.filter(r=>r.submittedAt.startsWith(today)).length,done:demoStats.done+filteredRows.filter(r=>['申诉通过','申诉不通过'].includes(r.appealStatus)).length}};
 }

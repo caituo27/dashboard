@@ -28,9 +28,9 @@ function Sidebar() {
             <Link
               key={route.key}
               to={route.path}
-              className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium no-underline transition ${
+              className={`sprix-sidebar-link flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium no-underline transition ${
                 active
-                  ? "bg-pill text-white"
+                  ? "is-active"
                   : "text-ink-soft hover:bg-[#f2f3f5] hover:text-ink"
               }`}
             >

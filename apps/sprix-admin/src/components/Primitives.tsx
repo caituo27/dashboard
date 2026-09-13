@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Button, Empty, Tag as AntTag } from "antd";
 import type { ButtonProps } from "antd";
 import { CheckCircle2, Clock3, CircleAlert, CircleDollarSign, PlugZap } from "lucide-react";
+import { formatCount } from "../utils/format";
 
 export function PageHeader({
   title,
@@ -85,6 +86,7 @@ export function MetricCard({
   onClick?: () => void;
   active?: boolean;
 }) {
+  const displayValue = typeof value === "number" ? formatCount(value) : value;
   const content = (
       <div className="flex items-start gap-3">
         <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-[#e7f7f2] text-accent">
@@ -92,7 +94,7 @@ export function MetricCard({
         </div>
         <div className="min-w-0">
           <p className="text-xs font-medium text-ink-soft">{title}</p>
-          <div className="mt-1 text-2xl font-semibold tabular-nums leading-none text-ink">{value}</div>
+          <div className="mt-1 text-2xl font-semibold tabular-nums leading-none tracking-[-0.02em] text-ink">{displayValue}</div>
           {caption && <p className="mt-1 text-xs text-ink-soft">{caption}</p>}
         </div>
       </div>

@@ -1,4 +1,4 @@
-import {indexAt,publishedTaskCount,publicationTime,taskScenario,executionCountsAt} from "./business-scenario.mjs";
+import {agentsAt,indexAt,publishedTaskCount,executionCountsAt,TASK_CATEGORY_WEIGHTS} from "./business-scenario.mjs";
 import { analyticsFromEventsRange } from "./analytics-events.mjs";
 // Presentation model, not collected business data. A fixed epoch makes all
 // processes and users agree; restarts never reset the totals.
@@ -9,12 +9,9 @@ const STARTED_AT = BASELINE_AT - 45 * DAY;
 const APPROVED_PERIOD_START = Date.parse("2026-09-05T00:00:00+08:00");
 const APPROVED_CUTOFF_AT = Date.parse("2026-09-11T23:59:59+08:00");
 const DAILY_SHAPE = Object.freeze([0.88, 0.94, 1.08, 1.02, 0.96, 1.04, 1.08]);
-export const DASHBOARD_CUMULATIVE_TOTALS = Object.freeze({
-  orders: 1_706_482,
-  tasks: 1_428_376,
-  users: 18_463,
-  agents: 30_218,
-  amount: 10_284_630
+const DASHBOARD_BASELINE_TOTALS = Object.freeze({
+  amount: 10_284_630,
+  users: 18_463
 });
 const APPROVED_WEEKLY = Object.freeze({
   acceptedGmv: {value:326_840,previous:290_260,change:12.6},
@@ -31,20 +28,6 @@ const APPROVED_WEEKLY = Object.freeze({
   pv:{value:92_481,previous:82_486,change:12.1},
   pvPerUv:{value:3.45,previous:3.33,change:3.4}
 });
-const CATEGORY_TOTALS = [
-  {category:'数据标注',count:608_432},
-  {category:'工具类',count:453_211},
-  {category:'内容处理',count:176_918},
-  {category:'数据处理',count:112_683},
-  {category:'其他',count:77_132}
-];
-// The admin dashboard is a daily report. During a calendar day every request
-// reads the same completed snapshot, cut off at 23:59 on the previous day.
-export function dashboardCutoffAt(at = Date.now()) {
-  const startOfToday = Math.floor((at + CHINA_OFFSET) / DAY) * DAY - CHINA_OFFSET;
-  return startOfToday - 1_000;
-}
-
 function parseDateKey(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value ?? "")) throw new RangeError("日期格式必须为 YYYY-MM-DD");
   const timestamp = Date.parse(`${value}T00:00:00+08:00`);
@@ -85,11 +68,13 @@ function dailyMetric(weeklyTotal, timestamp, shift = 0, weeklyGrowth = 1.035) {
   values[6] += weekTotal-values.reduce((total,value)=>total+value,0);
   return values[dayInWeek];
 }
-function dailyBusinessAt(timestamp) {
-  const publishedTasks = dailyMetric(APPROVED_WEEKLY.publishedTasks, timestamp, 0, 17_826/17_358);
-  const acceptedTasks = Math.min(publishedTasks, dailyMetric(APPROVED_WEEKLY.agentAcceptedTasks, timestamp, 0, 13_621/12_897));
-  const completedTasks = Math.min(acceptedTasks, dailyMetric(APPROVED_WEEKLY.completedTasks, timestamp, 0, 12_084/11_233));
-  const acceptancePassedTasks = Math.min(completedTasks, dailyMetric(APPROVED_WEEKLY.acceptancePassedTasks, timestamp, 0, 11_154/10_301));
+function dailyBusinessAt(timestamp, cutoff = timestamp + DAY) {
+  const elapsed = Math.max(0,Math.min(1,(cutoff-timestamp)/DAY));
+  const partial = value => Math.round(value*elapsed);
+  const publishedTasks = partial(dailyMetric(APPROVED_WEEKLY.publishedTasks, timestamp, 0, 17_826/17_358));
+  const acceptedTasks = Math.min(publishedTasks, partial(dailyMetric(APPROVED_WEEKLY.agentAcceptedTasks, timestamp, 0, 13_621/12_897)));
+  const completedTasks = Math.min(acceptedTasks, partial(dailyMetric(APPROVED_WEEKLY.completedTasks, timestamp, 0, 12_084/11_233)));
+  const acceptancePassedTasks = Math.min(completedTasks, partial(dailyMetric(APPROVED_WEEKLY.acceptancePassedTasks, timestamp, 0, 11_154/10_301)));
   return {
     date: weekKey(timestamp),
     timestamp,
@@ -97,13 +82,13 @@ function dailyBusinessAt(timestamp) {
     acceptedTasks,
     completedTasks,
     acceptancePassedTasks,
-    acceptedGmv: dailyMetric(APPROVED_WEEKLY.acceptedGmv.value, timestamp, 4, APPROVED_WEEKLY.acceptedGmv.value/APPROVED_WEEKLY.acceptedGmv.previous),
-    uv: dailyMetric(APPROVED_WEEKLY.uv.value, timestamp, 5, APPROVED_WEEKLY.uv.value/APPROVED_WEEKLY.uv.previous),
-    pv: dailyMetric(APPROVED_WEEKLY.pv.value, timestamp, 6, APPROVED_WEEKLY.pv.value/APPROVED_WEEKLY.pv.previous)
+    acceptedGmv: partial(dailyMetric(APPROVED_WEEKLY.acceptedGmv.value, timestamp, 4, APPROVED_WEEKLY.acceptedGmv.value/APPROVED_WEEKLY.acceptedGmv.previous)),
+    uv: partial(dailyMetric(APPROVED_WEEKLY.uv.value, timestamp, 5, APPROVED_WEEKLY.uv.value/APPROVED_WEEKLY.uv.previous)),
+    pv: partial(dailyMetric(APPROVED_WEEKLY.pv.value, timestamp, 6, APPROVED_WEEKLY.pv.value/APPROVED_WEEKLY.pv.previous))
   };
 }
-function dailyBusinessRange(start, period) {
-  return Array.from({length:period},(_,index)=>dailyBusinessAt(start+index*DAY));
+function dailyBusinessRange(start, period, cutoff = Infinity) {
+  return Array.from({length:period},(_,index)=>dailyBusinessAt(start+index*DAY,cutoff));
 }
 function sumRows(rows,key) { return rows.reduce((total,row)=>total+row[key],0); }
 function changeOf(value, previous, difference = false) {
@@ -127,43 +112,48 @@ function cumulativeOverview(now) {
   const anchorDay = dayStartAt(APPROVED_CUTOFF_AT);
   const direction = currentDay >= anchorDay ? 1 : -1;
   const rows = [];
-  for (let day = direction > 0 ? anchorDay + DAY : currentDay + DAY; direction > 0 ? day <= currentDay : day <= anchorDay; day += DAY) rows.push(dailyBusinessAt(day));
+  for (let day = direction > 0 ? anchorDay + DAY : currentDay + DAY; direction > 0 ? day <= currentDay : day <= anchorDay; day += DAY) rows.push(dailyBusinessAt(day,now));
   const signed = value => direction * value;
   return {
-    orders:DASHBOARD_CUMULATIVE_TOTALS.orders+signed(sumRows(rows,'acceptedTasks')),
-    tasks:DASHBOARD_CUMULATIVE_TOTALS.tasks+signed(sumRows(rows,'publishedTasks')),
-    users:DASHBOARD_CUMULATIVE_TOTALS.users+signed(rows.reduce((total,row)=>total+dailyMetric(154,row.timestamp,2),0)),
-    agents:DASHBOARD_CUMULATIVE_TOTALS.agents+signed(rows.reduce((total,row)=>total+dailyMetric(217,row.timestamp,4),0)),
-    amount:DASHBOARD_CUMULATIVE_TOTALS.amount+signed(sumRows(rows,'acceptedGmv'))
+    orders:indexAt(now),
+    tasks:publishedTaskCount(now),
+    users:DASHBOARD_BASELINE_TOTALS.users+signed(rows.reduce((total,row)=>total+dailyMetric(154,row.timestamp,2),0)),
+    agents:agentsAt(now),
+    amount:DASHBOARD_BASELINE_TOTALS.amount+signed(sumRows(rows,'acceptedGmv'))
   };
 }
 function trendBuckets(selected) {
-  const bucketDays=selected.period<=14?1:7;
+  const bucketDays=selected.period<=14?1:selected.period===30?5:7;
   return Array.from({length:Math.ceil(selected.period/bucketDays)},(_,index)=>{
     const start=selected.start+index*bucketDays*DAY;
     const end=Math.min(selected.end,start+(bucketDays-1)*DAY);
     return {startDate:weekKey(start),endDate:weekKey(end),days:Math.round((end-start)/DAY)+1};
   });
 }
-function periodTrendPoints(selected,dailyBusiness) {
+function periodTrendPoints(selected,dailyBusiness,cutoff) {
   const buckets=trendBuckets(selected);
   const keys=['acceptedGmv','publishedTasks','acceptedTasks','completedTasks'];
   const result={};
   for(const metric of keys){
     const values=buckets.map(bucket=>dailyBusiness.filter(row=>row.date>=bucket.startDate&&row.date<=bucket.endDate).reduce((total,row)=>total+row[metric],0));
-    result[metric]=buckets.map((bucket,index)=>({...bucket,value:values[index],previous:index?values[index-1]:undefined}));
+    const previousValues=buckets.map(bucket=>{
+      const start=Date.parse(`${bucket.startDate}T00:00:00+08:00`)-bucket.days*DAY;
+      return sumRows(dailyBusinessRange(start,bucket.days,cutoff-bucket.days*DAY),metric);
+    });
+    result[metric]=buckets.map((bucket,index)=>({...bucket,value:values[index],previous:index?previousValues[index]:undefined}));
   }
-  const averageValues=buckets.map(bucket=>{
+  result.averageTaskValue=buckets.map((bucket,index)=>{
     const rows=dailyBusiness.filter(row=>row.date>=bucket.startDate&&row.date<=bucket.endDate);
-    return Math.round(sumRows(rows,'acceptedGmv')/Math.max(1,sumRows(rows,'acceptancePassedTasks'))*10)/10;
+    const prior=dailyBusinessRange(Date.parse(`${bucket.startDate}T00:00:00+08:00`)-bucket.days*DAY,bucket.days,cutoff-bucket.days*DAY);
+    const value=Math.round(sumRows(rows,'acceptedGmv')/Math.max(1,sumRows(rows,'acceptancePassedTasks'))*10)/10;
+    const previous=Math.round(sumRows(prior,'acceptedGmv')/Math.max(1,sumRows(prior,'acceptancePassedTasks'))*10)/10;
+    return {...bucket,value,previous:index?previous:undefined};
   });
-  result.averageTaskValue=buckets.map((bucket,index)=>({...bucket,value:averageValues[index],previous:index?averageValues[index-1]:undefined}));
   return result;
 }
 
 export function createAnalyticsSnapshot(period = 7, at = Date.now(), range) {
-  const isDailyCutoff = (at + CHINA_OFFSET + 1_000) % DAY === 0;
-  const now = isDailyCutoff ? at : dashboardCutoffAt(at);
+  const now = at;
   const selected = analyticsRange(period, now, range);
   const orders = indexAt(now);
   const {running,reviewing,completed,terminated} = executionCountsAt(now);
@@ -173,14 +163,12 @@ export function createAnalyticsSnapshot(period = 7, at = Date.now(), range) {
   const platformFee = Math.floor(completedAmount * 0.10 * 100) / 100;
   const settlementNet = Math.round((completedAmount - platformFee) * 100) / 100;
   const paidAmount = settlementNet;
-  const latestTasks = Array.from({length:Math.min(5,taskTotal)},(_,offset)=>{
-    const id=taskTotal-offset;
-    return {id:`demo:task:${id}`,...taskScenario(id),taskStatus:'已发布',publishedAt:new Date(publicationTime(id)).toISOString()};
-  });
   const rawAnalytics = analyticsFromEventsRange(selected.start, selected.period, now);
-  const businessDays = dailyBusinessRange(selected.start,selected.period);
-  const previousDays = dailyBusinessRange(selected.start-selected.period*DAY,selected.period);
-  const daily = rawAnalytics.daily.map((day,index)=>({...day,pv:businessDays[index].pv,uv:Math.min(businessDays[index].uv,businessDays[index].pv)}));
+  const businessDays = dailyBusinessRange(selected.start,selected.period,now);
+  // Compare a partial current day with the same elapsed point in the previous
+  // period. Historical ranges are already complete at both cutoffs.
+  const previousDays = dailyBusinessRange(selected.start-selected.period*DAY,selected.period,now-selected.period*DAY);
+  const daily = rawAnalytics.daily;
   const total = key => sumRows(businessDays,key);
   const previousTotal = key => sumRows(previousDays,key);
   const publishedTasks=total('publishedTasks');
@@ -230,23 +218,13 @@ export function createAnalyticsSnapshot(period = 7, at = Date.now(), range) {
   };
   const activeSeries = businessDays.map(row=>dailyParticipation(APPROVED_WEEKLY.activeAgents.value,row,activeAgentGrowth,0));
   const acceptingSeries = businessDays.map((row,index)=>Math.min(activeSeries[index],dailyParticipation(APPROVED_WEEKLY.acceptingAgents.value,row,acceptingAgentGrowth,2)));
-  const behaviors = [
-    {name:'查看任务详情',eventName:'task_detail_view',users:12_329,count:31_826,conversion:45.9},
-    {name:'接单',eventName:'task_accept_succeeded',users:5_842,count:12_301,conversion:21.6},
-    {name:'提交成果',eventName:'delivery_submitted',users:4_982,count:8_736,conversion:18.4},
-    {name:'验收任务',eventName:'acceptance_completed',users:3_461,count:5_228,conversion:12.1}
-  ].map(item=>{
-    const count=Math.round(publishedTasks*(item.count/APPROVED_WEEKLY.publishedTasks));
-    const users=Math.min(count,Math.round(count*(item.users/item.count)));
-    return {...item,count,users,conversion:Math.round(users/Math.max(1,total('uv'))*1_000)/10};
-  });
+  const behaviors = rawAnalytics.behaviors.map(item=>({...item,conversion:Math.round(item.users/Math.max(1,rawAnalytics.uv)*1_000)/10}));
   const overview=cumulativeOverview(now);
-  const categoryCounts=rebalance(CATEGORY_TOTALS.map(item=>item.count),overview.tasks);
+  const categoryCounts=rebalance(TASK_CATEGORY_WEIGHTS.map(item=>item.weight),overview.tasks);
   return {
     period:selected.period,
     periodStart:new Date(selected.start + CHINA_OFFSET).toISOString().slice(0, 10),
     periodEnd:new Date(selected.end + CHINA_OFFSET).toISOString().slice(0, 10),
-    latestTasks,
     finance: { completedAmount, platformFee, settlementNet, paidAmount, remainingNet: Math.round((settlementNet - paidAmount) * 100) / 100 },
     operations: {
       taskTotal,
@@ -257,7 +235,7 @@ export function createAnalyticsSnapshot(period = 7, at = Date.now(), range) {
       pendingPayouts: 0,
       appeals: Math.floor(Math.max(0,orders-running-reviewing)/825),
       taskPublications: businessDays.map(item=>({date:item.date,count:item.publishedTasks})),
-      publishedTaskCategories:CATEGORY_TOTALS.map((item,index)=>({...item,count:categoryCounts[index]}))
+      publishedTaskCategories:TASK_CATEGORY_WEIGHTS.map((item,index)=>({category:item.category,count:categoryCounts[index]}))
     },
     generatedAt: new Date(now).toISOString(),
     overview: {
@@ -267,7 +245,7 @@ export function createAnalyticsSnapshot(period = 7, at = Date.now(), range) {
     },
     businessResults,
     taskOperations,
-    businessTrends:periodTrendPoints(selected,businessDays),
+    businessTrends:periodTrendPoints(selected,businessDays,now),
     agentEcosystem:{
       totalAgents:overview.agents,
       activeAgents:businessResults.activeAgents,
@@ -275,11 +253,11 @@ export function createAnalyticsSnapshot(period = 7, at = Date.now(), range) {
       averageAcceptedTasksPerAgent:businessResults.averageAcceptedTasksPerAgent,
       daily:daily.map((day,index)=>({date:day.date,activeAgents:activeSeries[index],acceptingAgents:acceptingSeries[index]}))
     },
-    behaviors,
     ...rawAnalytics,
+    behaviors,
     daily,
-    pv:total('pv'),
-    uv:total('uv'),
-    visits:daily.map(day=>day.pv)
+    pv:rawAnalytics.pv,
+    uv:rawAnalytics.uv,
+    visits:rawAnalytics.visits
   };
 }

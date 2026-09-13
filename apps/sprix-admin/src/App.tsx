@@ -9,7 +9,6 @@ import {
   AdminAcceptanceDetail,
   AdminAppealCenter,
   AdminAppealDetail,
-  AdminFundCenter,
   AdminTaskCenter,
   AdminTaskDetail,
   AdminTaskExecutionResultDetail,
@@ -17,9 +16,10 @@ import {
 } from "./admin/AdminPages";
 import { AdminShell } from "./components/Layout";
 import { AdminDashboard } from "./admin/AdminDashboard";
+import {AdminBehaviorAnalytics} from './admin/AdminBehaviorAnalytics';
 
 const queryClient = adminQueryClient;
-for (const key of ["task-center", "task-detail", "acceptance-reviews", "appeals", "appeal-detail", "funds"]) {
+for (const key of ["task-center", "task-detail", "acceptance-reviews", "appeals", "appeal-detail"]) {
   queryClient.setQueryDefaults(["sprix-admin", key], { staleTime: 0, refetchInterval: false, refetchOnWindowFocus: false, refetchOnReconnect: false });
 }
 
@@ -49,9 +49,9 @@ function AdminRoutes() {
   const location = useLocation();
   const title = useMemo(() => {
     if (location.pathname === "/dashboard") return "数据概览";
+    if (location.pathname === "/behavior-analytics") return "行为数据分析";
     if (location.pathname.includes("/appeals")) return "申诉处理中心";
     if (location.pathname.includes("/acceptance")) return "平台验收中心";
-    if (location.pathname.includes("/funds")) return "资金管理中心";
     if (location.pathname.match(/^\/tasks\/[^/]+\/edit$/)) return "编辑任务";
     if (location.pathname.includes("/tasks/new")) return "发布新任务";
     if (location.pathname.includes("/tasks/")) return "任务详情";
@@ -63,6 +63,7 @@ function AdminRoutes() {
       <Routes>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="behavior-analytics" element={<AdminBehaviorAnalytics />} />
         <Route path="tasks" element={<AdminTaskCenter />} />
         <Route path="tasks/new" element={<AdminTaskForm />} />
         <Route path="tasks/:id/edit" element={<AdminTaskForm />} />
@@ -72,7 +73,6 @@ function AdminRoutes() {
         <Route path="acceptance/:executionId" element={<AdminAcceptanceDetail />} />
         <Route path="appeals" element={<AdminAppealCenter />} />
         <Route path="appeals/:id" element={<AdminAppealDetail />} />
-        <Route path="funds/*" element={<AdminFundCenter />} />
         <Route path="*" element={<Navigate to="/tasks" replace />} />
       </Routes>
     </AdminShell>

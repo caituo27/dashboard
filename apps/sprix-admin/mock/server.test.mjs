@@ -27,6 +27,11 @@ test("dashboard HTTP mock contract", async () => {
       if (repeated.generatedAt === data.generatedAt) assert.deepEqual(repeated, data);
       else assert.ok(repeated.overview.orders >= data.overview.orders);
     }
+    const business = await (await fetch(`${base}/mock-api/dashboard/analytics?startDate=2026-07-27&endDate=2026-09-06`)).json();
+    assert.equal(business.snapshotVersion, "sprix-excel-v5.1-2026-09-06");
+    assert.equal(business.businessMetrics.weeks.length, 6);
+    assert.equal(business.businessMetrics.summary.deliveredTasks, 16_251);
+    assert.equal(business.generatedAt, "2026-09-06T15:59:59.000Z");
     const defaults = await (await fetch(`${base}/mock-api/dashboard/analytics`)).json();
     const sevenDays = await (await fetch(`${base}/mock-api/dashboard/analytics?days=7`)).json();
     if (defaults.generatedAt === sevenDays.generatedAt) assert.deepEqual(defaults, sevenDays);
@@ -81,7 +86,7 @@ test("whole dashboard stays consistent across launch, midnight and later dates",
   for (const offset of [-46 * 86400000, -45 * 86400000 + 10000, -44 * 86400000, -43210000, 0, 43200000, 86400000, 90 * 86400000]) {
     for (const period of [7, 30]) {
       const snapshot = createAnalyticsSnapshot(period, BASELINE_AT + offset);
-      const { overview, operations, finance, latestTasks } = snapshot;
+      const { overview, operations, finance } = snapshot;
       assert.equal(snapshot.period, period);
       assert.equal(snapshot.visits.length, period);
       assert.equal(Object.values(operations.executions).reduce((sum, count) => sum + count, 0), overview.orders);
@@ -90,14 +95,6 @@ test("whole dashboard stays consistent across launch, midnight and later dates",
       assert.equal(cents(finance.settlementNet), cents(finance.paidAmount) + cents(finance.remainingNet));
       assert.equal(finance.paidAmount, operations.paidAmount);
       assert.ok(finance.completedAmount <= overview.amount);
-      assert.equal(latestTasks.length, Math.min(5, operations.taskTotal));
-      assert.equal(new Set(latestTasks.map((task) => task.id)).size, latestTasks.length);
-      for (let index = 0; index < latestTasks.length; index++) {
-        const task = latestTasks[index];
-        assert.ok(task.publishedAt <= snapshot.generatedAt);
-        assert.ok(task.publishedAt >= overview.startedAt);
-        if (index) assert.ok(task.publishedAt <= latestTasks[index - 1].publishedAt);
-      }
       snapshot.buttons.forEach((row, index) => {
         assert.ok(row.users <= row.clicks);
         assert.ok(snapshot.funnel[index + 1] <= row.users);

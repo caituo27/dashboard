@@ -8,8 +8,6 @@ import tailwindcss from "@tailwindcss/vite";
 
 declare const process: { env: Record<string, string | undefined> };
 
-const apiProxyTarget = process.env.VITE_API_PROXY_TARGET ?? "http://42.194.150.73:8084";
-
 const imageExtensions = new Set([".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".avif"]);
 const videoExtensions = new Set([".mp4", ".webm", ".mov", ".m4v"]);
 
@@ -75,13 +73,16 @@ function packagePublicAssets() {
   };
 }
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, ".", "");
+  const apiProxyTarget = env.VITE_API_PROXY_TARGET ?? process.env.VITE_API_PROXY_TARGET ?? "http://42.194.150.73:8084";
+  return {
   base: "/",
   plugins: [react(), tailwindcss(), packagePublicAssets()],
   server: {
     port: 5173,
     proxy: {
-      "/mock-api": { target: loadEnv(mode, ".", "SPRIX_").SPRIX_MOCK_PROXY_TARGET ?? "http://127.0.0.1:5174", changeOrigin: true },
+      "/mock-api": { target: env.SPRIX_MOCK_PROXY_TARGET ?? "http://127.0.0.1:5174", changeOrigin: true },
       "/sprix-api": {
         target: apiProxyTarget,
         changeOrigin: true,
@@ -102,4 +103,5 @@ export default defineConfig(({ mode }) => ({
     environment: "jsdom",
     globals: true
   }
-}));
+  };
+});

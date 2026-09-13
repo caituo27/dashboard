@@ -564,7 +564,7 @@ export async function readAgentSnapshot(): Promise<SprixRemoteStatePatch> {
   const taskById = new Map(tasks.map((task) => [task.id, task]));
   const agentById = new Map(agents.map((agent) => [agent.id, agent]));
   const myTasks = listValue<MyTaskExecutionDetail>(myTasksResponse).map((item) => mapMyTask(item, taskById, agentById));
-  if(consumerMockEnabled) myTasks.push(...await readConsumerMyTasks(account?.phone ?? ""));
+  if(consumerMockEnabled) myTasks.push(...await optionalSnapshotRequest(() => readConsumerMyTasks(account?.phone ?? ""), []));
   const withdrawableAmount = withdrawableResponse;
   const withdrawals = withdrawalRecordsResponse.map(mapRemoteWithdrawal);
   const payouts = withdrawalRecordsResponse.map(mapRemotePayout);

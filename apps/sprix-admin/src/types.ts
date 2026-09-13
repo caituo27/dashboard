@@ -60,6 +60,8 @@ export type Agent = {
 
 export type Task = {
   id: string;
+  createdAt?: string;
+  updatedAt?: string;
   title: string;
   category: string;
   sourceName: string;
@@ -95,6 +97,9 @@ export type Task = {
   reviewingExecutionCount?: number;
   completedExecutionCount?: number;
   terminatedExecutionCount?: number;
+  firstAcceptedAt?: string;
+  firstCompletedAt?: string;
+  firstAcceptancePassedAt?: string;
 };
 
 export type MyTask = {
@@ -119,6 +124,7 @@ export type MyTask = {
 
 export type RunningExecution = {
   executionId?: string;
+  executionNo?: string;
   executionIndex?: number;
   userName: string;
   phone: string;
@@ -131,6 +137,7 @@ export type RunningExecution = {
 
 export type TerminatedExecution = {
   executionId?: string;
+  executionNo?: string;
   executionIndex?: number;
   userName: string;
   phone: string;
@@ -142,12 +149,15 @@ export type TerminatedExecution = {
 
 export type ReviewingExecution = {
   executionId: string;
+  executionNo?: string;
   executionIndex?: number;
   taskId?: string;
   taskTitle?: string;
   taskCategory?: string;
+  userId?: string;
   userName: string;
   phone: string;
+  agentId?: string;
   agentName: string;
   agentScore: string;
   acceptanceStatus: string;
@@ -162,11 +172,14 @@ export type ReviewingExecution = {
   currentNode: string;
   progress: string;
   submittedAt: string;
+  startedAt?: string;
+  updatedAt?: string;
 };
 
 export type CompletedExecution = {
   submittedAt?: string;
   executionId?: string;
+  executionNo?: string;
   executionIndex?: number;
   userName: string;
   phone: string;
@@ -206,11 +219,16 @@ export type AdminOperationLog = {
 export type AdminAppeal = {
   backendId?: string;
   appealNo: string;
+  taskId?: string;
   taskTitle: string;
   taskCategory: string;
+  taskReward?: string;
+  userId?: string;
   userName: string;
   userPhone: string;
+  agentId?: string;
   agentName: string;
+  agentScore?: string;
   issueSummary: string;
   appealReason: string;
   appealStatus: AppealStatus;
@@ -225,7 +243,12 @@ export type AdminAppeal = {
   resultDescription?: string;
   linkedMyTaskId?: string;
   executionId?: string;
+  executionNo?: string;
   executionIndex?: number;
+  executionStatus?: string;
+  currentNode?: string;
+  progress?: string;
+  settlementStatus?: string;
   deliverables?: string;
   acceptanceCriteria?: string;
   processLogs: string[];
@@ -234,7 +257,9 @@ export type AdminAppeal = {
 export type Settlement = {
   backendId?: string;
   settlementNo: string;
+  taskId?: string;
   taskTitle: string;
+  taskCategory?: string;
   userName: string;
   userPhone: string;
   agentName: string;
@@ -250,6 +275,9 @@ export type Settlement = {
 export type Withdrawal = {
   backendId?: string;
   withdrawalNo: string;
+  taskId?: string;
+  taskTitle?: string;
+  taskCategory?: string;
   userName: string;
   userPhone: string;
   verifiedName: string;

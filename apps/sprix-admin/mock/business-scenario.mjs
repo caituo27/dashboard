@@ -1,7 +1,8 @@
+import {dataAnnotationTaskContent} from './data-annotation-task-templates.mjs';
+import {sourceTaskReferenceContent} from './other-task-reference-templates.mjs';
+
 export const DAY = 86400000;
 export const START = Date.parse('2026-07-29T04:00:00Z');
-// Fixed across deployments and process restarts: no automatic publication after this point.
-export const TASK_PUBLICATION_STOP_AT = Date.parse('2026-09-12T10:44:05Z');
 export function hash(value, salt=0) { let x=(value ^ Math.imul(salt+1,0x9e3779b9))>>>0; x=Math.imul(x^(x>>>16),0x21f0aaad);x=Math.imul(x^(x>>>15),0x735a2d97);return (x^(x>>>15))>>>0; }
 export const userForExecution = index => hash(index,81)%30000+1;
 // Independent positive-rate waves: daytime load plus 10/30 minute bursts.
@@ -19,21 +20,22 @@ export function clock(index) {
  return START+days*DAY;
 }
 function uncappedIndexAt(at) {return Math.floor(1700000*(operatingAge((at-START)/DAY)/45)**1.12);}
-let finalOrderCapacity;
 export function indexAt(at) {
- finalOrderCapacity ??= orderRange(publishedTaskCount(TASK_PUBLICATION_STOP_AT))[1];
- return Math.min(uncappedIndexAt(at),finalOrderCapacity);
+ return uncappedIndexAt(at);
+}
+const AGENT_BASELINE_AT = Date.parse('2026-09-11T15:59:59Z');
+function agentOperatingAge(at) {
+ const d=Math.max(0,(at-START)/DAY),tau=2*Math.PI;
+ return d+.45*Math.sin(d*tau/3)/(tau/3)+.25*Math.sin(d*tau*24)/(tau*24);
 }
 export function agentsAt(at) {
- const d=Math.max(0,(at-START)/DAY), tau=2*Math.PI;
- const age=d+.45*Math.sin(d*tau/3)/(tau/3)+.25*Math.sin(d*tau*24)/(tau*24);
- return Math.floor(30000*(age/45)**.9);
+ const baselineAge=agentOperatingAge(AGENT_BASELINE_AT);
+ return Math.floor(30218*(agentOperatingAge(at)/baselineAge)**1.12);
 }
 export function publicationTime(task) {
  return Math.max(START,clock(orderRange(task)[0])-(120+20*Math.sin(task/250))*60000);
 }
 export function publishedTaskCount(at) {
- at=Math.min(at,TASK_PUBLICATION_STOP_AT);
  if(at<START) return 0;
  let low=0,high=Math.max(1,taskForOrder(Math.max(1,uncappedIndexAt(at+3*3600000))));
  while(low<high) {const mid=Math.ceil((low+high)/2);if(publicationTime(mid)<=at)low=mid;else high=mid-1;}
@@ -167,25 +169,44 @@ const families=[
  }]
 ];
 const scenarios=new Map();
+const CATEGORY_BY_FAMILY=Object.freeze(['市场调研','数据标注','AI 内容创作','企业经营 / 投融资咨询','工具类','UI 设计','数据标注','市场调研','翻译 / 本地化','办公文档','工具类','数据标注']);
+export const TASK_CATEGORY_WEIGHTS=Object.freeze([
+ {category:'数据标注',weight:14},
+ {category:'市场调研',weight:2},
+ {category:'工具类',weight:2},
+ {category:'AI 内容创作',weight:1},
+ {category:'企业经营 / 投融资咨询',weight:1},
+ {category:'UI 设计',weight:1},
+ {category:'翻译 / 本地化',weight:1},
+ {category:'办公文档',weight:1}
+]);
+const WEIGHTED_FAMILY_INDEXES=Object.freeze(TASK_CATEGORY_WEIGHTS.flatMap(({category,weight})=>{
+ const candidates=CATEGORY_BY_FAMILY.map((value,index)=>value===category?index:-1).filter(index=>index>=0);
+ return Array.from({length:weight},(_,index)=>candidates[index%candidates.length]);
+}));
+const taskFamilyIndex=index=>WEIGHTED_FAMILY_INDEXES[hash(index,2)%WEIGHTED_FAMILY_INDEXES.length];
+export const taskCategory=index=>CATEGORY_BY_FAMILY[taskFamilyIndex(index)];
 export function taskScenario(index) {
  let value=scenarios.get(index);
  if(!value) {value=Object.freeze(createTaskScenario(index));scenarios.set(index,value);}
  return value;
 }
 function createTaskScenario(index) {
- const familyIndex=hash(index,2)%families.length;
+ const familyIndex=taskFamilyIndex(index);
  const family=families[familyIndex];
  const pick=(values,salt)=>values[hash(index,salt)%values.length];
  const [title,description,deliverables,acceptanceCriteria,submissionRows]=family[1](pick);
  // Most tasks are small, with a smaller share of higher-value analytical work.
  const tier=hash(index,5)%100;
  const reward=tier<65 ? (100+hash(index,6)%501)/100 : tier<93 ? (500+hash(index,7)%501)/100 : (1000+hash(index,8)%1801)/100;
- const categories=['市场调研','数据标注','AI 内容创作','企业经营 / 投融资咨询','工具类','UI 设计','数据标注','市场调研','翻译 / 本地化','办公文档','工具类','数据标注'];
  const tokenRanges=[[9000,18000],[2500,6500],[5000,10000],[11000,21000],[10000,22000],[9000,18000],[2500,6000],[8000,15000],[3000,7000],[7000,13000],[3500,8000],[2500,6500]];
  const [minTokens,maxTokens]=tokenRanges[familyIndex];
  const estimatedTokens=Math.round((minTokens+hash(index,74)%(maxTokens-minTokens+1))/100)*100;
  const attachmentNames=[['调研提纲.md','调研维度.csv'],['清洗说明.md','编号清洗结果.csv'],['上新文案.md','文案条目.csv'],['指标口径.md','经营指标.csv'],['测试用例说明.md','分页权限用例.csv'],['页面方案.md','页面区块说明.csv'],['标注说明.md','反馈标注.csv'],['调研准备.md','门店核验清单.csv'],['双语提示.md','翻译对照.csv'],['面试提纲.md','面试观察点.csv'],['会议摘要.md','行动项.csv'],['报价核对说明.md','报价明细.csv']][familyIndex];
- return {title,category:categories[familyIndex],durationCategory:family[0],estimatedTokens,attachmentNames,description,cardSummary:title,deliverables,reward,acceptanceCriteria,submissionRows:Object.freeze(submissionRows.map(row=>Object.freeze(row)))};
+ const base={title,category:CATEGORY_BY_FAMILY[familyIndex],durationCategory:family[0],estimatedTokens,attachmentNames,description,cardSummary:title,deliverables,reward,acceptanceCriteria,submissionRows:Object.freeze(submissionRows.map(row=>Object.freeze(row)))};
+ if(base.category==='数据标注')return {...base,...dataAnnotationTaskContent(index,reward,1+hash(index,99)%50),category:base.category,reward};
+ const prefixByCategory={'市场调研':'MKT','AI 内容创作':'CNT','企业经营 / 投融资咨询':'FIN','UI 设计':'UI','工具类':'AGT','办公文档':'OFF','网站开发':'WEB'},prefix=prefixByCategory[base.category],reference=prefix?sourceTaskReferenceContent(prefix,index,reward,1+hash(index,99)%50):null;
+ return reference?{...base,...reference,category:base.category,recommendedTaskType:base.category,reward}:base;
 }
 
 const sizes=[9,27,14,32,18,20];

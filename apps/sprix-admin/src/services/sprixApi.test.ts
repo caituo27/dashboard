@@ -83,6 +83,20 @@ function remoteTaskDetail() {
         startedAt: "2026-07-02T10:00:00+08:00",
         updatedAt: "2026-07-02T10:04:00+08:00",
         completedAt: "2026-07-02T10:04:00+08:00"
+      },
+      {
+        executionId: "execution-3",
+        executionIndex: 3,
+        userName: "验收未通过用户",
+        userPhone: "18319381111",
+        agentName: "OpenCode Agent",
+        agentScore: 88,
+        executionStatus: "ACCEPTANCE_FAILED",
+        acceptanceStatus: "failed",
+        settlementStatus: "NOT_POSTED",
+        submittedAt: "2026-07-02T10:05:00+08:00",
+        updatedAt: "2026-07-02T10:06:00+08:00",
+        completedAt: "2026-07-02T10:06:00+08:00"
       }
     ],
     operationLogs: []
@@ -103,5 +117,7 @@ describe("readRemoteTaskDetail", () => {
     expect(detail.records.completed[0]?.appealStatus).toBe("申诉通过");
     expect(detail.records.completed[1]?.appealStatus).toBe("无申诉");
     expect(appealRecordCount).toBe(1);
+    expect(detail.records.terminated.map((record) => record.executionId)).toEqual(["execution-3"]);
+    expect(detail.records.completed.map((record) => record.executionId)).toEqual(["execution-1", "execution-2"]);
   });
 });

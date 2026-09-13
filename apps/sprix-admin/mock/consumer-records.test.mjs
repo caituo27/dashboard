@@ -4,7 +4,7 @@ import {mkdtemp,rm,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createServer} from 'node:http';
-import {businessProfile} from './business-profile.mjs';
+import {businessProfile,businessProfileForIdentity} from './business-profile.mjs';
 import {visitorContext} from './analytics-profiles.mjs';
 import {indexAt,agentsAt,publishedTaskCount,clock,executionDuration} from './business-scenario.mjs';
 import {buildDemoLedger} from './demo-ledger.mjs';
@@ -14,14 +14,14 @@ import {eventStream} from './analytics-events.mjs';
 test('profiles and traffic follow desktop consumer capabilities; growth streams differ',()=>{
  let desktop=0;
  for(let n=1;n<=10000;n++) {
-  const p=businessProfile(n);assert.equal(p.userName,`用户${p.phone.slice(-4)}`);
+  const p=businessProfile(n);assert.ok(p.userName&&p.identityStatus&&p.agentType);assert.match(p.phone,/^1\d{10}$/);
   assert.ok(['Codex Agent','Claude Code','OpenCode Agent','Hermes Agent'].includes(p.agentName));
   if(visitorContext(n).device_type==='电脑')desktop++;
  }
  assert.ok(desktop>9200&&desktop<9600);
  const at=Date.parse('2026-09-12T04:00:00Z');
  const deltas=fn=>new Set(Array.from({length:360},(_,n)=>fn(at+(n+1)*10000)-fn(at+n*10000)));
- assert.ok(deltas(indexAt).size>3);assert.ok(deltas(agentsAt).has(0));assert.ok(deltas(publishedTaskCount).has(0));
+ assert.ok(deltas(indexAt).size>3);assert.ok(deltas(agentsAt).size>3);assert.ok(deltas(publishedTaskCount).has(0));
  for(let n=100;n<1700000;n+=4519)assert.ok(Math.abs(indexAt(clock(n))-n)<=1);
  for(const event of eventStream(at)) {
   assert.ok(!['评估任务','提交交付','确认接取'].includes(event.button_name));
@@ -54,7 +54,8 @@ test('consumer HTTP page/detail/accept shares persistent admin execution and rev
   assert.equal((await get('/consumer/view?kind=my-tasks&owner=other')).rows.length,0);
   const after=await get(`/admin/view?kind=task-detail&id=${task.id}`);
   assert.equal(after.task.executionTotal,detail.task.executionTotal+1);
-  assert.ok(after.records.running.some(row=>row.executionId===accepted.id&&row.userName==='用户1234'));
+  const mockIdentity=businessProfileForIdentity(owner);
+  assert.ok(after.records.running.some(row=>row.executionId===accepted.id&&row.userName===mockIdentity.userName&&row.phone===mockIdentity.phone));
   // Advance only isolated persisted test data; no real backend or live mock mutations.
   const state=await readDemoState();state.consumerExecutions[0].startedAt=new Date(Date.now()-executionDuration(Number(accepted.id.split(':')[2]),task.category)-10000).toISOString();
   await writeFile(process.env.MOCK_STATE_PATH,JSON.stringify(state));

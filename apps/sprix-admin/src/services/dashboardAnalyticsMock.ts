@@ -2,9 +2,21 @@ import axios from "axios";
 
 export type AnalyticsPeriod = 7 | 28 | 30;
 export type AnalyticsRange = { days: AnalyticsPeriod } | { startDate: string; endDate: string };
+export type BusinessTaskType={type:string;tasks:number;daily:number[];amount:number;passRate:number|null;autoDeliveryAmount:number;manualDeliveryAmount:number;pureAgentPending:number;hybridPending:number};
+export type BusinessAgentType={type:string;count:number;daily:number[]};
+export type BusinessWeek={label:string;startDate:string;endDate:string;newAgents:number;heterogeneousRate:number;acceptedGmv:number;effectiveAgents:number;deliveredTasks:number;masterTasks:number;slots:number;averageGmvPerEffectiveAgent:number;dailyNewAgents:{date:string;total:number}[];dailyDelivery:{date:string;tasks:number;effectiveAgents:number}[];agentTypes:BusinessAgentType[];taskTypes:BusinessTaskType[]};
+export type BusinessMetrics={
+  snapshotVersion:string;
+  generatedAt:string;
+  periodStart:string;
+  periodEnd:string;
+  source:{file:string;sheet:string;rows:string;note:string};
+  weeks:BusinessWeek[];
+  summary:{newAgents:number;heterogeneousRate:number|null;acceptedGmv:number;effectiveAgents:number|null;averageGmvPerEffectiveAgent:number|null;deliveredTasks:number;masterTasks:number;slots:number;executions:number;remainingSlots:number;autoDeliveryAmount:number;manualDeliveryAmount:number;pureAgentPending:number;hybridPending:number};
+};
 export type DashboardMetric = { value: number; previous: number; change: number };
 export type DashboardTrendMetric = "acceptedGmv" | "publishedTasks" | "acceptedTasks" | "completedTasks" | "averageTaskValue";
-export type DashboardTrendPoint = { startDate: string; endDate: string; value: number; previous?: number };
+export type DashboardTrendPoint = { startDate: string; endDate: string; days?: number; value: number; previous?: number };
 export type DashboardBehavior = { name: string; eventName: string; users: number; count: number; conversion: number };
 export type AnalyticsDay = {
   date: string;
@@ -15,11 +27,13 @@ export type AnalyticsDay = {
   buttons: { name: string; page: string; clicks: number; users: number }[];
 };
 export type DashboardAnalyticsSnapshot = {
+  snapshotVersion?:string;
+  businessMetrics?:BusinessMetrics;
   daily: AnalyticsDay[];
   period: number;
   periodStart: string;
   periodEnd: string;
-  latestTasks: { id: string; title: string; taskStatus: string; reward: number; publishedAt: string }[];
+  comparisonAvailable?: boolean;
   finance: { completedAmount: number; platformFee: number; settlementNet: number; paidAmount: number; remainingNet: number };
   operations: {
     taskTotal: number;
@@ -78,6 +92,19 @@ export type DashboardAnalyticsSnapshot = {
   buttons: { name: string; page: string; clicks: number; users: number }[];
   funnel: number[];
 };
+
+function shanghaiTime(value: string) {
+  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(new Date(value));
+}
+
+export function dashboardPeriodEnd(data: Pick<DashboardAnalyticsSnapshot, "periodEnd" | "generatedAt">) {
+  const refreshedAt = shanghaiTime(data.generatedAt);
+  return refreshedAt.slice(0, 10) === data.periodEnd ? refreshedAt : `${data.periodEnd} 23:59:59`;
+}
+
+export function dashboardPeriodRange(data: Pick<DashboardAnalyticsSnapshot, "periodStart" | "periodEnd" | "generatedAt">) {
+  return `${data.periodStart} 00:00:00 至 ${dashboardPeriodEnd(data)}`;
+}
 
 export async function readDashboardAnalyticsMock(range: AnalyticsRange, signal?: AbortSignal): Promise<DashboardAnalyticsSnapshot> {
   try {

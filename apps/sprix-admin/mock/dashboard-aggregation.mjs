@@ -24,11 +24,10 @@ export function aggregateDashboard(analytics, center, funds) {
   for (const task of activeTasks) {
     const date = task.publishedAt.slice(0, 10);
     publications.set(date, (publications.get(date) ?? 0) + 1);
-    if (task.taskStatus === "已发布") publishedCategories.set(task.category, (publishedCategories.get(task.category) ?? 0) + 1);
+    publishedCategories.set(task.category, (publishedCategories.get(task.category) ?? 0) + 1);
   }
   return {
     ...analytics,
-    latestTasks: [...activeTasks].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)).slice(0, 5),
     overview: {
       ...analytics.overview,
       orders: Object.values(executions).reduce((total, value) => total + value, 0),

@@ -1,7 +1,6 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import { dashboardMockMiddleware } from "./mock/server.mjs";
 import { loadEnv } from "vite";
 
 function splitVendorChunk(id: string) {
@@ -18,16 +17,23 @@ function splitVendorChunk(id: string) {
 
 export default defineConfig(({ mode }) => {
   const apiProxyTarget = loadEnv(mode, ".", "").VITE_API_PROXY_TARGET ?? "http://42.194.150.73:8084";
+  const dashboardMockModule='./mock/server.mjs';
 
   return {
     base: "/",
     plugins: [react(), tailwindcss(), {
       name: "dashboard-http-mock",
-      configureServer(server) { server.middlewares.use(dashboardMockMiddleware); },
-      configurePreviewServer(server) { server.middlewares.use(dashboardMockMiddleware); }
+      async configureServer(server) {
+        const {dashboardMockMiddleware}=await import(/* @vite-ignore */ dashboardMockModule);
+        server.middlewares.use(dashboardMockMiddleware);
+      },
+      async configurePreviewServer(server) {
+        const {dashboardMockMiddleware}=await import(/* @vite-ignore */ dashboardMockModule);
+        server.middlewares.use(dashboardMockMiddleware);
+      }
     }],
     server: {
-      port: 5173,
+      port: 5174,
       proxy: {
         "/sprix-api": {
           target: apiProxyTarget,
