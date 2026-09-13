@@ -1,5 +1,6 @@
 import { isDemoId } from "../../mock/demo-ledger.mjs";
 import { isSeedExecutionId } from "../../mock/seed-task-scenario.mjs";
+import { ADMIN_PAGE_SIZE } from "../../shared/pagination.mjs";
 import { downloadRemoteAdminFile, estimateRemoteTaskPricing, readRemoteTaskDetail as readRawRemoteTaskDetail, type TaskPricingEstimate, type TaskPricingEstimateRequest, type AdminExecutionResult, type AdminTaskDetailPresentation, type TaskAttachment } from "../services/sprixApi";
 import { displayExecutionId, displayText } from "../utils/displayText";
 import { AdminTable as Table, EllipsisCell, EllipsisText } from "../components/AdminTable";
@@ -342,9 +343,9 @@ export function AdminTaskCenter() {
   const [keyword,setKeyword] = useState("");
   const [taskPage,setTaskPage] = useState(1);
   const taskCenterQuery = useQuery({
-    queryKey: ["sprix-admin", "task-center",demoOnly,tab,keyword,publishedDate,startDate,endDate,endAt,category,lifecycleStage,snapshotVersion,taskPage,20],
+    queryKey: ["sprix-admin", "task-center",demoOnly,tab,keyword,publishedDate,startDate,endDate,endAt,category,lifecycleStage,snapshotVersion,taskPage,ADMIN_PAGE_SIZE],
     placeholderData:keepPreviousData,
-    queryFn: ()=>readTaskPage({page:taskPage,pageSize:20,status:tab,search:keyword,date:publishedDate ?? undefined,startDate:startDate ?? undefined,endDate:endDate ?? undefined,endAt:endAt ?? undefined,category:category ?? undefined,lifecycleStage:lifecycleStage ?? undefined,demoOnly,snapshotVersion}),
+    queryFn: ()=>readTaskPage({page:taskPage,pageSize:ADMIN_PAGE_SIZE,status:tab,search:keyword,date:publishedDate ?? undefined,startDate:startDate ?? undefined,endDate:endDate ?? undefined,endAt:endAt ?? undefined,category:category ?? undefined,lifecycleStage:lifecycleStage ?? undefined,demoOnly,snapshotVersion}),
     retry: 1
   });
 
@@ -578,7 +579,7 @@ export function AdminTaskCenter() {
           loading={taskCenterQuery.isPlaceholderData}
           columns={taskColumns}
           dataSource={visibleTasks}
-          pagination={{ current:taskCenterQuery.data?.page ?? taskPage,pageSize:20,total:taskCenterQuery.data?.total,onChange:setTaskPage,showSizeChanger:false }}
+          pagination={{ current:taskCenterQuery.data?.page ?? taskPage,pageSize:ADMIN_PAGE_SIZE,total:taskCenterQuery.data?.total,onChange:setTaskPage,showSizeChanger:false }}
           scroll={{ x: 2120 }}
           rowClassName="cursor-pointer"
           locale={{ emptyText: "暂无任务" }}
@@ -595,9 +596,9 @@ export function AdminAcceptanceCenter() {
   const [page,setPage]=useState(1);
   const [category,setCategory]=useState<string>();
   const acceptanceQuery = useQuery({
-    queryKey: ["sprix-admin", "acceptance-reviews",category,page,20],
+    queryKey: ["sprix-admin", "acceptance-reviews",category,page,ADMIN_PAGE_SIZE],
     placeholderData:keepPreviousData,
-    queryFn: ()=>readAcceptancePage({page,pageSize:20,category}),
+    queryFn: ()=>readAcceptancePage({page,pageSize:ADMIN_PAGE_SIZE,category}),
     retry: 1
   });
   const refreshAcceptance = () => queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
@@ -630,7 +631,7 @@ export function AdminAcceptanceCenter() {
         </div>
         <AcceptanceReviewTable
           loading={acceptanceQuery.isPlaceholderData}
-          pagination={{current:acceptanceQuery.data?.page ?? page,pageSize:20,total:acceptanceQuery.data?.total,onChange:setPage,showSizeChanger:false}}
+          pagination={{current:acceptanceQuery.data?.page ?? page,pageSize:ADMIN_PAGE_SIZE,total:acceptanceQuery.data?.total,onChange:setPage,showSizeChanger:false}}
           data={acceptanceReviews}
           showTask
           onOpenDetail={(record) => navigate(`/acceptance/${encodeURIComponent(record.executionId)}`)}
@@ -948,7 +949,7 @@ function AcceptanceResultDetail({
               ["关联任务", record.taskTitle || "-"],
               ["任务分类", record.taskCategory || "-"],
               ["执行用户", record.userName],
-              ["手机号", <PhoneNumber value={record.phone} />],
+              ["手机号", <PhoneNumber value={record.phone} virtualValue={record.virtualPhone} />],
               ["执行 Agent", record.agentName],
               ["提交时间", record.submittedAt],
               ["当前进度", record.progress]
@@ -1165,7 +1166,7 @@ function AcceptanceReviewTable({
         ] satisfies ColumnsType<ReviewingExecution>
       : []),
     { title: "执行用户", dataIndex: "userName", width: 150, render: (value) => <EllipsisCell value={value} /> },
-    { title: "手机号", dataIndex: "phone", width: 170, render: (value) => <PhoneNumber value={value} copyable /> },
+    { title: "手机号", dataIndex: "phone", width: 170, render: (value, record) => <PhoneNumber value={value} virtualValue={record.virtualPhone} copyable /> },
     { title: "执行 Agent", dataIndex: "agentName", width: 180, render: (value) => <EllipsisCell value={value} /> },
     { title: "Agent 评分", dataIndex: "agentScore", width: 110, align: "right" },
     { title: "审核来源", dataIndex: "reviewSource", width: 165, render: (value) => <SoftTag tone={value === "USER_MANUAL" ? "amber" : "neutral"}>{value === "USER_MANUAL" ? "用户人工补交" : "Agent 自动交付"}</SoftTag> },
@@ -1207,7 +1208,7 @@ function AcceptanceReviewTable({
       rowKey="executionId"
       dataSource={data}
       columns={columns}
-      pagination={pagination ?? {pageSize:20}}
+      pagination={pagination ?? {pageSize:ADMIN_PAGE_SIZE}}
       locale={{ emptyText: "暂无待平台审核记录" }}
       scroll={{ x: showTask ? 2570 : 2170 }}
       rowClassName={onOpenDetail ? "cursor-pointer" : undefined}
@@ -1627,7 +1628,7 @@ function AdminOperationLogs({ logs }: { logs: AdminOperationLog[] }) {
         className="mt-4"
         rowKey="id"
         dataSource={logs}
-        pagination={{pageSize:20,hideOnSinglePage:true}}
+        pagination={{pageSize:ADMIN_PAGE_SIZE,hideOnSinglePage:true}}
         locale={{ emptyText: "暂无操作记录" }}
         scroll={{ x: 860 }}
         columns={[
@@ -1715,7 +1716,7 @@ function AdminExecutionRecords({
   const setExecutionPage=(page:number)=>{const next=new URLSearchParams(executionSearch);next.set('executionPage',String(page));next.delete('executionId');setExecutionSearch(next);};
   const paginationFor=(status:'all'|'running'|'reviewing'|'completed'|'terminated'):TablePaginationConfig=>presentation&&!selectedExecution
     ? {current:presentation.page,pageSize:presentation.pageSize,total:presentation.counts[status],showSizeChanger:false,hideOnSinglePage:true,onChange:setExecutionPage}
-    : {pageSize:20,hideOnSinglePage:true};
+    : {pageSize:ADMIN_PAGE_SIZE,hideOnSinglePage:true};
   const countFor=(status:'all'|'running'|'reviewing'|'completed'|'terminated')=>presentation?.counts[status] ?? (status==='all'
     ? (records?.running.length??0)+(records?.reviewing.length??0)+(records?.completed.length??0)+(records?.terminated.length??0)
     : records?.[status].length??0);
@@ -1730,7 +1731,7 @@ function AdminExecutionRecords({
   const allColumns: ColumnsType<(typeof allRecords)[number]> = [
     { title: "执行记录 ID", dataIndex: "executionId", width: 210, render: (_, record) => <EllipsisCell value={displayExecutionId(record)} /> },
     { title: "执行用户", dataIndex: "userName", width: 160, render: (value) => <EllipsisCell value={value} /> },
-    { title: "手机号", dataIndex: "phone", render: (value) => <PhoneNumber value={value} /> },
+    { title: "手机号", dataIndex: "phone", render: (value, record) => <PhoneNumber value={value} virtualValue={record.virtualPhone} /> },
     { title: "执行 Agent", dataIndex: "agentName" },
     { title: "Agent 评分", dataIndex: "agentScore", width: 110, align: "right" },
     { title: "执行状态", dataIndex: "status", render: (value) => <StatusTag status={value} /> },
@@ -1741,7 +1742,7 @@ function AdminExecutionRecords({
   const runningColumns: ColumnsType<RunningExecution> = [
     { title: "执行记录 ID", dataIndex: "executionId", width: 210, render: (_, record) => <EllipsisCell value={displayExecutionId(record)} /> },
     { title: "执行用户", dataIndex: "userName", width: 160, render: (value) => <EllipsisCell value={value} /> },
-    { title: "手机号", dataIndex: "phone", render: (value) => <PhoneNumber value={value} /> },
+    { title: "手机号", dataIndex: "phone", render: (value, record) => <PhoneNumber value={value} virtualValue={record.virtualPhone} /> },
     { title: "执行 Agent", dataIndex: "agentName" },
     { title: "Agent 评分", dataIndex: "agentScore", align: "right" },
     { title: "当前节点", dataIndex: "currentNode", width: 120, render: (value) => <span className="whitespace-nowrap">{value}</span> },
@@ -1751,7 +1752,7 @@ function AdminExecutionRecords({
   const terminatedColumns: ColumnsType<TerminatedExecution> = [
     { title: "执行记录 ID", dataIndex: "executionId", width: 210, render: (_, record) => <EllipsisCell value={displayExecutionId(record)} /> },
     { title: "执行用户", dataIndex: "userName", width: 160, render: (value) => <EllipsisCell value={value} /> },
-    { title: "手机号", dataIndex: "phone", render: (value) => <PhoneNumber value={value} /> },
+    { title: "手机号", dataIndex: "phone", render: (value, record) => <PhoneNumber value={value} virtualValue={record.virtualPhone} /> },
     { title: "执行 Agent", dataIndex: "agentName" },
     { title: "终止原因", dataIndex: "terminationReason" },
     { title: "终止节点", dataIndex: "terminatedNode", width: 120, render: (value) => <span className="whitespace-nowrap">{value}</span> },
@@ -1760,7 +1761,7 @@ function AdminExecutionRecords({
   const completedColumns: ColumnsType<CompletedExecution> = [
     { title: "执行记录 ID", dataIndex: "executionId", width: 210, render: (_, record) => <EllipsisCell value={displayExecutionId(record)} /> },
     { title: "执行用户", dataIndex: "userName", width: 160, render: (value) => <EllipsisCell value={value} /> },
-    { title: "手机号", dataIndex: "phone", render: (value) => <PhoneNumber value={value} /> },
+    { title: "手机号", dataIndex: "phone", render: (value, record) => <PhoneNumber value={value} virtualValue={record.virtualPhone} /> },
     { title: "执行 Agent", dataIndex: "agentName" },
     { title: "验收状态", dataIndex: "acceptanceStatus", render: (value) => <StatusTag status={value} /> },
     { title: "综合评分", dataIndex: "score", align: "right" },
@@ -1845,6 +1846,7 @@ type AdminExecutionTableAction = {
 type ExecutionUserRecord = {
   userName: string;
   phone: string;
+  virtualPhone?: string;
   executionId?: string;
   executionNo?: string;
 };
@@ -1861,7 +1863,7 @@ function showRunningExecutionDetail(record: RunningExecution) {
     ["执行状态", "执行中"],
     ["执行记录ID", displayExecutionId(record)],
     ["执行用户", record.userName],
-    ["手机号", <PhoneNumber value={record.phone} />],
+    ["手机号", <PhoneNumber value={record.phone} virtualValue={record.virtualPhone} />],
     ["执行 Agent", record.agentName],
     ["Agent 评分", record.agentScore],
     ["当前节点", record.currentNode],
@@ -1875,7 +1877,7 @@ function showTerminatedExecutionDetail(record: TerminatedExecution) {
     ["执行状态", "已终止"],
     ["执行记录ID", displayExecutionId(record)],
     ["执行用户", record.userName],
-    ["手机号", <PhoneNumber value={record.phone} />],
+    ["手机号", <PhoneNumber value={record.phone} virtualValue={record.virtualPhone} />],
     ["执行 Agent", record.agentName],
     ["终止原因", record.terminationReason],
     ["终止节点", record.terminatedNode],
@@ -1886,7 +1888,7 @@ function showTerminatedExecutionDetail(record: TerminatedExecution) {
 function showExecutionUserInfo(record: ExecutionUserRecord) {
   showAdminRecordDetail("用户信息", [
     ["用户昵称", record.userName],
-    ["手机号", <PhoneNumber value={record.phone} />],
+    ["手机号", <PhoneNumber value={record.phone} virtualValue={record.virtualPhone} />],
     ["关联执行记录ID", displayExecutionId(record)]
   ]);
 }
@@ -1919,14 +1921,14 @@ export function AdminAppealCenter() {
   const [quickFilter, setQuickFilter] = useState<"none" | "done">("none");
   const [page, setPage] = useState(1);
   const appealsQuery = useQuery({
-    queryKey: ["sprix-admin", "appeals", tab, quickFilter, category, page, keyword, 20],
-    queryFn: () => readAppealPage({page, pageSize: 20, status: tab, search: keyword, category, done: quickFilter === "done" ? "true" : undefined}),
+    queryKey: ["sprix-admin", "appeals", tab, quickFilter, category, page, keyword, ADMIN_PAGE_SIZE],
+    queryFn: () => readAppealPage({page, pageSize: ADMIN_PAGE_SIZE, status: tab, search: keyword, category, done: quickFilter === "done" ? "true" : undefined}),
     placeholderData: keepPreviousData,
     retry: 1
   });
   const visible = appealsQuery.data?.rows ?? [];
   const selectAppealTab = (nextTab: string) => { setTab(nextTab); setQuickFilter("none"); setPage(1); };
-  const appealPagination = {current: appealsQuery.data?.page ?? page, pageSize: 20, total: appealsQuery.data?.total, onChange: setPage, showSizeChanger: false};
+  const appealPagination = {current: appealsQuery.data?.page ?? page, pageSize: ADMIN_PAGE_SIZE, total: appealsQuery.data?.total, onChange: setPage, showSizeChanger: false};
   if (appealsQuery.isLoading) return <Surface className="p-8">申诉数据加载中</Surface>;
   if (appealsQuery.isError) {
     const messageText = appealsQuery.error instanceof Error ? appealsQuery.error.message : "申诉数据加载失败";
@@ -1992,7 +1994,7 @@ export function AdminAppealCenter() {
                       { title: "关联任务", dataIndex: "taskTitle", width: 190, render: (value) => <EllipsisCell value={value} /> },
                       { title: "任务分类", dataIndex: "taskCategory", width: 170, render: (value) => <EllipsisCell value={value} /> },
                       { title: "提交用户", dataIndex: "userName", width: 120, render: (value) => <EllipsisCell value={value} /> },
-                      { title: "用户手机号", dataIndex: "userPhone", width: 150, render: (value) => <PhoneNumber value={value} /> },
+                      { title: "用户手机号", dataIndex: "userPhone", width: 150, render: (value, record) => <PhoneNumber value={value} virtualValue={record.userVirtualPhone} /> },
                       { title: "执行 Agent", dataIndex: "agentName", width: 140, render: (value) => <EllipsisCell value={value} /> },
                       { title: "申诉原因", dataIndex: "issueSummary", width: 220, render: (value) => <EllipsisCell value={value} /> },
                       { title: "当前状态", dataIndex: "appealStatus", width: 120, render: (value) => <StatusTag status={value} /> },
@@ -2049,7 +2051,7 @@ export function AdminAppealDetail() {
     { label: "提交时间", value: appeal.submittedAt },
     { label: "处理时间", value: appeal.handledAt },
     { label: "提交用户", value: appeal.userName },
-    { label: "手机号", value: <PhoneNumber value={appeal.userPhone} /> },
+    { label: "手机号", value: <PhoneNumber value={appeal.userPhone} virtualValue={appeal.userVirtualPhone} /> },
     { label: "处理人", value: appeal.handler }
   ];
   const taskInfoFields = [
@@ -2063,7 +2065,7 @@ export function AdminAppealDetail() {
     { label: "执行序号", value: appeal.executionIndex == null ? undefined : String(appeal.executionIndex) },
     { label: "执行状态", value: appeal.executionStatus },
     { label: "执行用户", value: appeal.userName },
-    { label: "用户手机号", value: <PhoneNumber value={appeal.userPhone} /> },
+    { label: "用户手机号", value: <PhoneNumber value={appeal.userPhone} virtualValue={appeal.userVirtualPhone} /> },
     { label: "执行 Agent", value: appeal.agentName },
     { label: "Agent 评分", value: appeal.agentScore },
     { label: "当前节点", value: appeal.currentNode },

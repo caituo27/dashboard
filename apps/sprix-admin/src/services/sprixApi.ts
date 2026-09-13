@@ -33,6 +33,7 @@ import type {
   Withdrawal,
   WithdrawStatus
 } from "../types";
+import { anonymizedUserName, virtualPhoneForIdentity } from "../../shared/user-identity.mjs";
 import { http } from "../utils/http";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/sprix-api";
@@ -42,6 +43,17 @@ const adminAppealApi = AdminAppealControllerApiFactory(undefined, API_BASE_URL, 
 const adminFundsApi = AdminFundsControllerApiFactory(undefined, API_BASE_URL, http);
 const adminTaskApi = AdminTaskControllerApiFactory(undefined, API_BASE_URL, http);
 const authApi = AuthControllerApiFactory(undefined, API_BASE_URL, http);
+
+function mapUserPresentation(userId?: string | null, userName?: string | null, userPhone?: string | null) {
+  const phone = userPhone?.trim() || "-";
+  const sourceName = userName?.trim() || "";
+  const identity = userId?.trim() || (phone !== "-" ? phone : sourceName);
+  return {
+    userName: identity ? anonymizedUserName(identity) : "-",
+    phone,
+    virtualPhone: identity && phone !== "-" ? virtualPhoneForIdentity(identity) : undefined
+  };
+}
 
 export type UpsertAdminTaskPayload = {
   title: string;
@@ -449,16 +461,19 @@ export async function deleteRemoteAdminTask(taskId: string, reason: string): Pro
 
 export async function readRemoteAppeals(): Promise<AdminAppeal[]> {
   const response = await adminAppealApi.appeals();
-  return listValue<AppealRecord>(response).map(appeal => ({
-    backendId: requireText(appeal.id,"appeal.id"), appealNo: appeal.appealNo ?? appeal.id ?? "",
-    taskId: appeal.taskId,userId: appeal.userId,agentId: appeal.agentId,
-    taskTitle: compactId(appeal.taskId,"任务"),taskCategory:"",userName:compactId(appeal.userId,"用户"),
-    userPhone:"",agentName:compactId(appeal.agentId,"Agent"),issueSummary:(appeal.reason ?? "").slice(0,32),
-    appealReason:appeal.reason ?? "",appealStatus:mapAppealStatus(appeal.status),
-    priority:appeal.priority==='HIGH'?'高风险':appeal.priority==='URGENT'?'加急':'普通',
-    submittedAt:formatDateTime(appeal.submittedAt ?? appeal.createdAt),handler:appeal.handler ?? "",
-    executionId:appeal.executionId,processLogs:[],resultDescription:appeal.resultDescription
-  }));
+  return listValue<AppealRecord>(response).map(appeal => {
+    const user = mapUserPresentation(appeal.userId, compactId(appeal.userId,"用户"));
+    return {
+      backendId: requireText(appeal.id,"appeal.id"), appealNo: appeal.appealNo ?? appeal.id ?? "",
+      taskId: appeal.taskId,userId: appeal.userId,agentId: appeal.agentId,
+      taskTitle: compactId(appeal.taskId,"任务"),taskCategory:"",userName:user.userName,
+      userPhone:user.phone,userVirtualPhone:user.virtualPhone,agentName:compactId(appeal.agentId,"Agent"),issueSummary:(appeal.reason ?? "").slice(0,32),
+      appealReason:appeal.reason ?? "",appealStatus:mapAppealStatus(appeal.status),
+      priority:appeal.priority==='HIGH'?'高风险':appeal.priority==='URGENT'?'加急':'普通',
+      submittedAt:formatDateTime(appeal.submittedAt ?? appeal.createdAt),handler:appeal.handler ?? "",
+      executionId:appeal.executionId,processLogs:[],resultDescription:appeal.resultDescription
+    };
+  });
 }
 
 export function readCachedAppealDetail(id:string) {
@@ -656,12 +671,14 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
   const completed: CompletedExecution[] = [];
 
   for (const row of rows) {
+    const user = mapUserPresentation(row.userId, row.userName, row.userPhone);
     if (row.executionStatus === "TERMINATED" || row.executionStatus === "ACCEPTANCE_FAILED") {
       terminated.push({
         executionId: row.executionId,
         executionIndex: row.executionIndex,
-        userName: row.userName ?? "-",
-        phone: row.userPhone ?? "-",
+        userName: user.userName,
+        phone: user.phone,
+        virtualPhone: user.virtualPhone,
         agentName: row.agentName ?? "-",
         terminationReason: mapTerminationReason(row.terminationReason),
         terminatedNode: mapCurrentNode(row.currentNode, row.currentNodeLabel),
@@ -671,8 +688,9 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
       running.push({
         executionId: row.executionId,
         executionIndex: row.executionIndex,
-        userName: row.userName ?? "-",
-        phone: row.userPhone ?? "-",
+        userName: user.userName,
+        phone: user.phone,
+        virtualPhone: user.virtualPhone,
         agentName: row.agentName ?? "-",
         agentScore: row.agentScore == null ? "-" : `${row.agentScore}/100`,
         currentNode: mapCurrentNode(row.currentNode, row.currentNodeLabel),
@@ -684,8 +702,9 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
         executionId: requireText(row.executionId, "executionId"),
         executionIndex: row.executionIndex,
         userId: row.userId,
-        userName: row.userName ?? "-",
-        phone: row.userPhone ?? "-",
+        userName: user.userName,
+        phone: user.phone,
+        virtualPhone: user.virtualPhone,
         agentId: row.agentId,
         agentName: row.agentName ?? "-",
         agentScore: row.agentScore == null ? "-" : `${row.agentScore}/100`,
@@ -708,8 +727,9 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
       completed.push({
         executionId: row.executionId,
         executionIndex: row.executionIndex,
-        userName: row.userName ?? "-",
-        phone: row.userPhone ?? "-",
+        userName: user.userName,
+        phone: user.phone,
+        virtualPhone: user.virtualPhone,
         agentName: row.agentName ?? "-",
         acceptanceStatus: row.executionStatus === "ACCEPTANCE_FAILED" ? "验收未通过" : "验收通过",
         acceptanceScore: mapAcceptanceScore(row),
@@ -731,6 +751,7 @@ function mapAdminExecutionRows(rows: RemoteAdminExecutionRow[]): AdminExecutionR
 
 function mapAcceptanceReview(row: RemoteAcceptanceReviewRow): ReviewingExecution {
   const executionId = requireText(row.executionId, "executionId");
+  const user = mapUserPresentation(row.userId, row.userName, row.userPhone);
   return {
     executionId,
     executionIndex: row.executionIndex,
@@ -738,8 +759,9 @@ function mapAcceptanceReview(row: RemoteAcceptanceReviewRow): ReviewingExecution
     taskTitle: row.taskTitle,
     taskCategory: row.taskCategory,
     userId: row.userId,
-    userName: row.userName ?? "-",
-    phone: row.userPhone ?? "-",
+    userName: user.userName,
+    phone: user.phone,
+    virtualPhone: user.virtualPhone,
     agentId: row.agentId,
     agentName: row.agentName ?? "-",
     agentScore: row.agentScore == null ? "-" : `${row.agentScore}/100`,
@@ -777,6 +799,7 @@ function mapAppealDetail(detail: RemoteAdminAppealDetail): AdminAppeal {
   const appealId = requireText(appeal.id, "appeal.id");
   const appealNo = requireText(appeal.appealNo, "appeal.appealNo");
   const reason = requireText(appeal.reason, "appeal.reason");
+  const user = mapUserPresentation(appeal.userId, detail.userName, detail.userPhone);
   return {
     backendId: appealId,
     appealNo,
@@ -785,8 +808,9 @@ function mapAppealDetail(detail: RemoteAdminAppealDetail): AdminAppeal {
     taskCategory: requireText(detail.taskCategory, "taskCategory"),
     taskReward: detail.taskReward?.trim() || undefined,
     userId: appeal.userId,
-    userName: requireText(detail.userName, "userName"),
-    userPhone: detail.userPhone?.trim() || "未提供",
+    userName: user.userName,
+    userPhone: user.phone,
+    userVirtualPhone: user.virtualPhone,
     agentId: appeal.agentId,
     agentName: requireText(detail.agentName, "agentName"),
     agentScore: detail.agentScore == null ? undefined : `${detail.agentScore}/100`,
@@ -819,14 +843,16 @@ function reviewReasonPayload(reason?: string): AppealReviewRequest {
 
 function mapSettlement(settlement: RemoteSettlementRecord, taskById: Map<string, Task>): Settlement {
   const task = taskById.get(settlement.taskId ?? "");
+  const user = mapUserPresentation(settlement.userId, settlement.userName, settlement.userPhone);
   return {
     backendId: settlement.id,
     settlementNo: settlement.settlementNo ?? settlement.id ?? "",
     taskId: settlement.taskId,
     taskTitle: task?.title ?? compactId(settlement.taskId, "任务"),
     taskCategory: task?.category,
-    userName: settlement.userName || compactId(settlement.userId, "用户"),
-    userPhone: settlement.userPhone || "-",
+    userName: user.userName,
+    userPhone: user.phone,
+    userVirtualPhone: user.virtualPhone,
     agentName: settlement.agentName || compactId(settlement.agentId, "Agent"),
     taskIncome: settlement.taskIncome ?? 0,
     platformFee: settlement.platformFee ?? 0,
@@ -839,11 +865,13 @@ function mapSettlement(settlement: RemoteSettlementRecord, taskById: Map<string,
 }
 
 function mapWithdrawal(withdrawal: RemoteWithdrawalRecord): Withdrawal {
+  const user = mapUserPresentation(withdrawal.userId, withdrawal.userName, withdrawal.userPhone);
   return {
     backendId: withdrawal.id,
     withdrawalNo: withdrawal.withdrawalNo ?? withdrawal.id ?? "",
-    userName: withdrawal.userName || compactId(withdrawal.userId, "用户"),
-    userPhone: withdrawal.userPhone || "-",
+    userName: user.userName,
+    userPhone: user.phone,
+    userVirtualPhone: user.virtualPhone,
     verifiedName: withdrawal.verifiedName || "-",
     alipayAccount: withdrawal.alipayAccount ?? "-",
     realNameMatchStatus: withdrawal.realNameMatchStatus === "PASSED" ? "可用" : "待授权",
@@ -874,6 +902,7 @@ function mapPayouts(withdrawals: Withdrawal[]): Payout[] {
       withdrawalNo: item.withdrawalNo,
       userName: item.userName,
       userPhone: item.userPhone,
+      userVirtualPhone: item.userVirtualPhone,
       alipayAccount: item.alipayAccount,
       payoutAmount: item.applyAmount,
       estimatedArrivalTime: item.estimatedArrivalTime,
@@ -898,6 +927,7 @@ function mapFundExceptions(withdrawals: Withdrawal[]): FundException[] {
       withdrawalNo: item.withdrawalNo,
       userName: item.userName,
       userPhone: item.userPhone,
+      userVirtualPhone: item.userVirtualPhone,
       alipayAccount: item.alipayAccount,
       exceptionType: "打款失败",
       exceptionAmount: item.applyAmount,
@@ -910,7 +940,7 @@ function mapFundFlow(flow: ApiFundFlow, taskById: Map<string, Task>): FundFlow {
   return {
     flowNo: flow.flowNo ?? flow.id ?? "",
     flowType: mapFlowType(flow.flowType),
-    userName: compactId(flow.userId, "用户"),
+    userName: mapUserPresentation(flow.userId, compactId(flow.userId, "用户")).userName,
     taskTitle: taskById.get(flow.taskId ?? "")?.title ?? "-",
     withdrawalNo: flow.withdrawalId ? compactId(flow.withdrawalId, "WD") : "-",
     amount: flow.amount ?? 0,

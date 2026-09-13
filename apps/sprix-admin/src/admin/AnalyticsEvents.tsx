@@ -7,6 +7,7 @@ import axios from 'axios';
 import { Alert, Button, Descriptions, Input, Modal, Select, Space } from 'antd';
 import type { AnalyticsSelection } from './AnalyticsDetails';
 import {formatCount} from '../utils/format';
+import {ADMIN_PAGE_SIZE} from '../../shared/pagination.mjs';
 
 type EventRow = {
   event_id: string; event_name: string; event_time: string; received_at: string;
@@ -54,7 +55,7 @@ export function AnalyticsEvents({period, startDate, endDate, selection}: {period
   const params = {days:period,startDate,endDate,date:selection.date,event_name:selection.kind === 'behavior' ? selection.eventName : undefined,...filters,page};
   const query = useQuery({queryKey:['sprix-admin','analytics-events',params],queryFn:async ({signal})=>(await axios.get<{rows:EventRow[];total:number;generatedAt:string}>('/mock-api/dashboard/events',{params,signal,timeout:15000})).data,placeholderData:keepPreviousData,staleTime:Infinity,refetchOnWindowFocus:false,refetchOnReconnect:false});
   return <>
-    <p className="dashboard-note">逐条事件 · 北京时间 · 每页 20 条。下方筛选仅作用于事件列表。</p>
+    <p className="dashboard-note">逐条事件 · 北京时间 · 每页 {ADMIN_PAGE_SIZE} 条。下方筛选仅作用于事件列表。</p>
     <Space wrap style={{marginBottom:16}}>
       <Select aria-label="事件名称" placeholder="全部事件" allowClear style={{width:230}} onChange={v=>change('event_name',v ?? '')} options={events.map(value=>({label:value,value}))}/>
       <Select aria-label="事件结果" placeholder="全部结果" allowClear style={{width:120}} onChange={v=>change('result',v ?? '')} options={[{label:'成功',value:'success'},{label:'失败',value:'failure'}]}/>
@@ -62,7 +63,7 @@ export function AnalyticsEvents({period, startDate, endDate, selection}: {period
       <Select aria-label="事件来源" placeholder="全部来源" allowClear style={{width:120}} onChange={v=>change('event_source',v ?? '')} options={['web','server','agent'].map(value=>({label:value,value}))}/>
       <Input.Search aria-label="搜索事件关联 ID" placeholder="用户 / 任务 / 执行 / 事件 / 链路 ID" allowClear onSearch={v=>change('search',internalSearch(v))} style={{width:330}}/>
     </Space>
-    {query.isError ? <Alert type="error" message="事件读取失败" action={<Button onClick={()=>query.refetch()}>重试</Button>}/> : <Table<EventRow> rowKey="event_id" size="small" loading={query.isPending || query.isPlaceholderData} dataSource={query.data?.rows ?? []} scroll={{x:1100}} pagination={{current:page,pageSize:20,total:query.data?.total ?? 0,showSizeChanger:false,onChange:setPage,showTotal:total=>`共 ${total.toLocaleString()} 条事件`}} columns={[
+    {query.isError ? <Alert type="error" message="事件读取失败" action={<Button onClick={()=>query.refetch()}>重试</Button>}/> : <Table<EventRow> rowKey="event_id" size="small" loading={query.isPending || query.isPlaceholderData} dataSource={query.data?.rows ?? []} scroll={{x:1100}} pagination={{current:page,pageSize:ADMIN_PAGE_SIZE,total:query.data?.total ?? 0,showSizeChanger:false,onChange:setPage,showTotal:total=>`共 ${total.toLocaleString()} 条事件`}} columns={[
       {title:'发生时间',dataIndex:'event_time',width:190,className:'whitespace-nowrap tabular-nums',render:v=>new Date(v).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false})},
       {title:'事件',dataIndex:'event_name',width:240},{title:'用户',dataIndex:'user_name',width:130},{title:'页面',dataIndex:'page_id',width:140},
       {title:'结果',dataIndex:'result',render:v=>v==='success'?'成功':'失败'}, {title:'耗时',dataIndex:'duration_ms',align:'right',render:v=>v == null?'—':`${formatCount(v)} ms`},

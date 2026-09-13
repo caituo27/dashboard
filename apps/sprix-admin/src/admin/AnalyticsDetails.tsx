@@ -2,6 +2,7 @@ import { AdminTable as Table } from "../components/AdminTable";
 import { AnalyticsEvents } from "./AnalyticsEvents";
 import { Drawer, Select, Tabs } from "antd";
 import type { AnalyticsDay, DashboardAnalyticsSnapshot } from "../services/dashboardAnalyticsMock";
+import { ADMIN_PAGE_SIZE } from "../../shared/pagination.mjs";
 
 export type AnalyticsSelection = { kind: "pv" | "uv" | "behavior"; startDate: string; endDate: string; endAt?: string; date?: string; behavior?: string; eventName?: string };
 const number = (value: number) => value.toLocaleString("zh-CN");
@@ -17,7 +18,7 @@ export function AnalyticsDetails({ data, selection, onChange, onClose }: { data:
     {selection && <>
       <div className="dashboard-details-toolbar"><span>行为明细 · 统计周期（北京时间）：{periodRange}</span><Select aria-label="明细日期" value={selectedDate ?? "all"} style={{ minWidth: 160 }} onChange={(date) => onChange({ ...selection, date: date === "all" ? undefined : date })} options={[{ value: "all", label: "全部日期" }, ...scopedDays.map((day) => ({ value: day.date, label: day.date }))]} /></div>
       <Tabs destroyOnHidden items={[{key:"summary",label:"每日汇总",children:<>
-      <Table<AnalyticsDay> rowKey="date" size="small" dataSource={rows} pagination={{ pageSize: 10, hideOnSinglePage: true }} scroll={{ x: 520 }} columns={[
+      <Table<AnalyticsDay> rowKey="date" size="small" dataSource={rows} pagination={{ pageSize: ADMIN_PAGE_SIZE, hideOnSinglePage: true }} scroll={{ x: 520 }} columns={[
         { title: "日期", dataIndex: "date" },
         { title: "页面浏览 PV", dataIndex: "pv", align: "right", render: number },
         { title: "独立访客 UV", dataIndex: "uv", align: "right", render: number },

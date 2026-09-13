@@ -1,5 +1,6 @@
 import {dataAnnotationTaskContent} from './data-annotation-task-templates.mjs';
 import {sourceTaskReferenceContent} from './other-task-reference-templates.mjs';
+import {ADMIN_PAGE_SIZE} from '../shared/pagination.mjs';
 
 export const DAY = 86400000;
 export const START = Date.parse('2026-07-29T04:00:00Z');
@@ -129,8 +130,8 @@ const families=[
  }],
  ['软件开发',pick=>{
    const business=pick(businesses,3),limit=pick([10,20,50,100],4);
-   const rows=[['默认请求','输入 {}；预期 page=1，pageSize=20。'],['页码下限','输入 {"page":0}；预期参数校验失败。'],['类型错误','输入 {"page":"abc"}；预期拒绝非整数页码。'],['分页上限',`输入 {"pageSize":${limit+1}}；预期参数校验失败。`],['有效边界',`输入 {"page":1,"pageSize":${limit}}；预期参数校验通过。`],['未登录','缺少访问凭证；预期拒绝访问，不返回列表数据。']];
-   return [`${business}订单列表的分页与权限用例`,`为${business}订单列表补充测试设计。约定 page 为大于等于 1 的整数，默认 1；pageSize 默认 20，允许 1 至 ${limit}，若默认值超出上限则按上限处理；未登录不能访问。这里只编写用例，不调用线上接口。`,`Markdown 用例说明和 CSV 请求与预期表，共 6 条。`,`覆盖默认、下限、类型、上限、有效边界和未登录；请求与预期对应约定；不得将未执行的测试写成已通过。`,rows.map(([a,b])=>[a,a==='默认请求'?`输入 {}；预期 page=1，pageSize=${Math.min(20,limit)}。`:b])];
+   const rows=[['默认请求',`输入 {}；预期 page=1，pageSize=${ADMIN_PAGE_SIZE}。`],['页码下限','输入 {"page":0}；预期参数校验失败。'],['类型错误','输入 {"page":"abc"}；预期拒绝非整数页码。'],['分页上限',`输入 {"pageSize":${limit+1}}；预期参数校验失败。`],['有效边界',`输入 {"page":1,"pageSize":${limit}}；预期参数校验通过。`],['未登录','缺少访问凭证；预期拒绝访问，不返回列表数据。']];
+   return [`${business}订单列表的分页与权限用例`,`为${business}订单列表补充测试设计。约定 page 为大于等于 1 的整数，默认 1；pageSize 默认 ${ADMIN_PAGE_SIZE}，允许 1 至 ${limit}，若默认值超出上限则按上限处理；未登录不能访问。这里只编写用例，不调用线上接口。`,`Markdown 用例说明和 CSV 请求与预期表，共 6 条。`,`覆盖默认、下限、类型、上限、有效边界和未登录；请求与预期对应约定；不得将未执行的测试写成已通过。`,rows.map(([a,b])=>[a,a==='默认请求'?`输入 {}；预期 page=1，pageSize=${Math.min(ADMIN_PAGE_SIZE,limit)}。`:b])];
  }],
  ['设计创意',pick=>{
    const business=pick(businesses,3),entry=pick(['预约确认页','服务选择页','进度查询页','个人订单页'],4);

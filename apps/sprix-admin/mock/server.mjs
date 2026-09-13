@@ -12,6 +12,7 @@ import { createAnalyticsSnapshot } from "./analytics-data.mjs";
 import { buildDemoLedger } from "./demo-ledger.mjs";
 import { orderRange, statusAt } from "./business-scenario.mjs";
 import {PLATFORM_CUTOFF_AT,businessAcceptanceRecord,businessAppealCount,businessAppealRecord,businessExecutionCount,businessExecutionSubmission,businessPublishedTaskCount,businessTaskAttachment,businessTaskCount,createBusinessMetricsSnapshot,platformCumulativeOverview} from './business-metrics.mjs';
+import {readLiveBusinessState} from './live-platform-overview.mjs';
 
 const compactDashboardCache = new Map();
 function applyStateToDashboard(snapshot,state) {
@@ -76,6 +77,9 @@ async function compactDashboard(period, range) {
     while (compactDashboardCache.size > 12) compactDashboardCache.delete(compactDashboardCache.keys().next().value);
   }
   return compactDashboardCache.get(key);
+}
+function liveDashboardSnapshot(snapshot) {
+  return {...snapshot,overview:{...snapshot.overview,...readLiveBusinessState().overview}};
 }
 function sendJson(response, status, data) {
   response.writeHead(status, {
@@ -156,7 +160,7 @@ export function dashboardMockMiddleware(request, response, next) {
   if (url.pathname === "/mock-api/admin/view" && request.method === "GET") {
     const requestedKind=url.searchParams.get('kind');
     if (requestedKind === 'dashboard') {
-      compactDashboard(30).then(data=>sendJson(response,200,data)).catch(error=>sendJson(response,400,{message:error.message}));
+      compactDashboard(30).then(data=>sendJson(response,200,liveDashboardSnapshot(data))).catch(error=>sendJson(response,400,{message:error.message}));
       return;
     }
     if(requestedKind==='seed-state') {
@@ -224,7 +228,7 @@ export function dashboardMockMiddleware(request, response, next) {
       sendJson(response, 400, { message: "自定义周期必须同时提供唯一的 startDate 和 endDate" });
       return;
     }
-    compactDashboard(7,{startDate:starts[0],endDate:ends[0]}).then(data=>sendJson(response,200,data)).catch(error=>sendJson(response,400,{message:error.message}));
+    compactDashboard(7,{startDate:starts[0],endDate:ends[0]}).then(data=>sendJson(response,200,liveDashboardSnapshot(data))).catch(error=>sendJson(response,400,{message:error.message}));
     return;
   }
   const days = url.searchParams.get("days") ?? "7";
@@ -232,7 +236,7 @@ export function dashboardMockMiddleware(request, response, next) {
     sendJson(response, 400, { message: "days 必须为 7、28 或 30" });
     return;
   }
-  compactDashboard(Number(days)).then(data=>sendJson(response,200,data)).catch(error=>sendJson(response,400,{message:error.message}));
+  compactDashboard(Number(days)).then(data=>sendJson(response,200,liveDashboardSnapshot(data))).catch(error=>sendJson(response,400,{message:error.message}));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

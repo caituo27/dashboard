@@ -128,6 +128,8 @@ export type RunningExecution = {
   executionIndex?: number;
   userName: string;
   phone: string;
+  virtualPhone?: string;
+  userSpecialty?: string;
   agentName: string;
   agentScore: string;
   currentNode: string;
@@ -141,6 +143,8 @@ export type TerminatedExecution = {
   executionIndex?: number;
   userName: string;
   phone: string;
+  virtualPhone?: string;
+  userSpecialty?: string;
   agentName: string;
   terminationReason: string;
   terminatedNode: string;
@@ -157,6 +161,8 @@ export type ReviewingExecution = {
   userId?: string;
   userName: string;
   phone: string;
+  virtualPhone?: string;
+  userSpecialty?: string;
   agentId?: string;
   agentName: string;
   agentScore: string;
@@ -183,6 +189,8 @@ export type CompletedExecution = {
   executionIndex?: number;
   userName: string;
   phone: string;
+  virtualPhone?: string;
+  userSpecialty?: string;
   agentName: string;
   acceptanceStatus: string;
   acceptanceScore: string;
@@ -226,6 +234,8 @@ export type AdminAppeal = {
   userId?: string;
   userName: string;
   userPhone: string;
+  userVirtualPhone?: string;
+  userSpecialty?: string;
   agentId?: string;
   agentName: string;
   agentScore?: string;
@@ -262,6 +272,7 @@ export type Settlement = {
   taskCategory?: string;
   userName: string;
   userPhone: string;
+  userVirtualPhone?: string;
   agentName: string;
   taskIncome: number;
   platformFee: number;
@@ -280,6 +291,7 @@ export type Withdrawal = {
   taskCategory?: string;
   userName: string;
   userPhone: string;
+  userVirtualPhone?: string;
   verifiedName: string;
   alipayAccount: string;
   realNameMatchStatus: "可用" | "待授权";
@@ -306,6 +318,7 @@ export type Payout = {
   withdrawalNo: string;
   userName: string;
   userPhone: string;
+  userVirtualPhone?: string;
   alipayAccount: string;
   payoutAmount: number;
   estimatedArrivalTime: string;
@@ -326,6 +339,7 @@ export type FundException = {
   withdrawalNo: string;
   userName: string;
   userPhone: string;
+  userVirtualPhone?: string;
   alipayAccount: string;
   exceptionType: string;
   exceptionAmount: number;

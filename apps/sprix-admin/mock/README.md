@@ -91,7 +91,7 @@ virtual sequence.
 Metric cards, bars, funnel steps and ranking actions open daily summaries and
 server-paginated event details. `/mock-api/dashboard/events` accepts days, date,
 event_name, result, channel, event_source, page_id, button_name, search and page.
-It returns 20 rows per page; no full event stream is sent to the browser.
+It returns 10 rows per page; no full event stream is sent to the browser.
 
 `analytics-events.mjs` generates a deterministic, shared 30-day event stream.
 Summary metrics and detail rows come from the same events. Returning users retain

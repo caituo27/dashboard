@@ -2,6 +2,7 @@ import {readRemoteTaskCenterSnapshot,readRemoteTaskDetail} from './sprixApi';
 import {mergePage} from './pagedAdminData';
 import type {AdminTaskCenterSnapshot,AdminTaskDetailView} from './sprixApi';
 import type {Task} from '../types';
+import {ADMIN_PAGE_SIZE} from '../../shared/pagination.mjs';
 export const executionLabels={all:'全部订单',running:'执行中',reviewing:'待验收',completed:'已完成',terminated:'已终止'};
 export type ExecutionFilter=keyof typeof executionLabels;
 export type OrderRange={startDate:string;endDate:string;endAt:string;snapshotVersion?:string};
@@ -29,5 +30,5 @@ export async function readRealOrders(options:{status:ExecutionFilter;search:stri
  return rows;
 }
 export async function readOrderPage(options:{status:ExecutionFilter;page:number;search:string;category?:string}&OrderRange,source:OrderSource={center:readRemoteTaskCenterSnapshot,detail:task=>readRemoteTaskDetail(task.id)}) {
- return mergePage<OrderRow>('orders',options.snapshotVersion?[]:await readRealOrders(options,source),{...options,pageSize:20});
+ return mergePage<OrderRow>('orders',options.snapshotVersion?[]:await readRealOrders(options,source),{...options,pageSize:ADMIN_PAGE_SIZE});
 }

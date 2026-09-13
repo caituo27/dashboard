@@ -41,16 +41,17 @@ export async function mergePage<T>(kind:string,realRows:T[] | Promise<T[]>,optio
  return {total,page,rows:[...sorted.slice(i,i+options.pageSize),...mock.rows].sort((a,b)=>compareRecords(kind,a as object,b as object)).slice(0,options.pageSize)};
 }
 export const readDemoDashboard=()=>demoView<DashboardAnalyticsSnapshot>({kind:'dashboard'});
+function dashboardExecutionTotal(snapshot:DashboardAnalyticsSnapshot){return Object.values(snapshot.operations.executions).reduce((sum,value)=>sum+(value ?? 0),0);}
 export async function readTaskPage(options:PageOptions){
  if(options.demoOnly){
   const [result,demo]=await Promise.all([mergePage<Task>('tasks',[],options),readDemoDashboard()]);
-  return {...result,stats:{total:demo.operations.taskTotal,published:demo.operations.publishedTasks,offline:demo.operations.taskTotal-demo.operations.publishedTasks,executions:demo.overview.orders,reviews:demo.operations.pendingAcceptance ?? 0,appeals:demo.operations.appeals}};
+  return {...result,stats:{total:demo.operations.taskTotal,published:demo.operations.publishedTasks,offline:demo.operations.taskTotal-demo.operations.publishedTasks,executions:dashboardExecutionTotal(demo),reviews:demo.operations.pendingAcceptance ?? 0,appeals:demo.operations.appeals}};
  }
  const rawCenterPromise=sharedAdminRead('center',real.readRemoteTaskCenterSnapshot);
  const seedStatePromise=demoView<SeedDemoState>({kind:'seed-state'});
  const centerPromise=Promise.all([rawCenterPromise,seedStatePromise]).then(([center,state])=>({...center,tasks:decorateSeedTaskList(center.tasks,state)}));
  const [center,demo,result]=await Promise.all([centerPromise,readDemoDashboard(),mergePage<Task>('tasks',centerPromise.then(center=>center.tasks),options)]);
- return {...result,stats:{total:center.tasks.filter(t=>t.taskStatus!=='已删除').length+demo.operations.taskTotal,published:center.tasks.filter(t=>t.taskStatus==='已发布').length+demo.operations.publishedTasks,offline:center.tasks.filter(t=>t.taskStatus==='已下线').length+demo.operations.taskTotal-demo.operations.publishedTasks,executions:center.tasks.reduce((sum,t)=>sum+(t.executionTotal ?? 0),0)+demo.overview.orders,reviews:center.acceptanceReviews.length+(demo.operations.pendingAcceptance ?? 0),appeals:center.appealCount+demo.operations.appeals}};
+ return {...result,stats:{total:center.tasks.filter(t=>t.taskStatus!=='已删除').length+demo.operations.taskTotal,published:center.tasks.filter(t=>t.taskStatus==='已发布').length+demo.operations.publishedTasks,offline:center.tasks.filter(t=>t.taskStatus==='已下线').length+demo.operations.taskTotal-demo.operations.publishedTasks,executions:center.tasks.reduce((sum,t)=>sum+(t.executionTotal ?? 0),0)+dashboardExecutionTotal(demo),reviews:center.acceptanceReviews.length+(demo.operations.pendingAcceptance ?? 0),appeals:center.appealCount+demo.operations.appeals}};
 }
 export async function readAcceptancePage(options:PageOptions){
  const sourcePromise=sharedAdminRead('acceptance',real.readRemoteAcceptanceReviews);

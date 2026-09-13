@@ -1,6 +1,7 @@
 import {businessProfile} from "./business-profile.mjs";
 import {hash,indexAt,timeline,userForExecution,taskForOrder} from "./business-scenario.mjs";
 import { visitorContext, profileFromEvents } from "./analytics-profiles.mjs";
+import {ADMIN_PAGE_SIZE} from '../shared/pagination.mjs';
 // A deterministic sample of web journeys, tied to one candidate execution per 64 orders.
 // This is sampled web analytics, not the complete stream of automatic Agent executions.
 const DAY = 86400000;
@@ -157,7 +158,7 @@ export function queryEvents(params, at = Date.now()) {
   if (date) rows = rows.filter(e => new Date(Date.parse(e.event_time) + 28800000).toISOString().slice(0,10) === date);
   const search = params.get('search')?.trim();
   if (search) rows = rows.filter(e => [e.event_id,e.user_id,e.task_id,e.execution_id,e.trace_id].some(v => v?.includes(search)));
-  return {total: rows.length, page, pageSize: 20, generatedAt: new Date(now).toISOString(), rows: rows.slice().reverse().slice((page-1)*20,page*20)};
+  return {total: rows.length, page, pageSize: ADMIN_PAGE_SIZE, generatedAt: new Date(now).toISOString(), rows: rows.slice().reverse().slice((page-1)*ADMIN_PAGE_SIZE,page*ADMIN_PAGE_SIZE)};
 }
 
 export function queryUserProfile(userId, at = Date.now()) {

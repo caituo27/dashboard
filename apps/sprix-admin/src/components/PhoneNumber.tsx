@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { message } from "antd";
+import { Button, Modal, message } from "antd";
 import { Copy, Eye, EyeOff } from "lucide-react";
 import { maskPhone } from "../utils/displayText";
 
 type PhoneNumberProps = {
   value?: string | null;
+  virtualValue?: string | null;
   copyable?: boolean;
 };
 
@@ -13,12 +14,65 @@ async function copyPhoneNumber(value: string) {
   message.success("手机号已复制");
 }
 
-export function PhoneNumber({ value, copyable = false }: PhoneNumberProps) {
+export function PhoneNumber({ value, virtualValue, copyable = false }: PhoneNumberProps) {
   const [revealed, setRevealed] = useState(false);
   const source = value?.trim() ?? "";
+  const virtualPhone = virtualValue?.trim() ?? "";
   const masked = maskPhone(source);
+  const canRevealVirtual = Boolean(virtualPhone && source && !source.includes("*"));
   const canReveal = Boolean(source && !source.includes("*") && masked !== source);
-  const canCopy = Boolean(copyable && source);
+  const canCopy = Boolean(copyable && source && !canRevealVirtual);
+
+  if (canRevealVirtual) {
+    return (
+      <>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 whitespace-nowrap text-left text-inherit tabular-nums transition-colors hover:text-brand"
+          aria-label="查看真实手机号"
+          title="点击查看真实手机号"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setRevealed(true);
+          }}
+        >
+          <span>{virtualPhone}</span>
+          <Eye size={14} aria-hidden="true" />
+        </button>
+        <Modal
+          title="查看真实手机号"
+          open={revealed}
+          onCancel={(event) => {
+            event.stopPropagation();
+            setRevealed(false);
+          }}
+          footer={null}
+          centered
+          width={420}
+          modalRender={(node) => <div onClick={(event) => event.stopPropagation()}>{node}</div>}
+        >
+          <div className="py-2">
+            <p className="text-sm text-ink-soft">真实手机号</p>
+            <div className="mt-2 flex items-center justify-between gap-4 rounded-md border border-line bg-black/[0.02] px-4 py-3">
+              <span className="text-base font-medium tabular-nums text-ink">{source}</span>
+              <Button
+                size="small"
+                icon={<Copy size={13} aria-hidden="true" />}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void copyPhoneNumber(source).catch(() => message.error("手机号复制失败"));
+                }}
+              >
+                复制
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      </>
+    );
+  }
 
   if (!canReveal && !canCopy) return <span className="tabular-nums">{masked}</span>;
 

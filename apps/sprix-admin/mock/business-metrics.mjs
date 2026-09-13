@@ -5,7 +5,6 @@ import {dataAnnotationTaskAttachmentFiles} from './data-annotation-task-attachme
 import {otherTaskReferenceContent} from './other-task-reference-templates.mjs';
 import {otherTaskReferenceAttachmentFiles} from './other-task-reference-attachments.mjs';
 import {buildBusinessExecutionSubmission} from './business-execution-submission.mjs';
-
 const DAY=86_400_000,SHANGHAI_OFFSET=8*3_600_000;
 const MASTER_TOTALS=[9134,37,929,345,45,344],SLOT_TOTALS=[15487,62,1575,586,77,583];
 const WEEKDAY_WEIGHTS=[1.08,1.16,0.96,1.12,1.02,0.38,0.34];
@@ -114,8 +113,8 @@ function executorOrdinalForExecution(item){
  const dayOffset=dailyPools.slice(0,item.day).reduce((sum,value)=>sum+value,0);
  return previousWeeks+(dayOffset+(dailyPool?item.dayPosition%dailyPool:0))%weeklyPool+1;
 }
-function profileForExecution(index,item){
- return businessProfileForBatchPosition(acceptanceDisplayPositions[index],executorOrdinalForExecution(item));
+function profileForExecution(index,item,task){
+ return businessProfileForBatchPosition(acceptanceDisplayPositions[index],executorOrdinalForExecution(item),task);
 }
 function taskTitle(task){return `${task.type}·${rawWeeks[task.weekIndex][0]}·${String(task.localTask+1).padStart(4,'0')}`;}
 function taskPublishedAt(task){const firstDay=Math.min(...task.executionIndexes.map(index=>executionBlueprints[index].day));return dateAt(rawWeeks[task.weekIndex][1])+firstDay*DAY+(task.type==='数据标注'?10:6)*3_600_000+(hash(task.index,96)%(3*60))*60_000;}
@@ -134,9 +133,9 @@ export function businessTaskRecord(index,patch={},executionPatches={}){
  return record;
 }
 export function businessExecutionRecord(index,patch={}){
- const item=executionBlueprints[index];if(!item)return null;const task=businessTaskRecord(item.taskIndex),executorOrdinal=executorOrdinalForExecution(item),profile=profileForExecution(index,item),at=executionSubmittedAt(index,item),submittedAt=localTime(at),updatedAt=localTime(at+(1+hash(index,85)%16)*60_000),manual=item.deliveryMode==='USER_MANUAL';
+ const item=executionBlueprints[index];if(!item)return null;const task=businessTaskRecord(item.taskIndex),executorOrdinal=executorOrdinalForExecution(item),profile=profileForExecution(index,item,task),at=executionSubmittedAt(index,item),submittedAt=localTime(at),updatedAt=localTime(at+(1+hash(index,85)%16)*60_000),manual=item.deliveryMode==='USER_MANUAL';
  const agentScore=String(90+hash(index,84)%10);
- const row={index,executionIndex:index,id:`demo:business-order:${index}`,executionId:`demo:business-execution:${index}`,executionNo:executionNo(index,submittedAt),taskId:task.id,taskTitle:task.title,taskCategory:task.category,status:defaultExecutionStatus(index),userId:`demo:business-user:${profile.sourceIndex}`,userName:profile.userName,phone:profile.phone,agentId:`demo:business-agent:${executorOrdinal}`,agentName:profile.agentName,time:submittedAt,reward:money(item.acceptedCents/100),reviewSource:item.deliveryMode,acceptanceStatus:'待审核',acceptanceScore:'-',agentScore,acceptanceSummary:manual?'用户已人工上传交付，等待平台审核。':'Agent 已自动交付并完成质检，等待平台审核。',acceptanceIssues:'待平台审核',currentNode:'平台待审核',progress:'待审核',submittedAt,updatedAt,...patch};
+ const row={index,executionIndex:index,id:`demo:business-order:${index}`,executionId:`demo:business-execution:${index}`,executionNo:executionNo(index,submittedAt),taskId:task.id,taskTitle:task.title,taskCategory:task.category,status:defaultExecutionStatus(index),userId:`demo:business-user:${profile.identityIndex}`,userName:profile.userName,phone:profile.phone,virtualPhone:profile.virtualPhone,userSpecialty:profile.agentType,agentId:`demo:business-agent:${executorOrdinal}`,agentName:profile.agentName,time:submittedAt,reward:money(item.acceptedCents/100),reviewSource:item.deliveryMode,acceptanceStatus:'待审核',acceptanceScore:'-',agentScore,acceptanceSummary:manual?'用户已人工上传交付，等待平台审核。':'Agent 已自动交付并完成质检，等待平台审核。',acceptanceIssues:'待平台审核',currentNode:'平台待审核',progress:'待审核',submittedAt,updatedAt,...patch};
  if(row.status==='running')Object.assign(row,{acceptanceStatus:'未提交',currentNode:'任务执行中',progress:'执行中'});
  if(row.status==='completed')Object.assign(row,{acceptanceStatus:'验收通过',acceptanceResult:'验收通过',currentNode:'验收完成',progress:'已完成'});
  if(row.status==='terminated')Object.assign(row,{acceptanceStatus:'验收不通过',acceptanceResult:'验收不通过',currentNode:'验收结束',progress:'未通过'});
@@ -147,7 +146,7 @@ const appealExecutionIndexes=executionBlueprints.slice(1).filter(item=>item.deli
 export const businessAppealCount=appealExecutionIndexes.length;
 export function businessAppealRecord(position,patch={}){
  const executionIndex=appealExecutionIndexes[position-1];if(!executionIndex)return null;const execution=businessExecutionRecord(executionIndex),variant=hash(executionIndex,91)%10,appealStatus=variant<2?'待处理':variant<3?'处理中':variant<7?'申诉通过':'申诉不通过',submittedAt=localTime(Date.parse(execution.submittedAt.replace(' ','T')+'+08:00')+2*3_600_000);
- return {backendId:`demo:business-appeal:${position}`,appealNo:`AP-${String(position).padStart(6,'0')}`,taskTitle:execution.taskTitle,taskCategory:execution.taskCategory,userName:execution.userName,userPhone:execution.phone,agentName:execution.agentName,issueSummary:'人工上传交付的验收结果复核',appealReason:'申请按原任务交付标准复核本次人工上传结果。',appealStatus,priority:variant===0?'加急':'普通',submittedAt,handledAt:['待处理','处理中'].includes(appealStatus)?undefined:localTime(Date.parse(submittedAt.replace(' ','T')+'+08:00')+DAY),handler:['待处理','处理中'].includes(appealStatus)?'待分配':'平台复核专员',expectedProcessTime:'24 小时内',originalScore:'-',originalRejectReason:'验收结果存在争议',userSupplement:'已补充对应交付说明。',resultDescription:['待处理','处理中'].includes(appealStatus)?'等待平台复核。':`平台复核结果：${appealStatus}。`,linkedMyTaskId:execution.taskId,executionId:execution.executionId,executionNo:execution.executionNo,executionIndex,deliverables:'结构化交付结果及任务要求对应附件',acceptanceCriteria:'内容完整且通过对应类型质检标准',processLogs:[`${submittedAt} 用户提交申诉`,`${submittedAt} 平台已受理`],...patch};
+ return {backendId:`demo:business-appeal:${position}`,appealNo:`AP-${String(position).padStart(6,'0')}`,taskTitle:execution.taskTitle,taskCategory:execution.taskCategory,userId:execution.userId,userName:execution.userName,userPhone:execution.phone,userVirtualPhone:execution.virtualPhone,userSpecialty:execution.userSpecialty,agentName:execution.agentName,issueSummary:'人工上传交付的验收结果复核',appealReason:'申请按原任务交付标准复核本次人工上传结果。',appealStatus,priority:variant===0?'加急':'普通',submittedAt,handledAt:['待处理','处理中'].includes(appealStatus)?undefined:localTime(Date.parse(submittedAt.replace(' ','T')+'+08:00')+DAY),handler:['待处理','处理中'].includes(appealStatus)?'待分配':'平台复核专员',expectedProcessTime:'24 小时内',originalScore:'-',originalRejectReason:'验收结果存在争议',userSupplement:'已补充对应交付说明。',resultDescription:['待处理','处理中'].includes(appealStatus)?'等待平台复核。':`平台复核结果：${appealStatus}。`,linkedMyTaskId:execution.taskId,executionId:execution.executionId,executionNo:execution.executionNo,executionIndex,deliverables:'结构化交付结果及任务要求对应附件',acceptanceCriteria:'内容完整且通过对应类型质检标准',processLogs:[`${submittedAt} 用户提交申诉`,`${submittedAt} 平台已受理`],...patch};
 }
 export function businessTaskDetail(index,patch={},executionPatches={}){
  const blueprint=taskBlueprints[index],task=businessTaskRecord(index,patch,executionPatches);if(!blueprint||!task)return null;

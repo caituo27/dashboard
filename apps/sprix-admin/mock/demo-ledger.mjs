@@ -198,14 +198,14 @@ export function buildDemoLedger(snapshot, state = {}) {
     const taskId = `demo:task:${taskForExecution(index)}`;
     const task = taskFromId(taskId);
     const status = executionStatus(index);
-    const profile = businessProfile(userForExecution(index));
+    const profile = businessProfile(userForExecution(index),task);
     const dates = timeline(index);
     const score = String(82+hash(index,24)%18);
     const submittedTask=taskAtSubmission(task,patches[taskId],time(dates.submitted));
     const localReview=localAcceptance(index,submittedTask,status,score,patches[`demo:execution:${index}`]?.reason);
     const review=executionReview(submittedTask,status,patches[`demo:execution:${index}`]?.reason);
-    return { userId: `demo:user:${userForExecution(index)}`, agentId: `demo:agent:${userForExecution(index)}`, executionId: `demo:execution:${index}`, executionIndex: sequence(index), reward:rewardAt(index), taskId, taskTitle: task.title, taskCategory: task.category,
-      userName: profile.userName, phone: profile.phone, agentName: profile.agentName, agentScore: score, startedAt: time(dates.accepted),
+    return { userId: `demo:user:${profile.identityIndex}`, agentId: `demo:agent:${userForExecution(index)}`, executionId: `demo:execution:${index}`, executionIndex: sequence(index), reward:rewardAt(index), taskId, taskTitle: task.title, taskCategory: task.category,
+      userName: profile.userName, phone: profile.phone, virtualPhone: profile.virtualPhone, userSpecialty:profile.agentType, agentName: profile.agentName, agentScore: score, startedAt: time(dates.accepted),
       submittedAt: status === 'running' ? undefined : time(dates.submitted), completedAt: status === 'completed' ? time(completionTime(index)) : undefined, terminatedAt: status === 'terminated' || appealFacts.has(index) ? time(terminationTime(index)) : undefined,
       taskExecutionStatus:({running:'RUNNING',reviewing:'PLATFORM_REVIEWING',completed:'SETTLED',terminated:'TERMINATED'})[status], settlementStatusCode:status==='completed'?'POSTED':'NOT_POSTED', currentNodeCode:status==='reviewing'?'platform_reviewing':status, mappedBusinessStatus:status==='terminated'?'terminated':'platform_review_pending',
       acceptanceStatus: status === "reviewing" ? "待平台验收" : status === "terminated" ? "验收未通过" : status === "running" ? "执行中" : "验收通过", acceptanceScore:String(localReview?.score??score), score:String(localReview?.score??score), localAcceptance:localReview,
@@ -262,7 +262,7 @@ export function buildDemoLedger(snapshot, state = {}) {
     const processLogs=[`${time(fact.submittedAt)} 提交申诉`];
     if(fact.status!=='待处理') processLogs.push(`${time(Math.min(fact.startedAt,fact.resolvedAt))} 开始处理`);
     if(['申诉通过','申诉不通过'].includes(fact.status)) processLogs.push(`${time(fact.resolvedAt)} ${fact.status}`);
-    return {backendId:fact.id,appealNo:fact.id,taskTitle:record.taskTitle,taskCategory:record.taskCategory,userName:record.userName,userPhone:record.phone,agentName:record.agentName,
+    return {backendId:fact.id,appealNo:fact.id,taskTitle:record.taskTitle,taskCategory:record.taskCategory,userId:record.userId,userName:record.userName,userPhone:record.phone,userVirtualPhone:record.virtualPhone,userSpecialty:record.userSpecialty,agentName:record.agentName,
       issueSummary:['引用来源判定存在分歧','请求复核字段完整性','交付格式与要求理解不一致','补充材料后申请重新评估'][hash(appealIndex,30)%4],
       appealReason:['引用链接已附在交付附件中，请重新核对。','已按清单补充缺失字段，请复核结果。','交付格式符合任务说明，希望确认具体不符合项。','已补充来源及说明，申请人工复核。'][hash(appealIndex,30)%4],
       priority:hash(appealIndex,28)%9===0?'高':'普通',handler:fact.status==='待处理'?'待分配':'质量复核组',
@@ -279,7 +279,10 @@ export function buildDemoLedger(snapshot, state = {}) {
     for(const row of consumerRows.values()) if(row.taskId===id) records[executionStatus(row.index)].push(execution(row.index));
     return { task, records, operationLogs: (state.events ?? []).filter((event) => event.id === id).map((event, index) => ({ id: String(index), action: event.action, beforeStatus: event.beforeStatus ?? "", afterStatus: event.afterStatus ?? "", reason: event.reason ?? "", occurredAt: event.at })) };
   }
-  const fundFlows = (state.events ?? []).filter((event) => /demo:(withdrawal|settlement):/.test(event.id)).map((event, index) => ({ flowNo: `demo:flow:${index + 1}`, flowType: event.action, userName: businessProfile(Number(event.id.split(":")[2])).userName, taskTitle: event.id.startsWith("demo:settlement:") ? taskFromId(`demo:task:${event.id.split(":")[2]}`)?.title ?? "" : "", withdrawalNo: event.id.startsWith("demo:withdrawal:") ? event.id : "", amount: event.amount ?? 0, beforeStatus: event.beforeStatus ?? "", afterStatus: event.afterStatus ?? "", operator: "平台管理员", occurredAt: event.at, remark: event.reason ?? "" }));
+  const fundFlows = (state.events ?? []).filter((event) => /demo:(withdrawal|settlement):/.test(event.id)).map((event, index) => {
+    const executionIndex=Number(event.id.split(":")[2]),record=Number.isSafeInteger(executionIndex)?execution(executionIndex):null;
+    return { flowNo: `demo:flow:${index + 1}`, flowType: event.action, userName:record?.userName ?? "-", taskTitle:event.id.startsWith("demo:settlement:")?record?.taskTitle ?? "":"", withdrawalNo: event.id.startsWith("demo:withdrawal:") ? event.id : "", amount: event.amount ?? 0, beforeStatus: event.beforeStatus ?? "", afterStatus: event.afterStatus ?? "", operator: "平台管理员", occurredAt: event.at, remark: event.reason ?? "" };
+  });
   function orderRecord(index) {
     const e=execution(index),status=executionStatus(index);
     return {id:`${e.taskId}:${e.executionId}`,taskId:e.taskId,taskTitle:e.taskTitle,taskCategory:e.taskCategory,executionId:e.executionId,status,userName:e.userName,agentName:e.agentName,
@@ -289,14 +292,14 @@ export function buildDemoLedger(snapshot, state = {}) {
     if(executionStatus(index)!=='completed') throw new Error('Execution is not settled');
     const e=execution(index),reward=rewardAt(index),{gross,fee,net}=settlementAmounts(reward);
     const id=`demo:settlement:${index}`;
-    return {backendId:id,settlementNo:id,executionId:e.executionId,taskId:e.taskId,taskTitle:e.taskTitle,taskCategory:e.taskCategory,userName:e.userName,userPhone:e.phone,agentName:e.agentName,
+    return {backendId:id,settlementNo:id,executionId:e.executionId,taskId:e.taskId,taskTitle:e.taskTitle,taskCategory:e.taskCategory,userName:e.userName,userPhone:e.phone,userVirtualPhone:e.virtualPhone,agentName:e.agentName,
       taskIncome:money(gross),platformFee:money(fee),netIncome:money(net),settlementStatus:'已入账',createdAt:e.completedAt,
       paidAt:e.completedAt};
   }
   function withdrawalRecord(index) {
     const settlement=settlementRecord(index),id=`demo:withdrawal:${index}`;
     return {backendId:id,withdrawalNo:id,executionId:settlement.executionId,taskId:settlement.taskId,taskTitle:settlement.taskTitle,taskCategory:settlement.taskCategory,
-      userName:settlement.userName,userPhone:settlement.userPhone,agentName:settlement.agentName,
+      userName:settlement.userName,userPhone:settlement.userPhone,userVirtualPhone:settlement.userVirtualPhone,agentName:settlement.agentName,
       applyAmount:settlement.netIncome,appliedAt:settlement.createdAt,paidAt:settlement.paidAt,withdrawStatus:'已提现',withdrawableBalance:0};
   }
   // Numeric indexes only; individual records are constructed for the requested page.

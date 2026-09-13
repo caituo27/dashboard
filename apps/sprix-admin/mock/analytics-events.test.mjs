@@ -11,7 +11,7 @@ test('event identity, pagination, filters and exact aggregate reconciliation',()
  const first=queryEvents(new URLSearchParams('days=30&page=1&result=failure'),at);
  const next=queryEvents(new URLSearchParams('days=30&page=2&result=failure'),at);
  assert.equal(first.total,rows.filter(e=>e.result==='failure').length);
- assert.equal(first.rows.length,20);
+ assert.equal(first.rows.length,10);
  assert.ok(first.rows.every(e=>e.result==='failure' && e.error_code));
  assert.ok(next.rows.every(e=>!first.rows.some(r=>r.event_id===e.event_id)));
  assert.throws(()=>queryEvents(new URLSearchParams('page=NaN'),at));

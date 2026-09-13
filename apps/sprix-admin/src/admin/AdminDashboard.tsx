@@ -12,7 +12,6 @@ import './dashboard.css';
 const MIN_DATE='2026-07-27';
 const DATA_END_DATE='2026-09-06';
 const CUTOFF_AT='2026-09-06 23:59:59';
-const dashboardTime=(value:string)=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date(value));
 
 export function AdminDashboard(){
  const navigate=useNavigate();
@@ -33,5 +32,5 @@ export function AdminDashboard(){
   navigate(`/tasks?${params}`);
  };
  const weeklyStart=metrics.weeks[0]?.startDate??MIN_DATE,weeklyEnd=metrics.weeks[metrics.weeks.length-1]?.endDate??DATA_END_DATE;
- return <div className="dashboard-page"><PageHeader title="Sprix 核心经营看板" subtitle={pageSubtitle}/><DashboardBusinessMetrics data={metrics} overview={query.data.overview} snapshotAt={dashboardTime(query.data.generatedAt)} onTasks={taskQuery} onOrders={()=>setOrdersOpen(true)} rangeControl={rangeControl}/>{ordersOpen&&<DashboardOrders initialStatus="completed" startDate={weeklyStart} endDate={weeklyEnd} endAt={CUTOFF_AT} snapshotVersion={metrics.snapshotVersion} onClose={()=>setOrdersOpen(false)}/>}</div>;
+ return <div className="dashboard-page"><PageHeader title="Sprix 核心经营看板" subtitle={pageSubtitle}/><DashboardBusinessMetrics data={metrics} overview={query.data.overview} onTasks={taskQuery} onOrders={()=>setOrdersOpen(true)} rangeControl={rangeControl}/>{ordersOpen&&<DashboardOrders initialStatus="completed" startDate={weeklyStart} endDate={weeklyEnd} endAt={CUTOFF_AT} snapshotVersion={metrics.snapshotVersion} onClose={()=>setOrdersOpen(false)}/>}</div>;
 }

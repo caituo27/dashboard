@@ -12,7 +12,7 @@ let queue = Promise.resolve();
 export async function readDemoState() {
   try {
     const state=JSON.parse(await readFile(statePath, "utf8"));
-    state.consumerExecutions=(state.consumerExecutions??[]).map(row=>{const profile=businessProfileForIdentity(row.owner);return {...row,userName:profile.userName,phone:profile.phone};});
+    state.consumerExecutions=(state.consumerExecutions??[]).map(row=>{const profile=businessProfileForIdentity(row.owner,row.category);return {...row,userName:profile.userName,phone:profile.phone,virtualPhone:profile.virtualPhone,userSpecialty:profile.agentType};});
     return state;
   }
   catch (error) { if (error.code === "ENOENT") return { patches: {}, events: [] }; throw error; }
@@ -49,8 +49,8 @@ export function applyDemoAction({ id, action, payload = {} }) {
         const index=CONSUMER_EXECUTION_BASE+state.consumerExecutions.length+1;
         const suppliedPhone=String(payload.phone ?? '').replace(/\D/g,'').slice(-11);
         if(!/^1\d{10}$/.test(suppliedPhone)) throw new Error("用户手机号不完整");
-        const profile=businessProfileForIdentity(payload.owner);
-        state.consumerExecutions.push({index,owner:payload.owner,taskId:id,userName:profile.userName,phone:profile.phone,agentId:String(payload.agentId ?? ''),agentName:String(payload.agentName),reward:current.reward,category:current.category,startedAt:actionAt});
+        const profile=businessProfileForIdentity(payload.owner,current);
+        state.consumerExecutions.push({index,owner:payload.owner,taskId:id,userName:profile.userName,phone:profile.phone,virtualPhone:profile.virtualPhone,userSpecialty:profile.agentType,agentId:String(payload.agentId ?? ''),agentName:String(payload.agentName),reward:current.reward,category:current.category,startedAt:actionAt});
         accepted={id:`demo:execution:${index}`,taskId:id}; patch=current.remainingSlots===1?{taskStatus:"已下线",offlineReason:"SLOT_FULL"}:{};
       } else if (action === "edit") {
         patch = {};

@@ -8,6 +8,7 @@ import {executionLabels,readOrderPage,type ExecutionFilter,type OrderRow} from '
 import {StatusTag} from '../components/Primitives';
 import {currency} from '../utils/format';
 import {displayExecutionId} from '../utils/displayText';
+import {ADMIN_PAGE_SIZE} from '../../shared/pagination.mjs';
 export function DashboardOrders({initialStatus,startDate,endDate,endAt,snapshotVersion,onClose}:{initialStatus:ExecutionFilter;startDate:string;endDate:string;endAt:string;snapshotVersion?:string;onClose:()=>void}) {
  const client=useQueryClient();
  const [status,setStatus]=useState(initialStatus),[page,setPage]=useState(1),[search,setSearch]=useState(''),[category,setCategory]=useState<string>();
@@ -20,7 +21,7 @@ export function DashboardOrders({initialStatus,startDate,endDate,endAt,snapshotV
     <Input.Search placeholder="搜索任务名称或任务 ID" aria-label="搜索订单关联任务" allowClear style={{width:300}} onSearch={v=>{setSearch(v);setPage(1);}}/>
     <Button onClick={()=>query.refetch()} loading={query.isFetching}>刷新列表</Button>
    </Space>
-   {query.isError ? <Alert type="error" message="订单读取失败" description={query.error.message} action={<Button onClick={()=>query.refetch()}>重试</Button>}/> : <Table<OrderRow> rowKey="id" loading={query.isPending || query.isPlaceholderData} size="small" dataSource={query.data?.rows ?? []} scroll={{x:1100}} pagination={{current:query.data?.page ?? page,pageSize:20,total:query.data?.total ?? 0,showSizeChanger:false,onChange:setPage,showTotal:total=>`共 ${total.toLocaleString()} 条订单`}} columns={[
+   {query.isError ? <Alert type="error" message="订单读取失败" description={query.error.message} action={<Button onClick={()=>query.refetch()}>重试</Button>}/> : <Table<OrderRow> rowKey="id" loading={query.isPending || query.isPlaceholderData} size="small" dataSource={query.data?.rows ?? []} scroll={{x:1100}} pagination={{current:query.data?.page ?? page,pageSize:ADMIN_PAGE_SIZE,total:query.data?.total ?? 0,showSizeChanger:false,onChange:setPage,showTotal:total=>`共 ${total.toLocaleString()} 条订单`}} columns={[
     {title:'执行 ID',dataIndex:'executionId',width:210,render:(_,row)=><span>{displayExecutionId(row)}</span>},
     {title:'关联任务',dataIndex:'taskTitle',width:220,render:(title,row)=><Link to={`/tasks/${encodeURIComponent(row.taskId)}?executionStatus=${row.status}&executionId=${encodeURIComponent(row.executionId)}`}>{title}</Link>},
     {title:'任务分类',dataIndex:'taskCategory',width:170},

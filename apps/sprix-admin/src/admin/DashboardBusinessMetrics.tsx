@@ -210,17 +210,17 @@ function SettlementTrendChart({weeks}:{weeks:BusinessWeek[]}){
 
 type TaskNavigator=(category?:string,scope?:'period'|'snapshot')=>void;
 
-function PlatformSnapshot({overview,snapshotAt}:{overview:DashboardAnalyticsSnapshot['overview'];snapshotAt:string}){
+function PlatformSnapshot({overview}:{overview:DashboardAnalyticsSnapshot['overview']}){
  const items=[
   {label:'累计成交金额',value:`¥${integer(overview.amount)}`},
   {label:'累计订单',value:integer(overview.orders)},
   {label:'累计任务数量',value:integer(overview.tasks)},
   {label:'Agent 数量',value:integer(overview.agents)}
  ];
- return <Surface className="executive-snapshot-section"><header className="executive-snapshot-header"><div><span><Layers3 size={17}/></span><div><h2>平台累计规模</h2></div></div><em>截至 {snapshotAt.slice(0,10)}</em></header><div className="executive-snapshot-strip">{items.map(item=><div key={item.label}><small>{item.label}</small><strong>{item.value}</strong></div>)}</div></Surface>;
+ return <Surface className="executive-snapshot-section"><header className="executive-snapshot-header"><div><span><Layers3 size={17}/></span><div><h2>平台累计规模</h2></div></div></header><div className="executive-snapshot-strip">{items.map(item=><div key={item.label}><small>{item.label}</small><strong>{item.value}</strong></div>)}</div></Surface>;
 }
 
-export function DashboardBusinessMetrics({data,overview,snapshotAt,onTasks,onOrders,rangeControl}:{data:BusinessMetrics;overview:DashboardAnalyticsSnapshot['overview'];snapshotAt:string;onTasks:TaskNavigator;onOrders:()=>void;rangeControl:ReactNode}){
+export function DashboardBusinessMetrics({data,overview,onTasks,onOrders,rangeControl}:{data:BusinessMetrics;overview:DashboardAnalyticsSnapshot['overview'];onTasks:TaskNavigator;onOrders:()=>void;rangeControl:ReactNode}){
  const weeks=data.weeks,{dailyWeeks,weeklyWeeks,latestCompleteWeek:latest}=selectDashboardWeekScopes(weeks,data.periodStart,data.periodEnd);
  const latestScope=latest?`${latest.startDate}–${latest.endDate}`:'暂无完整周';
  const weeklyAcceptedGmv=weeklyWeeks.reduce((sum,week)=>sum+week.acceptedGmv,0);
@@ -229,7 +229,7 @@ export function DashboardBusinessMetrics({data,overview,snapshotAt,onTasks,onOrd
  const sixWeekSettlementTotal=settlementTrend.reduce((sum,week)=>sum+week.total,0);
  const taskTypes=weeklyWeeks[0]?.taskTypes.map(item=>item.type)??[],amountRows=[...taskTypes.map(type=>({type})),{type:'合计'}];
  const amountColumns=[{title:'类型',dataIndex:'type',fixed:'left' as const,width:105},...weeklyWeeks.map(week=>({title:week.label,key:week.label,align:'right' as const,width:118,render:(_:unknown,row:{type:string})=>row.type==='合计'?money(week.acceptedGmv):shortMoney(week.taskTypes.find(item=>item.type===row.type)?.amount??0)}))];
- return <div className="executive-dashboard"><PlatformSnapshot overview={overview} snapshotAt={snapshotAt}/>
+ return <div className="executive-dashboard"><PlatformSnapshot overview={overview}/>
  <Surface className="executive-period-section executive-daily-section"><header className="executive-period-header"><div className="executive-period-heading"><span><ChartNoAxesCombined size={18}/></span><div><h2>按日经营数据</h2><p>新增、交付与类型构成按所选日期统计</p></div></div><div className="executive-period-range">{rangeControl}</div></header><div className="executive-period-grid executive-daily-metrics"><PeriodMetric label="新增 Agent" value={integer(data.summary.newAgents)} note="所选日期累计"/><PeriodMetric label="Agent 交付任务数" value={integer(data.summary.deliveredTasks)} note="所选日期累计" onClick={()=>onTasks(undefined,'period')}/></div><div className="executive-two-column executive-daily-charts"><div className="executive-module"><div className="executive-title-row"><h3>每日新增 Agent</h3></div>{dailyWeeks.length?<DailyAgentChart weeks={dailyWeeks}/>:<ChartEmpty>所选日期暂无每日数据</ChartEmpty>}</div><div className="executive-module"><div className="executive-title-row"><h3>每日交付任务数与日有效 Agent 数</h3></div>{dailyWeeks.length?<DailyDeliveryChart weeks={dailyWeeks}/>:<ChartEmpty>所选日期暂无每日数据</ChartEmpty>}</div></div><div className="executive-type-layout executive-type-layout-direct"><div className="executive-module executive-type-module"><AgentTypeDistribution weeks={dailyWeeks} total={data.summary.newAgents}/></div><div className="executive-module executive-type-module"><TaskTypeRanking weeks={dailyWeeks} total={data.summary.deliveredTasks} onTasks={type=>onTasks(type,'period')}/></div></div></Surface>
   <Section title="近六周经营数据" icon={ShieldCheck}>
    <div className="executive-weekly-overview"><div className="executive-weekly-total"><header><small>近六周累计</small></header><div className="executive-weekly-total-metrics"><button type="button" onClick={onOrders}><small>验收 GMV</small><strong>{money(weeklyAcceptedGmv)}</strong></button><span><small>交付任务数</small><b>{integer(weeklyDeliveredTasks)}</b></span></div></div><div className="executive-latest-week-summary"><header><div><small>最新统计周</small><strong>{latestScope}</strong></div></header><div className="executive-latest-week-metrics"><span><small>周验收 GMV</small><b>{latest?money(latest.acceptedGmv):'—'}</b></span><span><small>有效 Agent</small><b>{latest?integer(latest.effectiveAgents):'—'}</b></span><span><small>单个有效 Agent 周均 GMV</small><b>{latest&&latest.effectiveAgents>0?money(latest.acceptedGmv/latest.effectiveAgents):'—'}</b></span><span><small>异构 Agent 比例</small><b>{percent(latest?.heterogeneousRate??null)}</b></span></div></div></div>

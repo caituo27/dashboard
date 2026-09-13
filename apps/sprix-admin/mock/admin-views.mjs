@@ -3,6 +3,7 @@ import {readDemoState} from './demo-state.mjs';
 import {buildDemoLedger,createDemoLedgerSeed} from './demo-ledger.mjs';
 import {compareRecords,filterRecords,timestamp} from './record-order.mjs';
 import {BUSINESS_CUTOFF_AT,BUSINESS_SNAPSHOT_ID,businessTaskCount,businessExecutionCount,businessAppealCount,businessTaskRecord,businessExecutionRecord,businessAcceptanceRecord,businessAppealRecord,businessTaskDetail,businessAcceptanceDetail,businessAppealDetail} from './business-metrics.mjs';
+import {ADMIN_PAGE_SIZE} from '../shared/pagination.mjs';
 const snapshots=new Map();
 
 export async function getView(version) {
@@ -37,6 +38,7 @@ function businessPage(view,kind,options,offset,limit){
   const indexes=[];
   for(let index=1;index<=total;index++){const row=record(index);if(kind==='tasks'&&row.taskStatus==='已删除')continue;if(kind==='acceptance'&&row.status!=='reviewing')continue;if(filterRecords(kind,[row],options).length)indexes.push(index);}
   indexes.sort((a,b)=>compareRecords(kind,record(a),record(b)));
+  if(view.lists.size>20)view.lists.clear();
   view.lists.set(key,indexes);
  }
  const indexes=view.lists.get(key);
@@ -89,7 +91,7 @@ export function businessDetail(id,state={}){
 export {businessAcceptanceDetail,businessAppealDetail};
 export function viewPage(view,kind,options={}) {
  if(!allowed.includes(kind)) throw new Error('INVALID_KIND');
- const offset=Number(options.offset ?? 0),limit=Number(options.limit ?? 20);
+ const offset=Number(options.offset ?? 0),limit=Number(options.limit ?? ADMIN_PAGE_SIZE);
  if(!Number.isSafeInteger(offset)||offset<0||!Number.isSafeInteger(limit)||limit<1||limit>100) throw new Error('INVALID_PAGE');
  const {ledger}=view;
  if(view.business&&['tasks','orders','acceptance','appeals'].includes(kind))return businessPage(view,kind,options,offset,limit);
