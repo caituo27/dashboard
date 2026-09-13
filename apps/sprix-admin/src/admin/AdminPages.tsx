@@ -1530,7 +1530,6 @@ export function AdminTaskDetail() {
     ["申诉记录", records?.completed.filter((item) => hasTaskDetailAppealRecord(item.appealStatus)).length ?? 0]
   ];
   const usedSlots=Math.max(0,task.totalSlots-task.remainingSlots);
-  const usedRatio=task.totalSlots>0?Math.min(100,usedSlots/task.totalSlots*100):0;
   return (
     <AdminDetailPage>
       <AdminDetailHeading title={task.title} onBack={() => navigate("/tasks")} />
@@ -1552,12 +1551,11 @@ export function AdminTaskDetail() {
             </dl>
           </div>
         </div>
-        <div className="sprix-task-capacity" aria-label="名额与预算">
-          <div className="sprix-task-capacity-track"><span style={{width:`${usedRatio}%`}} /></div>
-          <span><strong>已使用名额</strong>{formatCount(usedSlots)} / {formatCount(task.totalSlots)}</span>
-          <span><strong>剩余名额</strong>{formatCount(task.remainingSlots)}</span>
-          <span><strong>已占用预算</strong>{currency(usedSlots*task.reward)}</span>
-        </div>
+        <dl className="sprix-task-capacity" aria-label="名额与预算">
+          <div className="sprix-task-capacity-item"><dt>已使用名额</dt><dd>{formatCount(usedSlots)} / {formatCount(task.totalSlots)}</dd></div>
+          <div className="sprix-task-capacity-item"><dt>剩余名额</dt><dd>{formatCount(task.remainingSlots)}</dd></div>
+          <div className="sprix-task-capacity-item"><dt>已占用预算</dt><dd>{currency(usedSlots*task.reward)}</dd></div>
+        </dl>
         <div className="sprix-task-detail-meta">
           <span><strong>任务编号</strong>{displayText(task.id)}</span>
           <span><strong>任务分类</strong>{task.category}</span>

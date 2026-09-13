@@ -583,38 +583,42 @@ select {
 
 .sprix-task-capacity {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) repeat(3, auto);
-  align-items: center;
-  gap: 12px 24px;
-  border-bottom: 1px solid var(--color-line);
-  padding: 14px 0;
-  color: var(--color-ink);
-  font-size: 13px;
-}
-
-.sprix-task-capacity span:not(.sprix-task-capacity-track) {
-  white-space: nowrap;
-}
-
-.sprix-task-capacity strong {
-  margin-right: 7px;
-  color: var(--color-ink-soft);
-  font-weight: 560;
-}
-
-.sprix-task-capacity-track {
-  display: block;
   overflow: hidden;
-  height: 7px;
-  border-radius: 999px;
-  background: #e6eeec;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 14px 0 0;
+  padding: 0;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: #f7f9f9;
 }
 
-.sprix-task-capacity-track > span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--color-brand), #69a895);
+.sprix-task-capacity-item {
+  min-width: 0;
+  padding: 12px 18px;
+}
+
+.sprix-task-capacity-item + .sprix-task-capacity-item {
+  border-left: 1px solid var(--color-line);
+}
+
+.sprix-task-capacity-item dt {
+  margin: 0 0 5px;
+  color: var(--color-ink-soft);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.sprix-task-capacity-item dd {
+  overflow: hidden;
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 16px;
+  font-weight: 680;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .sprix-task-detail-meta {
@@ -758,7 +762,11 @@ select {
 
   .sprix-task-capacity {
     grid-template-columns: 1fr;
-    gap: 8px;
+  }
+
+  .sprix-task-capacity-item + .sprix-task-capacity-item {
+    border-top: 1px solid var(--color-line);
+    border-left: 0;
   }
 }
 
