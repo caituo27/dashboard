@@ -9,7 +9,7 @@ import { readDemoState, applyDemoAction } from "./demo-state.mjs";
 import { createAnalyticsSnapshot } from "./analytics-data.mjs";
 import { buildDemoLedger } from "./demo-ledger.mjs";
 import { orderRange, statusAt } from "./business-scenario.mjs";
-import {businessAcceptanceRecord,businessAppealCount,businessAppealRecord,businessExecutionCount,businessExecutionSubmission,businessPublishedTaskCount,businessTaskAttachment,businessTaskCount,createBusinessMetricsSnapshot} from './business-metrics.mjs';
+import {businessAcceptanceRecord,businessAgentCount,businessAppealCount,businessAppealRecord,businessExecutionCount,businessExecutionSubmission,businessPublishedTaskCount,businessTaskAttachment,businessTaskCount,createBusinessMetricsSnapshot} from './business-metrics.mjs';
 
 const compactDashboardCache = new Map();
 function applyStateToDashboard(snapshot,state) {
@@ -57,7 +57,7 @@ async function compactDashboard(period, range) {
     const key=JSON.stringify(['business-dashboard',range]);
     if(!compactDashboardCache.has(key)){
       const businessMetrics=createBusinessMetricsSnapshot(range),platformAt=Math.floor(Date.now()/10000)*10000,snapshot=createAnalyticsSnapshot(period,platformAt);
-      compactDashboardCache.set(key,{...snapshot,snapshotVersion:businessMetrics.snapshotVersion,periodStart:businessMetrics.periodStart,periodEnd:businessMetrics.periodEnd,businessMetrics});
+      compactDashboardCache.set(key,{...snapshot,snapshotVersion:businessMetrics.snapshotVersion,periodStart:businessMetrics.periodStart,periodEnd:businessMetrics.periodEnd,businessMetrics,overview:{...snapshot.overview,orders:businessMetrics.summary.executions,tasks:businessMetrics.summary.masterTasks,agents:businessAgentCount,amount:businessMetrics.summary.acceptedGmv},agentEcosystem:{...snapshot.agentEcosystem,totalAgents:businessAgentCount}});
     }
     return compactDashboardCache.get(key);
   }
@@ -68,7 +68,8 @@ async function compactDashboard(period, range) {
   if (!compactDashboardCache.has(key)) {
     const platformSnapshot=createAnalyticsSnapshot(period,at),snapshot=applyStateToDashboard(platformSnapshot,state),businessMetrics=createBusinessMetricsSnapshot();
     compactDashboardCache.set(key,{...snapshot,snapshotVersion:businessMetrics.snapshotVersion,periodStart:businessMetrics.periodStart,periodEnd:businessMetrics.periodEnd,businessMetrics,
-      overview:platformSnapshot.overview,
+      overview:{...platformSnapshot.overview,orders:businessExecutionCount,tasks:businessTaskCount,agents:businessAgentCount,amount:businessMetrics.summary.acceptedGmv},
+      agentEcosystem:{...snapshot.agentEcosystem,totalAgents:businessAgentCount},
       operations:{...snapshot.operations,taskTotal:businessTaskCount,publishedTasks:businessPublishedTaskCount,executions:{running:0,reviewing:businessExecutionCount,completed:0,terminated:0},pendingAcceptance:businessExecutionCount,appeals:businessAppealCount}});
     while (compactDashboardCache.size > 12) compactDashboardCache.delete(compactDashboardCache.keys().next().value);
   }

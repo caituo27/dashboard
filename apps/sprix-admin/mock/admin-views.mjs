@@ -33,14 +33,14 @@ function businessPage(view,kind,options,offset,limit){
  const key=JSON.stringify(['business',kind,options.status??'',options.search??'',options.date??'',options.startDate??'',options.endDate??'',options.endAt??'',options.category??'',options.lifecycleStage??'']);
  if(!view.lists.has(key)){
   const total=kind==='tasks'?businessTaskCount:kind==='appeals'?businessAppealCount:businessExecutionCount;
-  const record=index=>{const id=kind==='tasks'?`demo:business-task:${index}`:kind==='orders'?`demo:business-order:${index}`:kind==='acceptance'?`demo:business-execution:${index}`:`demo:business-appeal:${index}`,patch=view.state?.patches?.[id]??{};return kind==='tasks'?businessTaskRecord(index,patch):kind==='orders'?businessExecutionRecord(index,patch):kind==='acceptance'?businessAcceptanceRecord(index,patch):businessAppealRecord(index,patch);};
+  const record=index=>{const id=kind==='tasks'?`demo:business-task:${index}`:kind==='orders'?`demo:business-order:${index}`:kind==='acceptance'?`demo:business-execution:${index}`:`demo:business-appeal:${index}`,patch=view.state?.patches?.[id]??{};return kind==='tasks'?businessTaskRecord(index,patch,view.state?.patches??{}):kind==='orders'?businessExecutionRecord(index,patch):kind==='acceptance'?businessAcceptanceRecord(index,patch):businessAppealRecord(index,patch);};
   const indexes=[];
   for(let index=1;index<=total;index++){const row=record(index);if(kind==='tasks'&&row.taskStatus==='已删除')continue;if(kind==='acceptance'&&row.status!=='reviewing')continue;if(filterRecords(kind,[row],options).length)indexes.push(index);}
   indexes.sort((a,b)=>compareRecords(kind,record(a),record(b)));
   view.lists.set(key,indexes);
  }
  const indexes=view.lists.get(key);
- const rows=indexes.slice(offset,offset+limit).map(index=>{const id=kind==='tasks'?`demo:business-task:${index}`:kind==='orders'?`demo:business-order:${index}`:kind==='acceptance'?`demo:business-execution:${index}`:`demo:business-appeal:${index}`,patch=view.state?.patches?.[id]??{};return kind==='tasks'?businessTaskRecord(index,patch):kind==='orders'?businessExecutionRecord(index,patch):kind==='acceptance'?businessAcceptanceRecord(index,patch):businessAppealRecord(index,patch);});
+  const rows=indexes.slice(offset,offset+limit).map(index=>{const id=kind==='tasks'?`demo:business-task:${index}`:kind==='orders'?`demo:business-order:${index}`:kind==='acceptance'?`demo:business-execution:${index}`:`demo:business-appeal:${index}`,patch=view.state?.patches?.[id]??{};return kind==='tasks'?businessTaskRecord(index,patch,view.state?.patches??{}):kind==='orders'?businessExecutionRecord(index,patch):kind==='acceptance'?businessAcceptanceRecord(index,patch):businessAppealRecord(index,patch);});
  return {version:view.version,total:indexes.length,rows};
 }
 function taskCategoryForIndex(ledger,index) {
@@ -84,7 +84,7 @@ function taskPage(view,options,offset,limit) {
 }
 export function businessDetail(id,state={}){
  const match=/^demo:business-task:(\d+)$/.exec(id??'');
- return match?businessTaskDetail(Number(match[1]),state.patches?.[id]??{}):null;
+ return match?businessTaskDetail(Number(match[1]),state.patches?.[id]??{},state.patches??{}):null;
 }
 export {businessAcceptanceDetail,businessAppealDetail};
 export function viewPage(view,kind,options={}) {
