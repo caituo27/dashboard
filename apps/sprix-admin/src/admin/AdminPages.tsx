@@ -178,15 +178,23 @@ function manualSubmissionStatusLabel(status: "PENDING_REVIEW" | "APPROVED" | "RE
   return "待人工审核";
 }
 
-function formatManualSubmissionTime(value: string) {
+function formatAdminDateTime(value: string) {
+  const localTimestamp = value.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})(?::\d{2}(?:\.\d+)?)?$/);
+  if (localTimestamp) return `${localTimestamp[1]} ${localTimestamp[2]}`;
+
   const normalizedValue = value.replace(/(\.\d{3})\d+(?=Z$|[+-]\d{2}:?\d{2}$)/, "$1");
   const date = new Date(normalizedValue);
   if (Number.isNaN(date.getTime())) return value;
 
-  const padTimePart = (part: number) => String(part).padStart(2, "0");
-  const datePart = [date.getFullYear(), padTimePart(date.getMonth() + 1), padTimePart(date.getDate())].join("-");
-  const timePart = [padTimePart(date.getHours()), padTimePart(date.getMinutes())].join(":");
-  return `${datePart} ${timePart}`;
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  }).format(date);
 }
 
 function validateTaskAttachment(file: File) {
@@ -854,7 +862,7 @@ function AcceptanceResultDetail({
                     <strong className="text-sm text-ink">第 {submission.submissionNo} 次人工补交</strong>
                     <StatusTag status={manualSubmissionStatusLabel(submission.status)} />
                   </div>
-                  <span className="text-xs text-ink-soft">{formatManualSubmissionTime(submission.submittedAt)}</span>
+                  <span className="text-xs text-ink-soft">{formatAdminDateTime(submission.submittedAt)}</span>
                 </div>
                 {submission.description && <p className="mt-2 text-sm leading-6 text-ink-soft">{submission.description}</p>}
                 {submission.reviewReason && <p className="mt-2 text-sm leading-6 text-red-600">审核说明：{submission.reviewReason}</p>}
@@ -975,15 +983,15 @@ function useAcceptanceReviewActions(afterAction: () => Promise<unknown>) {
   const approveAcceptanceReview = (record: ReviewingExecution) => {
     const localDemo=isSeedExecutionId(record.executionId);
     Modal.confirm({
-      title: localDemo ? "确认演示审核通过" : record.reviewSource === "USER_MANUAL" ? "确认人工补交审核通过" : "确认平台审核通过",
-      content: localDemo ? "本次操作仅更新演示执行记录的审核状态，不会生成真实结算、入账或打款记录。" : "审核通过后将生成结算记录、自动入账，并直接发起平台支付宝打款。请确认用户已绑定可出款的支付宝账户。",
+      title: localDemo ? "确认审核通过" : record.reviewSource === "USER_MANUAL" ? "确认人工补交审核通过" : "确认平台审核通过",
+      content: localDemo ? "审核通过后，本次执行将完成验收并进入已完成状态。请确认交付内容符合任务要求和验收标准。" : "审核通过后将生成结算记录、自动入账，并直接发起平台支付宝打款。请确认用户已绑定可出款的支付宝账户。",
       okText: "审核通过",
       cancelText: "取消",
       onOk: async () => {
         try {
           await approveRemoteAcceptanceReview(record.executionId);
           await afterAction();
-          message.success(localDemo?"演示审核状态已更新为通过":"平台审核已通过，已发起直接打款");
+          message.success(localDemo?"审核已通过，本次执行已完成":"平台审核已通过，已发起直接打款");
         } catch (error) {
           message.error(error instanceof Error ? `审核通过失败：${error.message}` : "审核通过失败");
         }
@@ -993,9 +1001,9 @@ function useAcceptanceReviewActions(afterAction: () => Promise<unknown>) {
   const rejectAcceptanceReview = (record: ReviewingExecution) => {
     const localDemo=isSeedExecutionId(record.executionId);
     Modal.confirm({
-      title: localDemo ? "确认演示审核不通过" : record.reviewSource === "USER_MANUAL" ? "确认人工补交审核不通过" : "确认平台审核不通过",
+      title: localDemo ? "确认审核不通过" : record.reviewSource === "USER_MANUAL" ? "确认人工补交审核不通过" : "确认平台审核不通过",
       content: localDemo
-        ? "本次操作仅更新演示执行记录的审核状态，不会写入 SprixServer 或生成真实申诉、结算记录。"
+        ? "审核不通过后，本次执行将终止。请确认交付内容未达到任务要求或验收标准。"
         : record.reviewSource === "USER_MANUAL"
         ? "审核不通过后，用户任务将恢复为验收未通过，并可以再次人工补交。"
         : "审核不通过后，用户任务将变为验收未通过，并可按现有规则发起申诉。",
@@ -1006,7 +1014,7 @@ function useAcceptanceReviewActions(afterAction: () => Promise<unknown>) {
         try {
           await rejectRemoteAcceptanceReview(record.executionId, "平台人工复核不通过");
           await afterAction();
-          message.success(localDemo?"演示审核状态已更新为不通过":"已处理为平台审核不通过");
+          message.success(localDemo?"审核未通过，本次执行已终止":"已处理为平台审核不通过");
         } catch (error) {
           message.error(error instanceof Error ? `审核驳回失败：${error.message}` : "审核驳回失败");
         }
@@ -1627,7 +1635,7 @@ function AdminOperationLogs({ logs }: { logs: AdminOperationLog[] }) {
           { title: "变更前", dataIndex: "beforeStatus" },
           { title: "变更后", dataIndex: "afterStatus" },
           { title: "原因/备注", dataIndex: "reason" },
-          { title: "时间", dataIndex: "occurredAt", width: 190, className: "whitespace-nowrap tabular-nums" }
+          { title: "时间", dataIndex: "occurredAt", width: 190, className: "whitespace-nowrap tabular-nums", render: (value: string) => formatAdminDateTime(value) }
         ]}
       />
     </Surface>

@@ -48,7 +48,7 @@ export const rejectRemoteAppeal: typeof real.rejectRemoteAppeal = (id, reason) =
 type SeedExecutionResultContext={task:Pick<Task,'id'|'title'|'category'|'deliverables'|'acceptanceCriteria'|'estimatedTokens'|'publishedAt'>;record:ReviewingExecution|CompletedExecution};
 export async function readRemoteAdminExecutionResult(id:string,context?:SeedExecutionResultContext):Promise<real.AdminExecutionResult> {
   if(isSeedExecutionId(id)) {
-    if(!context)throw new Error('演示执行结果缺少任务上下文');
+    if(!context)throw new Error('执行结果缺少任务上下文');
     const {task,record}=context;
     const seedContext={
       task:{id:task.id,title:task.title,category:task.category,deliverables:task.deliverables,acceptanceCriteria:task.acceptanceCriteria,estimatedTokens:task.estimatedTokens,publishedAt:task.publishedAt},
