@@ -179,7 +179,7 @@ export const weeklyBusinessFacts=Object.freeze(rawWeeks.map((raw,weekIndex)=>{
 }));
 const latestCompleteWeek=weeklyBusinessFacts.at(-1);
 export const platformCumulativeOverview=Object.freeze({
- amount:money(weeklyBusinessFacts.reduce((sum,week)=>sum+week.acceptedGmv,0)+(latestCompleteWeek?.acceptedGmv??0)),
+ amount:money(weeklyBusinessFacts.reduce((sum,week)=>sum+week.acceptedGmv,0)),
  orders:businessExecutionCount+(latestCompleteWeek?.deliveredTasks??0),
  tasks:businessTaskCount+(latestCompleteWeek?.masterTasks??0),
  agents:businessAgentCount+(latestCompleteWeek?.newAgents??0)

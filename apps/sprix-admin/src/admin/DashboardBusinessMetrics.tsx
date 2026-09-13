@@ -212,8 +212,8 @@ type TaskNavigator=(category?:string,scope?:'period'|'snapshot')=>void;
 
 function PlatformSnapshot({overview}:{overview:DashboardAnalyticsSnapshot['overview']}){
  const items=[
-  {label:'累计成交金额',value:`¥${integer(overview.amount)}`},
-  {label:'累计订单',value:integer(overview.orders)},
+  {label:'验收 GMV',value:money(overview.amount)},
+  {label:'Agent交付任务数',value:integer(overview.orders)},
   {label:'累计任务数量',value:integer(overview.tasks)},
   {label:'Agent 数量',value:integer(overview.agents)}
  ];

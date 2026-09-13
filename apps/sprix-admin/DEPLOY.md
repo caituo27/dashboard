@@ -7,6 +7,7 @@
 deploy/
   web/       前端静态文件，Nginx 站点根目录
   mock/      Node Mock 服务及其运行时模块
+  shared/    Mock 服务引用的共享运行时模块
   README.md  本说明
 ```
 
@@ -67,7 +68,7 @@ location /mock-api/ {
 curl --fail 'http://127.0.0.1:5176/mock-api/dashboard/analytics?days=7'
 ```
 
-然后检查站点域名下同一接口及管理页面。后续整体更新 `web/`、`mock/`，
+然后检查站点域名下同一接口及管理页面。后续整体更新 `web/`、`mock/`、`shared/`，
 重启 Mock 进程使新代码生效，保留外部状态目录。
 
 打包不会自动启动服务或修改线上配置。仓库现有 CNB 流水线仍只上传 `dist/`；
