@@ -541,6 +541,14 @@ select {
   color: var(--color-ink-soft);
 }
 
+.sprix-task-overview-title {
+  margin-bottom: 8px;
+  color: var(--color-ink-soft);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+}
+
 .sprix-task-overview-list {
   display: grid;
   min-width: 0;
@@ -571,6 +579,42 @@ select {
   font-size: 22px;
   font-weight: 700;
   line-height: 1;
+}
+
+.sprix-task-capacity {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) repeat(3, auto);
+  align-items: center;
+  gap: 12px 24px;
+  border-bottom: 1px solid var(--color-line);
+  padding: 14px 0;
+  color: var(--color-ink);
+  font-size: 13px;
+}
+
+.sprix-task-capacity span:not(.sprix-task-capacity-track) {
+  white-space: nowrap;
+}
+
+.sprix-task-capacity strong {
+  margin-right: 7px;
+  color: var(--color-ink-soft);
+  font-weight: 560;
+}
+
+.sprix-task-capacity-track {
+  display: block;
+  overflow: hidden;
+  height: 7px;
+  border-radius: 999px;
+  background: #e6eeec;
+}
+
+.sprix-task-capacity-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-brand), #69a895);
 }
 
 .sprix-task-detail-meta {
@@ -708,6 +752,11 @@ select {
   }
 
   .sprix-task-detail-meta {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .sprix-task-capacity {
     grid-template-columns: 1fr;
     gap: 8px;
   }

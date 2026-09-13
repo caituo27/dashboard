@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { buildDemoLedger, createDemoLedgerSeed, isDemoId } from "./demo-ledger.mjs";
 import {businessProfileForIdentity} from './business-profile.mjs';
 import {businessTaskRecord,businessAcceptanceRecord,businessAppealRecord} from './business-metrics.mjs';
+import {parseSeedExecutionId} from './seed-task-scenario.mjs';
 const statePath = process.env.MOCK_STATE_PATH ?? fileURLToPath(new URL("./.data/state.json", import.meta.url));
 let queue = Promise.resolve();
 export async function readDemoState() {
@@ -18,16 +19,23 @@ export async function readDemoState() {
 }
 export function applyDemoAction({ id, action, payload = {} }) {
   const result = queue.then(async () => {
-    if (!isDemoId(id) || !/^demo:(?:(?:business-)?(?:task|execution|appeal)):[1-9]\d*$/.test(id) || !payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("操作参数无效");
+    const seedExecution=parseSeedExecutionId(id);
+    if (!isDemoId(id) || (!seedExecution&&!/^demo:(?:(?:business-)?(?:task|execution|appeal)):[1-9]\d*$/.test(id)) || !payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("操作参数无效");
     if (!["edit", "offline", "republish", "delete", "approve", "reject", "start", "accept"].includes(action)) throw new Error("不支持此操作");
     const state = await readDemoState();
-    const ledger = buildDemoLedger(createDemoLedgerSeed(), state);
-    const rawKind=id.split(":")[1],business=rawKind.startsWith('business-'),kind=business?rawKind.slice('business-'.length):rawKind,index=Number(id.split(":").at(-1));
+    const ledger = seedExecution ? null : buildDemoLedger(createDemoLedgerSeed(), state);
+    const rawKind=id.split(":")[1],business=rawKind.startsWith('business-'),kind=seedExecution?'seed-execution':business?rawKind.slice('business-'.length):rawKind,index=Number(id.split(":").at(-1));
     const actionAt = new Date().toISOString();
     let patch;
     let accepted;
     let current;
-    if (kind === "task") {
+    if(kind==='seed-execution') {
+      const previous=state.patches?.[id]?.status;
+      if(seedExecution.baseStatus!=='reviewing'||previous)throw new Error("该执行记录已处理或不存在");
+      current={taskId:seedExecution.taskId,acceptanceStatus:'待平台验收'};
+      if(action==='approve')patch={status:'completed',completedAt:actionAt};
+      else if(action==='reject')patch={status:'terminated',terminatedAt:actionAt,reason:String(payload.reason??'平台人工复核不通过')};
+    } else if (kind === "task") {
       current = business?businessTaskRecord(index,state.patches?.[id]):ledger.taskAt(index);
       if (!current) throw new Error("任务不存在");
       if (action === "accept") {

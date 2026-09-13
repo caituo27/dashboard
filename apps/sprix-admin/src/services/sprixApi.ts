@@ -80,6 +80,22 @@ export type AdminTaskDetailView = {
   attachments: TaskAttachment[];
   records: AdminExecutionRecords[string];
   operationLogs: AdminOperationLog[];
+  presentation?: AdminTaskDetailPresentation;
+};
+
+export type AdminTaskDetailPresentation = {
+  source: "seeded";
+  status: "all" | "running" | "reviewing" | "completed" | "terminated";
+  page: number;
+  pageSize: number;
+  total: number;
+  counts: {
+    all: number;
+    running: number;
+    reviewing: number;
+    completed: number;
+    terminated: number;
+  };
 };
 
 export type TaskAttachment = {
@@ -326,18 +342,22 @@ export async function logoutAdmin() {
 }
 
 export async function readRemoteTaskCenterSnapshot(): Promise<AdminTaskCenterSnapshot> {
-  const [taskSummaries, acceptanceReviews, appealsResponse] = await Promise.all([
-    http.get<unknown, RemoteAdminTaskSummary[]>("/api/v1/admin/tasks/summaries"),
+  const [tasks, acceptanceReviews, appealsResponse] = await Promise.all([
+    readRemoteTaskSummaries(),
     readRemoteAcceptanceReviews(),
     adminAppealApi.appeals()
   ]);
-  const tasks = listValue<RemoteAdminTaskSummary>(taskSummaries).map(mapTaskSummary);
   return {
     tasks,
     adminExecutionRecords: {},
     acceptanceReviews,
     appealCount: listValue<AppealRecord>(appealsResponse).length
   };
+}
+
+export async function readRemoteTaskSummaries():Promise<Task[]> {
+  const summaries=await http.get<unknown,RemoteAdminTaskSummary[]>("/api/v1/admin/tasks/summaries");
+  return listValue<RemoteAdminTaskSummary>(summaries).map(mapTaskSummary);
 }
 
 export async function readRemoteTaskDetail(taskId: string): Promise<AdminTaskDetailView> {

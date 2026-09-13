@@ -1,4 +1,6 @@
 import { executionSubmission } from './execution-result.mjs';
+import { decodeSeedExecutionContext, seedExecutionSubmission } from './seed-execution-submission.mjs';
+import { isSeedExecutionId, seedStateView } from './seed-task-scenario.mjs';
 import {consumerMyTask} from "./consumer-records.mjs";
 import {businessDetail,businessAcceptanceDetail,businessAppealDetail,getView,viewPage} from "./admin-views.mjs";
 import { queryEvents, queryUserProfile } from "./analytics-events.mjs";
@@ -84,6 +86,10 @@ function sendJson(response, status, data) {
   response.end(JSON.stringify(data));
 }
 
+function parseSeedContext(value) {
+  try{return JSON.parse(String(value ?? ''));}catch{return null;}
+}
+
 // Shared handler for the standalone HTTP service and Vite dev/preview servers.
 export function dashboardMockMiddleware(request, response, next) {
   const url = new URL(request.url ?? "/", "http://localhost");
@@ -124,6 +130,17 @@ export function dashboardMockMiddleware(request, response, next) {
     return;
   }
   if (url.pathname === '/mock-api/admin/artifact' && request.method === 'GET') {
+    const requestedId=url.searchParams.get('id');
+    if(isSeedExecutionId(requestedId)) {
+      const submission=seedExecutionSubmission(requestedId,decodeSeedExecutionContext(url.searchParams.get('context')));
+      const file=submission?.files.find(file=>file.fileId===url.searchParams.get('file'));
+      if(!file)return sendJson(response,404,{message:'文件不存在'});
+      response.writeHead(200,{'Content-Type':file.mimeType+'; charset=utf-8','Content-Length':file.bytes.length,
+        'Content-Disposition':`attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`,
+        'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
+      response.end(file.bytes);
+      return;
+    }
     getView().then(view=>{
       const id=url.searchParams.get('id');
       const submission=businessExecutionSubmission(id)??executionSubmission(view.ledger,id);
@@ -140,6 +157,15 @@ export function dashboardMockMiddleware(request, response, next) {
     const requestedKind=url.searchParams.get('kind');
     if (requestedKind === 'dashboard') {
       compactDashboard(30).then(data=>sendJson(response,200,data)).catch(error=>sendJson(response,400,{message:error.message}));
+      return;
+    }
+    if(requestedKind==='seed-state') {
+      readDemoState().then(state=>sendJson(response,200,seedStateView(state))).catch(error=>sendJson(response,400,{message:error.message}));
+      return;
+    }
+    if(requestedKind==='execution-result'&&isSeedExecutionId(url.searchParams.get('id'))) {
+      const submission=seedExecutionSubmission(url.searchParams.get('id'),parseSeedContext(url.searchParams.get('context')));
+      sendJson(response,submission?200:404,submission?.result??{message:'执行记录不存在'});
       return;
     }
     getView(url.searchParams.get('version')).then(view=>{

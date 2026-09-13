@@ -3,22 +3,14 @@ import { internalSearch } from "../utils/displayText";
 import axios from 'axios';
 import * as real from './sprixApi';
 import {compareRecords,filterRecords} from '../../mock/record-order.mjs';
+import {decorateSeedTaskList} from '../../mock/seed-task-scenario.mjs';
+import type {SeedDemoState} from '../../mock/seed-task-scenario.mjs';
 import type {Task,ReviewingExecution,AdminAppeal} from '../types';
 import type {DashboardAnalyticsSnapshot} from './dashboardAnalyticsMock';
 export type PageOptions={page:number;pageSize:number;status?:string;search?:string;date?:string;startDate?:string;endDate?:string;endAt?:string;category?:string;lifecycleStage?:string;done?:string;demoOnly?:boolean;snapshotVersion?:string};
 export type PageResult<T>={rows:T[];total:number;page:number};
 export async function demoView<T>(params:Record<string,unknown>):Promise<T>{return (await axios.get<T>('/mock-api/admin/view',{params,timeout:15000})).data;}
 export function filterAvailableAppealDetails(rows:Array<AdminAppeal|null>):AdminAppeal[]{return rows.filter((row):row is AdminAppeal=>row!==null);}
-function stableTaskHash(value:string,salt=0){let result=2166136261^salt;for(let index=0;index<value.length;index++){result^=value.charCodeAt(index);result=Math.imul(result,16777619);}return result>>>0;}
-function distributeSeedTaskUsage(task:Task):Task{
- const total=Math.max(0,Math.trunc(task.totalSlots??0)),remaining=Math.max(0,Math.trunc(task.remainingSlots??0)),executions=Math.max(0,Math.trunc(task.executionTotal??0));
- if(total<2||remaining!==total||executions!==0)return task;
- const consumedRatio=50+stableTaskHash(`${task.id}:${task.title}`,17)%41;
- const consumed=Math.min(total-1,Math.max(1,Math.ceil(total*consumedRatio/100)));
- const reviewingRatio=6+stableTaskHash(`${task.id}:${task.category}`,31)%15;
- const reviewing=Math.min(consumed,Math.max(1,Math.round(consumed*reviewingRatio/100)));
- return {...task,remainingSlots:total-consumed,executionTotal:consumed,runningExecutionCount:0,reviewingExecutionCount:reviewing,completedExecutionCount:consumed-reviewing,terminatedExecutionCount:0};
-}
 async function readAppealDetailForList(id:string):Promise<AdminAppeal|null>{
  try{return await real.readCachedAppealDetail(id);}
  catch(error){
@@ -54,7 +46,9 @@ export async function readTaskPage(options:PageOptions){
   const [result,demo]=await Promise.all([mergePage<Task>('tasks',[],options),readDemoDashboard()]);
   return {...result,stats:{total:demo.operations.taskTotal,published:demo.operations.publishedTasks,offline:demo.operations.taskTotal-demo.operations.publishedTasks,executions:demo.overview.orders,reviews:demo.operations.pendingAcceptance ?? 0,appeals:demo.operations.appeals}};
  }
- const centerPromise=sharedAdminRead('center',real.readRemoteTaskCenterSnapshot).then(center=>({...center,tasks:center.tasks.map(distributeSeedTaskUsage)}));
+ const rawCenterPromise=sharedAdminRead('center',real.readRemoteTaskCenterSnapshot);
+ const seedStatePromise=demoView<SeedDemoState>({kind:'seed-state'});
+ const centerPromise=Promise.all([rawCenterPromise,seedStatePromise]).then(([center,state])=>({...center,tasks:decorateSeedTaskList(center.tasks,state)}));
  const [center,demo,result]=await Promise.all([centerPromise,readDemoDashboard(),mergePage<Task>('tasks',centerPromise.then(center=>center.tasks),options)]);
  return {...result,stats:{total:center.tasks.filter(t=>t.taskStatus!=='已删除').length+demo.operations.taskTotal,published:center.tasks.filter(t=>t.taskStatus==='已发布').length+demo.operations.publishedTasks,offline:center.tasks.filter(t=>t.taskStatus==='已下线').length+demo.operations.taskTotal-demo.operations.publishedTasks,executions:center.tasks.reduce((sum,t)=>sum+(t.executionTotal ?? 0),0)+demo.overview.orders,reviews:center.acceptanceReviews.length+(demo.operations.pendingAcceptance ?? 0),appeals:center.appealCount+demo.operations.appeals}};
 }

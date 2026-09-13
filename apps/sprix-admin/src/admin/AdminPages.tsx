@@ -1,5 +1,6 @@
 import { isDemoId } from "../../mock/demo-ledger.mjs";
-import { downloadRemoteAdminFile, estimateRemoteTaskPricing, type TaskPricingEstimate, type TaskPricingEstimateRequest, type AdminExecutionResult, type TaskAttachment } from "../services/sprixApi";
+import { isSeedExecutionId } from "../../mock/seed-task-scenario.mjs";
+import { downloadRemoteAdminFile, estimateRemoteTaskPricing, readRemoteTaskDetail as readRawRemoteTaskDetail, type TaskPricingEstimate, type TaskPricingEstimateRequest, type AdminExecutionResult, type AdminTaskDetailPresentation, type TaskAttachment } from "../services/sprixApi";
 import { displayExecutionId, displayText } from "../utils/displayText";
 import { AdminTable as Table, EllipsisCell, EllipsisText } from "../components/AdminTable";
 import { PhoneNumber } from "../components/PhoneNumber";
@@ -694,16 +695,25 @@ export function AdminAcceptanceDetail() {
 export function AdminTaskExecutionResultDetail() {
   const { taskId, executionId } = useParams();
   const navigate = useNavigate();
+  const [resultSearch] = useSearchParams();
+  const queryClient = useQueryClient();
   const taskDetailQuery = useQuery({
-    queryKey: ["sprix-admin", "task-detail", taskId],
-    queryFn: () => readRemoteTaskDetail(taskId as string),
+    queryKey: ["sprix-admin", "task-detail", taskId, executionId],
+    queryFn: () => readRemoteTaskDetail(taskId as string,{executionId}),
     enabled: Boolean(taskId),
     retry: 1
   });
 
   const backToTaskDetail = () => {
-    navigate(taskId ? `/tasks/${encodeURIComponent(taskId)}` : "/tasks");
+    if(!taskId)return navigate('/tasks');
+    const query=new URLSearchParams();
+    const returnStatus=resultSearch.get('returnStatus'),returnPage=resultSearch.get('returnPage');
+    if(returnStatus)query.set('executionStatus',returnStatus);
+    if(returnPage&&returnPage!=='1')query.set('executionPage',returnPage);
+    navigate(`/tasks/${encodeURIComponent(taskId)}${query.size?`?${query}`:''}`);
   };
+  const finishReview=async()=>{await queryClient.invalidateQueries({queryKey:["sprix-admin"]});backToTaskDetail();};
+  const {approveAcceptanceReview,rejectAcceptanceReview}=useAcceptanceReviewActions(finishReview);
 
   if (!taskId || !executionId) return <Surface className="p-8">结果详情参数缺失</Surface>;
   if (taskDetailQuery.isLoading) return <Surface className="p-8">结果详情加载中</Surface>;
@@ -745,21 +755,35 @@ export function AdminTaskExecutionResultDetail() {
     submittedAt: record?.submittedAt ?? "-"
   };
 
-  return <AcceptanceResultDetail record={resultRecord} onBack={backToTaskDetail} />;
+  return <AcceptanceResultDetail
+    record={resultRecord}
+    seedTask={task}
+    onBack={backToTaskDetail}
+    reviewActions={reviewingRecord ? (
+      <Surface className="mb-4 p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div><h3 className="sprix-section-title">审核操作</h3><p className="mt-1 text-sm text-ink-soft">确认该执行结果是否满足任务交付和验收要求。</p></div>
+          <div className="flex gap-2"><ActionButton onClick={()=>approveAcceptanceReview(reviewingRecord)}>通过</ActionButton><SecondaryButton danger onClick={()=>rejectAcceptanceReview(reviewingRecord)}>不通过</SecondaryButton></div>
+        </div>
+      </Surface>
+    ):undefined}
+  />;
 }
 
 function AcceptanceResultDetail({
   record,
   onBack,
-  reviewActions
+  reviewActions,
+  seedTask
 }: {
   record: ReviewingExecution;
   onBack: () => void;
   reviewActions?: ReactNode;
+  seedTask?:Task;
 }) {
   const executionResultQuery = useQuery({
-    queryKey: ["sprix-admin", "execution-result", record.executionId],
-    queryFn: () => readRemoteAdminExecutionResult(record.executionId),
+    queryKey: ["sprix-admin", "execution-result", record.executionId, seedTask?.id],
+    queryFn: () => readRemoteAdminExecutionResult(record.executionId,seedTask?{task:seedTask,record}:undefined),
     enabled: Boolean(record.executionId),
     retry: 1
   });
@@ -949,16 +973,17 @@ function AcceptanceResultDetail({
 
 function useAcceptanceReviewActions(afterAction: () => Promise<unknown>) {
   const approveAcceptanceReview = (record: ReviewingExecution) => {
+    const localDemo=isSeedExecutionId(record.executionId);
     Modal.confirm({
-      title: record.reviewSource === "USER_MANUAL" ? "确认人工补交审核通过" : "确认平台审核通过",
-      content: "审核通过后将生成结算记录、自动入账，并直接发起平台支付宝打款。请确认用户已绑定可出款的支付宝账户。",
+      title: localDemo ? "确认演示审核通过" : record.reviewSource === "USER_MANUAL" ? "确认人工补交审核通过" : "确认平台审核通过",
+      content: localDemo ? "本次操作仅更新演示执行记录的审核状态，不会生成真实结算、入账或打款记录。" : "审核通过后将生成结算记录、自动入账，并直接发起平台支付宝打款。请确认用户已绑定可出款的支付宝账户。",
       okText: "审核通过",
       cancelText: "取消",
       onOk: async () => {
         try {
           await approveRemoteAcceptanceReview(record.executionId);
           await afterAction();
-          message.success("平台审核已通过，已发起直接打款");
+          message.success(localDemo?"演示审核状态已更新为通过":"平台审核已通过，已发起直接打款");
         } catch (error) {
           message.error(error instanceof Error ? `审核通过失败：${error.message}` : "审核通过失败");
         }
@@ -966,9 +991,12 @@ function useAcceptanceReviewActions(afterAction: () => Promise<unknown>) {
     });
   };
   const rejectAcceptanceReview = (record: ReviewingExecution) => {
+    const localDemo=isSeedExecutionId(record.executionId);
     Modal.confirm({
-      title: record.reviewSource === "USER_MANUAL" ? "确认人工补交审核不通过" : "确认平台审核不通过",
-      content: record.reviewSource === "USER_MANUAL"
+      title: localDemo ? "确认演示审核不通过" : record.reviewSource === "USER_MANUAL" ? "确认人工补交审核不通过" : "确认平台审核不通过",
+      content: localDemo
+        ? "本次操作仅更新演示执行记录的审核状态，不会写入 SprixServer 或生成真实申诉、结算记录。"
+        : record.reviewSource === "USER_MANUAL"
         ? "审核不通过后，用户任务将恢复为验收未通过，并可以再次人工补交。"
         : "审核不通过后，用户任务将变为验收未通过，并可按现有规则发起申诉。",
       okText: "审核不通过",
@@ -978,7 +1006,7 @@ function useAcceptanceReviewActions(afterAction: () => Promise<unknown>) {
         try {
           await rejectRemoteAcceptanceReview(record.executionId, "平台人工复核不通过");
           await afterAction();
-          message.success("已处理为平台审核不通过");
+          message.success(localDemo?"演示审核状态已更新为不通过":"已处理为平台审核不通过");
         } catch (error) {
           message.error(error instanceof Error ? `审核驳回失败：${error.message}` : "审核驳回失败");
         }
@@ -1193,7 +1221,7 @@ export function AdminTaskForm() {
     queryKey: ["sprix-admin", "task-detail", editTaskId],
     refetchInterval: false,
     refetchOnWindowFocus: false,
-    queryFn: () => readRemoteTaskDetail(editTaskId as string),
+    queryFn: () => isDemoId(editTaskId) ? readRemoteTaskDetail(editTaskId as string) : readRawRemoteTaskDetail(editTaskId as string),
     enabled: Boolean(editTaskId),
     retry: 1
   });
@@ -1458,11 +1486,18 @@ export function AdminTaskForm() {
 export function AdminTaskDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [detailSearch] = useSearchParams();
+  const requestedStatus = ['running','reviewing','completed','terminated'].includes(detailSearch.get('executionStatus') ?? '')
+    ? detailSearch.get('executionStatus') as 'running'|'reviewing'|'completed'|'terminated'
+    : 'all';
+  const requestedPage = Math.max(1,Number(detailSearch.get('executionPage'))||1);
+  const requestedExecutionId = detailSearch.get('executionId') ?? undefined;
   const taskDetailQuery = useQuery({
-    queryKey: ["sprix-admin", "task-detail", id],
-    queryFn: () => readRemoteTaskDetail(id as string),
+    queryKey: ["sprix-admin", "task-detail", id, requestedStatus, requestedPage, requestedExecutionId],
+    queryFn: () => readRemoteTaskDetail(id as string,{status:requestedStatus,page:requestedPage,pageSize:20,executionId:requestedExecutionId}),
     enabled: Boolean(id),
-    refetchInterval: (query) => query.state.data?.records.running.length ? 5000 : false,
+    placeholderData:keepPreviousData,
+    refetchInterval: (query) => query.state.data?.presentation ? false : query.state.data?.records.running.length ? 5000 : false,
     refetchIntervalInBackground: false,
     retry: 1
   });
@@ -1476,14 +1511,17 @@ export function AdminTaskDetail() {
   const records = taskDetailQuery.data?.records;
   const attachments = taskDetailQuery.data?.attachments ?? [];
   const operationLogs = taskDetailQuery.data?.operationLogs ?? [];
+  const presentation = taskDetailQuery.data?.presentation;
   if (!task) return <Surface className="p-8">任务不存在</Surface>;
   const taskOverviewStats = [
-    ["执行中", records?.running.length ?? 0],
-    ["待平台审核", records?.reviewing.length ?? 0],
-    ["已终止", records?.terminated.length ?? 0],
-    ["已完成", records?.completed.length ?? 0],
+    ["执行中", presentation?.counts.running ?? records?.running.length ?? 0],
+    ["待平台审核", presentation?.counts.reviewing ?? records?.reviewing.length ?? 0],
+    ["已终止", presentation?.counts.terminated ?? records?.terminated.length ?? 0],
+    ["已完成", presentation?.counts.completed ?? records?.completed.length ?? 0],
     ["申诉记录", records?.completed.filter((item) => hasTaskDetailAppealRecord(item.appealStatus)).length ?? 0]
   ];
+  const usedSlots=Math.max(0,task.totalSlots-task.remainingSlots);
+  const usedRatio=task.totalSlots>0?Math.min(100,usedSlots/task.totalSlots*100):0;
   return (
     <AdminDetailPage>
       <AdminDetailHeading title={task.title} onBack={() => navigate("/tasks")} />
@@ -1493,7 +1531,8 @@ export function AdminTaskDetail() {
             <StatusTag status={task.taskStatus} />
             {task.offlineReason && <SoftTag tone="amber">下线原因：{task.offlineReason}</SoftTag>}
           </div>
-          <div className="sprix-task-overview" aria-label="结算概况">
+          <div className="sprix-task-overview" aria-label="执行概况">
+            <div className="sprix-task-overview-title">执行概况</div>
             <dl className="sprix-task-overview-list">
               {taskOverviewStats.map(([label, value]) => (
                 <div key={label} className="sprix-task-overview-item">
@@ -1503,6 +1542,12 @@ export function AdminTaskDetail() {
               ))}
             </dl>
           </div>
+        </div>
+        <div className="sprix-task-capacity" aria-label="名额与预算">
+          <div className="sprix-task-capacity-track"><span style={{width:`${usedRatio}%`}} /></div>
+          <span><strong>已使用名额</strong>{formatCount(usedSlots)} / {formatCount(task.totalSlots)}</span>
+          <span><strong>剩余名额</strong>{formatCount(task.remainingSlots)}</span>
+          <span><strong>已占用预算</strong>{currency(usedSlots*task.reward)}</span>
         </div>
         <div className="sprix-task-detail-meta">
           <span><strong>任务编号</strong>{displayText(task.id)}</span>
@@ -1525,7 +1570,7 @@ export function AdminTaskDetail() {
         <DetailBlock title="验收标准" body={task.acceptanceCriteria} />
       </div>
       <TaskAttachmentPanel attachments={attachments} />
-      <AdminExecutionRecords taskId={task.id} records={records} />
+      <AdminExecutionRecords taskId={task.id} records={records} presentation={presentation} />
       <AdminOperationLogs logs={operationLogs} />
     </AdminDetailPage>
   );
@@ -1624,7 +1669,8 @@ function DetailFieldBlock({
 
 function AdminExecutionRecords({
   taskId,
-  records
+  records,
+  presentation
 }: {
   taskId: string;
   records?: {
@@ -1633,6 +1679,7 @@ function AdminExecutionRecords({
     terminated: TerminatedExecution[];
     completed: CompletedExecution[];
   };
+  presentation?:AdminTaskDetailPresentation;
 }) {
   const [executionSearch,setExecutionSearch] = useSearchParams();
   const selectedExecution = executionSearch.get('executionId');
@@ -1651,53 +1698,36 @@ function AdminExecutionRecords({
   };
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const approveAcceptanceReview = (record: ReviewingExecution) => {
-    Modal.confirm({
-      title: "确认平台审核通过",
-      content: "审核通过后将生成结算记录、自动入账，并直接发起平台支付宝打款。请确认用户已绑定可出款的支付宝账户。",
-      okText: "审核通过",
-      cancelText: "取消",
-      onOk: async () => {
-        try {
-          await approveRemoteAcceptanceReview(record.executionId);
-          await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-          message.success("平台审核已通过，已发起直接打款");
-        } catch (error) {
-          message.error(error instanceof Error ? `审核通过失败：${error.message}` : "审核通过失败");
-        }
-      }
-    });
+  const resultPath=(executionId:string)=>{
+    const query=new URLSearchParams();
+    if(activeStatus!=='all')query.set('returnStatus',activeStatus);
+    if(presentation?.page&&presentation.page>1)query.set('returnPage',String(presentation.page));
+    return `/tasks/${encodeURIComponent(taskId)}/results/${encodeURIComponent(executionId)}${query.size?`?${query}`:''}`;
   };
-  const rejectAcceptanceReview = (record: ReviewingExecution) => {
-    Modal.confirm({
-      title: "确认平台审核不通过",
-      content: "审核不通过后，用户任务将变为验收未通过，并可按现有规则发起申诉。",
-      okText: "审核不通过",
-      cancelText: "取消",
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        try {
-          await rejectRemoteAcceptanceReview(record.executionId, "平台人工复核不通过");
-          await queryClient.invalidateQueries({ queryKey: ["sprix-admin"] });
-          message.success("已处理为平台审核不通过");
-        } catch (error) {
-          message.error(error instanceof Error ? `审核驳回失败：${error.message}` : "审核驳回失败");
-        }
-      }
-    });
-  };
+  const setExecutionPage=(page:number)=>{const next=new URLSearchParams(executionSearch);next.set('executionPage',String(page));next.delete('executionId');setExecutionSearch(next);};
+  const paginationFor=(status:'all'|'running'|'reviewing'|'completed'|'terminated'):TablePaginationConfig=>presentation&&!selectedExecution
+    ? {current:presentation.page,pageSize:presentation.pageSize,total:presentation.counts[status],showSizeChanger:false,hideOnSinglePage:true,onChange:setExecutionPage}
+    : {pageSize:20,hideOnSinglePage:true};
+  const countFor=(status:'all'|'running'|'reviewing'|'completed'|'terminated')=>presentation?.counts[status] ?? (status==='all'
+    ? (records?.running.length??0)+(records?.reviewing.length??0)+(records?.completed.length??0)+(records?.terminated.length??0)
+    : records?.[status].length??0);
+  const refreshTaskRecords=()=>queryClient.invalidateQueries({queryKey:['sprix-admin']});
+  const {approveAcceptanceReview,rejectAcceptanceReview}=useAcceptanceReviewActions(refreshTaskRecords);
   const allRecords = [
     ...(records?.running ?? []).map((item) => ({ ...item, status: "执行中", time: item.startedAt })),
     ...(records?.reviewing ?? []).map((item) => ({ ...item, status: "待平台审核", time: item.submittedAt })),
-    ...(records?.terminated ?? []).map((item) => ({ ...item, status: "已终止", time: item.terminatedAt })),
-    ...(records?.completed ?? []).map((item) => ({ ...item, status: item.acceptanceStatus, time: item.completedAt }))
+    ...(records?.terminated ?? []).map((item) => ({ ...item, status: "已终止", time: item.terminatedAt,currentNode:item.terminatedNode,progress:"-" })),
+    ...(records?.completed ?? []).map((item) => ({ ...item, status: item.acceptanceStatus, time: item.completedAt,agentScore:item.score }))
   ];
   const allColumns: ColumnsType<(typeof allRecords)[number]> = [
     { title: "执行记录 ID", dataIndex: "executionId", width: 210, render: (_, record) => <EllipsisCell value={displayExecutionId(record)} /> },
     { title: "执行用户", dataIndex: "userName", width: 160, render: (value) => <EllipsisCell value={value} /> },
     { title: "手机号", dataIndex: "phone", render: (value) => <PhoneNumber value={value} /> },
     { title: "执行 Agent", dataIndex: "agentName" },
+    { title: "Agent 评分", dataIndex: "agentScore", width: 110, align: "right" },
     { title: "执行状态", dataIndex: "status", render: (value) => <StatusTag status={value} /> },
+    { title: "当前节点", dataIndex: "currentNode", width: 130 },
+    { title: "当前进度", dataIndex: "progress", width: 110, align: "right" },
     { title: "时间", dataIndex: "time", width: 190, className: "whitespace-nowrap tabular-nums" }
   ];
   const runningColumns: ColumnsType<RunningExecution> = [
@@ -1742,7 +1772,7 @@ function AdminExecutionRecords({
                   message.warning("执行记录缺少 ID，无法查看结果");
                   return;
                 }
-                navigate(`/tasks/${encodeURIComponent(taskId)}/results/${encodeURIComponent(record.executionId)}`);
+                navigate(resultPath(record.executionId));
               }
             }
           ]}
@@ -1757,26 +1787,27 @@ function AdminExecutionRecords({
       {selectedExecution && <p>当前执行：{selectedExecutionRecord ? displayExecutionId(selectedExecutionRecord) : displayText(selectedExecution)} <Button type="link" onClick={()=>{const next=new URLSearchParams(executionSearch);next.delete('executionId');setExecutionSearch(next);}}>查看任务全部执行记录</Button></p>}
       <Tabs
         activeKey={['all','running','reviewing','completed','terminated'].includes(activeStatus) ? activeStatus : 'all'}
-        onChange={key=>{const next=new URLSearchParams(executionSearch);next.set('executionStatus',key);next.delete('executionId');setExecutionSearch(next);}}
+        onChange={key=>{const next=new URLSearchParams(executionSearch);next.set('executionStatus',key);next.delete('executionId');next.delete('executionPage');setExecutionSearch(next);}}
         className="mt-4"
         items={[
           {
             key: "all",
-            label: "全部",
-            children: <Table rowKey={(record) => record.executionId ?? `${record.userName}-${record.time}`} columns={allColumns} dataSource={allRecords} pagination={{pageSize:20,hideOnSinglePage:true}} locale={{ emptyText: "暂无执行记录" }} scroll={{ x: 1220 }} />
+            label: `全部 ${formatCount(countFor('all'))}`,
+            children: <Table rowKey={(record) => record.executionId ?? `${record.userName}-${record.time}`} columns={allColumns} dataSource={allRecords} pagination={paginationFor('all')} locale={{ emptyText: "暂无执行记录" }} scroll={{ x: 1480 }} />
           },
           {
             key: "running",
-            label: "执行中",
-            children: <Table rowKey={(record) => record.executionId ?? record.startedAt} columns={runningColumns} dataSource={records?.running ?? []} pagination={{pageSize:20,hideOnSinglePage:true}} locale={{ emptyText: "暂无执行中记录" }} scroll={{ x: 1160 }} />
+            label: `执行中 ${formatCount(countFor('running'))}`,
+            children: <Table rowKey={(record) => record.executionId ?? record.startedAt} columns={runningColumns} dataSource={records?.running ?? []} pagination={paginationFor('running')} locale={{ emptyText: "暂无执行中记录" }} scroll={{ x: 1160 }} />
           },
           {
             key: "reviewing",
-            label: "待平台审核",
+            label: `待平台审核 ${formatCount(countFor('reviewing'))}`,
             children: (
               <AcceptanceReviewTable
                 data={records?.reviewing ?? []}
-                onOpenDetail={(record) => navigate(`/acceptance/${encodeURIComponent(record.executionId)}`)}
+                pagination={paginationFor('reviewing')}
+                onOpenDetail={(record) => navigate(resultPath(record.executionId))}
                 onApprove={approveAcceptanceReview}
                 onReject={rejectAcceptanceReview}
               />
@@ -1784,13 +1815,13 @@ function AdminExecutionRecords({
           },
           {
             key: "terminated",
-            label: "已终止",
-            children: <Table rowKey={(record) => record.executionId ?? record.terminatedAt} columns={terminatedColumns} dataSource={records?.terminated ?? []} pagination={{pageSize:20,hideOnSinglePage:true}} locale={{ emptyText: "暂无已终止记录" }} scroll={{ x: 1160 }} />
+            label: `已终止 ${formatCount(countFor('terminated'))}`,
+            children: <Table rowKey={(record) => record.executionId ?? record.terminatedAt} columns={terminatedColumns} dataSource={records?.terminated ?? []} pagination={paginationFor('terminated')} locale={{ emptyText: "暂无已终止记录" }} scroll={{ x: 1160 }} />
           },
           {
             key: "completed",
-            label: "已完成",
-            children: <Table rowKey={(record) => record.executionId ?? record.completedAt} columns={completedColumns} dataSource={records?.completed ?? []} pagination={{pageSize:20,hideOnSinglePage:true}} locale={{ emptyText: "暂无已完成记录" }} scroll={{ x: 1280 }} />
+            label: `已完成 ${formatCount(countFor('completed'))}`,
+            children: <Table rowKey={(record) => record.executionId ?? record.completedAt} columns={completedColumns} dataSource={records?.completed ?? []} pagination={paginationFor('completed')} locale={{ emptyText: "暂无已完成记录" }} scroll={{ x: 1280 }} />
           }
         ]}
       />
