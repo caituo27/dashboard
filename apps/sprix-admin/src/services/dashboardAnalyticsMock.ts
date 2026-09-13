@@ -52,7 +52,6 @@ export type DashboardAnalyticsSnapshot = {
     orders: number;
     tasks: number;
     agents: number;
-    users: number;
     amount: number;
     operatingDays: number;
     startedAt: string;

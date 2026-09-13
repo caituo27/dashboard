@@ -1,6 +1,7 @@
 import {hash} from './business-scenario.mjs';
 const agents=['Codex Agent','Claude Code','OpenCode Agent','Hermes Agent'];
 const profiles=new Map();
+const profileBatches=new Map();
 const sourceProfiles=[
  ['南楠','在校学生','17688970313','经济学'],
  ['周瑞','自由职业者','13632673417','知识产权'],
@@ -55,6 +56,15 @@ export function businessProfile(index) {
  if(!value) {value=Object.freeze(createBusinessProfile(uid));profiles.set(uid,value);}
  return value;
 }
+export function businessProfileForBatchPosition(position,identity=position) {
+ const normalized=Math.max(1,Number(position)),zeroBased=normalized-1,batch=Math.floor(zeroBased/MOCK_PROFILE_POOL.length),offset=zeroBased%MOCK_PROFILE_POOL.length;
+ let sources=profileBatches.get(batch);
+ if(!sources) {
+  sources=[...MOCK_PROFILE_POOL].sort((a,b)=>hash(a.sourceIndex+batch*131,92)-hash(b.sourceIndex+batch*131,92)||a.sourceIndex-b.sourceIndex);
+  profileBatches.set(batch,sources);
+ }
+ return createBusinessProfileFromSource(sources[offset],identity);
+}
 export function businessProfileForIdentity(identity){
  let value=2166136261;
  for(const character of String(identity??'')){value^=character.codePointAt(0);value=Math.imul(value,16777619)>>>0;}
@@ -63,5 +73,9 @@ export function businessProfileForIdentity(identity){
 function createBusinessProfile(index) {
  const uid=(Math.max(1,Number(index))-1)%30000+1;
  const source=MOCK_PROFILE_POOL[hash(uid,15)%MOCK_PROFILE_POOL.length];
- return {userName:source.userName,phone:source.phone,identityStatus:source.identityStatus,agentType:source.agentType,verifiedName:maskVerifiedName(source.userName),alipayAccount:source.phone,agentName:agents[hash(uid,17)%agents.length]};
+ return createBusinessProfileFromSource(source,uid);
+}
+function createBusinessProfileFromSource(source,identity) {
+ const uid=(Math.max(1,Number(identity))-1)%30000+1;
+ return {sourceIndex:source.sourceIndex,userName:source.userName,phone:source.phone,identityStatus:source.identityStatus,agentType:source.agentType,verifiedName:maskVerifiedName(source.userName),alipayAccount:source.phone,agentName:agents[hash(uid,17)%agents.length]};
 }

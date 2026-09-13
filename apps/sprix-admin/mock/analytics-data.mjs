@@ -10,8 +10,7 @@ const APPROVED_PERIOD_START = Date.parse("2026-09-05T00:00:00+08:00");
 const APPROVED_CUTOFF_AT = Date.parse("2026-09-11T23:59:59+08:00");
 const DAILY_SHAPE = Object.freeze([0.88, 0.94, 1.08, 1.02, 0.96, 1.04, 1.08]);
 const DASHBOARD_BASELINE_TOTALS = Object.freeze({
-  amount: 10_284_630,
-  users: 18_463
+  amount: 10_284_630
 });
 const APPROVED_WEEKLY = Object.freeze({
   acceptedGmv: {value:326_840,previous:290_260,change:12.6},
@@ -117,7 +116,6 @@ function cumulativeOverview(now) {
   return {
     orders:indexAt(now),
     tasks:publishedTaskCount(now),
-    users:DASHBOARD_BASELINE_TOTALS.users+signed(rows.reduce((total,row)=>total+dailyMetric(154,row.timestamp,2),0)),
     agents:agentsAt(now),
     amount:DASHBOARD_BASELINE_TOTALS.amount+signed(sumRows(rows,'acceptedGmv'))
   };

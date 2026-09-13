@@ -9,7 +9,7 @@ import { readDemoState, applyDemoAction } from "./demo-state.mjs";
 import { createAnalyticsSnapshot } from "./analytics-data.mjs";
 import { buildDemoLedger } from "./demo-ledger.mjs";
 import { orderRange, statusAt } from "./business-scenario.mjs";
-import {businessAcceptanceRecord,businessAgentCount,businessAppealCount,businessAppealRecord,businessExecutionCount,businessExecutionSubmission,businessPublishedTaskCount,businessTaskAttachment,businessTaskCount,createBusinessMetricsSnapshot} from './business-metrics.mjs';
+import {PLATFORM_CUTOFF_AT,businessAcceptanceRecord,businessAppealCount,businessAppealRecord,businessExecutionCount,businessExecutionSubmission,businessPublishedTaskCount,businessTaskAttachment,businessTaskCount,createBusinessMetricsSnapshot,platformCumulativeOverview} from './business-metrics.mjs';
 
 const compactDashboardCache = new Map();
 function applyStateToDashboard(snapshot,state) {
@@ -56,20 +56,20 @@ async function compactDashboard(period, range) {
   if(range){
     const key=JSON.stringify(['business-dashboard',range]);
     if(!compactDashboardCache.has(key)){
-      const businessMetrics=createBusinessMetricsSnapshot(range),platformAt=Math.floor(Date.now()/10000)*10000,snapshot=createAnalyticsSnapshot(period,platformAt);
-      compactDashboardCache.set(key,{...snapshot,snapshotVersion:businessMetrics.snapshotVersion,periodStart:businessMetrics.periodStart,periodEnd:businessMetrics.periodEnd,businessMetrics,overview:{...snapshot.overview,orders:businessMetrics.summary.executions,tasks:businessMetrics.summary.masterTasks,agents:businessAgentCount,amount:businessMetrics.summary.acceptedGmv},agentEcosystem:{...snapshot.agentEcosystem,totalAgents:businessAgentCount}});
+      const businessMetrics=createBusinessMetricsSnapshot(range),snapshot=createAnalyticsSnapshot(period,PLATFORM_CUTOFF_AT);
+      compactDashboardCache.set(key,{...snapshot,snapshotVersion:businessMetrics.snapshotVersion,periodStart:businessMetrics.periodStart,periodEnd:businessMetrics.periodEnd,businessMetrics,overview:{...snapshot.overview,...platformCumulativeOverview},agentEcosystem:{...snapshot.agentEcosystem,totalAgents:platformCumulativeOverview.agents}});
     }
     return compactDashboardCache.get(key);
   }
   const state=await readDemoState();
-  const at = Math.floor(Date.now() / 10000) * 10000;
+  const at = PLATFORM_CUTOFF_AT;
   const stateHash=createHash('sha256').update(JSON.stringify(state)).digest('hex').slice(0,12);
   const key = JSON.stringify([period, range ?? null, at, stateHash]);
   if (!compactDashboardCache.has(key)) {
     const platformSnapshot=createAnalyticsSnapshot(period,at),snapshot=applyStateToDashboard(platformSnapshot,state),businessMetrics=createBusinessMetricsSnapshot();
     compactDashboardCache.set(key,{...snapshot,snapshotVersion:businessMetrics.snapshotVersion,periodStart:businessMetrics.periodStart,periodEnd:businessMetrics.periodEnd,businessMetrics,
-      overview:{...platformSnapshot.overview,orders:businessExecutionCount,tasks:businessTaskCount,agents:businessAgentCount,amount:businessMetrics.summary.acceptedGmv},
-      agentEcosystem:{...snapshot.agentEcosystem,totalAgents:businessAgentCount},
+      overview:{...platformSnapshot.overview,...platformCumulativeOverview},
+      agentEcosystem:{...snapshot.agentEcosystem,totalAgents:platformCumulativeOverview.agents},
       operations:{...snapshot.operations,taskTotal:businessTaskCount,publishedTasks:businessPublishedTaskCount,executions:{running:0,reviewing:businessExecutionCount,completed:0,terminated:0},pendingAcceptance:businessExecutionCount,appeals:businessAppealCount}});
     while (compactDashboardCache.size > 12) compactDashboardCache.delete(compactDashboardCache.keys().next().value);
   }
@@ -148,7 +148,7 @@ export function dashboardMockMiddleware(request, response, next) {
       if(kind==='acceptance-stats') {
         const category=url.searchParams.get('category');
         const rows=[];for(let index=1;index<=businessExecutionCount;index++){const row=businessAcceptanceRecord(index);if(!category||row.taskCategory===category)rows.push(row);}
-        return sendJson(response,200,{tasks:new Set(rows.map(r=>r.taskId)).size,users:new Set(rows.map(r=>r.userId ?? r.userName)).size});
+        return sendJson(response,200,{tasks:new Set(rows.map(r=>r.taskId)).size,agents:new Set(rows.map(r=>r.agentId ?? r.agentName)).size,platformAgents:platformCumulativeOverview.agents});
       }
       if(kind==='appeal-stats') {
         const category=url.searchParams.get('category');

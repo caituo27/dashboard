@@ -1,5 +1,5 @@
 import {hash} from './business-scenario.mjs';
-import {businessProfile} from './business-profile.mjs';
+import {businessProfileForBatchPosition} from './business-profile.mjs';
 import {dataAnnotationTaskContent} from './data-annotation-task-templates.mjs';
 import {dataAnnotationTaskAttachmentFiles} from './data-annotation-task-attachments.mjs';
 import {otherTaskReferenceContent} from './other-task-reference-templates.mjs';
@@ -10,6 +10,7 @@ const DAY=86_400_000,SHANGHAI_OFFSET=8*3_600_000;
 const MASTER_TOTALS=[9134,37,929,345,45,344],SLOT_TOTALS=[15487,62,1575,586,77,583];
 const WEEKDAY_WEIGHTS=[1.08,1.16,0.96,1.12,1.02,0.38,0.34];
 export const BUSINESS_CUTOFF_AT=Date.parse('2026-09-06T23:59:59+08:00');
+export const PLATFORM_CUTOFF_AT=Date.parse('2026-09-13T23:59:59+08:00');
 export const BUSINESS_PERIOD=Object.freeze({startDate:'2026-07-27',endDate:'2026-09-06'});
 export const BUSINESS_SNAPSHOT_ID='sprix-excel-v5.1-2026-09-06';
 export const AGENT_TYPE_NAMES=Object.freeze(['工程师（算法/开发）','设计师','产品经理','3D工程师','营销','其他']);
@@ -22,6 +23,22 @@ const rawWeeks=[
  ['08.17–08.23','2026-08-17','2026-08-23',1877,0.2154,308950,2655,[970,121,221,245,270,50],[2604,11,240,54,0,146],[285000,7600,4500,6650,0,5200],[0.297,0.96,0.99,0.94,null,0.73]],
  ['08.24–08.30','2026-08-24','2026-08-30',4509,0.1933,475800,3079,[3283,115,199,575,276,61],[3494,5,310,189,0,81],[448800,2550,9000,10200,0,5250],[0.3356,0.9,0.97,0.93,null,0.85]],
  ['08.31–09.06','2026-08-31','2026-09-06',3605,0.1274,586700,3544,[2818,148,228,101,244,66],[3787,18,351,235,68,85],[497400,9000,28900,34620,6380,10400],[0.3005,0.95,0.95,0.98,0.96,0.39]]
+];
+const PURE_AGENT_PENDING_BY_WEEK=[
+ [395,0,0,0,0,0],
+ [2977,423,411,0,0,270],
+ [4982,273,653,415,0,111],
+ [8465,730,446,625,0,380],
+ [15062,230,873,949,0,446],
+ [14947,855,2746,3393,612,406]
+];
+const HYBRID_PENDING_BY_WEEK=[
+ [6928.5,0,0,0,0,0],
+ [39615.216,162,244.08,0,0,797.94],
+ [82701.762,162,39.6,103.68,0,545.4],
+ [120213,182.4,27,239.4,0,842.4],
+ [178909.632,153,162,428.4,0,472.5],
+ [208758.78,270,867,415.44,153.12,3806.4]
 ];
 const money=value=>Math.round((value+1e-9)*100)/100;
 const dateAt=value=>Date.parse(`${value}T00:00:00+08:00`);
@@ -63,8 +80,9 @@ for(const [weekIndex,raw] of rawWeeks.entries()){
  for(const [typeIndex,type] of TASK_TYPE_NAMES.entries()){
   const executionTotal=taskCounts[typeIndex];if(!executionTotal)continue;
   const masterTotal=categoryWeekMasters[typeIndex][weekIndex],remainingTotal=categoryWeekRemaining[typeIndex][weekIndex];
-  const executionsPerTask=allocate(executionTotal-masterTotal,Array.from({length:masterTotal},(_,index)=>1+(hash(index+weekIndex*97+typeIndex*29,74)%7))).map(value=>value+1);
-  const remainingPerTask=allocate(remainingTotal,executionsPerTask.map((value,index)=>value*(1+(hash(index+typeIndex*31,75)%5)/10)));
+  const executionWeights=Array.from({length:masterTotal},(_,index)=>{const bucket=hash(index+weekIndex*97+typeIndex*29,74)%100;return bucket<12?12+bucket%5:bucket<35?4:1;});
+  const executionsPerTask=allocate(executionTotal-masterTotal,executionWeights).map(value=>value+1);
+  const remainingPerTask=allocate(remainingTotal,executionsPerTask.map((value,index)=>value*(1+(hash(index+typeIndex*31,75)%5)/10)),executionsPerTask);
   const taskIndexes=[];
   for(let localTask=0;localTask<masterTotal;localTask++){const index=taskBlueprints.length,typeSequence=++taskTypeSequence[typeIndex];taskIndexes.push(index);taskBlueprints.push({index,weekIndex,typeIndex,type,typeSequence,localTask,executionTotal:executionsPerTask[localTask],remainingSlots:remainingPerTask[localTask],executionIndexes:[]});}
   const daySequence=dailyByType[typeIndex].flatMap((count,day)=>Array.from({length:count},()=>day)),rate=raw[10][typeIndex];
@@ -83,6 +101,12 @@ export const businessSlotCount=SLOT_TOTALS.reduce((sum,value)=>sum+value,0);
 export const businessRemainingSlotCount=businessSlotCount-businessExecutionCount;
 export const businessPublishedTaskCount=taskBlueprints.slice(1).filter(task=>task.remainingSlots>0).length;
 
+function executionSubmittedAt(index,item){return dateAt(rawWeeks[item.weekIndex][1])+item.day*DAY+(15+(hash(index,82)%7))*3_600_000+(hash(index,83)%60)*60_000;}
+const acceptanceDisplayPositions=new Uint32Array(businessExecutionCount+1);
+executionBlueprints.slice(1).map(item=>({index:item.index,submittedAt:executionSubmittedAt(item.index,item)}))
+ .sort((a,b)=>b.submittedAt-a.submittedAt||`demo:business-order:${a.index}`.localeCompare(`demo:business-order:${b.index}`))
+ .forEach((item,position)=>{acceptanceDisplayPositions[item.index]=position+1;});
+
 function executorOrdinalForExecution(item){
  // Profiles may repeat for display; the business identity follows the effective-Agent pools.
  const weeklyPool=rawWeeks[item.weekIndex][6],dailyPools=weeklyDailyEffective[item.weekIndex],dailyPool=dailyPools[item.day];
@@ -90,18 +114,19 @@ function executorOrdinalForExecution(item){
  const dayOffset=dailyPools.slice(0,item.day).reduce((sum,value)=>sum+value,0);
  return previousWeeks+(dayOffset+(dailyPool?item.dayPosition%dailyPool:0))%weeklyPool+1;
 }
-function profileForExecution(item){
- return businessProfile(executorOrdinalForExecution(item));
+function profileForExecution(index,item){
+ return businessProfileForBatchPosition(acceptanceDisplayPositions[index],executorOrdinalForExecution(item));
 }
 function taskTitle(task){return `${task.type}·${rawWeeks[task.weekIndex][0]}·${String(task.localTask+1).padStart(4,'0')}`;}
 function taskPublishedAt(task){const firstDay=Math.min(...task.executionIndexes.map(index=>executionBlueprints[index].day));return dateAt(rawWeeks[task.weekIndex][1])+firstDay*DAY+(task.type==='数据标注'?10:6)*3_600_000+(hash(task.index,96)%(3*60))*60_000;}
+function defaultExecutionStatus(index){const bucket=hash(index,87)%100;return bucket<7?'running':bucket<34?'reviewing':bucket<92?'completed':'terminated';}
 export function businessTaskRecord(index,patch={},executionPatches={}){
  const task=taskBlueprints[index];if(!task)return null;const week=rawWeeks[task.weekIndex],scale=task.type==='数据标注'?2000+hash(index,98)%8001:Math.max(1,task.executionTotal);
  const amountCents=task.executionIndexes.reduce((sum,executionIndex)=>sum+executionBlueprints[executionIndex].acceptedCents,0),first=executionBlueprints[task.executionIndexes[0]],last=executionBlueprints[task.executionIndexes.at(-1)],publishedAt=taskPublishedAt(task),firstAt=dateAt(week[1])+first.day*DAY+15*3_600_000,lastAt=dateAt(week[1])+last.day*DAY+21*3_600_000;
  const reward=money(amountCents/100/task.executionTotal),totalSlots=task.executionTotal+task.remainingSlots,reference=task.type==='数据标注'?dataAnnotationTaskContent(task.typeSequence,reward,totalSlots):otherTaskReferenceContent(task.type,task.typeSequence,reward,totalSlots);
  const record={id:`demo:business-task:${index}`,title:taskTitle(task),category:task.type,sourceName:'平台运营',sourceType:'平台发布',description:`${task.type}交付任务，请按照任务要求完成交付。`,cardSummary:`${task.type}任务`,deliverables:'结构化交付结果及任务要求对应附件',acceptanceCriteria:'内容完整且通过对应类型质检标准',reward,estimatedTokens:task.type==='数据标注'?scale*4:8000,tokenBillingUnit:1000,tokenUnitPrice:0,pricingModel:'任务承包制',pricingQuoteId:'',pricingEstimatedAt:'',totalAmount:money(reward*totalSlots),totalSlots,remainingSlots:task.remainingSlots,publishedAt:localTime(publishedAt),taskStatus:task.remainingSlots>0?'已发布':'已下线',offlineReason:task.remainingSlots>0?'':'SLOT_FULL',executionTotal:task.executionTotal,runningExecutionCount:0,reviewingExecutionCount:task.executionTotal,completedExecutionCount:0,terminatedExecutionCount:0,firstAcceptedAt:localTime(firstAt),firstCompletedAt:localTime(lastAt),firstAcceptancePassedAt:'',agentMatchScore:92,recommendedTaskType:task.type,suggestedTeam:'',matchAnalysis:'',riskPrompt:'',recommendedReason:'',submittedFiles:[],resultFiles:[],acceptanceResult:'待审核',...(reference??{}),...patch};
  const statusCounts={running:0,reviewing:0,completed:0,terminated:0};
- for(const executionIndex of task.executionIndexes){const status=executionPatches[`demo:business-execution:${executionIndex}`]?.status??'reviewing';statusCounts[status in statusCounts?status:'reviewing']++;}
+ for(const executionIndex of task.executionIndexes){const status=executionPatches[`demo:business-execution:${executionIndex}`]?.status??defaultExecutionStatus(executionIndex);statusCounts[status in statusCounts?status:'reviewing']++;}
  record.runningExecutionCount=statusCounts.running;record.reviewingExecutionCount=statusCounts.reviewing;record.completedExecutionCount=statusCounts.completed;record.terminatedExecutionCount=statusCounts.terminated;
  record.totalAmount=money(record.reward*record.totalSlots);
  record.remainingSlots=Math.max(0,record.totalSlots-record.executionTotal);
@@ -109,9 +134,10 @@ export function businessTaskRecord(index,patch={},executionPatches={}){
  return record;
 }
 export function businessExecutionRecord(index,patch={}){
- const item=executionBlueprints[index];if(!item)return null;const task=businessTaskRecord(item.taskIndex),executorOrdinal=executorOrdinalForExecution(item),profile=profileForExecution(item),at=dateAt(rawWeeks[item.weekIndex][1])+item.day*DAY+(15+(hash(index,82)%7))*3_600_000+(hash(index,83)%60)*60_000,submittedAt=localTime(at),updatedAt=localTime(at+(1+hash(index,85)%16)*60_000),manual=item.deliveryMode==='USER_MANUAL';
+ const item=executionBlueprints[index];if(!item)return null;const task=businessTaskRecord(item.taskIndex),executorOrdinal=executorOrdinalForExecution(item),profile=profileForExecution(index,item),at=executionSubmittedAt(index,item),submittedAt=localTime(at),updatedAt=localTime(at+(1+hash(index,85)%16)*60_000),manual=item.deliveryMode==='USER_MANUAL';
  const agentScore=String(90+hash(index,84)%10);
- const row={index,executionIndex:index,id:`demo:business-order:${index}`,executionId:`demo:business-execution:${index}`,executionNo:executionNo(index,submittedAt),taskId:task.id,taskTitle:task.title,taskCategory:task.category,status:'reviewing',userId:`demo:business-user:${executorOrdinal}`,userName:profile.userName,phone:profile.phone,agentId:`demo:business-agent:${executorOrdinal}`,agentName:profile.agentName,time:submittedAt,reward:money(item.acceptedCents/100),reviewSource:item.deliveryMode,acceptanceStatus:'待审核',acceptanceScore:'-',agentScore,acceptanceSummary:manual?'用户已人工上传交付，等待平台审核。':'Agent 已自动交付并完成质检，等待平台审核。',acceptanceIssues:'待平台审核',currentNode:'平台待审核',progress:'待审核',submittedAt,updatedAt,...patch};
+ const row={index,executionIndex:index,id:`demo:business-order:${index}`,executionId:`demo:business-execution:${index}`,executionNo:executionNo(index,submittedAt),taskId:task.id,taskTitle:task.title,taskCategory:task.category,status:defaultExecutionStatus(index),userId:`demo:business-user:${profile.sourceIndex}`,userName:profile.userName,phone:profile.phone,agentId:`demo:business-agent:${executorOrdinal}`,agentName:profile.agentName,time:submittedAt,reward:money(item.acceptedCents/100),reviewSource:item.deliveryMode,acceptanceStatus:'待审核',acceptanceScore:'-',agentScore,acceptanceSummary:manual?'用户已人工上传交付，等待平台审核。':'Agent 已自动交付并完成质检，等待平台审核。',acceptanceIssues:'待平台审核',currentNode:'平台待审核',progress:'待审核',submittedAt,updatedAt,...patch};
+ if(row.status==='running')Object.assign(row,{acceptanceStatus:'未提交',currentNode:'任务执行中',progress:'执行中'});
  if(row.status==='completed')Object.assign(row,{acceptanceStatus:'验收通过',acceptanceResult:'验收通过',currentNode:'验收完成',progress:'已完成'});
  if(row.status==='terminated')Object.assign(row,{acceptanceStatus:'验收不通过',acceptanceResult:'验收不通过',currentNode:'验收结束',progress:'未通过'});
  return row;
@@ -150,12 +176,19 @@ export function businessExecutionSubmission(id){
 
 export const weeklyBusinessFacts=Object.freeze(rawWeeks.map((raw,weekIndex)=>{
  const [label,startDate,endDate,newAgents,heterogeneousRate,acceptedGmv,effectiveAgents,agentCounts,taskCounts,amounts,passRates]=raw,days=weightedDays(newAgents,(weekIndex+1)*17),typeDays=typeDailyMatrix(agentCounts,days,weekIndex),deliveredTasks=taskCounts.reduce((sum,value)=>sum+value,0);
- return Object.freeze({label,startDate,endDate,newAgents,heterogeneousRate,acceptedGmv,effectiveAgents,deliveredTasks,averageGmvPerEffectiveAgent:acceptedGmv/effectiveAgents,dailyNewAgents:Object.freeze(days.map((total,index)=>Object.freeze({date:dateKey(dateAt(startDate)+index*DAY),total}))),dailyDelivery:Object.freeze(weeklyDailyTasks[weekIndex].map((tasks,index)=>Object.freeze({date:dateKey(dateAt(startDate)+index*DAY),tasks,effectiveAgents:weeklyDailyEffective[weekIndex][index]}))),agentTypes:Object.freeze(AGENT_TYPE_NAMES.map((type,index)=>Object.freeze({type,count:agentCounts[index],daily:Object.freeze(typeDays[index])}))),taskTypes:Object.freeze(TASK_TYPE_NAMES.map((type,index)=>{const amount=amounts[index],passRate=passRates[index],autoDeliveryAmount=passRate==null?0:money(amount*passRate),manualDeliveryAmount=passRate==null?0:money(amount*(1-passRate));return Object.freeze({type,tasks:taskCounts[index],daily:Object.freeze(weeklyDailyTasksByType[weekIndex][index]),amount,passRate,autoDeliveryAmount,manualDeliveryAmount,pureAgentPending:money(autoDeliveryAmount*0.1),hybridPending:money(manualDeliveryAmount*0.6)});})),masterTasks:TASK_TYPE_NAMES.reduce((sum,_,typeIndex)=>sum+categoryWeekMasters[typeIndex][weekIndex],0),slots:deliveredTasks+TASK_TYPE_NAMES.reduce((sum,_,typeIndex)=>sum+categoryWeekRemaining[typeIndex][weekIndex],0)});
+ return Object.freeze({label,startDate,endDate,newAgents,heterogeneousRate,acceptedGmv,effectiveAgents,deliveredTasks,averageGmvPerEffectiveAgent:acceptedGmv/effectiveAgents,dailyNewAgents:Object.freeze(days.map((total,index)=>Object.freeze({date:dateKey(dateAt(startDate)+index*DAY),total}))),dailyDelivery:Object.freeze(weeklyDailyTasks[weekIndex].map((tasks,index)=>Object.freeze({date:dateKey(dateAt(startDate)+index*DAY),tasks,effectiveAgents:weeklyDailyEffective[weekIndex][index]}))),agentTypes:Object.freeze(AGENT_TYPE_NAMES.map((type,index)=>Object.freeze({type,count:agentCounts[index],daily:Object.freeze(typeDays[index])}))),taskTypes:Object.freeze(TASK_TYPE_NAMES.map((type,index)=>{const amount=amounts[index],passRate=passRates[index],autoDeliveryAmount=passRate==null?0:money(amount*passRate),manualDeliveryAmount=passRate==null?0:money(amount*(1-passRate));return Object.freeze({type,tasks:taskCounts[index],daily:Object.freeze(weeklyDailyTasksByType[weekIndex][index]),amount,passRate,autoDeliveryAmount,manualDeliveryAmount,pureAgentPending:PURE_AGENT_PENDING_BY_WEEK[weekIndex][index],hybridPending:HYBRID_PENDING_BY_WEEK[weekIndex][index]});})),masterTasks:TASK_TYPE_NAMES.reduce((sum,_,typeIndex)=>sum+categoryWeekMasters[typeIndex][weekIndex],0),slots:deliveredTasks+TASK_TYPE_NAMES.reduce((sum,_,typeIndex)=>sum+categoryWeekRemaining[typeIndex][weekIndex],0)});
 }));
+const latestCompleteWeek=weeklyBusinessFacts.at(-1);
+export const platformCumulativeOverview=Object.freeze({
+ amount:money(weeklyBusinessFacts.reduce((sum,week)=>sum+week.acceptedGmv,0)+(latestCompleteWeek?.acceptedGmv??0)),
+ orders:businessExecutionCount+(latestCompleteWeek?.deliveredTasks??0),
+ tasks:businessTaskCount+(latestCompleteWeek?.masterTasks??0),
+ agents:businessAgentCount+(latestCompleteWeek?.newAgents??0)
+});
 export function createBusinessMetricsSnapshot(range=BUSINESS_PERIOD){
  const startAt=parseDate(range.startDate),endAt=parseDate(range.endDate);if(startAt>endAt)throw new RangeError('开始日期不能晚于结束日期');
  const weeks=weeklyBusinessFacts.map(week=>{const includedIndexes=week.dailyNewAgents.map((day,index)=>day.date>=range.startDate&&day.date<=range.endDate?index:-1).filter(index=>index>=0),dailyNewAgents=week.dailyNewAgents.filter(day=>day.date>=range.startDate&&day.date<=range.endDate),dailyDelivery=week.dailyDelivery.filter(day=>day.date>=range.startDate&&day.date<=range.endDate);return {...week,dailyNewAgents,dailyDelivery,agentTypes:week.agentTypes.map(type=>({...type,count:includedIndexes.reduce((sum,index)=>sum+type.daily[index],0),daily:includedIndexes.map(index=>type.daily[index])})),taskTypes:week.taskTypes.map(type=>({...type,tasks:includedIndexes.reduce((sum,index)=>sum+type.daily[index],0),daily:includedIndexes.map(index=>type.daily[index])})),newAgents:dailyNewAgents.reduce((sum,day)=>sum+day.total,0),deliveredTasks:dailyDelivery.reduce((sum,day)=>sum+day.tasks,0)};});
  const masterTasks=businessTaskCount,executions=businessExecutionCount,remainingSlots=businessRemainingSlotCount,slots=businessSlotCount;
- const latest=weeklyBusinessFacts.at(-1),items=weeklyBusinessFacts.flatMap(week=>week.taskTypes),autoDeliveryAmount=money(items.reduce((sum,item)=>sum+item.autoDeliveryAmount,0)),manualDeliveryAmount=money(items.reduce((sum,item)=>sum+item.manualDeliveryAmount,0));return {snapshotVersion:BUSINESS_SNAPSHOT_ID,generatedAt:new Date(BUSINESS_CUTOFF_AT).toISOString(),periodStart:range.startDate,periodEnd:range.endDate,source:{file:'Sprix 经营数据中心',sheet:'经营指标',rows:'全量',note:'任务、执行、验收与申诉使用统一业务口径'},weeks,summary:{newAgents:weeks.reduce((sum,week)=>sum+week.newAgents,0),heterogeneousRate:latest?.heterogeneousRate??null,acceptedGmv:weeklyBusinessFacts.reduce((sum,week)=>sum+week.acceptedGmv,0),effectiveAgents:latest?.effectiveAgents??null,averageGmvPerEffectiveAgent:latest?.averageGmvPerEffectiveAgent??null,deliveredTasks:weeks.reduce((sum,week)=>sum+week.deliveredTasks,0),masterTasks,slots,executions,remainingSlots,autoDeliveryAmount,manualDeliveryAmount,pureAgentPending:money(autoDeliveryAmount*0.1),hybridPending:money(manualDeliveryAmount*0.6)}};
+ const latest=weeklyBusinessFacts.at(-1),items=weeklyBusinessFacts.flatMap(week=>week.taskTypes),autoDeliveryAmount=money(items.reduce((sum,item)=>sum+item.autoDeliveryAmount,0)),manualDeliveryAmount=money(items.reduce((sum,item)=>sum+item.manualDeliveryAmount,0)),pureAgentPending=money(items.reduce((sum,item)=>sum+item.pureAgentPending,0)),hybridPending=money(items.reduce((sum,item)=>sum+item.hybridPending,0));return {snapshotVersion:BUSINESS_SNAPSHOT_ID,generatedAt:new Date(BUSINESS_CUTOFF_AT).toISOString(),periodStart:range.startDate,periodEnd:range.endDate,source:{file:'Sprix 经营数据中心',sheet:'经营指标',rows:'全量',note:'任务、执行、验收与申诉使用统一业务口径'},weeks,summary:{newAgents:weeks.reduce((sum,week)=>sum+week.newAgents,0),heterogeneousRate:latest?.heterogeneousRate??null,acceptedGmv:weeklyBusinessFacts.reduce((sum,week)=>sum+week.acceptedGmv,0),effectiveAgents:latest?.effectiveAgents??null,averageGmvPerEffectiveAgent:latest?.averageGmvPerEffectiveAgent??null,deliveredTasks:weeks.reduce((sum,week)=>sum+week.deliveredTasks,0),masterTasks,slots,executions,remainingSlots,autoDeliveryAmount,manualDeliveryAmount,pureAgentPending,hybridPending}};
 }
 export function businessAudit(){return {masterTasks:businessTaskCount,slots:businessSlotCount,executions:businessExecutionCount,remainingSlots:businessRemainingSlotCount,appeals:businessAppealCount,weeks:weeklyBusinessFacts.map(week=>({label:week.label,tasks:week.deliveredTasks,effectiveAgents:week.effectiveAgents,dailyValid:week.dailyDelivery.every(day=>day.tasks>=day.effectiveAgents),amount:money(week.taskTypes.reduce((sum,item)=>sum+item.amount,0)),gmv:week.acceptedGmv,settlementValid:week.taskTypes.every(item=>money(item.autoDeliveryAmount+item.manualDeliveryAmount)===item.amount)}))};}

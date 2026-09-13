@@ -198,6 +198,21 @@ select {
   padding-right: 22px;
 }
 
+.sprix-date-range-popup .ant-picker-cell-in-view.ant-picker-cell-in-range::before,
+.sprix-date-range-popup .ant-picker-cell-in-view.ant-picker-cell-range-start:not(.ant-picker-cell-range-start-single)::before,
+.sprix-date-range-popup .ant-picker-cell-in-view.ant-picker-cell-range-end:not(.ant-picker-cell-range-end-single)::before {
+  background: #e7f3f0 !important;
+}
+
+.sprix-date-range-popup .ant-picker-cell-in-view.ant-picker-cell-range-start .ant-picker-cell-inner,
+.sprix-date-range-popup .ant-picker-cell-in-view.ant-picker-cell-range-end .ant-picker-cell-inner {
+  background: #0f766e !important;
+}
+
+.sprix-date-range-popup .ant-picker-cell-in-view.ant-picker-cell-in-range.ant-picker-cell-range-hover::before {
+  background: #dbece8 !important;
+}
+
 .sprix-task-basic-grid {
   margin-bottom: 24px;
 }

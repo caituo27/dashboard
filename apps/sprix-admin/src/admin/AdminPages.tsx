@@ -8,6 +8,7 @@ import type { TablePaginationConfig } from "antd";
 import { useEffect, useRef, useState } from "react";
 import type { Key, ReactNode } from "react";
 import { Button, DatePicker, Form, Input, InputNumber, Modal, Select, Segmented, Tabs, Tooltip, Upload, message } from "antd";
+import { sprixDatePickerLocale } from "../datePickerLocale";
 import type { ColumnsType } from "antd/es/table";
 import type { UploadFile } from "antd/es/upload/interface";
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
@@ -472,7 +473,7 @@ export function AdminTaskCenter() {
     { title: "总金额", dataIndex: "totalAmount", width: 180, align: "right", className: "whitespace-nowrap tabular-nums", render: formatPricingAmount },
     {
       title: "名额",
-      width: 130,
+      width: 180,
       align: "right",
       className: "whitespace-nowrap tabular-nums",
       render: (_, task) => `${formatCount(task.remainingSlots)} / ${formatCount(task.totalSlots)}`
@@ -535,6 +536,8 @@ export function AdminTaskCenter() {
               <div className="relative w-full sm:w-[400px]">
                 <DatePicker.RangePicker
                   className={`sprix-task-date-filter w-full ${(publishedDate || startDate) ? "sprix-task-date-filter-active" : ""}`}
+                  popupClassName="sprix-date-range-popup"
+                  locale={sprixDatePickerLocale}
                   aria-label="任务发布时间范围"
                   allowClear={false}
                   value={null}
@@ -567,7 +570,7 @@ export function AdminTaskCenter() {
           columns={taskColumns}
           dataSource={visibleTasks}
           pagination={{ current:taskCenterQuery.data?.page ?? taskPage,pageSize:20,total:taskCenterQuery.data?.total,onChange:setTaskPage,showSizeChanger:false }}
-          scroll={{ x: 2070 }}
+          scroll={{ x: 2120 }}
           rowClassName="cursor-pointer"
           locale={{ emptyText: "暂无任务" }}
           onRow={(task) => ({ onClick: () => navigate(`/tasks/${task.id}`) })}
@@ -599,7 +602,7 @@ export function AdminAcceptanceCenter() {
 
   const acceptanceReviews = acceptanceQuery.data?.rows ?? [];
   const taskCount = acceptanceQuery.data?.taskCount ?? 0;
-  const userCount = acceptanceQuery.data?.userCount ?? 0;
+  const agentCount = acceptanceQuery.data?.agentCount ?? 0;
 
   return (
     <>
@@ -610,7 +613,7 @@ export function AdminAcceptanceCenter() {
       <div className="mb-4 grid gap-3 md:grid-cols-3">
         <MetricCard title="验收记录" value={acceptanceQuery.data?.total ?? 0} icon={<ShieldCheck size={19} />} />
         <MetricCard title="涉及任务" value={taskCount} icon={<ClipboardList size={19} />} />
-        <MetricCard title="执行用户" value={userCount} />
+        <MetricCard title="Agent 数量" value={agentCount} />
       </div>
       <Surface className="sprix-table-card p-4">
         <div className="mb-3 flex justify-end">
