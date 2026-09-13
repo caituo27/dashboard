@@ -4,7 +4,7 @@ import {dataAnnotationTaskContent} from './data-annotation-task-templates.mjs';
 import {dataAnnotationTaskAttachmentFiles} from './data-annotation-task-attachments.mjs';
 import {otherTaskReferenceContent} from './other-task-reference-templates.mjs';
 import {otherTaskReferenceAttachmentFiles} from './other-task-reference-attachments.mjs';
-import {buildBusinessExecutionSubmission} from './business-execution-submission.mjs';
+import {buildBusinessExecutionSubmission,businessAcceptanceCopy} from './business-execution-submission.mjs';
 const DAY=86_400_000,SHANGHAI_OFFSET=8*3_600_000;
 const MASTER_TOTALS=[9134,37,929,345,45,344],SLOT_TOTALS=[15487,62,1575,586,77,583];
 const WEEKDAY_WEIGHTS=[1.08,1.16,0.96,1.12,1.02,0.38,0.34];
@@ -101,10 +101,17 @@ export const businessRemainingSlotCount=businessSlotCount-businessExecutionCount
 export const businessPublishedTaskCount=taskBlueprints.slice(1).filter(task=>task.remainingSlots>0).length;
 
 function executionSubmittedAt(index,item){return dateAt(rawWeeks[item.weekIndex][1])+item.day*DAY+(15+(hash(index,82)%7))*3_600_000+(hash(index,83)%60)*60_000;}
-const acceptanceDisplayPositions=new Uint32Array(businessExecutionCount+1);
+const compareExecutionDisplay=(a,b)=>b.submittedAt-a.submittedAt||`demo:business-execution:${a.index}`.localeCompare(`demo:business-execution:${b.index}`);
+const profileDisplayPositions=new Uint32Array(businessExecutionCount+1);
 executionBlueprints.slice(1).map(item=>({index:item.index,submittedAt:executionSubmittedAt(item.index,item)}))
- .sort((a,b)=>b.submittedAt-a.submittedAt||`demo:business-order:${a.index}`.localeCompare(`demo:business-order:${b.index}`))
+ .sort(compareExecutionDisplay)
+ .forEach((item,position)=>{profileDisplayPositions[item.index]=position+1;});
+const acceptanceDisplayPositions=new Uint32Array(businessExecutionCount+1);
+executionBlueprints.slice(1).filter(item=>defaultExecutionStatus(item.index)==='reviewing')
+ .map(item=>({index:item.index,submittedAt:executionSubmittedAt(item.index,item)}))
+ .sort(compareExecutionDisplay)
  .forEach((item,position)=>{acceptanceDisplayPositions[item.index]=position+1;});
+const hasRealisticAcceptance=index=>acceptanceDisplayPositions[index]>0&&acceptanceDisplayPositions[index]<=20;
 
 function executorOrdinalForExecution(item){
  // Profiles may repeat for display; the business identity follows the effective-Agent pools.
@@ -114,7 +121,7 @@ function executorOrdinalForExecution(item){
  return previousWeeks+(dayOffset+(dailyPool?item.dayPosition%dailyPool:0))%weeklyPool+1;
 }
 function profileForExecution(index,item,task){
- return businessProfileForBatchPosition(acceptanceDisplayPositions[index],executorOrdinalForExecution(item),task);
+ return businessProfileForBatchPosition(profileDisplayPositions[index],executorOrdinalForExecution(item),task);
 }
 function taskTitle(task){return `${task.type}·${rawWeeks[task.weekIndex][0]}·${String(task.localTask+1).padStart(4,'0')}`;}
 function taskPublishedAt(task){const firstDay=Math.min(...task.executionIndexes.map(index=>executionBlueprints[index].day));return dateAt(rawWeeks[task.weekIndex][1])+firstDay*DAY+(task.type==='数据标注'?10:6)*3_600_000+(hash(task.index,96)%(3*60))*60_000;}
@@ -133,15 +140,63 @@ export function businessTaskRecord(index,patch={},executionPatches={}){
  return record;
 }
 export function businessExecutionRecord(index,patch={}){
- const item=executionBlueprints[index];if(!item)return null;const task=businessTaskRecord(item.taskIndex),executorOrdinal=executorOrdinalForExecution(item),profile=profileForExecution(index,item,task),at=executionSubmittedAt(index,item),submittedAt=localTime(at),updatedAt=localTime(at+(1+hash(index,85)%16)*60_000),manual=item.deliveryMode==='USER_MANUAL';
+ const item=executionBlueprints[index];
+ if(!item)return null;
+ const task=businessTaskRecord(item.taskIndex);
+ const executorOrdinal=executorOrdinalForExecution(item);
+ const profile=profileForExecution(index,item,task);
+ const at=executionSubmittedAt(index,item);
+ const submittedAt=localTime(at);
+ const updatedAt=localTime(at+(1+hash(index,85)%16)*60_000);
+ const manual=item.deliveryMode==='USER_MANUAL';
  const agentScore=String(90+hash(index,84)%10);
- const row={index,executionIndex:index,id:`demo:business-order:${index}`,executionId:`demo:business-execution:${index}`,executionNo:executionNo(index,submittedAt),taskId:task.id,taskTitle:task.title,taskCategory:task.category,status:defaultExecutionStatus(index),userId:`demo:business-user:${profile.identityIndex}`,userName:profile.userName,phone:profile.phone,virtualPhone:profile.virtualPhone,userSpecialty:profile.agentType,agentId:`demo:business-agent:${executorOrdinal}`,agentName:profile.agentName,time:submittedAt,reward:money(item.acceptedCents/100),reviewSource:item.deliveryMode,acceptanceStatus:'待审核',acceptanceScore:'-',agentScore,acceptanceSummary:manual?'用户已人工上传交付，等待平台审核。':'Agent 已自动交付并完成质检，等待平台审核。',acceptanceIssues:'待平台审核',currentNode:'平台待审核',progress:'待审核',submittedAt,updatedAt,...patch};
+ const row={
+  index,executionIndex:index,id:`demo:business-order:${index}`,
+  executionId:`demo:business-execution:${index}`,
+  executionNo:executionNo(index,submittedAt),
+  taskId:task.id,taskTitle:task.title,taskCategory:task.category,
+  status:defaultExecutionStatus(index),
+  userId:`demo:business-user:${profile.identityIndex}`,
+  userName:profile.userName,phone:profile.phone,virtualPhone:profile.virtualPhone,
+  userSpecialty:profile.agentType,
+  agentId:`demo:business-agent:${executorOrdinal}`,agentName:profile.agentName,
+  time:submittedAt,reward:money(item.acceptedCents/100),reviewSource:item.deliveryMode,
+  acceptanceStatus:'待审核',acceptanceScore:'-',agentScore,
+  acceptanceSummary:manual
+   ? '用户已人工上传交付，等待平台审核。'
+   : 'Agent 已自动交付并完成质检，等待平台审核。',
+  acceptanceIssues:'待平台审核',
+  currentNode:'平台待审核',progress:'待审核',submittedAt,updatedAt,
+  ...patch
+ };
+ if(hasRealisticAcceptance(index)){
+  const deliveryCopy=businessAcceptanceCopy(task,row);
+  if(!Object.hasOwn(patch,'acceptanceSummary'))row.acceptanceSummary=deliveryCopy.acceptanceSummary;
+  if(!Object.hasOwn(patch,'acceptanceIssues'))row.acceptanceIssues=deliveryCopy.acceptanceIssues;
+  if(!Object.hasOwn(patch,'acceptanceImprovementSuggestions')){
+   row.acceptanceImprovementSuggestions=[deliveryCopy.acceptanceImprovementSuggestions];
+  }
+  if(!Object.hasOwn(patch,'manualSubmissionDescription')){
+   row.manualSubmissionDescription=deliveryCopy.manualSubmissionDescription;
+  }
+ }
  if(row.status==='running')Object.assign(row,{acceptanceStatus:'未提交',currentNode:'任务执行中',progress:'执行中'});
  if(row.status==='completed')Object.assign(row,{acceptanceStatus:'验收通过',acceptanceResult:'验收通过',currentNode:'验收完成',progress:'已完成'});
  if(row.status==='terminated')Object.assign(row,{acceptanceStatus:'验收不通过',acceptanceResult:'验收不通过',currentNode:'验收结束',progress:'未通过'});
  return row;
 }
-export function businessAcceptanceRecord(index,patch={}){const row=businessExecutionRecord(index,patch);return row?{...row,manualSubmissionNo:row.reviewSource==='USER_MANUAL'?1:undefined,manualSubmissionDescription:row.reviewSource==='USER_MANUAL'?'用户按任务要求上传交付文件，等待平台人工审核。':undefined}:null;}
+export function businessAcceptanceRecord(index,patch={}){
+ const row=businessExecutionRecord(index,patch);
+ return row?{
+  ...row,
+  manualSubmissionNo:row.reviewSource==='USER_MANUAL'?1:undefined,
+  manualSubmissionDescription:row.reviewSource==='USER_MANUAL'
+   ? hasRealisticAcceptance(index)
+    ? row.manualSubmissionDescription
+    : '用户按任务要求上传交付文件，等待平台人工审核。'
+   : undefined
+ }:null;
+}
 const appealExecutionIndexes=executionBlueprints.slice(1).filter(item=>item.deliveryMode==='USER_MANUAL'&&hash(item.index,90)%23===0).map(item=>item.index);
 export const businessAppealCount=appealExecutionIndexes.length;
 export function businessAppealRecord(position,patch={}){
@@ -170,7 +225,7 @@ export function businessAppealDetail(id,patch={}){const match=/^demo:business-ap
 export function businessExecutionSubmission(id){
  const match=/^demo:business-execution:(\d+)$/.exec(id??''),row=match?businessAcceptanceRecord(Number(match[1])):null;if(!row)return null;
  const taskMatch=/^demo:business-task:(\d+)$/.exec(row.taskId),task=taskMatch?businessTaskRecord(Number(taskMatch[1])):null;
- return task?buildBusinessExecutionSubmission(task,row):null;
+ return task?buildBusinessExecutionSubmission(task,row,{realistic:hasRealisticAcceptance(row.executionIndex)}):null;
 }
 
 export const weeklyBusinessFacts=Object.freeze(rawWeeks.map((raw,weekIndex)=>{

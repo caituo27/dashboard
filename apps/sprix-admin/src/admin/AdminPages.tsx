@@ -618,10 +618,10 @@ export function AdminAcceptanceCenter() {
     <>
       <PageHeader
         title="平台验收中心"
-        subtitle="统一查看 Agent 自动交付与用户人工上传记录；当前记录均等待平台审核，相关费用按待结算口径统计。"
+        subtitle="集中复核 Agent 交付与用户补充材料；当前列表仅展示待平台复核记录，相关费用按待结算口径统计。"
       />
       <div className="mb-4 grid gap-3 md:grid-cols-3">
-        <MetricCard title="验收记录" value={acceptanceQuery.data?.total ?? 0} icon={<ShieldCheck size={19} />} />
+        <MetricCard title="待复核记录" value={acceptanceQuery.data?.total ?? 0} icon={<ShieldCheck size={19} />} />
         <MetricCard title="涉及任务" value={taskCount} icon={<ClipboardList size={19} />} />
         <MetricCard title="Agent 数量" value={agentCount} />
       </div>
@@ -685,9 +685,11 @@ export function AdminAcceptanceDetail() {
         <Surface className="mb-4 p-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h3 className="sprix-section-title">审核操作</h3>
+              <h3 className="sprix-section-title">平台复核</h3>
               <p className="mt-1 text-sm text-ink-soft">
-                {record.reviewSource === "USER_MANUAL" ? "本次为用户人工补交，不执行自动验收或 Agent 评估。" : "确认该执行结果是否满足任务交付和验收要求。"}
+                {record.reviewSource === "USER_MANUAL"
+                  ? "请结合原始 Agent 交付、本地质检记录和用户补充材料给出平台结论。"
+                  : "请结合任务要求、交付文件和 Agent 本地质检结果完成平台复核。"}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -771,7 +773,10 @@ export function AdminTaskExecutionResultDetail() {
     reviewActions={reviewingRecord ? (
       <Surface className="mb-4 p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div><h3 className="sprix-section-title">审核操作</h3><p className="mt-1 text-sm text-ink-soft">确认该执行结果是否满足任务交付和验收要求。</p></div>
+          <div>
+            <h3 className="sprix-section-title">平台复核</h3>
+            <p className="mt-1 text-sm text-ink-soft">请结合任务要求、交付文件和 Agent 本地质检结果完成平台复核。</p>
+          </div>
           <div className="flex gap-2"><ActionButton onClick={()=>approveAcceptanceReview(reviewingRecord)}>通过</ActionButton><SecondaryButton danger onClick={()=>rejectAcceptanceReview(reviewingRecord)}>不通过</SecondaryButton></div>
         </div>
       </Surface>
@@ -803,7 +808,7 @@ function AcceptanceResultDetail({
     acceptance?.failureReasons,
     record.acceptanceFailureReasons
   );
-  const unmetGoalItems = issueItems.length > 0
+  const reviewFindingItems = issueItems.length > 0
     ? issueItems
     : failureReasonItems.length > 0
       ? failureReasonItems
@@ -813,7 +818,9 @@ function AcceptanceResultDetail({
     record.acceptanceImprovementSuggestions
   );
   const manualSubmissions = executionResult?.manualSubmissions ?? [];
-  const reviewStatus = record.reviewSource === "USER_MANUAL" ? "待人工审核" : record.acceptanceStatus;
+  const localQualityStatus = String(acceptance?.status ?? "").toUpperCase();
+  const localQualityFailed = failureReasonItems.length > 0 || /FAIL|REJECT/.test(localQualityStatus);
+  const reviewStatus = record.reviewSource === "USER_MANUAL" ? "待平台复核" : record.acceptanceStatus;
   const reviewStatusDotClass = reviewStatus.includes("失败") || reviewStatus.includes("未通过")
     ? "bg-red-500"
     : reviewStatus.includes("待")
@@ -825,7 +832,7 @@ function AcceptanceResultDetail({
     try {
       await downloadAdminExecutionFile(downloadUrl, filename);
     } catch (error) {
-      showRequestError(error, "提交产物下载失败");
+      showRequestError(error, "交付文件下载失败");
     }
   };
   const downloadArtifact = (artifact: AdminExecutionResult["artifacts"][number]) =>
@@ -835,7 +842,7 @@ function AcceptanceResultDetail({
       <AdminDetailHeading title={record.taskTitle || "验收详情"} onBack={onBack} />
       <div className="mb-4 grid gap-3 md:grid-cols-4">
         <MetricCard
-          title="审核状态"
+          title="平台复核状态"
           value={(
             <span className="inline-flex items-center gap-2 text-[17px] font-semibold leading-6 text-ink">
               <span className={`size-2 shrink-0 rounded-full ${reviewStatusDotClass}`} aria-hidden="true" />
@@ -844,7 +851,11 @@ function AcceptanceResultDetail({
           )}
           icon={<ShieldCheck size={19} />}
         />
-        <MetricCard title="审核来源" value={<span className="text-lg">{record.reviewSource === "USER_MANUAL" ? "用户人工补交" : "Agent 自动交付"}</span>} icon={<Gauge size={19} />} />
+        <MetricCard
+          title="提交来源"
+          value={<span className="text-lg">{record.reviewSource === "USER_MANUAL" ? "用户补充材料" : "Agent 交付"}</span>}
+          icon={<Gauge size={19} />}
+        />
         <MetricCard title="执行 Agent" value={<span className="text-lg">{record.agentName}</span>} icon={<Bot size={19} />} />
         <MetricCard title="当前节点" value={<span className="text-lg">{record.currentNode}</span>} icon={<Route size={19} />} />
       </div>
@@ -852,15 +863,15 @@ function AcceptanceResultDetail({
       {manualSubmissions.length > 0 && (
         <Surface className="mb-4 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="sprix-section-title">用户人工补交</h3>
-            <SoftTag tone="amber">不触发自动验收与 Agent 评估</SoftTag>
+            <h3 className="sprix-section-title">用户补充材料</h3>
+            <SoftTag tone="amber">待平台复核</SoftTag>
           </div>
           <div className="mt-4 space-y-3">
             {manualSubmissions.map((submission) => (
               <div key={submission.submissionId} className="rounded-xl border border-line bg-[#fafafa] p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <strong className="text-sm text-ink">第 {submission.submissionNo} 次人工补交</strong>
+                    <strong className="text-sm text-ink">第 {submission.submissionNo} 次补充提交</strong>
                     <StatusTag status={manualSubmissionStatusLabel(submission.status)} />
                   </div>
                   <span className="text-xs text-ink-soft">{formatAdminDateTime(submission.submittedAt)}</span>
@@ -872,7 +883,7 @@ function AcceptanceResultDetail({
                     <div key={file.id ?? file.fileId} className="flex items-center justify-between gap-3 rounded-lg border border-line bg-white px-3 py-3">
                       <div className="min-w-0">
                         <div className="truncate text-sm font-medium text-ink" title={file.filename}>{file.filename}</div>
-                        <div className="text-xs text-ink-soft">人工上传 · {formatFileSize(file.sizeBytes)}</div>
+                        <div className="text-xs text-ink-soft">用户补充 · {formatFileSize(file.sizeBytes)}</div>
                       </div>
                       <Button size="small" type="link" icon={<Download size={15} />} onClick={() => void downloadResultFile(file.downloadUrl, file.filename)}>下载</Button>
                     </div>
@@ -885,11 +896,11 @@ function AcceptanceResultDetail({
       )}
       <Surface className="mb-4 overflow-hidden p-0">
         <div className="border-b border-line px-5 py-4">
-          <h3 className="sprix-section-title">{manualSubmissions.length > 0 ? "原 Agent 提交结果" : "Agent 提交结果"}</h3>
+          <h3 className="sprix-section-title">{manualSubmissions.length > 0 ? "原始 Agent 交付" : "Agent 交付内容"}</h3>
           <p className="mt-1 text-sm text-ink-soft">
             {manualSubmissions.length > 0
-              ? "查看人工补交前的 Agent Token 用量、最终说明和原始交付文件。"
-              : "查看 Agent 的 Token 用量、最终说明和交付文件。"}
+              ? "核对原始交付的 Token 用量、提交说明和文件，并与用户补充材料对照复核。"
+              : "查看 Agent 本次提交的 Token 用量、提交说明和交付文件。"}
           </p>
         </div>
         {executionResultQuery.isLoading ? (
@@ -913,7 +924,7 @@ function AcceptanceResultDetail({
             <LongTextBlock title="最终提交说明" body={executionResult?.output?.finalMessage || "-"} plain />
             <div className="mt-5 border-t border-line pt-5">
               <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-semibold text-ink">提交产物</div>
+                <div className="text-sm font-semibold text-ink">交付文件</div>
                 <SoftTag tone="neutral">{executionResult?.artifacts.length ?? 0} 个文件</SoftTag>
               </div>
               {executionResult?.artifacts.length ? (
@@ -934,7 +945,7 @@ function AcceptanceResultDetail({
                   ))}
                 </div>
               ) : (
-                <p className="mt-2 text-sm text-ink-soft">暂无提交产物</p>
+                <p className="mt-2 text-sm text-ink-soft">暂无交付文件</p>
               )}
             </div>
           </div>
@@ -957,21 +968,25 @@ function AcceptanceResultDetail({
           />
         </Surface>
         <Surface className="p-4">
-          <h3 className="sprix-section-title">{manualSubmissions.length > 0 ? "历史自动验收结果" : "验收结果"}</h3>
-          {manualSubmissions.length > 0 && <p className="mt-2 text-sm text-ink-soft">以下结果来自 Agent 原始交付，仅用于历史追溯，不代表本次人工补交的验收结果。</p>}
-          <LongTextBlock title="验收摘要" body={acceptance?.summary || record.acceptanceSummary} />
+          <h3 className="sprix-section-title">{manualSubmissions.length > 0 ? "原始 Agent 本地质检记录" : "Agent 本地质检结果"}</h3>
+          {manualSubmissions.length > 0 && (
+            <p className="mt-2 text-sm text-ink-soft">
+              以下记录对应原始 Agent 交付；平台复核时需同时核对用户补充材料。
+            </p>
+          )}
+          <LongTextBlock title="质检结论" body={acceptance?.summary || record.acceptanceSummary} />
           <AcceptanceListBlock
-            title="未满足交付目标"
-            items={unmetGoalItems}
-            countLabel="项问题"
-            emptyText="未发现未满足的交付目标"
-            tone="danger"
+            title={localQualityFailed ? "未通过项" : "平台复核关注项"}
+            items={reviewFindingItems}
+            countLabel={localQualityFailed ? "项问题" : "项关注"}
+            emptyText={localQualityFailed ? "未记录具体未通过项" : "本地质检未发现额外关注项"}
+            tone={localQualityFailed ? "danger" : "warning"}
           />
           <AcceptanceListBlock
-            title="改进建议"
+            title="复核建议"
             items={improvementItems}
             countLabel="项建议"
-            emptyText="暂无改进建议"
+            emptyText="暂无额外复核建议"
             tone="success"
           />
         </Surface>
@@ -1061,25 +1076,32 @@ function AcceptanceListBlock({
   items: string[];
   countLabel: string;
   emptyText: string;
-  tone: "danger" | "success";
+  tone: "danger" | "warning" | "success";
 }) {
-  const toneClasses = tone === "danger"
-    ? {
-        container: "border-[#f4d7d7] bg-[#fff8f8]",
-        title: "text-[#a83c3c]",
-        marker: "marker:text-[#c84b4b]"
-      }
-    : {
-        container: "border-[#cfe9df] bg-[#f6fbf9]",
-        title: "text-[#287866]",
-        marker: "marker:text-[#3b9b82]"
-      };
+  const toneClasses = {
+    danger: {
+      container: "border-[#f4d7d7] bg-[#fff8f8]",
+      title: "text-[#a83c3c]",
+      marker: "marker:text-[#c84b4b]"
+    },
+    warning: {
+      container: "border-[#efdcae] bg-[#fffbf2]",
+      title: "text-[#91631b]",
+      marker: "marker:text-[#c58a2c]"
+    },
+    success: {
+      container: "border-[#cfe9df] bg-[#f6fbf9]",
+      title: "text-[#287866]",
+      marker: "marker:text-[#3b9b82]"
+    }
+  }[tone];
+  const tagTone = tone === "danger" ? "red" : tone === "warning" ? "amber" : "teal";
 
   return (
     <section className={`mt-4 rounded-xl border px-4 py-3.5 ${toneClasses.container}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h4 className={`text-sm font-semibold ${toneClasses.title}`}>{title}</h4>
-        <SoftTag tone={tone === "danger" ? "red" : "teal"}>{items.length} {countLabel}</SoftTag>
+        <SoftTag tone={tagTone}>{items.length} {countLabel}</SoftTag>
       </div>
       {items.length > 0 ? (
         <ul className={`mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-ink-soft ${toneClasses.marker}`}>
@@ -1169,21 +1191,21 @@ function AcceptanceReviewTable({
     { title: "手机号", dataIndex: "phone", width: 190, render: (value, record) => <PhoneNumber value={value} virtualValue={record.virtualPhone} copyable /> },
     { title: "执行 Agent", dataIndex: "agentName", width: 180, render: (value) => <EllipsisCell value={value} /> },
     { title: "Agent 评分", dataIndex: "agentScore", width: 110, align: "right" },
-    { title: "审核来源", dataIndex: "reviewSource", width: 165, render: (value) => <SoftTag tone={value === "USER_MANUAL" ? "amber" : "neutral"}>{value === "USER_MANUAL" ? "用户人工补交" : "Agent 自动交付"}</SoftTag> },
+    { title: "提交来源", dataIndex: "reviewSource", width: 165, render: (value) => <SoftTag tone={value === "USER_MANUAL" ? "amber" : "neutral"}>{value === "USER_MANUAL" ? "用户补充材料" : "Agent 交付"}</SoftTag> },
     {
-      title: "补交信息",
+      title: "补充信息",
       width: 220,
       render: (_, record) => record.reviewSource === "USER_MANUAL" ? (
         <div className="min-w-0">
-          <div className="text-sm text-ink">第 {record.manualSubmissionNo ?? "-"} 次补交</div>
-          <EllipsisText className="mt-1 text-xs text-ink-soft">{record.manualSubmissionDescription || "未填写补交说明"}</EllipsisText>
+          <div className="text-sm text-ink">第 {record.manualSubmissionNo ?? "-"} 次补充</div>
+          <EllipsisText className="mt-1 text-xs text-ink-soft">{record.manualSubmissionDescription || "未填写补充说明"}</EllipsisText>
         </div>
       ) : <span className="text-ink-soft">-</span>
     },
-    { title: "验收状态", dataIndex: "acceptanceStatus", width: 155, render: (value) => <StatusTag status={value} /> },
-    { title: "任务验收分", dataIndex: "acceptanceScore", width: 120 },
-    { title: "验收摘要", dataIndex: "acceptanceSummary", width: 320, render: (value) => <EllipsisCell value={value} /> },
-    { title: "问题记录", dataIndex: "acceptanceIssues", width: 320, render: (value) => <EllipsisCell value={value} /> },
+    { title: "平台复核状态", dataIndex: "acceptanceStatus", width: 155, render: (value) => <StatusTag status={value} /> },
+    { title: "本地质检分", dataIndex: "acceptanceScore", width: 120 },
+    { title: "质检结论", dataIndex: "acceptanceSummary", width: 320, render: (value) => <EllipsisCell value={value} /> },
+    { title: "复核关注项", dataIndex: "acceptanceIssues", width: 320, render: (value) => <EllipsisCell value={value} /> },
     { title: "当前节点", dataIndex: "currentNode", width: 150, render: (value) => <EllipsisCell value={value} /> },
     { title: "当前进度", dataIndex: "progress", width: 120, align: "right" },
     { title: "提交时间", dataIndex: "submittedAt", width: 190, className: "whitespace-nowrap tabular-nums" },
